@@ -16,5 +16,15 @@ class TestIntroduceAssertion(RefactoringTestBase):
         self.refactor(
             "introduce-assertion",
             target="get_expense_limit#L3",
-            condition="project.expense_limit is not None or project.primary_project is not None"
+            condition="project.expense_limit is not None or project.primary_project is not None",
+            message="Project must have expense limit or primary project"
+        )
+
+    def test_simple_condition(self):
+        """Insert assert with simple condition (x != 0)."""
+        self.refactor(
+            "introduce-assertion",
+            target="divide#L2",
+            condition="b != 0",
+            message="b must not be zero"
         )

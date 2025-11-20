@@ -11,17 +11,19 @@ from molting.core.refactoring_base import RefactoringBase
 class IntroduceAssertion(RefactoringBase):
     """Make assumptions explicit with assertions using libcst for AST transformation."""
 
-    def __init__(self, file_path: str, target: str, condition: str):
+    def __init__(self, file_path: str, target: str, condition: str, message: Optional[str] = None):
         """Initialize the IntroduceAssertion refactoring.
 
         Args:
             file_path: Path to the Python file to refactor
             target: Target specification (e.g., "function_name#L10")
             condition: The assertion condition as a string
+            message: Optional assertion message (defaults to auto-generated)
         """
         self.file_path = Path(file_path)
         self.target = target
         self.condition = condition
+        self.message = message
         self.source = self.file_path.read_text()
         self._parse_target()
 
@@ -62,6 +64,7 @@ class IntroduceAssertion(RefactoringBase):
             function_name=self.function_name,
             line_number=self.line_number,
             condition=self.condition,
+            message=self.message,
             source_lines=source.split('\n')
         )
         modified_tree = tree.visit(transformer)
@@ -84,18 +87,20 @@ class IntroduceAssertion(RefactoringBase):
 class AssertionTransformer(cst.CSTTransformer):
     """Transform CST to insert assertion statements."""
 
-    def __init__(self, function_name: str, line_number: int, condition: str, source_lines: list):
+    def __init__(self, function_name: str, line_number: int, condition: str, message: Optional[str], source_lines: list):
         """Initialize the transformer.
 
         Args:
             function_name: Name of the function to modify
             line_number: Line number to insert assertion before
             condition: The assertion condition
+            message: Optional assertion message
             source_lines: Original source code split by lines
         """
         self.function_name = function_name
         self.line_number = line_number
         self.condition = condition
+        self.message = message
         self.source_lines = source_lines
         self.current_line = 1
         self.modified = False
@@ -136,12 +141,19 @@ class AssertionTransformer(cst.CSTTransformer):
             # If it fails, treat it as a simple expression
             condition_expr = cst.parse_expression(self.condition)
 
+        # Determine the message
+        if self.message:
+            message_str = self.message
+        else:
+            # Generate a default message based on the condition
+            message_str = f"{self.condition.replace('not None', 'provided').replace('!= 0', 'not zero').replace('!= None', 'not None')}"
+
         # Create assertion with message
         assert_stmt = cst.SimpleStatementLine(
             body=[
                 cst.Assert(
                     test=condition_expr,
-                    msg=cst.SimpleString('"Project must have expense limit or primary project"')
+                    msg=cst.SimpleString(f'"{message_str}"')
                 )
             ]
         )

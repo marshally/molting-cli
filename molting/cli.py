@@ -97,7 +97,8 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
     elif refactoring_name == "introduce-assertion":
         target = kwargs.get("target")
         condition = kwargs.get("condition")
-        refactor = IntroduceAssertion(file_path, target, condition)
+        message = kwargs.get("message")
+        refactor = IntroduceAssertion(file_path, target, condition, message)
         refactored_code = refactor.apply(refactor.source)
         Path(file_path).write_text(refactored_code)
     else:
