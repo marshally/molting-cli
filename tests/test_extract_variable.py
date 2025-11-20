@@ -57,3 +57,25 @@ class TestExtractVariableComplex(RefactoringTestBase):
             target="Calculator::compute_discount#L4",
             variable_name="adjusted_price"
         )
+
+
+class TestExtractVariableErrorHandling(RefactoringTestBase):
+    """Tests for error handling in extract variable refactoring."""
+    fixture_category = "composing_methods/extract_variable"
+
+    def test_invalid_target_no_line_range(self):
+        """Test error when target doesn't contain line range."""
+        import pytest
+
+        # Create a simple test file
+        test_file = self.tmp_path / "input.py"
+        test_file.write_text("""
+def foo():
+    x = 5
+    return x
+""")
+
+        with pytest.raises(ValueError, match="does not contain line range"):
+            from molting.refactorings.composing_methods.extract_variable import ExtractVariable
+            refactor = ExtractVariable(str(test_file), "foo", "result")
+            refactor.apply(test_file.read_text())
