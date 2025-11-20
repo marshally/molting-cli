@@ -115,3 +115,38 @@ class TestRemoveAssignmentsToParametersInvalidTarget:
             finally:
                 import os
                 os.unlink(f.name)
+
+
+class TestRemoveAssignmentsToParametersCLI:
+    """Test CLI command integration."""
+
+    def test_remove_assignments_to_parameters_command_exists(self):
+        """Test that the remove-assignments-to-parameters command is registered."""
+        from molting.cli import REFACTORING_REGISTRY
+
+        assert "remove-assignments-to-parameters" in REFACTORING_REGISTRY
+
+    def test_remove_assignments_to_parameters_via_cli(self):
+        """Test running remove-assignments-to-parameters via CLI command."""
+        from molting.cli import main
+        from click.testing import CliRunner
+        import tempfile
+        from pathlib import Path
+
+        test_code = """def test_func(val):
+    val -= 5
+    return val
+"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            test_file = Path(tmp_dir) / "test.py"
+            test_file.write_text(test_code)
+
+            runner = CliRunner()
+            result = runner.invoke(main, ["remove-assignments-to-parameters", str(test_file), "test_func"])
+
+            assert result.exit_code == 0
+            # Verify file was modified
+            result_code = test_file.read_text()
+            assert "result = val" in result_code
+            assert "result -= 5" in result_code
+            assert "return result" in result_code
