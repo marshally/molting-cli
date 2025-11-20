@@ -23,7 +23,7 @@ class TestRenameMethod(RefactoringTestBase):
     """Tests for renaming class methods."""
     fixture_category = "composing_methods/rename"
 
-    def test_simple(self):
+    def test_class_method(self):
         """Rename a class method."""
         self.refactor(
             "rename",
