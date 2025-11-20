@@ -30,3 +30,16 @@ class TestRenameMethod(RefactoringTestBase):
             target="Calculator::add_numbers",
             new_name="calculate_sum"
         )
+
+
+class TestRenameClass(RefactoringTestBase):
+    """Tests for renaming classes."""
+    fixture_category = "composing_methods/rename"
+
+    def test_rename_class_simple(self):
+        """Rename a class."""
+        self.refactor(
+            "rename",
+            target="Calculator",
+            new_name="MathEngine"
+        )
