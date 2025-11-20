@@ -33,6 +33,7 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
     from molting.refactorings.moving_features.move_method import MoveMethod
     from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
     from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
+    from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
 
     if refactoring_name == "rename":
         target = kwargs.get("target")
@@ -76,6 +77,13 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
     elif refactoring_name == "replace-constructor-with-factory-function":
         target = kwargs.get("target")
         refactor = ReplaceConstructorWithFactoryFunction(file_path, target)
+        refactored_code = refactor.apply(refactor.source)
+        Path(file_path).write_text(refactored_code)
+    elif refactoring_name == "introduce-parameter":
+        target = kwargs.get("target")
+        name = kwargs.get("name")
+        default = kwargs.get("default")
+        refactor = IntroduceParameter(file_path, target, name, default)
         refactored_code = refactor.apply(refactor.source)
         Path(file_path).write_text(refactored_code)
     else:
