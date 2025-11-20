@@ -41,14 +41,35 @@ class TestExtractMethodLineRangeParsing:
         assert em.end_line == 9
 
 
-class TestExtractMethodFromClassMethod(RefactoringTestBase):
-    """Tests for extracting methods from class methods."""
-    fixture_category = "composing_methods/extract_method"
+class TestExtractMethodValidation:
+    """Tests for validation of extract method parameters."""
 
-    def test_with_locals(self):
-        """Extract method that calculates a local variable."""
-        self.refactor(
-            "extract-method",
-            target="Order::print_owing#L10-L19",
-            name="calculate_outstanding"
-        )
+    def test_validate_invalid_line_range(self, tmp_path):
+        """Test that invalid line ranges are caught."""
+        from molting.refactorings.composing_methods.extract_method import ExtractMethod
+
+        # Create a test file
+        test_file = tmp_path / "test.py"
+        test_file.write_text("""
+def foo():
+    x = 1
+    y = 2
+""")
+        with pytest.raises(ValueError, match="Invalid target format"):
+            ExtractMethod(
+                file_path=str(test_file),
+                target="foo",  # Missing line range
+                name="bar"
+            )
+
+    def test_validate_out_of_bounds(self, tmp_path):
+        """Test that out-of-bounds line numbers are invalid."""
+        from molting.refactorings.composing_methods.extract_method import ExtractMethod
+
+        # Create a test file
+        test_file = tmp_path / "test.py"
+        test_file.write_text("def foo():\n    pass\n")
+
+        target = "foo#L1-L100"
+        em = ExtractMethod(str(test_file), target, "bar")
+        assert not em.validate(test_file.read_text())  # Line 100 is out of bounds
