@@ -44,3 +44,16 @@ class TestExtractVariableSimple(RefactoringTestBase):
             target="calculate_total#L2",
             variable_name="tax_amount"
         )
+
+
+class TestExtractVariableComplex(RefactoringTestBase):
+    """Tests for extracting complex expressions into variables."""
+    fixture_category = "composing_methods/extract_variable"
+
+    def test_complex(self):
+        """Extract a complex expression with multiple operations."""
+        self.refactor(
+            "extract-variable",
+            target="Calculator::compute_discount#L4",
+            variable_name="adjusted_price"
+        )
