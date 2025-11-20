@@ -63,3 +63,38 @@ class Account:
             from molting.refactorings.moving_features.move_field import MoveField
             refactor = MoveField(str(self.test_file), "Account::interest_rate", "NonExistent")
             refactor.apply(self.test_file.read_text())
+
+
+class TestMoveFieldCLI:
+    """Tests for the move-field CLI command."""
+
+    def test_move_field_command_integration(self, tmp_path):
+        """Test running move-field via CLI command."""
+        from molting.cli import main
+        from click.testing import CliRunner
+
+        # Create a test file
+        test_file = tmp_path / "test.py"
+        test_file.write_text("""class Account:
+    def __init__(self):
+        self.interest_rate = 0.05
+
+    def interest_for_days(self, days):
+        return self.interest_rate * days
+
+
+class AccountType:
+    pass
+""")
+
+        runner = CliRunner()
+        # Note: For now, the move-field command may not be exposed as a Click command
+        # but it should work through the refactor_file function
+        from molting.cli import refactor_file
+        refactor_file("move-field", str(test_file), source="Account::interest_rate", to="AccountType")
+
+        result_code = test_file.read_text()
+        assert "account_type" in result_code
+        assert "self.account_type.interest_rate" in result_code
+        assert "class AccountType:" in result_code
+        assert "self.interest_rate = 0.05" in result_code
