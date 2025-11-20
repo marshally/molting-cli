@@ -35,6 +35,7 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
     from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
     from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
     from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
+    from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
 
     if refactoring_name == "rename":
         target = kwargs.get("target")
@@ -91,6 +92,12 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
         name = kwargs.get("name")
         default = kwargs.get("default")
         refactor = IntroduceParameter(file_path, target, name, default)
+        refactored_code = refactor.apply(refactor.source)
+        Path(file_path).write_text(refactored_code)
+    elif refactoring_name == "introduce-assertion":
+        target = kwargs.get("target")
+        condition = kwargs.get("condition")
+        refactor = IntroduceAssertion(file_path, target, condition)
         refactored_code = refactor.apply(refactor.source)
         Path(file_path).write_text(refactored_code)
     else:
