@@ -120,3 +120,61 @@ class TestSplitTemporaryVariableParsing:
             assert ast.dump(ast.parse(result)) == ast.dump(ast.parse(expected))
         finally:
             Path(temp_file).unlink()
+
+    def test_split_class_method_target(self):
+        """Split a temp variable in a class method."""
+        from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
+
+        source = """class Calculator:
+    def calculate(self, a, b):
+        temp = a + b
+        print(temp)
+        temp = a * b
+        return temp
+"""
+        expected = """class Calculator:
+    def calculate(self, a, b):
+        temp = a + b
+        print(temp)
+        temp_2 = a * b
+        return temp_2
+"""
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(source)
+            temp_file = f.name
+
+        try:
+            refactor = SplitTemporaryVariable(temp_file, "Calculator::calculate::temp")
+            result = refactor.apply(source)
+
+            # Compare by parsing both as AST to ignore formatting differences
+            import ast
+            assert ast.dump(ast.parse(result)) == ast.dump(ast.parse(expected))
+        finally:
+            Path(temp_file).unlink()
+
+    def test_invalid_target_format(self):
+        """Reject invalid target formats."""
+        from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
+        import pytest
+
+        source = """def calculate(a, b):
+    temp = a + b
+    return temp
+"""
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(source)
+            temp_file = f.name
+
+        try:
+            # Missing variable name
+            with pytest.raises(ValueError, match="Invalid target format"):
+                SplitTemporaryVariable(temp_file, "calculate")
+
+            # Too many separators without proper class/method structure
+            with pytest.raises(ValueError, match="Invalid target format"):
+                SplitTemporaryVariable(temp_file, "too::many::parts::here")
+        finally:
+            Path(temp_file).unlink()
