@@ -25,6 +25,7 @@ from molting.refactorings.simplifying_conditionals.introduce_assertion import In
 from molting.refactorings.simplifying_conditionals.decompose_conditional import DecomposeConditional
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import RemoveAssignmentsToParameters
 from molting.refactorings.simplifying_conditionals.remove_control_flag import RemoveControlFlag
+from molting.refactorings.simplifying_conditionals.replace_nested_conditional_with_guard_clauses import ReplaceNestedConditionalWithGuardClauses
 
 
 # Registry mapping refactoring names to (class, param_names)
@@ -46,6 +47,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "decompose-conditional": (DecomposeConditional, ["target"]),
     "remove-assignments-to-parameters": (RemoveAssignmentsToParameters, ["target"]),
     "remove-control-flag": (RemoveControlFlag, ["target"]),
+    "replace-nested-conditional-with-guard-clauses": (ReplaceNestedConditionalWithGuardClauses, ["target"]),
 }
 
 
@@ -267,3 +269,17 @@ def remove_control_flag(file_path: str, target: str) -> None:
     """
     refactor_file("remove-control-flag", file_path, target=target)
     click.echo(f"✓ Removed control flag in '{target}' in {file_path}")
+
+
+@main.command(name="replace-nested-conditional-with-guard-clauses")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+def replace_nested_conditional_with_guard_clauses(file_path: str, target: str) -> None:
+    """Replace nested conditionals with guard clauses using early returns.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target function with line number (e.g., "function_name#L2" or "ClassName::method_name#L3")
+    """
+    refactor_file("replace-nested-conditional-with-guard-clauses", file_path, target=target)
+    click.echo(f"✓ Replaced nested conditional with guard clauses in '{target}' in {file_path}")
