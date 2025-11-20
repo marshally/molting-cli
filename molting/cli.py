@@ -27,7 +27,11 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
     """
     from molting.refactorings.composing_methods.rename import Rename
     from molting.refactorings.composing_methods.inline_method import InlineMethod
+    from molting.refactorings.composing_methods.inline_temp import InlineTemp
+    from molting.refactorings.composing_methods.extract_method import ExtractMethod
+    from molting.refactorings.composing_methods.extract_variable import ExtractVariable
     from molting.refactorings.moving_features.move_method import MoveMethod
+    from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
 
     if refactoring_name == "rename":
         target = kwargs.get("target")
@@ -35,15 +39,37 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
         refactor = Rename(file_path, target, new_name)
         refactored_code = refactor.apply(refactor.source)
         Path(file_path).write_text(refactored_code)
+    elif refactoring_name == "extract-method":
+        target = kwargs.get("target")
+        name = kwargs.get("name")
+        refactor = ExtractMethod(file_path, target, name)
+        refactored_code = refactor.apply(refactor.source)
+        Path(file_path).write_text(refactored_code)
     elif refactoring_name == "inline":
         target = kwargs.get("target")
         refactor = InlineMethod(file_path, target)
+        refactored_code = refactor.apply(refactor.source)
+        Path(file_path).write_text(refactored_code)
+    elif refactoring_name == "inline-temp":
+        target = kwargs.get("target")
+        refactor = InlineTemp(file_path, target)
+        refactored_code = refactor.apply(refactor.source)
+        Path(file_path).write_text(refactored_code)
+    elif refactoring_name == "extract-variable":
+        target = kwargs.get("target")
+        variable_name = kwargs.get("variable_name")
+        refactor = ExtractVariable(file_path, target, variable_name)
         refactored_code = refactor.apply(refactor.source)
         Path(file_path).write_text(refactored_code)
     elif refactoring_name == "move-method":
         source = kwargs.get("source")
         to = kwargs.get("to")
         refactor = MoveMethod(file_path, source, to)
+        refactored_code = refactor.apply(refactor.source)
+        Path(file_path).write_text(refactored_code)
+    elif refactoring_name == "encapsulate-field":
+        target = kwargs.get("target")
+        refactor = EncapsulateField(file_path, target)
         refactored_code = refactor.apply(refactor.source)
         Path(file_path).write_text(refactored_code)
     else:

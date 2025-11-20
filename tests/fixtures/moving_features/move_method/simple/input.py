@@ -1,5 +1,5 @@
 class Account:
-    def __init__(self, account_type):
+    def __init__(self, account_type: 'AccountType'):
         self.account_type = account_type
         self.days_overdrawn = 0
 

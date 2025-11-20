@@ -63,10 +63,22 @@ class ExtractMethod(RefactoringBase):
             # Get the resource for the file
             resource = project.get_file(self.file_path.name)
 
-            # Calculate the offset based on line range
+            # Calculate byte offsets from line numbers
+            # Lines in rope are 1-indexed, so line 9 is at index 8
             lines = source.split('\n')
-            start_offset = sum(len(lines[i]) + 1 for i in range(self.start_line - 1))
-            end_offset = sum(len(lines[i]) + 1 for i in range(self.end_line))
+
+            # Calculate start offset (beginning of start_line)
+            start_offset = 0
+            for i in range(self.start_line - 1):
+                start_offset += len(lines[i]) + 1  # +1 for newline
+
+            # Calculate end offset (end of end_line)
+            end_offset = start_offset
+            for i in range(self.start_line - 1, self.end_line):
+                end_offset += len(lines[i]) + 1  # +1 for newline
+
+            # Remove the extra newline for the last line
+            end_offset -= 1
 
             # Create extract method refactoring
             extract_refactor = RopeExtractMethod(

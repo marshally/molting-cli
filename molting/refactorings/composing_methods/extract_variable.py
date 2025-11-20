@@ -115,6 +115,8 @@ class ExtractVariable(RefactoringBase):
     def _get_offset_range(self, start_line: int, end_line: int) -> tuple[int, int]:
         """Get byte offsets for a line range.
 
+        For extract variable, we extract the expression (right-hand side of assignment).
+
         Args:
             start_line: Starting line number (1-indexed)
             end_line: Ending line number (1-indexed)
@@ -124,14 +126,27 @@ class ExtractVariable(RefactoringBase):
         """
         lines = self.source.split("\n")
 
-        # Calculate start offset
-        start_offset = sum(len(line) + 1 for line in lines[:start_line - 1])
+        # Calculate base offset (start of the line)
+        base_offset = sum(len(line) + 1 for line in lines[:start_line - 1])
 
-        # Calculate end offset (end of the last line)
-        end_offset = start_offset + sum(len(line) + 1 for line in lines[start_line - 1:end_line])
+        line = lines[start_line - 1]
 
-        # Adjust for the final newline
-        if end_offset > 0:
-            end_offset -= 1
+        # Find the assignment operator (=) but not ==, !=, <=, >=
+        start_pos = 0
+        for i, char in enumerate(line):
+            if char == "=":
+                # Check it's not part of ==, !=, <=, >=
+                prev_char = line[i - 1] if i > 0 else " "
+                next_char = line[i + 1] if i < len(line) - 1 else " "
+                if prev_char not in "=!<>" and next_char != "=":
+                    # Found the assignment operator
+                    start_pos = i + 1
+                    # Skip whitespace after =
+                    while start_pos < len(line) and line[start_pos] == " ":
+                        start_pos += 1
+                    break
+
+        start_offset = base_offset + start_pos
+        end_offset = base_offset + len(line)
 
         return start_offset, end_offset

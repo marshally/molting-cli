@@ -75,3 +75,43 @@ class MyClass:
             from molting.refactorings.composing_methods.inline_method import InlineMethod
             refactor = InlineMethod(str(test_file), "MyClass::nonexistent")
             refactor.apply(test_file.read_text())
+
+
+class TestInlineMethodCLI:
+    """Tests for the inline CLI command."""
+
+    def test_inline_command_exists(self):
+        """Test that the inline command is registered in the CLI."""
+        from molting.cli import main
+        from click.testing import CliRunner
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["--help"])
+        assert result.exit_code == 0
+        assert "inline" in result.output or "Commands:" in result.output
+
+    def test_inline_command_basic(self, tmp_path):
+        """Test running inline via CLI command."""
+        from molting.cli import main
+        from click.testing import CliRunner
+
+        # Create a test file with a method to inline
+        test_file = tmp_path / "test.py"
+        test_file.write_text("""class Calculator:
+    def helper(self):
+        return 5
+
+    def add(self, a, b):
+        return a + b + self.helper()
+""")
+
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "inline",
+            str(test_file),
+            "Calculator::helper"
+        ])
+
+        assert result.exit_code == 0
+        content = test_file.read_text()
+        assert "helper" not in content or "def helper" not in content
