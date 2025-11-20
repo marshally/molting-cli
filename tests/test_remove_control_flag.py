@@ -79,3 +79,42 @@ class TestRemoveControlFlagParsing:
                 RemoveControlFlag(temp_file, "function_without_flag")
         finally:
             Path(temp_file).unlink()
+
+
+class TestRemoveControlFlagSimple:
+    """Tests for simple control flag removal in loops."""
+
+    def test_remove_flag_with_break_in_loop(self):
+        """Test replacing flag assignment with break in a for loop."""
+        import tempfile
+        from molting.refactorings.simplifying_conditionals.remove_control_flag import RemoveControlFlag
+
+        source_code = """def check_security(people):
+    found = False
+    for person in people:
+        if not found:
+            if person == "Don":
+                found = True
+    return found
+"""
+
+        expected_code = """def check_security(people):
+    for person in people:
+        if person == "Don":
+            return True
+    return False
+"""
+
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(source_code)
+            temp_file = f.name
+
+        try:
+            refactor = RemoveControlFlag(temp_file, "check_security::found")
+            result = refactor.apply(source_code)
+            # Compare AST structures to ignore formatting differences
+            import ast
+            assert ast.dump(ast.parse(result)) == ast.dump(ast.parse(expected_code))
+        finally:
+            Path(temp_file).unlink()
