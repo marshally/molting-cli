@@ -31,6 +31,18 @@ class TestRemoveAssignmentsToParametersClassMethod(RefactoringTestBase):
         )
 
 
+class TestRemoveAssignmentsToParametersDirectAssignment(RefactoringTestBase):
+    """Tests for direct parameter assignments (not augmented)."""
+    fixture_category = "composing_methods/remove_assignments_to_parameters"
+
+    def test_direct_assignment(self):
+        """Remove direct assignments to a parameter."""
+        self.refactor(
+            "remove-assignments-to-parameters",
+            target="process"
+        )
+
+
 class TestRemoveAssignmentsToParametersParseTargetFunction:
     """Test parsing of function target specification."""
 
