@@ -13,6 +13,7 @@ from molting.refactorings.composing_methods.inline_method import InlineMethod
 from molting.refactorings.composing_methods.inline_temp import InlineTemp
 from molting.refactorings.composing_methods.extract_method import ExtractMethod
 from molting.refactorings.composing_methods.extract_variable import ExtractVariable
+from molting.refactorings.composing_methods.introduce_explaining_variable import IntroduceExplainingVariable
 from molting.refactorings.moving_features.move_method import MoveMethod
 from molting.refactorings.moving_features.move_field import MoveField
 from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
@@ -27,6 +28,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "rename": (Rename, ["target", "new_name"]),
     "extract-method": (ExtractMethod, ["target", "name"]),
     "extract-variable": (ExtractVariable, ["target", "variable_name"]),
+    "introduce-explaining-variable": (IntroduceExplainingVariable, ["target", "variable_name"]),
     "inline": (InlineMethod, ["target"]),
     "inline-temp": (InlineTemp, ["target"]),
     "move-method": (MoveMethod, ["source", "to"]),
@@ -159,6 +161,22 @@ def introduce_assertion(file_path: str, target: str, condition: str, message: st
     """
     refactor_file("introduce-assertion", file_path, target=target, condition=condition, message=message)
     click.echo(f"✓ Introduced assertion '{condition}' to '{target}' in {file_path}")
+
+
+@main.command(name="introduce-explaining-variable")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+@click.argument("variable_name")
+def introduce_explaining_variable(file_path: str, target: str, variable_name: str) -> None:
+    """Extract a complex expression into a named variable for improved readability.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target location with line number (e.g., "function_name#L10")
+        VARIABLE_NAME: Name for the new explaining variable
+    """
+    refactor_file("introduce-explaining-variable", file_path, target=target, variable_name=variable_name)
+    click.echo(f"✓ Introduced explaining variable '{variable_name}' at '{target}' in {file_path}")
 
 
 @main.command(name="replace-magic-number-with-symbolic-constant")
