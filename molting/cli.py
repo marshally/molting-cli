@@ -2,8 +2,39 @@
 
 import click
 from pathlib import Path
+from typing import Type, List, Tuple
 
 from molting import __version__
+from molting.core.refactoring_base import RefactoringBase
+
+# Import all refactoring classes
+from molting.refactorings.composing_methods.rename import Rename
+from molting.refactorings.composing_methods.inline_method import InlineMethod
+from molting.refactorings.composing_methods.inline_temp import InlineTemp
+from molting.refactorings.composing_methods.extract_method import ExtractMethod
+from molting.refactorings.composing_methods.extract_variable import ExtractVariable
+from molting.refactorings.moving_features.move_method import MoveMethod
+from molting.refactorings.moving_features.move_field import MoveField
+from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
+from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
+from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
+from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
+
+
+# Registry mapping refactoring names to (class, param_names)
+REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
+    "rename": (Rename, ["target", "new_name"]),
+    "extract-method": (ExtractMethod, ["target", "name"]),
+    "extract-variable": (ExtractVariable, ["target", "variable_name"]),
+    "inline": (InlineMethod, ["target"]),
+    "inline-temp": (InlineTemp, ["target"]),
+    "move-method": (MoveMethod, ["source", "to"]),
+    "move-field": (MoveField, ["source", "to"]),
+    "encapsulate-field": (EncapsulateField, ["target"]),
+    "replace-constructor-with-factory-function": (ReplaceConstructorWithFactoryFunction, ["target"]),
+    "introduce-parameter": (IntroduceParameter, ["target", "name", "default"]),
+    "introduce-assertion": (IntroduceAssertion, ["target", "condition", "message"]),
+}
 
 
 @click.group()
@@ -25,84 +56,14 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
         file_path: Path to the file to refactor
         **kwargs: Additional parameters for the refactoring
     """
-    from molting.refactorings.composing_methods.rename import Rename
-    from molting.refactorings.composing_methods.inline_method import InlineMethod
-    from molting.refactorings.composing_methods.inline_temp import InlineTemp
-    from molting.refactorings.composing_methods.extract_method import ExtractMethod
-    from molting.refactorings.composing_methods.extract_variable import ExtractVariable
-    from molting.refactorings.moving_features.move_method import MoveMethod
-    from molting.refactorings.moving_features.move_field import MoveField
-    from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
-    from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
-    from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
-    from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
-
-    if refactoring_name == "rename":
-        target = kwargs.get("target")
-        new_name = kwargs.get("new_name")
-        refactor = Rename(file_path, target, new_name)
-        refactored_code = refactor.apply(refactor.source)
-        Path(file_path).write_text(refactored_code)
-    elif refactoring_name == "extract-method":
-        target = kwargs.get("target")
-        name = kwargs.get("name")
-        refactor = ExtractMethod(file_path, target, name)
-        refactored_code = refactor.apply(refactor.source)
-        Path(file_path).write_text(refactored_code)
-    elif refactoring_name == "inline":
-        target = kwargs.get("target")
-        refactor = InlineMethod(file_path, target)
-        refactored_code = refactor.apply(refactor.source)
-        Path(file_path).write_text(refactored_code)
-    elif refactoring_name == "inline-temp":
-        target = kwargs.get("target")
-        refactor = InlineTemp(file_path, target)
-        refactored_code = refactor.apply(refactor.source)
-        Path(file_path).write_text(refactored_code)
-    elif refactoring_name == "extract-variable":
-        target = kwargs.get("target")
-        variable_name = kwargs.get("variable_name")
-        refactor = ExtractVariable(file_path, target, variable_name)
-        refactored_code = refactor.apply(refactor.source)
-        Path(file_path).write_text(refactored_code)
-    elif refactoring_name == "move-method":
-        source = kwargs.get("source")
-        to = kwargs.get("to")
-        refactor = MoveMethod(file_path, source, to)
-        refactored_code = refactor.apply(refactor.source)
-        Path(file_path).write_text(refactored_code)
-    elif refactoring_name == "move-field":
-        source = kwargs.get("source")
-        to = kwargs.get("to")
-        refactor = MoveField(file_path, source, to)
-        refactored_code = refactor.apply(refactor.source)
-        Path(file_path).write_text(refactored_code)
-    elif refactoring_name == "encapsulate-field":
-        target = kwargs.get("target")
-        refactor = EncapsulateField(file_path, target)
-        refactored_code = refactor.apply(refactor.source)
-        Path(file_path).write_text(refactored_code)
-    elif refactoring_name == "replace-constructor-with-factory-function":
-        target = kwargs.get("target")
-        refactor = ReplaceConstructorWithFactoryFunction(file_path, target)
-        refactored_code = refactor.apply(refactor.source)
-        Path(file_path).write_text(refactored_code)
-    elif refactoring_name == "introduce-parameter":
-        target = kwargs.get("target")
-        name = kwargs.get("name")
-        default = kwargs.get("default")
-        refactor = IntroduceParameter(file_path, target, name, default)
-        refactored_code = refactor.apply(refactor.source)
-        Path(file_path).write_text(refactored_code)
-    elif refactoring_name == "introduce-assertion":
-        target = kwargs.get("target")
-        condition = kwargs.get("condition")
-        message = kwargs.get("message")
-        refactor = IntroduceAssertion(file_path, target, condition, message)
-        refactored_code = refactor.apply(refactor.source)
-        Path(file_path).write_text(refactored_code)
-    else:
+    if refactoring_name not in REFACTORING_REGISTRY:
         raise ValueError(f"Unknown refactoring: {refactoring_name}")
+
+    refactor_class, param_names = REFACTORING_REGISTRY[refactoring_name]
+    params = [kwargs.get(p) for p in param_names]
+    refactor = refactor_class(file_path, *params)
+    refactored_code = refactor.apply(refactor.source)
+    Path(file_path).write_text(refactored_code)
 
 
 @main.command()
