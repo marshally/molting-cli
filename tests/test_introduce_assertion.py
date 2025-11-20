@@ -28,3 +28,12 @@ class TestIntroduceAssertion(RefactoringTestBase):
             condition="b != 0",
             message="b must not be zero"
         )
+
+    def test_complex_condition(self):
+        """Insert assert with complex condition (x > 0 and y < 100)."""
+        self.refactor(
+            "introduce-assertion",
+            target="calculate#L2",
+            condition="x > 0 and y < 100",
+            message="x must be positive and y must be less than 100"
+        )
