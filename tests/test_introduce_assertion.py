@@ -37,3 +37,25 @@ class TestIntroduceAssertion(RefactoringTestBase):
             condition="x > 0 and y < 100",
             message="x must be positive and y must be less than 100"
         )
+
+    def test_invalid_target_format(self):
+        """Test that invalid target format raises an error."""
+        import pytest
+        from pathlib import Path
+        import tempfile
+        from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
+
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write("def test_func():\n    pass\n")
+            temp_file = f.name
+
+        try:
+            with pytest.raises(ValueError, match="Invalid target format"):
+                IntroduceAssertion(
+                    temp_file,
+                    target="divide_without_line",
+                    condition="b != 0"
+                )
+        finally:
+            Path(temp_file).unlink()
