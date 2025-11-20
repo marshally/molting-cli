@@ -17,3 +17,16 @@ class TestRenameFunction(RefactoringTestBase):
             target="add_numbers",
             new_name="calculate_sum"
         )
+
+
+class TestRenameMethod(RefactoringTestBase):
+    """Tests for renaming class methods."""
+    fixture_category = "composing_methods/rename"
+
+    def test_simple(self):
+        """Rename a class method."""
+        self.refactor(
+            "rename",
+            target="Calculator::add_numbers",
+            new_name="calculate_sum"
+        )
