@@ -140,6 +140,32 @@ class TestReplaceMagicNumberErrorHandling:
             )
 
 
+class TestReplaceMagicNumberIntegerLiterals:
+    """Tests for replacing integer magic numbers."""
+
+    def test_replace_integer_magic_number(self, tmp_path):
+        """Test replacing an integer literal with a constant."""
+        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import ReplaceMagicNumberWithSymbolicConstant
+
+        test_file = tmp_path / "test.py"
+        source = "def calculate_items(quantity):\n    return quantity * 100\n"
+        test_file.write_text(source)
+
+        refactor = ReplaceMagicNumberWithSymbolicConstant(
+            str(test_file),
+            "calculate_items#L2",
+            "100",
+            "ITEMS_PER_BATCH"
+        )
+
+        result = refactor.apply(source)
+
+        # Should contain the constant declaration
+        assert "ITEMS_PER_BATCH = 100" in result
+        # Should replace the magic number with constant name
+        assert "quantity * ITEMS_PER_BATCH" in result
+
+
 class TestReplaceMagicNumberCLI:
     """Tests for the CLI integration."""
 
