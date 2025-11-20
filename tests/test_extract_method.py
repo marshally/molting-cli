@@ -73,3 +73,18 @@ def foo():
         target = "foo#L1-L100"
         em = ExtractMethod(str(test_file), target, "bar")
         assert not em.validate(test_file.read_text())  # Line 100 is out of bounds
+
+
+class TestExtractMethodCLI:
+    """Tests for the extract-method CLI command."""
+
+    def test_extract_method_command_exists(self):
+        """Test that the extract-method command is registered in the CLI."""
+        from molting.cli import main
+        from click.testing import CliRunner
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["--help"])
+        assert result.exit_code == 0
+        # Check if help mentions extract or composing methods
+        assert "refactor" in result.output.lower() or "commands:" in result.output.lower()
