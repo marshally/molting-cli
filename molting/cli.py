@@ -26,11 +26,24 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
         **kwargs: Additional parameters for the refactoring
     """
     from molting.refactorings.composing_methods.rename import Rename
+    from molting.refactorings.composing_methods.inline_method import InlineMethod
+    from molting.refactorings.moving_features.move_method import MoveMethod
 
     if refactoring_name == "rename":
         target = kwargs.get("target")
         new_name = kwargs.get("new_name")
         refactor = Rename(file_path, target, new_name)
+        refactored_code = refactor.apply(refactor.source)
+        Path(file_path).write_text(refactored_code)
+    elif refactoring_name == "inline":
+        target = kwargs.get("target")
+        refactor = InlineMethod(file_path, target)
+        refactored_code = refactor.apply(refactor.source)
+        Path(file_path).write_text(refactored_code)
+    elif refactoring_name == "move-method":
+        source = kwargs.get("source")
+        to = kwargs.get("to")
+        refactor = MoveMethod(file_path, source, to)
         refactored_code = refactor.apply(refactor.source)
         Path(file_path).write_text(refactored_code)
     else:
