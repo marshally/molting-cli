@@ -3,6 +3,7 @@
 This module tests the Rename refactoring which allows renaming
 variables, methods, classes, or modules using rope's rename capability.
 """
+from pathlib import Path
 from tests.conftest import RefactoringTestBase
 
 
@@ -77,3 +78,37 @@ def foo():
             from molting.refactorings.composing_methods.rename import Rename
             refactor = Rename(str(self.test_file), "nonexistent", "bar")
             refactor.apply(self.test_file.read_text())
+
+
+class TestRenameCLI:
+    """Tests for the rename CLI command."""
+
+    def test_rename_command_exists(self):
+        """Test that the rename command is registered in the CLI."""
+        from molting.cli import main
+        from click.testing import CliRunner
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["--help"])
+        assert result.exit_code == 0
+        assert "rename" in result.output or "Commands:" in result.output
+
+    def test_rename_command_basic(self, tmp_path):
+        """Test running rename via CLI command."""
+        from molting.cli import main
+        from click.testing import CliRunner
+
+        # Create a test file
+        test_file = tmp_path / "test.py"
+        test_file.write_text("def old_name():\n    pass\n")
+
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "rename",
+            str(test_file),
+            "old_name",
+            "new_name"
+        ])
+
+        assert result.exit_code == 0
+        assert "new_name" in test_file.read_text()
