@@ -3,6 +3,8 @@
 import re
 from pathlib import Path
 
+import libcst as cst
+
 from molting.core.refactoring_base import RefactoringBase
 
 
@@ -45,7 +47,37 @@ class ReplaceMagicNumberWithSymbolicConstant(RefactoringBase):
         Returns:
             Refactored source code
         """
-        return source
+        try:
+            tree = cst.parse_module(source)
+        except Exception as e:
+            raise ValueError(f"Failed to parse source code: {e}")
+
+        # Create a transformer to replace the magic number with metadata support
+        wrapper = cst.metadata.MetadataWrapper(tree)
+        transformer = MagicNumberReplacer(
+            self.magic_number,
+            self.constant_name,
+            self.line_number
+        )
+
+        # Apply the transformation
+        modified_tree = wrapper.visit(transformer)
+
+        # Add constant declaration at module level
+        constant_stmt = cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(self.constant_name))],
+                    value=cst.Float(self.magic_number) if '.' in self.magic_number else cst.Integer(self.magic_number)
+                )
+            ]
+        )
+
+        # Insert the constant at the beginning of the module
+        new_body = [constant_stmt] + list(modified_tree.body)
+        modified_tree = modified_tree.with_changes(body=new_body)
+
+        return modified_tree.code
 
     def validate(self, source: str) -> bool:
         """Validate that the refactoring can be applied.
@@ -57,3 +89,39 @@ class ReplaceMagicNumberWithSymbolicConstant(RefactoringBase):
             True if refactoring can be applied, False otherwise
         """
         return True
+
+
+class MagicNumberReplacer(cst.CSTTransformer):
+    """Replaces magic numbers with constant names."""
+
+    METADATA_DEPENDENCIES = (cst.metadata.PositionProvider,)
+
+    def __init__(self, magic_number: str, constant_name: str, line_number: int):
+        """Initialize the transformer.
+
+        Args:
+            magic_number: The numeric literal to replace (as string)
+            constant_name: Name of the constant to replace with
+            line_number: Line number where replacement should happen (1-indexed)
+        """
+        self.magic_number = magic_number
+        self.constant_name = constant_name
+        self.line_number = line_number
+
+    def leave_Float(self, original_node: cst.Float, updated_node: cst.Float) -> cst.BaseExpression:
+        """Replace float literals that match the magic number."""
+        if original_node.value == self.magic_number:
+            # Check if we're on the target line
+            pos = self.get_metadata(cst.metadata.PositionProvider, original_node)
+            if pos and pos.start.line == self.line_number:
+                return cst.Name(self.constant_name)
+        return updated_node
+
+    def leave_Integer(self, original_node: cst.Integer, updated_node: cst.Integer) -> cst.BaseExpression:
+        """Replace integer literals that match the magic number."""
+        if original_node.value == self.magic_number:
+            # Check if we're on the target line
+            pos = self.get_metadata(cst.metadata.PositionProvider, original_node)
+            if pos and pos.start.line == self.line_number:
+                return cst.Name(self.constant_name)
+        return updated_node
