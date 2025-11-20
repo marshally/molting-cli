@@ -54,3 +54,36 @@ class TestReplaceMagicNumberSimpleExpression:
         assert "amount * TAX_RATE" in result
         # Should NOT contain the original magic number in the expression
         assert "amount * 0.05" not in result
+
+
+class TestReplaceMagicNumberMultipleOccurrences:
+    """Tests for replacing multiple occurrences of the same magic number."""
+
+    def test_replace_multiple_occurrences_of_same_number(self, tmp_path):
+        """Test replacing all instances of the magic number throughout file."""
+        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import ReplaceMagicNumberWithSymbolicConstant
+
+        test_file = tmp_path / "test.py"
+        source = """def calculate_tax(amount):
+    return amount * 0.05
+
+def calculate_discount(amount):
+    return amount * 0.05
+"""
+        test_file.write_text(source)
+
+        refactor = ReplaceMagicNumberWithSymbolicConstant(
+            str(test_file),
+            "calculate_tax#L2",
+            "0.05",
+            "TAX_RATE"
+        )
+
+        result = refactor.apply(source)
+
+        # Should contain the constant declaration
+        assert "TAX_RATE = 0.05" in result
+        # Should replace both occurrences
+        assert result.count("TAX_RATE") >= 3  # declaration + 2 uses (first line + one more)
+        # Should NOT contain the original magic number
+        assert "0.05" not in result
