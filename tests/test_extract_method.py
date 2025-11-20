@@ -24,3 +24,17 @@ class TestExtractMethodLineRangeParsing:
         # Verify the line range was parsed correctly
         assert em.start_line == 9
         assert em.end_line == 11
+
+    def test_parse_single_line(self):
+        """Parse single line from target like Order::method#L10."""
+        from molting.refactorings.composing_methods.extract_method import ExtractMethod
+
+        target = "Order::print_owing#L9"
+        em = ExtractMethod(
+            file_path="tests/fixtures/composing_methods/extract_method/simple/input.py",
+            target=target,
+            name="print_banner"
+        )
+        # For a single line, start_line and end_line should be the same
+        assert em.start_line == 9
+        assert em.end_line == 9
