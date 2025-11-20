@@ -41,3 +41,28 @@ class TestDecomposeConditionalCLI:
         # The command should exist and display help
         assert result.exit_code == 0
         assert "decompose-conditional" in result.output or "Extract" in result.output
+
+
+class TestDecomposeConditionalInvalidTargets:
+    """Tests for invalid target handling."""
+
+    def test_invalid_target_format(self):
+        """Test that invalid target format raises an error."""
+        import pytest
+        from pathlib import Path
+        import tempfile
+        from molting.refactorings.simplifying_conditionals.decompose_conditional import DecomposeConditional
+
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write("def test_func():\n    pass\n")
+            temp_file = f.name
+
+        try:
+            with pytest.raises(ValueError, match="Invalid target format"):
+                DecomposeConditional(
+                    temp_file,
+                    target="function_without_line"
+                )
+        finally:
+            Path(temp_file).unlink()
