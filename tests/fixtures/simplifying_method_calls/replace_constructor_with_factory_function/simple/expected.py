@@ -7,10 +7,5 @@ class Employee:
         self.type = employee_type
 
 
-def create_employee(employee_type):
-    if employee_type == "ENGINEER":
-        return Employee(Employee.ENGINEER)
-    elif employee_type == "SALESMAN":
-        return Employee(Employee.SALESMAN)
-    elif employee_type == "MANAGER":
-        return Employee(Employee.MANAGER)
+def create_employee(*args, **kwds):
+    return Employee(*args, **kwds)
