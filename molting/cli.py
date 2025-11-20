@@ -153,3 +153,21 @@ def replace_constructor_with_factory_function(file_path: str, target: str) -> No
     """
     refactor_file("replace-constructor-with-factory-function", file_path, target=target)
     click.echo(f"✓ Replaced constructor with factory function for '{target}' in {file_path}")
+
+
+@main.command(name="introduce-parameter")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+@click.argument("name")
+@click.option("--default", default=None, help="Default value for the new parameter")
+def introduce_parameter(file_path: str, target: str, name: str, default: str = None) -> None:
+    """Add a new parameter to a method.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target method (e.g., "ClassName::method_name")
+        NAME: Name of the new parameter
+    """
+    refactor_file("introduce-parameter", file_path, target=target, name=name, default=default)
+    param_desc = f"'{name}' with default '{default}'" if default else f"'{name}'"
+    click.echo(f"✓ Introduced parameter {param_desc} to '{target}' in {file_path}")
