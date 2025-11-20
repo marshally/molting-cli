@@ -179,3 +179,20 @@ def introduce_parameter(file_path: str, target: str, name: str, default: str = N
     refactor_file("introduce-parameter", file_path, target=target, name=name, default=default)
     param_desc = f"'{name}' with default '{default}'" if default else f"'{name}'"
     click.echo(f"✓ Introduced parameter {param_desc} to '{target}' in {file_path}")
+
+
+@main.command(name="introduce-assertion")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+@click.argument("condition")
+@click.option("--message", default=None, help="Custom assertion message")
+def introduce_assertion(file_path: str, target: str, condition: str, message: str = None) -> None:
+    """Make assumptions explicit with an assertion.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target function (e.g., "function_name#L10")
+        CONDITION: The assertion condition as a Python expression
+    """
+    refactor_file("introduce-assertion", file_path, target=target, condition=condition, message=message)
+    click.echo(f"✓ Introduced assertion '{condition}' to '{target}' in {file_path}")

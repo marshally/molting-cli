@@ -4,6 +4,8 @@ Tests for Introduce Assertion refactoring.
 This module tests the Introduce Assertion refactoring that makes assumptions
 explicit with assertions.
 """
+from pathlib import Path
+from click.testing import CliRunner
 from tests.conftest import RefactoringTestBase
 
 
@@ -57,5 +59,51 @@ class TestIntroduceAssertion(RefactoringTestBase):
                     target="divide_without_line",
                     condition="b != 0"
                 )
+        finally:
+            Path(temp_file).unlink()
+
+
+class TestIntroduceAssertionCLI:
+    """Tests for introduce-assertion CLI command."""
+
+    def test_cli_command_exists(self):
+        """Test that the introduce-assertion CLI command is registered."""
+        from molting.cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["introduce-assertion", "--help"])
+
+        # The command should exist and display help
+        assert result.exit_code == 0
+        assert "introduce-assertion" in result.output or "Make assumptions explicit" in result.output
+
+    def test_cli_command_execution(self):
+        """Test that the introduce-assertion CLI command executes correctly."""
+        from molting.cli import main
+        import tempfile
+
+        # Create a test file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write("def divide(a, b):\n    return a / b\n")
+            temp_file = f.name
+
+        try:
+            runner = CliRunner()
+            result = runner.invoke(main, [
+                "introduce-assertion",
+                temp_file,
+                "divide#L2",
+                "b != 0",
+                "--message", "b must not be zero"
+            ])
+
+            # The command should succeed
+            assert result.exit_code == 0
+            assert "Introduced assertion" in result.output
+
+            # Verify the file was modified
+            modified_code = Path(temp_file).read_text()
+            assert "assert b != 0" in modified_code
+            assert "b must not be zero" in modified_code
         finally:
             Path(temp_file).unlink()
