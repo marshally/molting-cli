@@ -90,3 +90,17 @@ def rename(file_path: str, target: str, new_name: str) -> None:
     """
     refactor_file("rename", file_path, target=target, new_name=new_name)
     click.echo(f"✓ Renamed '{target}' to '{new_name}' in {file_path}")
+
+
+@main.command()
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+def inline(file_path: str, target: str) -> None:
+    """Inline a method by replacing its calls with the method's body.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target method to inline (e.g., "ClassName::method_name")
+    """
+    refactor_file("inline", file_path, target=target)
+    click.echo(f"✓ Inlined '{target}' in {file_path}")
