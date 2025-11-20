@@ -26,3 +26,31 @@ class TestReplaceMagicNumberParseTarget:
 
         # Should parse the line number correctly
         assert refactor.line_number == 1
+
+
+class TestReplaceMagicNumberSimpleExpression:
+    """Tests for replacing simple magic numbers in expressions."""
+
+    def test_replace_simple_magic_number_in_expression(self, tmp_path):
+        """Test replacing a simple numeric literal with a constant."""
+        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import ReplaceMagicNumberWithSymbolicConstant
+
+        test_file = tmp_path / "test.py"
+        source = "def calculate_tax(amount):\n    return amount * 0.05\n"
+        test_file.write_text(source)
+
+        refactor = ReplaceMagicNumberWithSymbolicConstant(
+            str(test_file),
+            "calculate_tax#L2",
+            "0.05",
+            "TAX_RATE"
+        )
+
+        result = refactor.apply(source)
+
+        # Should contain the constant declaration
+        assert "TAX_RATE = 0.05" in result
+        # Should replace the magic number with constant name
+        assert "amount * TAX_RATE" in result
+        # Should NOT contain the original magic number in the expression
+        assert "amount * 0.05" not in result
