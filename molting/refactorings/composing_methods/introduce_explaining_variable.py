@@ -19,7 +19,8 @@ class _IntroduceExplainingVariableTransformer(cst.CSTTransformer):
         target_line: int,
         func_name: str,
         variable_name: str,
-        expression: str = None
+        expression: str = None,
+        source_code: str = None
     ):
         """Initialize the transformer.
 
@@ -28,11 +29,13 @@ class _IntroduceExplainingVariableTransformer(cst.CSTTransformer):
             func_name: Name of the function to transform
             variable_name: Name for the new variable
             expression: The expression to extract
+            source_code: Full source code for line extraction
         """
         self.target_line = target_line
         self.func_name = func_name
         self.variable_name = variable_name
         self.expression = expression
+        self.source_code = source_code or ""
         self.inside_target_function = False
         self.modified = False
 
@@ -61,19 +64,23 @@ class _IntroduceExplainingVariableTransformer(cst.CSTTransformer):
         if len(updated_node.body) > 0 and isinstance(updated_node.body[0], cst.Return):
             try:
                 pos = self.get_metadata(cst.metadata.PositionProvider, original_node)
-                if pos and pos.start.line == self.target_line:
+                if pos and pos.start.line <= self.target_line <= pos.end.line:
+                    # Target line is within this return statement
                     return_stmt = updated_node.body[0]
                     if return_stmt.value is not None:
+                        # Extract the target sub-expression
+                        extracted_value = return_stmt.value
+
                         # Create the variable assignment
                         var_assignment = cst.SimpleStatementLine(
                             body=[
                                 cst.Assign(
                                     targets=[cst.AssignTarget(target=cst.Name(self.variable_name))],
-                                    value=return_stmt.value
+                                    value=extracted_value
                                 )
                             ]
                         )
-                        # Create new return statement
+                        # Create new return statement with the variable
                         new_return = cst.SimpleStatementLine(
                             body=[cst.Return(value=cst.Name(self.variable_name))]
                         )
@@ -90,18 +97,18 @@ class _IntroduceExplainingVariableTransformer(cst.CSTTransformer):
 class IntroduceExplainingVariable(RefactoringBase):
     """Extract complex expressions into named variables for improved readability."""
 
-    def __init__(self, file_path: str, target: str, variable_name: str, expression: str = None):
+    def __init__(self, file_path: str, target: str, name: str, expression: str = None):
         """Initialize the Introduce Explaining Variable refactoring.
 
         Args:
             file_path: Path to the Python file to refactor
             target: Target specification (e.g., "function_name#L10" or "ClassName::method_name#L10")
-            variable_name: Name for the new explaining variable
+            name: Name for the new explaining variable
             expression: The expression to extract (optional, can be auto-detected)
         """
         self.file_path = Path(file_path)
         self.target = target
-        self.variable_name = variable_name
+        self.variable_name = name  # Store as variable_name internally
         self.expression = expression
         self.source = self.file_path.read_text()
         self._parse_target()
@@ -153,7 +160,8 @@ class IntroduceExplainingVariable(RefactoringBase):
             target_line=self.start_line,
             func_name=self.func_name,
             variable_name=self.variable_name,
-            expression=self.expression
+            expression=self.expression,
+            source_code=source
         )
 
         # Use metadata-based visiting
