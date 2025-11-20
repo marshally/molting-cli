@@ -51,45 +51,55 @@ Create `pyproject.toml` with:
 
 **Build system:**
 - Use modern Python packaging (PEP 517/518)
-- Consider: setuptools, poetry, or hatch
+- Use Poetry for dependency management and packaging
+
+**Build system:**
+```toml
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+```
 
 **Project metadata:**
 ```toml
-[project]
+[tool.poetry]
 name = "molting-cli"
 version = "0.1.0"
 description = "CLI tool for Python refactorings from Martin Fowler's catalog"
-authors = [{name = "Marshall Yount", email = "..."}]
+authors = ["Marshall Yount <your-email@example.com>"]
 readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.8"
+license = "MIT"
+```
+
+**Python version:**
+```toml
+[tool.poetry.dependencies]
+python = "^3.8"
 ```
 
 **Dependencies:**
 ```toml
-dependencies = [
-    "libcst>=1.0.0",      # Concrete Syntax Tree manipulation
-    "rope>=1.9.0",        # Python refactoring library
-    "click>=8.0.0",       # CLI framework
-    "rich>=13.0.0",       # Terminal formatting (optional)
-]
+[tool.poetry.dependencies]
+python = "^3.8"
+libcst = "^1.0.0"     # Concrete Syntax Tree manipulation
+rope = "^1.9.0"       # Python refactoring library
+click = "^8.0.0"      # CLI framework
+rich = "^13.0.0"      # Terminal formatting
 ```
 
 **Development dependencies:**
 ```toml
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "black>=23.0.0",
-    "ruff>=0.1.0",
-    "mypy>=1.0.0",
-]
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+pytest-cov = "^4.0.0"
+black = "^23.0.0"
+ruff = "^0.1.0"
+mypy = "^1.0.0"
 ```
 
 **CLI entry point:**
 ```toml
-[project.scripts]
+[tool.poetry.scripts]
 molting = "molting.cli:main"
 ```
 
@@ -159,24 +169,57 @@ htmlcov/
 venv/
 env/
 .env
+.venv/
 ```
 
-### 5. Installation Instructions
+**Note:** `poetry.lock` should be **committed** to version control for this CLI application to ensure reproducible builds across all environments.
+
+### 5. Virtual Environment Configuration
+
+**Configure Poetry to use in-project venvs:**
+```bash
+# Set Poetry to create .venv in project directory (recommended)
+poetry config virtualenvs.in-project true
+
+# Verify configuration
+poetry config --list
+```
+
+This creates `.venv/` in the project root, which:
+- IDEs (VSCode, PyCharm) auto-detect
+- Makes it clear which venv belongs to the project
+- Simplifies cleanup (just delete `.venv/`)
+
+**Alternative:** Poetry's default creates venvs in a centralized location (`~/Library/Caches/pypoetry/virtualenvs/` on macOS), which keeps the project directory clean but requires manual IDE configuration.
+
+### 7. Installation Instructions
 
 After setup, users should be able to:
 
 ```bash
-# Install for development
-pip install -e .
+# Install Poetry (if not already installed)
+curl -sSL https://install.python-poetry.org | python3 -
 
-# Install with dev dependencies
-pip install -e ".[dev]"
+# Configure in-project venvs (recommended)
+poetry config virtualenvs.in-project true
+
+# Install dependencies (creates .venv automatically)
+poetry install
+
+# Install without dev dependencies
+poetry install --without dev
+
+# Activate virtual environment
+poetry shell
 
 # Run CLI
 molting --help
+
+# Or run without activating shell
+poetry run molting --help
 ```
 
-### 6. Initial Package Files
+### 8. Initial Package Files
 
 **molting/__init__.py:**
 ```python
@@ -202,11 +245,11 @@ def main():
 
 ## Next Steps
 
-1. Create `pyproject.toml` with dependencies
+1. Initialize Poetry project: `poetry init` or create `pyproject.toml` manually
 2. Create package directory structure
 3. Implement minimal CLI entry point
-4. Test installation: `pip install -e .`
-5. Verify CLI works: `molting --help`
+4. Install dependencies: `poetry install`
+5. Verify CLI works: `poetry run molting --help`
 
 ## Notes
 
@@ -214,4 +257,7 @@ def main():
 - Use type hints throughout
 - Follow PEP 8 style guide
 - Use dataclasses for configuration objects
-- Consider using Click for CLI framework (powerful, well-documented)
+- Using Click for CLI framework (powerful, well-documented, excellent for complex CLIs)
+- Poetry manages virtual environments automatically
+- Recommend in-project venvs (`.venv/`) for better IDE integration
+- Commit `poetry.lock` for reproducible builds (this is a CLI application, not a library)

@@ -1,0 +1,49 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "molting-cli"
+version = "0.1.0"
+description = "CLI tool for Python refactorings from Martin Fowler's catalog"
+authors = ["Marshall Yount <your-email@example.com>"]
+readme = "README.md"
+license = "MIT"
+packages = [{include = "molting"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+libcst = "^1.0.0"
+rope = "^1.9.0"
+click = "^8.0.0"
+rich = "^13.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+pytest-cov = "^4.0.0"
+black = "^23.0.0"
+ruff = "^0.1.0"
+mypy = "^1.0.0"
+
+[tool.poetry.scripts]
+molting = "molting.cli:main"
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "N", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
