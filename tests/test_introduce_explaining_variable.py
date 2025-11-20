@@ -23,7 +23,7 @@ class TestIntroduceExplainingVariableBasicParsing:
         refactor = IntroduceExplainingVariable(
             str(test_file),
             target="foo#L2",
-            variable_name="result",
+            name="result",
             expression="1"
         )
 
@@ -40,7 +40,7 @@ class TestIntroduceExplainingVariableBasicParsing:
         refactor = IntroduceExplainingVariable(
             str(test_file),
             target="Foo::bar#L3",
-            variable_name="result",
+            name="result",
             expression="1"
         )
 
@@ -57,7 +57,7 @@ class TestIntroduceExplainingVariableBasicParsing:
             IntroduceExplainingVariable(
                 str(test_file),
                 target="invalid_target_format",
-                variable_name="result",
+                name="result",
                 expression="1"
             )
 
@@ -70,7 +70,7 @@ class TestIntroduceExplainingVariableBasicParsing:
         refactor = IntroduceExplainingVariable(
             str(test_file),
             target="calculate#L2",
-            variable_name="result",
+            name="result",
             expression="x * 2 + 5"
         )
 
@@ -85,7 +85,7 @@ class TestIntroduceExplainingVariableBasicParsing:
         refactor = IntroduceExplainingVariable(
             str(test_file),
             target="foo#L100",
-            variable_name="result",
+            name="result",
             expression="1"
         )
 
@@ -104,7 +104,7 @@ class TestIntroduceExplainingVariableSimpleExtraction:
         refactor = IntroduceExplainingVariable(
             str(test_file),
             target="calculate#L2",
-            variable_name="result",
+            name="result",
             expression="x * 2 + y"
         )
 
@@ -125,7 +125,7 @@ class TestIntroduceExplainingVariableSimpleExtraction:
         refactor = IntroduceExplainingVariable(
             str(test_file),
             target="process#L2",
-            variable_name="processed",
+            name="processed",
             expression='s.upper().replace("A", "B")'
         )
 
@@ -144,4 +144,4 @@ class TestIntroduceExplainingVariableCLIIntegration:
 
         assert "introduce-explaining-variable" in REFACTORING_REGISTRY
         refactor_class, param_names = REFACTORING_REGISTRY["introduce-explaining-variable"]
-        assert param_names == ["target", "variable_name"]
+        assert param_names == ["target", "name"]

@@ -28,7 +28,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "rename": (Rename, ["target", "new_name"]),
     "extract-method": (ExtractMethod, ["target", "name"]),
     "extract-variable": (ExtractVariable, ["target", "variable_name"]),
-    "introduce-explaining-variable": (IntroduceExplainingVariable, ["target", "variable_name"]),
+    "introduce-explaining-variable": (IntroduceExplainingVariable, ["target", "name"]),
     "inline": (InlineMethod, ["target"]),
     "inline-temp": (InlineTemp, ["target"]),
     "move-method": (MoveMethod, ["source", "to"]),
@@ -166,17 +166,17 @@ def introduce_assertion(file_path: str, target: str, condition: str, message: st
 @main.command(name="introduce-explaining-variable")
 @click.argument("file_path", type=click.Path(exists=True))
 @click.argument("target")
-@click.argument("variable_name")
-def introduce_explaining_variable(file_path: str, target: str, variable_name: str) -> None:
+@click.argument("name")
+def introduce_explaining_variable(file_path: str, target: str, name: str) -> None:
     """Extract a complex expression into a named variable for improved readability.
 
     Args:
         FILE_PATH: Path to the Python file to refactor
         TARGET: Target location with line number (e.g., "function_name#L10")
-        VARIABLE_NAME: Name for the new explaining variable
+        NAME: Name for the new explaining variable
     """
-    refactor_file("introduce-explaining-variable", file_path, target=target, variable_name=variable_name)
-    click.echo(f"✓ Introduced explaining variable '{variable_name}' at '{target}' in {file_path}")
+    refactor_file("introduce-explaining-variable", file_path, target=target, name=name)
+    click.echo(f"✓ Introduced explaining variable '{name}' at '{target}' in {file_path}")
 
 
 @main.command(name="replace-magic-number-with-symbolic-constant")
