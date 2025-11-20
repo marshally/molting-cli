@@ -28,9 +28,12 @@ class ReplaceNestedConditionalWithGuardClauses(RefactoringBase):
 
         Parses targets like:
         - "function_name#L2" -> function name + line number
+        - "function_name#L2-L5" -> function name + range of lines (use first line)
         - "ClassName::method_name#L3" -> class name + method name + line number
+        - "ClassName::method_name#L3-L7" -> class + method + line range (use first line)
         """
-        pattern = r'^(.+?)#L(\d+)$'
+        # Match both single line and range formats
+        pattern = r'^(.+?)#L(\d+)(?:-L\d+)?$'
         match = re.match(pattern, self.target)
 
         if not match:
