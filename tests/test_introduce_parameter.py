@@ -44,3 +44,19 @@ class TestIntroduceParameter(RefactoringTestBase):
 
         with pytest.raises(ValueError, match="Could not find method"):
             refactor.apply(test_file.read_text())
+
+    def test_cli_integration(self):
+        """Test that the CLI integration works correctly."""
+        from molting.cli import refactor_file
+
+        # Apply the refactoring through the CLI interface
+        refactor_file(
+            "introduce-parameter",
+            str(self.test_file),
+            target="Calculator::compute",
+            name="tax_rate",
+            default="0.0"
+        )
+
+        # Verify the file was modified
+        self.assert_matches_expected()
