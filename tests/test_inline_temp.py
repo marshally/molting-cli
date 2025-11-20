@@ -17,3 +17,15 @@ class TestInlineTempSimple(RefactoringTestBase):
             "inline-temp",
             target="temp_value"
         )
+
+
+class TestInlineTempMultipleUses(RefactoringTestBase):
+    """Tests for inlining variables with multiple uses."""
+    fixture_category = "composing_methods/inline_temp"
+
+    def test_multiple_uses(self):
+        """Inline a temporary variable with multiple uses."""
+        self.refactor(
+            "inline-temp",
+            target="base_price"
+        )
