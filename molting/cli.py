@@ -21,6 +21,7 @@ from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_con
 from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
 from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
 from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
+from molting.refactorings.composing_methods.remove_assignments_to_parameters import RemoveAssignmentsToParameters
 
 
 # Registry mapping refactoring names to (class, param_names)
@@ -38,6 +39,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "replace-constructor-with-factory-function": (ReplaceConstructorWithFactoryFunction, ["target"]),
     "introduce-parameter": (IntroduceParameter, ["target", "name", "default"]),
     "introduce-assertion": (IntroduceAssertion, ["target", "condition", "message"]),
+    "remove-assignments-to-parameters": (RemoveAssignmentsToParameters, ["target"]),
 }
 
 
@@ -203,3 +205,17 @@ def replace_magic_number_with_symbolic_constant(
         constant_name=constant_name
     )
     click.echo(f"✓ Replaced magic number '{magic_number}' with constant '{constant_name}' in {file_path}")
+
+
+@main.command(name="remove-assignments-to-parameters")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+def remove_assignments_to_parameters(file_path: str, target: str) -> None:
+    """Remove assignments to parameters by using a temporary variable instead.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target function name (e.g., "function_name" or "ClassName::method_name")
+    """
+    refactor_file("remove-assignments-to-parameters", file_path, target=target)
+    click.echo(f"✓ Removed assignments to parameters in '{target}' in {file_path}")
