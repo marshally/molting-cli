@@ -71,12 +71,17 @@ class MoveField(RefactoringBase):
         # Add the field to destination class, creating __init__ if needed
         self._add_field_to_class(dest_class, field_assignment_copy)
 
+        # Convert class name to parameter name (snake_case)
+        dest_attr_name = self._camel_to_snake(self.to)
+
         # Update references to the field in source class methods
-        dest_attr_name = self.to[0].lower() + self.to[1:]
         self._update_field_references(source_class, field_name, dest_attr_name)
 
         # Add destination class instance parameter to source class __init__
         self._add_destination_parameter(source_class, dest_attr_name)
+
+        # Fix missing locations for all nodes
+        ast.fix_missing_locations(tree)
 
         # Convert back to source code
         return ast.unparse(tree)
@@ -187,6 +192,12 @@ class MoveField(RefactoringBase):
                 decorator_list=[],
                 returns=None
             )
+
+            # Remove `pass` statements from class body and insert __init__ at start
+            class_node.body = [
+                item for item in class_node.body
+                if not (isinstance(item, ast.Pass))
+            ]
             class_node.body.insert(0, init_method)
         else:
             # Add to existing __init__
@@ -288,3 +299,18 @@ class MoveField(RefactoringBase):
                 value=ast.Name(id=dest_attr_name, ctx=ast.Load())
             )
             init_method.body.insert(0, assignment)
+
+    def _camel_to_snake(self, name: str) -> str:
+        """Convert CamelCase to snake_case.
+
+        Args:
+            name: The CamelCase name (e.g., "AccountType")
+
+        Returns:
+            The snake_case name (e.g., "account_type")
+        """
+        import re
+        # Insert underscore before uppercase letters (except the first one)
+        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+        # Insert underscore before uppercase letters in acronyms
+        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
