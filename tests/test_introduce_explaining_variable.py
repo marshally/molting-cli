@@ -23,7 +23,8 @@ class TestIntroduceExplainingVariableBasicParsing:
         refactor = IntroduceExplainingVariable(
             str(test_file),
             target="foo#L2",
-            variable_name="result"
+            variable_name="result",
+            expression="1"
         )
 
         assert refactor.target == "foo#L2"
@@ -39,7 +40,8 @@ class TestIntroduceExplainingVariableBasicParsing:
         refactor = IntroduceExplainingVariable(
             str(test_file),
             target="Foo::bar#L3",
-            variable_name="result"
+            variable_name="result",
+            expression="1"
         )
 
         assert refactor.target == "Foo::bar#L3"
@@ -55,7 +57,8 @@ class TestIntroduceExplainingVariableBasicParsing:
             IntroduceExplainingVariable(
                 str(test_file),
                 target="invalid_target_format",
-                variable_name="result"
+                variable_name="result",
+                expression="1"
             )
 
     def test_validate_returns_true_for_valid_target(self, tmp_path):
@@ -67,7 +70,8 @@ class TestIntroduceExplainingVariableBasicParsing:
         refactor = IntroduceExplainingVariable(
             str(test_file),
             target="calculate#L2",
-            variable_name="result"
+            variable_name="result",
+            expression="x * 2 + 5"
         )
 
         assert refactor.validate(code) is True
@@ -81,7 +85,51 @@ class TestIntroduceExplainingVariableBasicParsing:
         refactor = IntroduceExplainingVariable(
             str(test_file),
             target="foo#L100",
-            variable_name="result"
+            variable_name="result",
+            expression="1"
         )
 
         assert refactor.validate(code) is False
+
+
+class TestIntroduceExplainingVariableSimpleExtraction:
+    """Test extraction of simple expressions."""
+
+    def test_extract_simple_arithmetic_expression(self, tmp_path):
+        """Extract a simple arithmetic expression into a variable."""
+        test_file = tmp_path / "test.py"
+        code = "def calculate(x, y):\n    return x * 2 + y\n"
+        test_file.write_text(code)
+
+        refactor = IntroduceExplainingVariable(
+            str(test_file),
+            target="calculate#L2",
+            variable_name="result",
+            expression="x * 2 + y"
+        )
+
+        result = refactor.apply(code)
+
+        # Should have introduced a variable
+        assert "result = " in result
+        assert "return result" in result
+        # The variable should be assigned before return
+        assert result.index("result =") < result.index("return result")
+
+    def test_extract_expression_with_method_call(self, tmp_path):
+        """Extract an expression containing method calls."""
+        test_file = tmp_path / "test.py"
+        code = 'def process(s):\n    return s.upper().replace("A", "B")\n'
+        test_file.write_text(code)
+
+        refactor = IntroduceExplainingVariable(
+            str(test_file),
+            target="process#L2",
+            variable_name="processed",
+            expression='s.upper().replace("A", "B")'
+        )
+
+        result = refactor.apply(code)
+
+        assert "processed = " in result
+        assert "return processed" in result
