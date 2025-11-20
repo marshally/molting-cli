@@ -118,3 +118,40 @@ class TestRemoveControlFlagSimple:
             assert ast.dump(ast.parse(result)) == ast.dump(ast.parse(expected_code))
         finally:
             Path(temp_file).unlink()
+
+    def test_remove_flag_in_class_method(self):
+        """Test removing control flag from a class method."""
+        import tempfile
+        from molting.refactorings.simplifying_conditionals.remove_control_flag import RemoveControlFlag
+
+        source_code = """class SecurityChecker:
+    def check(self, people):
+        found = False
+        for person in people:
+            if not found:
+                if person == "Don":
+                    found = True
+        return found
+"""
+
+        expected_code = """class SecurityChecker:
+    def check(self, people):
+        for person in people:
+            if person == "Don":
+                return True
+        return False
+"""
+
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(source_code)
+            temp_file = f.name
+
+        try:
+            refactor = RemoveControlFlag(temp_file, "SecurityChecker::check::found")
+            result = refactor.apply(source_code)
+            # Compare AST structures to ignore formatting differences
+            import ast
+            assert ast.dump(ast.parse(result)) == ast.dump(ast.parse(expected_code))
+        finally:
+            Path(temp_file).unlink()
