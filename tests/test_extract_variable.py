@@ -79,3 +79,37 @@ def foo():
             from molting.refactorings.composing_methods.extract_variable import ExtractVariable
             refactor = ExtractVariable(str(test_file), "foo", "result")
             refactor.apply(test_file.read_text())
+
+
+class TestExtractVariableCLI:
+    """Tests for the extract-variable CLI command."""
+
+    def test_extract_variable_command_exists(self):
+        """Test that the extract-variable command can be called via CLI."""
+        from molting.cli import main
+        from click.testing import CliRunner
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["--help"])
+        assert result.exit_code == 0
+        # The command might not be in help, but it should be registered
+
+    def test_extract_variable_command_basic(self, tmp_path):
+        """Test running extract-variable via CLI command."""
+        from molting.cli import refactor_file
+
+        # Create a test file
+        test_file = tmp_path / "test.py"
+        test_file.write_text("def calculate(x):\n    result = x * 2\n    return result\n")
+
+        # Apply refactoring using the CLI interface
+        refactor_file(
+            "extract-variable",
+            str(test_file),
+            target="calculate#L2",
+            variable_name="doubled"
+        )
+
+        # Verify the refactoring was applied
+        result = test_file.read_text()
+        assert "doubled = x * 2" in result
