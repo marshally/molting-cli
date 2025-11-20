@@ -31,3 +31,16 @@ def calculate():
 
         assert start_line == 5
         assert end_line == 5
+
+
+class TestExtractVariableSimple(RefactoringTestBase):
+    """Tests for extracting simple expressions into variables."""
+    fixture_category = "composing_methods/extract_variable"
+
+    def test_simple(self):
+        """Extract a simple expression into a variable."""
+        self.refactor(
+            "extract-variable",
+            target="calculate_total#L2",
+            variable_name="tax_amount"
+        )
