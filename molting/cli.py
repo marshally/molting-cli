@@ -16,6 +16,7 @@ from molting.refactorings.composing_methods.extract_variable import ExtractVaria
 from molting.refactorings.moving_features.move_method import MoveMethod
 from molting.refactorings.moving_features.move_field import MoveField
 from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
+from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import ReplaceMagicNumberWithSymbolicConstant
 from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
 from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
 from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
@@ -31,6 +32,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "move-method": (MoveMethod, ["source", "to"]),
     "move-field": (MoveField, ["source", "to"]),
     "encapsulate-field": (EncapsulateField, ["target"]),
+    "replace-magic-number-with-symbolic-constant": (ReplaceMagicNumberWithSymbolicConstant, ["target", "magic_number", "constant_name"]),
     "replace-constructor-with-factory-function": (ReplaceConstructorWithFactoryFunction, ["target"]),
     "introduce-parameter": (IntroduceParameter, ["target", "name", "default"]),
     "introduce-assertion": (IntroduceAssertion, ["target", "condition", "message"]),
@@ -157,3 +159,29 @@ def introduce_assertion(file_path: str, target: str, condition: str, message: st
     """
     refactor_file("introduce-assertion", file_path, target=target, condition=condition, message=message)
     click.echo(f"✓ Introduced assertion '{condition}' to '{target}' in {file_path}")
+
+
+@main.command(name="replace-magic-number-with-symbolic-constant")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+@click.argument("magic_number")
+@click.argument("constant_name")
+def replace_magic_number_with_symbolic_constant(
+    file_path: str, target: str, magic_number: str, constant_name: str
+) -> None:
+    """Replace a magic number with a named symbolic constant.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target location with line number (e.g., "function_name#L10")
+        MAGIC_NUMBER: The numeric literal to replace (as a string)
+        CONSTANT_NAME: Name of the constant to create
+    """
+    refactor_file(
+        "replace-magic-number-with-symbolic-constant",
+        file_path,
+        target=target,
+        magic_number=magic_number,
+        constant_name=constant_name
+    )
+    click.echo(f"✓ Replaced magic number '{magic_number}' with constant '{constant_name}' in {file_path}")
