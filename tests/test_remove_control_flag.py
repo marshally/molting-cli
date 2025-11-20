@@ -157,6 +157,32 @@ class TestRemoveControlFlagSimple:
             Path(temp_file).unlink()
 
 
+class TestRemoveControlFlagFixtures(RefactoringTestBase):
+    """Tests for Remove Control Flag using fixture-based approach."""
+    fixture_category = "simplifying_conditionals/remove_control_flag"
+
+    def test_simple_loop(self):
+        """Test removing control flag from a simple loop."""
+        self.refactor(
+            "remove-control-flag",
+            target="check_security::found"
+        )
+
+    def test_class_method(self):
+        """Test removing control flag from a class method."""
+        self.refactor(
+            "remove-control-flag",
+            target="SecurityChecker::check::found"
+        )
+
+    def test_multiple_conditions(self):
+        """Test removing control flag with multiple conditions in loop."""
+        self.refactor(
+            "remove-control-flag",
+            target="check_security::found"
+        )
+
+
 class TestRemoveControlFlagCLI:
     """Tests for remove-control-flag CLI command."""
 
