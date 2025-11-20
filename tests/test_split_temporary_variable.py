@@ -85,3 +85,38 @@ class TestSplitTemporaryVariableParsing:
             assert ast.dump(ast.parse(result)) == ast.dump(ast.parse(expected))
         finally:
             Path(temp_file).unlink()
+
+    def test_split_three_assignments(self):
+        """Split a variable with three assignments into three variables."""
+        from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
+
+        source = """def calculate(a, b, c):
+    temp = a + b
+    print(temp)
+    temp = b * c
+    print(temp)
+    temp = a - c
+    return temp
+"""
+        expected = """def calculate(a, b, c):
+    temp = a + b
+    print(temp)
+    temp_2 = b * c
+    print(temp_2)
+    temp_3 = a - c
+    return temp_3
+"""
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(source)
+            temp_file = f.name
+
+        try:
+            refactor = SplitTemporaryVariable(temp_file, "calculate::temp")
+            result = refactor.apply(source)
+
+            # Compare by parsing both as AST to ignore formatting differences
+            import ast
+            assert ast.dump(ast.parse(result)) == ast.dump(ast.parse(expected))
+        finally:
+            Path(temp_file).unlink()
