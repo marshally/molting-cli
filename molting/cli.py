@@ -31,6 +31,7 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
     from molting.refactorings.composing_methods.extract_method import ExtractMethod
     from molting.refactorings.composing_methods.extract_variable import ExtractVariable
     from molting.refactorings.moving_features.move_method import MoveMethod
+    from molting.refactorings.moving_features.move_field import MoveField
     from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
     from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
     from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
@@ -67,6 +68,12 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
         source = kwargs.get("source")
         to = kwargs.get("to")
         refactor = MoveMethod(file_path, source, to)
+        refactored_code = refactor.apply(refactor.source)
+        Path(file_path).write_text(refactored_code)
+    elif refactoring_name == "move-field":
+        source = kwargs.get("source")
+        to = kwargs.get("to")
+        refactor = MoveField(file_path, source, to)
         refactored_code = refactor.apply(refactor.source)
         Path(file_path).write_text(refactored_code)
     elif refactoring_name == "encapsulate-field":
@@ -118,6 +125,20 @@ def inline(file_path: str, target: str) -> None:
     """
     refactor_file("inline", file_path, target=target)
     click.echo(f"✓ Inlined '{target}' in {file_path}")
+
+
+@main.command(name="encapsulate-field")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+def encapsulate_field(file_path: str, target: str) -> None:
+    """Make a field private with getter/setter property accessors.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target field to encapsulate (e.g., "ClassName::field_name")
+    """
+    refactor_file("encapsulate-field", file_path, target=target)
+    click.echo(f"✓ Encapsulated field '{target}' in {file_path}")
 
 
 @main.command(name="replace-constructor-with-factory-function")

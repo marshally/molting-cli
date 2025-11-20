@@ -1,5 +1,10 @@
+class AccountType:
+    def is_premium(self):
+        return True
+
+
 class Account:
-    def __init__(self, account_type: 'AccountType'):
+    def __init__(self, account_type: AccountType):
         self.account_type = account_type
         self.days_overdrawn = 0
 
@@ -11,8 +16,3 @@ class Account:
             return result
         else:
             return self.days_overdrawn * 1.75
-
-
-class AccountType:
-    def is_premium(self):
-        return True

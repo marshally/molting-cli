@@ -45,10 +45,10 @@ class TestExtractMethodFromClassMethod(RefactoringTestBase):
     """Tests for extracting methods from class methods."""
     fixture_category = "composing_methods/extract_method"
 
-    def test_simple(self):
-        """Extract method from a class method."""
+    def test_with_locals(self):
+        """Extract method that calculates a local variable."""
         self.refactor(
             "extract-method",
-            target="Order::print_owing#L9-L11",
-            name="print_banner"
+            target="Order::print_owing#L10-L19",
+            name="calculate_outstanding"
         )
