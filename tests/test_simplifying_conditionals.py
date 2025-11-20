@@ -1,0 +1,104 @@
+"""
+Tests for Simplifying Conditionals refactorings.
+
+This module tests refactorings that simplify and clarify conditional logic.
+"""
+from tests.conftest import RefactoringTestBase
+
+
+class TestDecomposeConditional(RefactoringTestBase):
+    """Tests for Decompose Conditional refactoring."""
+    fixture_category = "simplifying_conditionals/decompose_conditional"
+
+    def test_simple(self):
+        """Extract the condition and each branch into separate methods."""
+        self.refactor(
+            "decompose-conditional",
+            target="calculate_charge#L2-L5"
+        )
+
+
+class TestConsolidateConditionalExpression(RefactoringTestBase):
+    """Tests for Consolidate Conditional Expression refactoring."""
+    fixture_category = "simplifying_conditionals/consolidate_conditional_expression"
+
+    def test_simple(self):
+        """Combine conditionals with the same result into a single condition."""
+        self.refactor(
+            "consolidate-conditional-expression",
+            target="disability_amount#L2-L7",
+            name="is_not_eligible_for_disability"
+        )
+
+
+class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
+    """Tests for Consolidate Duplicate Conditional Fragments refactoring."""
+    fixture_category = "simplifying_conditionals/consolidate_duplicate_conditional_fragments"
+
+    def test_simple(self):
+        """Move duplicate code outside the conditional."""
+        self.refactor(
+            "consolidate-duplicate-conditional-fragments",
+            target="process_order#L2-L7"
+        )
+
+
+class TestRemoveControlFlag(RefactoringTestBase):
+    """Tests for Remove Control Flag refactoring."""
+    fixture_category = "simplifying_conditionals/remove_control_flag"
+
+    def test_simple(self):
+        """Replace a control flag variable with break or return."""
+        self.refactor(
+            "remove-control-flag",
+            target="check_security::found"
+        )
+
+
+class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
+    """Tests for Replace Nested Conditional with Guard Clauses refactoring."""
+    fixture_category = "simplifying_conditionals/replace_nested_conditional_with_guard_clauses"
+
+    def test_simple(self):
+        """Use guard clauses for all special cases."""
+        self.refactor(
+            "replace-nested-conditional-with-guard-clauses",
+            target="get_payment_amount#L2-L11"
+        )
+
+
+class TestReplaceConditionalWithPolymorphism(RefactoringTestBase):
+    """Tests for Replace Conditional with Polymorphism refactoring."""
+    fixture_category = "simplifying_conditionals/replace_conditional_with_polymorphism"
+
+    def test_simple(self):
+        """Move each conditional leg to an overriding method in a subclass."""
+        self.refactor(
+            "replace-conditional-with-polymorphism",
+            target="Employee::pay_amount#L13-L20"
+        )
+
+
+class TestIntroduceNullObject(RefactoringTestBase):
+    """Tests for Introduce Null Object refactoring."""
+    fixture_category = "simplifying_conditionals/introduce_null_object"
+
+    def test_simple(self):
+        """Replace null checks with a null object."""
+        self.refactor(
+            "introduce-null-object",
+            target_class="Customer"
+        )
+
+
+class TestIntroduceAssertion(RefactoringTestBase):
+    """Tests for Introduce Assertion refactoring."""
+    fixture_category = "simplifying_conditionals/introduce_assertion"
+
+    def test_simple(self):
+        """Make assumptions explicit with an assertion."""
+        self.refactor(
+            "introduce-assertion",
+            target="get_expense_limit#L3",
+            condition="project.expense_limit is not None or project.primary_project is not None"
+        )
