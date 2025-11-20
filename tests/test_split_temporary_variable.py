@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import pytest
+import tempfile
 
 
 class TestSplitTemporaryVariableParsing:
@@ -17,8 +18,16 @@ class TestSplitTemporaryVariableParsing:
     temp = a * b
     return temp
 """
-        refactor = SplitTemporaryVariable("dummy.py", "calculate::temp")
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(source)
+            temp_file = f.name
 
-        # Should parse without error
-        assert refactor.func_name == "calculate"
-        assert refactor.var_name == "temp"
+        try:
+            refactor = SplitTemporaryVariable(temp_file, "calculate::temp")
+
+            # Should parse without error
+            assert refactor.func_name == "calculate"
+            assert refactor.var_name == "temp"
+        finally:
+            Path(temp_file).unlink()
