@@ -155,3 +155,27 @@ class TestRemoveControlFlagSimple:
             assert ast.dump(ast.parse(result)) == ast.dump(ast.parse(expected_code))
         finally:
             Path(temp_file).unlink()
+
+
+class TestRemoveControlFlagCLI:
+    """Tests for remove-control-flag CLI command."""
+
+    def test_cli_command_registration(self):
+        """Test that the remove-control-flag CLI command is registered."""
+        from molting.cli import REFACTORING_REGISTRY
+
+        # Check that remove-control-flag is in the registry
+        assert "remove-control-flag" in REFACTORING_REGISTRY
+        refactoring_class, params = REFACTORING_REGISTRY["remove-control-flag"]
+        assert params == ["target", "flag_name"]
+
+    def test_cli_command_help(self):
+        """Test that the remove-control-flag CLI command has help text."""
+        runner = CliRunner()
+        from molting.cli import main
+
+        result = runner.invoke(main, ["remove-control-flag", "--help"])
+
+        # The command should exist and display help
+        assert result.exit_code == 0
+        assert "remove-control-flag" in result.output or "control flag" in result.output.lower()
