@@ -24,6 +24,7 @@ from molting.refactorings.simplifying_method_calls.introduce_parameter import In
 from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
 from molting.refactorings.simplifying_conditionals.decompose_conditional import DecomposeConditional
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import RemoveAssignmentsToParameters
+from molting.refactorings.simplifying_conditionals.remove_control_flag import RemoveControlFlag
 
 
 # Registry mapping refactoring names to (class, param_names)
@@ -44,6 +45,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "introduce-assertion": (IntroduceAssertion, ["target", "condition", "message"]),
     "decompose-conditional": (DecomposeConditional, ["target"]),
     "remove-assignments-to-parameters": (RemoveAssignmentsToParameters, ["target"]),
+    "remove-control-flag": (RemoveControlFlag, ["target"]),
 }
 
 
@@ -251,3 +253,17 @@ def decompose_conditional(file_path: str, target: str) -> None:
     """
     refactor_file("decompose-conditional", file_path, target=target)
     click.echo(f"✓ Decomposed conditional in '{target}' in {file_path}")
+
+
+@main.command(name="remove-control-flag")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+def remove_control_flag(file_path: str, target: str) -> None:
+    """Replace control flag variables with break or return statements.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target specification with flag name (e.g., "function_name::flag_name" or "ClassName::method_name::flag_name")
+    """
+    refactor_file("remove-control-flag", file_path, target=target)
+    click.echo(f"✓ Removed control flag in '{target}' in {file_path}")

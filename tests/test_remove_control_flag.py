@@ -167,7 +167,7 @@ class TestRemoveControlFlagCLI:
         # Check that remove-control-flag is in the registry
         assert "remove-control-flag" in REFACTORING_REGISTRY
         refactoring_class, params = REFACTORING_REGISTRY["remove-control-flag"]
-        assert params == ["target", "flag_name"]
+        assert params == ["target"]
 
     def test_cli_command_help(self):
         """Test that the remove-control-flag CLI command has help text."""
