@@ -3,20 +3,20 @@ class Order:
         self.customer_age = customer_age
 
     def get_discount(self):
-        if is_senior(self):
-            discount_rate = senior_discount_rate()
+        if is_winter(self):
+            discount_rate = winter_charge()
         else:
-            discount_rate = regular_discount_rate()
+            discount_rate = summer_charge()
         return discount_rate
 
 
-def is_senior(self):
+def is_winter(self):
     return self.customer_age > 65
 
 
-def senior_discount_rate():
+def winter_charge():
     return 0.1
 
 
-def regular_discount_rate():
+def summer_charge():
     return 0.05

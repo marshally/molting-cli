@@ -28,6 +28,7 @@ class DecomposeConditional(RefactoringBase):
 
         Parses targets like:
         - "function_name#L2" -> function name + line number
+        - "ClassName::method_name#L3" -> class name + method name + line number
         """
         pattern = r'^(.+?)#L(\d+)$'
         match = re.match(pattern, self.target)
@@ -35,8 +36,15 @@ class DecomposeConditional(RefactoringBase):
         if not match:
             raise ValueError(f"Invalid target format: {self.target}")
 
-        self.function_name = match.group(1)
+        name_part = match.group(1)
         self.line_number = int(match.group(2))
+
+        # Check if it's a class method (contains ::)
+        if "::" in name_part:
+            self.class_name, self.function_name = name_part.split("::", 1)
+        else:
+            self.class_name = None
+            self.function_name = name_part
 
     def apply(self, source: str) -> str:
         """Apply the decompose conditional refactoring to source code.
@@ -58,6 +66,7 @@ class DecomposeConditional(RefactoringBase):
         # Transform the tree
         transformer = DecomposeConditionalTransformer(
             function_name=self.function_name,
+            class_name=self.class_name,
             line_number=self.line_number,
             source_lines=source.split('\n')
         )
@@ -81,19 +90,22 @@ class DecomposeConditional(RefactoringBase):
 class DecomposeConditionalTransformer(cst.CSTTransformer):
     """Transform CST to decompose conditional statements."""
 
-    def __init__(self, function_name: str, line_number: int, source_lines: list):
+    def __init__(self, function_name: str, class_name: Optional[str], line_number: int, source_lines: list):
         """Initialize the transformer.
 
         Args:
             function_name: Name of the function to modify
+            class_name: Optional name of the class containing the function
             line_number: Line number of the if statement
             source_lines: Original source code split by lines
         """
         self.function_name = function_name
+        self.class_name = class_name
         self.line_number = line_number
         self.source_lines = source_lines
         self.extracted_functions: List[cst.FunctionDef] = []
         self.found_target = False
+        self.inside_target_class = False
 
     def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
         """Add extracted functions to the module."""
@@ -103,9 +115,29 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             return updated_node.with_changes(body=new_body)
         return updated_node
 
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:
+        """Track when we enter the target class."""
+        if self.class_name and node.name.value == self.class_name:
+            self.inside_target_class = True
+        return True
+
+    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+        """Process the class definition."""
+        if self.class_name and updated_node.name.value == self.class_name:
+            self.inside_target_class = False
+        return updated_node
+
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
         """Process function definitions."""
         if updated_node.name.value != self.function_name:
+            return updated_node
+
+        # If we're looking for a class method and we're not inside the right class, skip
+        if self.class_name and not self.inside_target_class:
+            return updated_node
+
+        # If we're looking for a standalone function and there's a class name, skip
+        if not self.class_name and self.inside_target_class:
             return updated_node
 
         # Process the function body to find and decompose the if statement
@@ -177,7 +209,11 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
                 new_else = self._create_new_else_body(else_method_name)
 
         # Create new condition call with proper arguments
-        new_condition = cst.Call(func=cst.Name(condition_method_name), args=[cst.Arg(cst.Name("date"))])
+        if self.class_name:
+            # For class methods, pass self
+            new_condition = cst.Call(func=cst.Name(condition_method_name), args=[cst.Arg(cst.Name("self"))])
+        else:
+            new_condition = cst.Call(func=cst.Name(condition_method_name), args=[cst.Arg(cst.Name("date"))])
 
         # Create new body with method calls
         new_body = self._create_new_then_body(then_method_name)
@@ -210,9 +246,16 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         body = cst.IndentedBlock(body=[return_stmt])
 
         # Create function parameters
-        params = cst.Parameters(
-            params=[cst.Param(name=cst.Name("date"))]
-        )
+        if self.class_name:
+            # For class methods, need self parameter
+            params = cst.Parameters(
+                params=[cst.Param(name=cst.Name("self"))]
+            )
+        else:
+            # For standalone functions
+            params = cst.Parameters(
+                params=[cst.Param(name=cst.Name("date"))]
+            )
 
         # Create and return the function definition
         return cst.FunctionDef(
@@ -253,13 +296,17 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             body = cst.IndentedBlock(body=statements)
 
         # Create function parameters
-        params = cst.Parameters(
-            params=[
-                cst.Param(name=cst.Name("quantity")),
-                cst.Param(name=cst.Name("winter_rate")),
-                cst.Param(name=cst.Name("winter_service_charge"))
-            ]
-        )
+        if self.class_name:
+            # For class methods with simple return values, no parameters
+            params = cst.Parameters(params=[])
+        else:
+            params = cst.Parameters(
+                params=[
+                    cst.Param(name=cst.Name("quantity")),
+                    cst.Param(name=cst.Name("winter_rate")),
+                    cst.Param(name=cst.Name("winter_service_charge"))
+                ]
+            )
 
         # Create and return the function definition
         return cst.FunctionDef(
@@ -304,12 +351,16 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             body = cst.IndentedBlock(body=statements if statements else [])
 
         # Create function parameters
-        params = cst.Parameters(
-            params=[
-                cst.Param(name=cst.Name("quantity")),
-                cst.Param(name=cst.Name("summer_rate"))
-            ]
-        )
+        if self.class_name:
+            # For class methods with simple return values, no parameters
+            params = cst.Parameters(params=[])
+        else:
+            params = cst.Parameters(
+                params=[
+                    cst.Param(name=cst.Name("quantity")),
+                    cst.Param(name=cst.Name("summer_rate"))
+                ]
+            )
 
         # Create and return the function definition
         return cst.FunctionDef(
@@ -328,18 +379,22 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             An IndentedBlock with the method call
         """
         # Create the method call
-        call = cst.Call(
-            func=cst.Name(method_name),
-            args=[
-                cst.Arg(cst.Name("quantity")),
-                cst.Arg(cst.Name("winter_rate")),
-                cst.Arg(cst.Name("winter_service_charge"))
-            ]
-        )
+        if self.class_name:
+            # For class methods, no arguments
+            call = cst.Call(func=cst.Name(method_name), args=[])
+        else:
+            call = cst.Call(
+                func=cst.Name(method_name),
+                args=[
+                    cst.Arg(cst.Name("quantity")),
+                    cst.Arg(cst.Name("winter_rate")),
+                    cst.Arg(cst.Name("winter_service_charge"))
+                ]
+            )
 
         # Create the assignment
         assign = cst.Assign(
-            targets=[cst.AssignTarget(target=cst.Name("charge"))],
+            targets=[cst.AssignTarget(target=cst.Name("discount_rate" if self.class_name else "charge"))],
             value=call
         )
 
@@ -358,17 +413,21 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             An Else node with the method call
         """
         # Create the method call
-        call = cst.Call(
-            func=cst.Name(method_name),
-            args=[
-                cst.Arg(cst.Name("quantity")),
-                cst.Arg(cst.Name("summer_rate"))
-            ]
-        )
+        if self.class_name:
+            # For class methods, no arguments
+            call = cst.Call(func=cst.Name(method_name), args=[])
+        else:
+            call = cst.Call(
+                func=cst.Name(method_name),
+                args=[
+                    cst.Arg(cst.Name("quantity")),
+                    cst.Arg(cst.Name("summer_rate"))
+                ]
+            )
 
         # Create the assignment
         assign = cst.Assign(
-            targets=[cst.AssignTarget(target=cst.Name("charge"))],
+            targets=[cst.AssignTarget(target=cst.Name("discount_rate" if self.class_name else "charge"))],
             value=call
         )
 
