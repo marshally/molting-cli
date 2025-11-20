@@ -29,3 +29,15 @@ class TestInlineTempMultipleUses(RefactoringTestBase):
             "inline-temp",
             target="base_price"
         )
+
+
+class TestInlineTempMethodContext(RefactoringTestBase):
+    """Tests for inlining variables with method context specification."""
+    fixture_category = "composing_methods/inline_temp"
+
+    def test_method_context(self):
+        """Inline a temporary variable using method::variable syntax."""
+        self.refactor(
+            "inline-temp",
+            target="Calculator::temp_sum"
+        )
