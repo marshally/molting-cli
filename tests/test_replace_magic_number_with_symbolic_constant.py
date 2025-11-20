@@ -85,5 +85,6 @@ def calculate_discount(amount):
         assert "TAX_RATE = 0.05" in result
         # Should replace both occurrences
         assert result.count("TAX_RATE") >= 3  # declaration + 2 uses (first line + one more)
-        # Should NOT contain the original magic number
-        assert "0.05" not in result
+        # Should NOT contain the original magic number in function bodies
+        assert "amount * 0.05" not in result
+        assert "amount * TAX_RATE" in result

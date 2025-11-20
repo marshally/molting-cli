@@ -111,17 +111,11 @@ class MagicNumberReplacer(cst.CSTTransformer):
     def leave_Float(self, original_node: cst.Float, updated_node: cst.Float) -> cst.BaseExpression:
         """Replace float literals that match the magic number."""
         if original_node.value == self.magic_number:
-            # Check if we're on the target line
-            pos = self.get_metadata(cst.metadata.PositionProvider, original_node)
-            if pos and pos.start.line == self.line_number:
-                return cst.Name(self.constant_name)
+            return cst.Name(self.constant_name)
         return updated_node
 
     def leave_Integer(self, original_node: cst.Integer, updated_node: cst.Integer) -> cst.BaseExpression:
         """Replace integer literals that match the magic number."""
         if original_node.value == self.magic_number:
-            # Check if we're on the target line
-            pos = self.get_metadata(cst.metadata.PositionProvider, original_node)
-            if pos and pos.start.line == self.line_number:
-                return cst.Name(self.constant_name)
+            return cst.Name(self.constant_name)
         return updated_node
