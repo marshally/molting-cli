@@ -1,2 +1,2 @@
-def calculate_total(order):
-    return order.quantity * order.item_price > 1000
+def calculate_total(price):
+    return price * 1.1

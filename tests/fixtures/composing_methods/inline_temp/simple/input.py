@@ -1,3 +1,3 @@
-def calculate_total(order):
-    base_price = order.quantity * order.item_price
-    return base_price > 1000
+def calculate_total(price):
+    temp_value = price * 1.1
+    return temp_value
