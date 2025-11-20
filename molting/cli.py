@@ -32,6 +32,7 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
     from molting.refactorings.composing_methods.extract_variable import ExtractVariable
     from molting.refactorings.moving_features.move_method import MoveMethod
     from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
+    from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
 
     if refactoring_name == "rename":
         target = kwargs.get("target")
@@ -72,6 +73,11 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
         refactor = EncapsulateField(file_path, target)
         refactored_code = refactor.apply(refactor.source)
         Path(file_path).write_text(refactored_code)
+    elif refactoring_name == "replace-constructor-with-factory-function":
+        target = kwargs.get("target")
+        refactor = ReplaceConstructorWithFactoryFunction(file_path, target)
+        refactored_code = refactor.apply(refactor.source)
+        Path(file_path).write_text(refactored_code)
     else:
         raise ValueError(f"Unknown refactoring: {refactoring_name}")
 
@@ -104,3 +110,17 @@ def inline(file_path: str, target: str) -> None:
     """
     refactor_file("inline", file_path, target=target)
     click.echo(f"✓ Inlined '{target}' in {file_path}")
+
+
+@main.command(name="replace-constructor-with-factory-function")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+def replace_constructor_with_factory_function(file_path: str, target: str) -> None:
+    """Replace a constructor with a factory function.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target class name (e.g., "ClassName")
+    """
+    refactor_file("replace-constructor-with-factory-function", file_path, target=target)
+    click.echo(f"✓ Replaced constructor with factory function for '{target}' in {file_path}")
