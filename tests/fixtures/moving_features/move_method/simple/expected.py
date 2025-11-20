@@ -1,12 +1,3 @@
-class Account:
-    def __init__(self, account_type: 'AccountType'):
-        self.account_type = account_type
-        self.days_overdrawn = 0
-
-    def overdraft_charge(self):
-        return self.account_type.overdraft_charge(self.days_overdrawn)
-
-
 class AccountType:
     def is_premium(self):
         return True
@@ -19,3 +10,12 @@ class AccountType:
             return result
         else:
             return days_overdrawn * 1.75
+
+
+class Account:
+    def __init__(self, account_type: AccountType):
+        self.account_type = account_type
+        self.days_overdrawn = 0
+
+    def overdraft_charge(self):
+        return self.account_type.overdraft_charge(self.days_overdrawn)
