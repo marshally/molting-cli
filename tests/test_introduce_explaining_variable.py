@@ -133,3 +133,15 @@ class TestIntroduceExplainingVariableSimpleExtraction:
 
         assert "processed = " in result
         assert "return processed" in result
+
+
+class TestIntroduceExplainingVariableCLIIntegration:
+    """Test CLI integration."""
+
+    def test_cli_command_registered(self):
+        """Check that the refactoring is registered in CLI."""
+        from molting.cli import REFACTORING_REGISTRY
+
+        assert "introduce-explaining-variable" in REFACTORING_REGISTRY
+        refactor_class, param_names = REFACTORING_REGISTRY["introduce-explaining-variable"]
+        assert param_names == ["target", "variable_name"]
