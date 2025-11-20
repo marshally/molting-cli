@@ -43,3 +43,16 @@ class TestRenameClass(RefactoringTestBase):
             target="Calculator",
             new_name="MathEngine"
         )
+
+
+class TestRenameVariable(RefactoringTestBase):
+    """Tests for renaming variables."""
+    fixture_category = "composing_methods/rename"
+
+    def test_rename_local_variable(self):
+        """Rename a local variable."""
+        self.refactor(
+            "rename",
+            target="count",
+            new_name="total"
+        )
