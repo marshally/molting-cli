@@ -1,14 +1,13 @@
 """Introduce Parameter refactoring - add a parameter to a method."""
 
+import ast
 from pathlib import Path
-from rope.base.project import Project
-from rope.refactor.introduce_parameter import IntroduceParameter as RopeIntroduceParameter
 
 from molting.core.refactoring_base import RefactoringBase
 
 
 class IntroduceParameter(RefactoringBase):
-    """Add a new parameter to a method using rope's introduce parameter refactoring."""
+    """Add a new parameter to a method."""
 
     def __init__(self, file_path: str, target: str, name: str, default: str = None):
         """Initialize the IntroduceParameter refactoring.
@@ -36,33 +35,39 @@ class IntroduceParameter(RefactoringBase):
         """
         self.source = source
 
-        # Create a rope project in a temporary location
-        project_root = self.file_path.parent
-        project = Project(str(project_root))
-
+        # Parse the source code
         try:
-            # Get the resource for the file
-            resource = project.get_file(self.file_path.name)
+            tree = ast.parse(source)
+        except SyntaxError as e:
+            raise ValueError(f"Failed to parse source code: {e}")
 
-            # Get the offset of the method
-            offset = self._get_method_offset()
+        # Find and modify the method
+        class_name, method_name = self._parse_target()
+        modified = False
 
-            # Create introduce parameter refactoring
-            refactor = RopeIntroduceParameter(
-                project, resource, offset, self.name, default_value=self.default
-            )
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef) and node.name == class_name:
+                for item in node.body:
+                    if isinstance(item, ast.FunctionDef) and item.name == method_name:
+                        # Add the new parameter
+                        if self.default is not None:
+                            # Add as a parameter with default
+                            default_node = ast.Constant(value=float(self.default))
+                            item.args.defaults.append(default_node)
+                            item.args.args.append(ast.arg(arg=self.name, annotation=None))
+                        else:
+                            # Add as a regular parameter
+                            item.args.args.append(ast.arg(arg=self.name, annotation=None))
+                        modified = True
+                        break
+                if modified:
+                    break
 
-            # Apply the refactoring
-            changes = refactor.get_changes()
-            project.do(changes)
+        if not modified:
+            raise ValueError(f"Could not find method '{method_name}' in class '{class_name}'")
 
-            # Read the refactored content
-            refactored = resource.read()
-
-        finally:
-            project.close()
-
-        return refactored
+        # Convert back to source code
+        return ast.unparse(tree)
 
     def validate(self, source: str) -> bool:
         """Validate that the refactoring can be applied.
@@ -80,44 +85,14 @@ class IntroduceParameter(RefactoringBase):
         else:
             return f"def {self.target}" in source
 
-    def _get_method_offset(self) -> int:
-        """Get the offset of the target method in the source code.
-
-        Handles qualified targets (e.g., "ClassName::method_name").
+    def _parse_target(self) -> tuple:
+        """Parse the target into class name and method name.
 
         Returns:
-            Byte offset of the method definition in the source code
+            Tuple of (class_name, method_name)
         """
-        import ast
-
         if "::" not in self.target:
             raise ValueError(f"Target '{self.target}' must be in format 'ClassName::method_name'")
 
         class_name, method_name = self.target.split("::", 1)
-
-        try:
-            tree = ast.parse(self.source)
-        except SyntaxError as e:
-            raise ValueError(f"Failed to parse source code: {e}")
-
-        # Find the class definition
-        for node in tree.body:
-            if isinstance(node, ast.ClassDef) and node.name == class_name:
-                # Find the method in the class
-                for item in node.body:
-                    if isinstance(item, ast.FunctionDef) and item.name == method_name:
-                        # Get the offset using the line and column
-                        lines = self.source.split('\n')
-                        offset = 0
-                        for i, line in enumerate(lines):
-                            if i < item.lineno - 1:
-                                offset += len(line) + 1  # +1 for newline
-                            else:
-                                # Found the line, now find the method_name in it
-                                col_offset = line.find(method_name)
-                                if col_offset != -1:
-                                    return offset + col_offset
-                                break
-                        raise ValueError(f"Could not find offset for {method_name}")
-                raise ValueError(f"Method '{method_name}' not found in class '{class_name}'")
-        raise ValueError(f"Class '{class_name}' not found in {self.file_path}")
+        return class_name, method_name
