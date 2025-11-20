@@ -19,3 +19,10 @@ class TestDecomposeConditional(RefactoringTestBase):
             "decompose-conditional",
             target="calculate_charge#L2"
         )
+
+    def test_class_method(self):
+        """Extract condition and branches from a class method."""
+        self.refactor(
+            "decompose-conditional",
+            target="Order::get_discount#L3"
+        )
