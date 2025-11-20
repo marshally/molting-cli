@@ -1,6 +1,3 @@
-"""Expected output after simple inline method refactoring."""
-
-
 class Person:
     def __init__(self, late_deliveries):
         self.late_deliveries = late_deliveries

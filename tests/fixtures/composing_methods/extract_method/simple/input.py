@@ -1,9 +1,7 @@
-"""Example code for simple extract method test."""
-
-
 class Order:
-    def __init__(self, name):
+    def __init__(self, name, orders):
         self.name = name
+        self.orders = orders
 
     def print_owing(self):
         outstanding = 0

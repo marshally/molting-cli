@@ -1,6 +1,3 @@
-"""Example code for simple inline method test."""
-
-
 class Person:
     def __init__(self, late_deliveries):
         self.late_deliveries = late_deliveries
