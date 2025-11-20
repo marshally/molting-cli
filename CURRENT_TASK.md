@@ -1,37 +1,42 @@
-# Replace Constructor with Factory Function - TDD Implementation
+# Replace Magic Number with Symbolic Constant - TDD Task
 
-## Feature Requirements
-Implement the "replace-constructor-with-factory-function" refactoring CLI command using rope's introduce factory refactoring.
+## Feature Description
+Implement the "replace-magic-number-with-symbolic-constant" refactoring CLI command using libcst for AST transformation.
+
+From Martin Fowler's catalog: "You have a literal number with a particular meaning. Create a constant, name it after the meaning, and replace the number with it."
+
+## CLI Syntax
+```bash
+molting replace-magic-number-with-symbolic-constant src/foo.py::calculate#L10 "0.05" TAX_RATE
+```
 
 ## Acceptance Criteria
 
-- [x] 1. Test class target parsing (e.g., "Employee::__init__" or "Employee")
-- [x] 2. Test basic factory function creation
-- [x] 3. Test integration with CLI command "replace-constructor-with-factory-function"
-- [x] 4. Test refactoring applies to target class
-- [x] 5. Test validation of invalid targets
-- [x] 6. Test complete CLI integration
+- [ ] **Parse line number from target** - Extract line number from target specification format (e.g., `method#L10`)
+- [ ] **Replace simple magic number in expression** - Find and replace a numeric literal on target line with constant name
+- [ ] **Add constant declaration at module level** - Insert constant declaration at top of module
+- [ ] **Replace multiple occurrences of same number** - Replace all instances of the magic number throughout file
+- [ ] **Handle magic numbers in class methods** - Support replacing numbers in methods within classes
+- [ ] **Handle invalid targets** - Raise appropriate errors for malformed targets
+- [ ] **CLI command integration** - Integrate with Click CLI in molting/cli.py
 
-## Implementation Files
-- Test: `tests/test_replace_constructor_with_factory_function.py`
-- Implementation: `molting/refactorings/simplifying_method_calls/replace_constructor_with_factory_function.py`
-- CLI: Update `molting/cli.py`
+## Test Structure
+Tests: `tests/test_replace_magic_number_with_symbolic_constant.py`
+Implementation: `molting/refactorings/organizing_data/replace_magic_number_with_symbolic_constant.py`
+CLI: Update `molting/cli.py` (add to REFACTORING_REGISTRY)
 
-## Completed Work Summary
+## Example Transformation
 
-### Commits Made:
-1. 🔴 Test class target parsing - RED phase
-2. 🟢 Implement basic ReplaceConstructorWithFactoryFunction class - GREEN phase
-3. 🔴 Test factory function creation - RED phase
-4. 🟢 Implement factory function creation with rope's IntroduceFactory - GREEN phase
-5. 🔴 Test CLI command integration - RED phase
-6. 🟢 Add replace-constructor-with-factory-function CLI command - GREEN phase
-7. 🟢 Implement complete factory function refactoring with rope - GREEN phase
+**Before:**
+```python
+def calculate_tax(amount):
+    return amount * 0.05
+```
 
-### Test Results:
-- tests/test_replace_constructor_with_factory_function.py::TestTargetParsing::test_parse_class_name_only - PASSED
-- tests/test_replace_constructor_with_factory_function.py::TestFactoryCreation::test_creates_factory_function - PASSED
-- tests/test_replace_constructor_with_factory_function.py::TestCLIIntegration::test_cli_command_exists - PASSED
-- tests/test_simplifying_method_calls.py::TestReplaceConstructorWithFactoryFunction::test_simple - PASSED
+**After** `molting replace-magic-number-with-symbolic-constant file.py::calculate_tax#L2 "0.05" TAX_RATE`:
+```python
+TAX_RATE = 0.05
 
-### All Acceptance Criteria Met ✓
+def calculate_tax(amount):
+    return amount * TAX_RATE
+```

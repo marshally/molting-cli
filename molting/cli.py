@@ -22,6 +22,7 @@ from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_con
 from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
 from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
 from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
+from molting.refactorings.simplifying_conditionals.decompose_conditional import DecomposeConditional
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import RemoveAssignmentsToParameters
 
 
@@ -41,6 +42,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "replace-constructor-with-factory-function": (ReplaceConstructorWithFactoryFunction, ["target"]),
     "introduce-parameter": (IntroduceParameter, ["target", "name", "default"]),
     "introduce-assertion": (IntroduceAssertion, ["target", "condition", "message"]),
+    "decompose-conditional": (DecomposeConditional, ["target"]),
     "remove-assignments-to-parameters": (RemoveAssignmentsToParameters, ["target"]),
 }
 
