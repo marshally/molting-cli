@@ -17,3 +17,15 @@ class TestInlineMethodSimple(RefactoringTestBase):
             "inline",
             target="Person::more_than_five_late_deliveries"
         )
+
+
+class TestInlineMethodMultipleCalls(RefactoringTestBase):
+    """Tests for inlining methods with multiple calls."""
+    fixture_category = "composing_methods/inline_method"
+
+    def test_multiple_calls(self):
+        """Inline a method that is called multiple times."""
+        self.refactor(
+            "inline",
+            target="Calculator::simple_helper"
+        )
