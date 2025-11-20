@@ -14,6 +14,7 @@ from molting.refactorings.composing_methods.inline_temp import InlineTemp
 from molting.refactorings.composing_methods.extract_method import ExtractMethod
 from molting.refactorings.composing_methods.extract_variable import ExtractVariable
 from molting.refactorings.composing_methods.introduce_explaining_variable import IntroduceExplainingVariable
+from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
 from molting.refactorings.moving_features.move_method import MoveMethod
 from molting.refactorings.moving_features.move_field import MoveField
 from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
@@ -32,6 +33,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "introduce-explaining-variable": (IntroduceExplainingVariable, ["target", "name"]),
     "inline": (InlineMethod, ["target"]),
     "inline-temp": (InlineTemp, ["target"]),
+    "split-temporary-variable": (SplitTemporaryVariable, ["target"]),
     "move-method": (MoveMethod, ["source", "to"]),
     "move-field": (MoveField, ["source", "to"]),
     "encapsulate-field": (EncapsulateField, ["target"]),
@@ -100,6 +102,20 @@ def inline(file_path: str, target: str) -> None:
     """
     refactor_file("inline", file_path, target=target)
     click.echo(f"✓ Inlined '{target}' in {file_path}")
+
+
+@main.command(name="split-temporary-variable")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+def split_temporary_variable(file_path: str, target: str) -> None:
+    """Split a temporary variable assigned multiple times.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target variable to split (e.g., "function_name::var_name" or "ClassName::method_name::var_name")
+    """
+    refactor_file("split-temporary-variable", file_path, target=target)
+    click.echo(f"✓ Split temporary variable '{target}' in {file_path}")
 
 
 @main.command(name="encapsulate-field")
