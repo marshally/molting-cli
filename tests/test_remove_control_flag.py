@@ -157,6 +157,45 @@ class TestRemoveControlFlagSimple:
             Path(temp_file).unlink()
 
 
+class TestRemoveControlFlagEdgeCases:
+    """Tests for edge cases in Remove Control Flag refactoring."""
+
+    def test_flag_initialized_to_true(self):
+        """Test removing control flag when initialized to True."""
+        import tempfile
+        from molting.refactorings.simplifying_conditionals.remove_control_flag import RemoveControlFlag
+
+        source_code = """def check_security(people):
+    done = True
+    for person in people:
+        if done:
+            if person == "Don":
+                done = False
+    return done
+"""
+
+        expected_code = """def check_security(people):
+    for person in people:
+        if person == "Don":
+            return False
+    return True
+"""
+
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(source_code)
+            temp_file = f.name
+
+        try:
+            refactor = RemoveControlFlag(temp_file, "check_security::done")
+            result = refactor.apply(source_code)
+            # Compare AST structures to ignore formatting differences
+            import ast
+            assert ast.dump(ast.parse(result)) == ast.dump(ast.parse(expected_code))
+        finally:
+            Path(temp_file).unlink()
+
+
 class TestRemoveControlFlagFixtures(RefactoringTestBase):
     """Tests for Remove Control Flag using fixture-based approach."""
     fixture_category = "simplifying_conditionals/remove_control_flag"
