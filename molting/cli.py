@@ -237,3 +237,17 @@ def remove_assignments_to_parameters(file_path: str, target: str) -> None:
     """
     refactor_file("remove-assignments-to-parameters", file_path, target=target)
     click.echo(f"✓ Removed assignments to parameters in '{target}' in {file_path}")
+
+
+@main.command(name="decompose-conditional")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+def decompose_conditional(file_path: str, target: str) -> None:
+    """Extract condition and branches into separate methods.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target function with line number (e.g., "function_name#L2" or "ClassName::method_name#L3")
+    """
+    refactor_file("decompose-conditional", file_path, target=target)
+    click.echo(f"✓ Decomposed conditional in '{target}' in {file_path}")

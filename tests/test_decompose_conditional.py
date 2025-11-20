@@ -26,3 +26,18 @@ class TestDecomposeConditional(RefactoringTestBase):
             "decompose-conditional",
             target="Order::get_discount#L3"
         )
+
+
+class TestDecomposeConditionalCLI:
+    """Tests for decompose-conditional CLI command."""
+
+    def test_cli_command_exists(self):
+        """Test that the decompose-conditional CLI command is registered."""
+        from molting.cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["decompose-conditional", "--help"])
+
+        # The command should exist and display help
+        assert result.exit_code == 0
+        assert "decompose-conditional" in result.output or "Extract" in result.output
