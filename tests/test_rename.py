@@ -56,3 +56,24 @@ class TestRenameVariable(RefactoringTestBase):
             target="count",
             new_name="total"
         )
+
+
+class TestRenameErrorHandling(RefactoringTestBase):
+    """Tests for error handling in rename refactoring."""
+    fixture_category = "composing_methods/rename"
+
+    def test_nonexistent_target(self):
+        """Test error when target doesn't exist."""
+        import pytest
+
+        # Use simple fixture
+        self.test_file = self.tmp_path / "input.py"
+        self.test_file.write_text("""
+def foo():
+    pass
+""")
+
+        with pytest.raises(ValueError, match="Target 'nonexistent' not found"):
+            from molting.refactorings.composing_methods.rename import Rename
+            refactor = Rename(str(self.test_file), "nonexistent", "bar")
+            refactor.apply(self.test_file.read_text())
