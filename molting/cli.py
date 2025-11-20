@@ -37,4 +37,17 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
         raise ValueError(f"Unknown refactoring: {refactoring_name}")
 
 
-# Refactoring commands will be added here
+@main.command()
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+@click.argument("new_name")
+def rename(file_path: str, target: str, new_name: str) -> None:
+    """Rename a variable, method, class, or module.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target identifier to rename (e.g., "function_name" or "ClassName::method_name")
+        NEW_NAME: New name for the target
+    """
+    refactor_file("rename", file_path, target=target, new_name=new_name)
+    click.echo(f"✓ Renamed '{target}' to '{new_name}' in {file_path}")
