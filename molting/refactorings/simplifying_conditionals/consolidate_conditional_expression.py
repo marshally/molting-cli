@@ -20,8 +20,8 @@ class ConsolidateConditionalExpression(RefactoringBase):
         """
         self.file_path = Path(file_path)
         self.target = target
-        self.source = self.file_path.read_text()
         self._parse_target()
+        self.source = self.file_path.read_text()
 
     def _parse_target(self) -> None:
         """Parse the target specification to extract function name and line range.

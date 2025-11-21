@@ -4,6 +4,7 @@ Tests for Consolidate Conditional Expression refactoring.
 This module tests the Consolidate Conditional Expression refactoring that combines
 a sequence of conditional checks with the same result into a single conditional.
 """
+import pytest
 from pathlib import Path
 from click.testing import CliRunner
 from tests.conftest import RefactoringTestBase
@@ -26,3 +27,14 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             "consolidate-conditional-expression",
             target="Order::get_discount#L3-L8"
         )
+
+
+class TestConsolidateConditionalExpressionInvalidTargets:
+    """Tests for invalid target handling."""
+
+    def test_invalid_target_format(self):
+        """Test that invalid target format raises an error."""
+        from molting.refactorings.simplifying_conditionals.consolidate_conditional_expression import ConsolidateConditionalExpression
+
+        with pytest.raises(ValueError, match="Invalid target format"):
+            ConsolidateConditionalExpression("dummy.py", "invalid_target")
