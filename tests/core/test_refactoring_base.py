@@ -87,3 +87,48 @@ class TestParseLineRangeTarget:
         assert method_spec == "Module::Class::method"
         assert start_line == 10
         assert end_line == 20
+
+
+class TestParseQualifiedTarget:
+    """Tests for the parse_qualified_target method."""
+
+    def test_parse_qualified_target_with_class_and_method(self):
+        """Parse 'ClassName::method_name' format."""
+        refactoring = ConcreteRefactoring()
+        class_name, method_name = refactoring.parse_qualified_target("MyClass::my_method")
+
+        assert class_name == "MyClass"
+        assert method_name == "my_method"
+
+    def test_parse_qualified_target_with_nested_class(self):
+        """Parse qualified target with nested class name."""
+        refactoring = ConcreteRefactoring()
+        class_name, method_name = refactoring.parse_qualified_target("OuterClass::inner_method")
+
+        assert class_name == "OuterClass"
+        assert method_name == "inner_method"
+
+    def test_parse_qualified_target_with_multiple_colons(self):
+        """Parse when method name contains colon-like patterns (shouldn't happen but handle it)."""
+        refactoring = ConcreteRefactoring()
+        class_name, method_name = refactoring.parse_qualified_target("MyClass::method::with::parts")
+
+        # Should split only on the first "::" occurrence
+        assert class_name == "MyClass"
+        assert method_name == "method::with::parts"
+
+    def test_parse_qualified_target_with_underscore_names(self):
+        """Parse qualified target with underscores in names."""
+        refactoring = ConcreteRefactoring()
+        class_name, method_name = refactoring.parse_qualified_target("My_Class::my_method_name")
+
+        assert class_name == "My_Class"
+        assert method_name == "my_method_name"
+
+    def test_parse_qualified_target_with_numeric_names(self):
+        """Parse qualified target with numbers in names."""
+        refactoring = ConcreteRefactoring()
+        class_name, method_name = refactoring.parse_qualified_target("Class2::method3")
+
+        assert class_name == "Class2"
+        assert method_name == "method3"
