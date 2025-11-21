@@ -106,12 +106,6 @@ class RemoveSettingMethodTransformer(cst.CSTTransformer):
         return True
 
     def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
-        """Track when leaving a class and return modified class."""
-        if self.current_class == self.class_name:
-            self.current_class = None
-        return updated_node
-
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
         """Remove the setter method from the class body."""
         if original_node.name.value != self.class_name:
             return updated_node
@@ -121,8 +115,13 @@ class RemoveSettingMethodTransformer(cst.CSTTransformer):
         for statement in updated_node.body.body:
             if isinstance(statement, cst.FunctionDef):
                 if statement.name.value == self.method_name:
-                    self.modified = True
-                    continue  # Skip this method
+                    # Check if this is a property setter
+                    if self._has_setter_decorator(statement):
+                        self.modified = True
+                        continue  # Skip this property setter
+                    elif self._is_simple_setter(statement):
+                        self.modified = True
+                        continue  # Skip this regular setter
             new_body.append(statement)
 
         if self.modified:
@@ -131,6 +130,23 @@ class RemoveSettingMethodTransformer(cst.CSTTransformer):
             )
 
         return updated_node
+
+    def _has_setter_decorator(self, node: cst.FunctionDef) -> bool:
+        """Check if the function has a @<method_name>.setter or @property.setter decorator."""
+        for decorator in node.decorators:
+            # Handle both @property.setter and @name.setter patterns
+            if isinstance(decorator.decorator, cst.Attribute):
+                attr = decorator.decorator
+                # Check for pattern like @price.setter where price is our method name
+                if (isinstance(attr.attr, cst.Name) and attr.attr.value == "setter" and
+                    isinstance(attr.value, cst.Name) and attr.value.value == self.method_name):
+                    return True
+        return False
+
+    def _is_simple_setter(self, node: cst.FunctionDef) -> bool:
+        """Check if this is a simple setter method (not a property)."""
+        # It's a simple setter if it doesn't have any decorators
+        return len(node.decorators) == 0
 
 
 class ValidateRemoveSettingMethodTransformer(cst.CSTVisitor):
