@@ -1,7 +1,7 @@
 """Separate Query from Modifier refactoring - split a method that queries and modifies state."""
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import libcst as cst
 
@@ -184,9 +184,9 @@ class SideEffectRemover(cst.CSTTransformer):
 
     def leave_SimpleStatementLine(
         self, original_node: cst.SimpleStatementLine, updated_node: cst.SimpleStatementLine
-    ) -> cst.RemovalSentinel | cst.SimpleStatementLine:
+    ) -> Union[cst.RemovalSentinel, cst.SimpleStatementLine]:
         """Remove statements that call methods (like _send_alert or .pop())."""
-        new_body = []
+        new_body: list[cst.BaseSmallStatement] = []
         has_side_effects = False
 
         for stmt in updated_node.body:
