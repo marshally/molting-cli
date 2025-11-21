@@ -25,22 +25,15 @@ class IntroduceAssertion(RefactoringBase):
         self.condition = condition
         self.message = message
         self.source = self.file_path.read_text()
-        self._parse_target()
-
-    def _parse_target(self) -> None:
-        """Parse the target specification to extract line number.
-
-        Parses targets like:
-        - "function_name#L10" -> function name + line number
-        """
-        pattern = r'^(.+?)#L(\d+)$'
-        match = re.match(pattern, self.target)
-
-        if not match:
+        # Parse the target specification to extract line number and function name
+        # Parses targets like:
+        # - "function_name#L10" -> function name + line number
+        try:
+            name_part, self.line_number, _ = self.parse_line_range_target(self.target)
+        except ValueError:
             raise ValueError(f"Invalid target format: {self.target}")
-
-        self.function_name = match.group(1)
-        self.line_number = int(match.group(2))
+        # For introduce assertion, we just use the function name (no class support)
+        self.function_name = name_part
 
     def apply(self, source: str) -> str:
         """Apply the introduce assertion refactoring to source code.

@@ -25,18 +25,10 @@ class RemoveControlFlag(RefactoringBase):
         self.file_path = Path(file_path)
         self.target = target
         self.source = self.file_path.read_text()
-        self._parse_target()
-
-    def _parse_target(self) -> None:
-        """Parse the target specification to extract class name, function name, and flag name.
-
-        Parses targets like:
-        - "function_name::flag_name" -> function name + flag name
-        - "ClassName::method_name::flag_name" -> class name + method name + flag name
-
-        Raises:
-            ValueError: If target format is invalid
-        """
+        # Parse the target specification to extract class name, function name, and flag name.
+        # Parses targets like:
+        # - "function_name::flag_name" -> function name + flag name
+        # - "ClassName::method_name::flag_name" -> class name + method name + flag name
         parts = self.target.split("::")
 
         if len(parts) == 2:
@@ -45,9 +37,8 @@ class RemoveControlFlag(RefactoringBase):
             self.flag_name = parts[1]
             self.class_name = None
         elif len(parts) == 3:
-            # ClassName::method_name::flag_name
-            self.class_name = parts[0]
-            self.function_name = parts[1]
+            # ClassName::method_name::flag_name - use parse_qualified_target for first two parts
+            self.class_name, self.function_name = self.parse_qualified_target(f"{parts[0]}::{parts[1]}")
             self.flag_name = parts[2]
         else:
             raise ValueError(f"Invalid target format: {self.target}")
