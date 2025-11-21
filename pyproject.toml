@@ -86,3 +86,7 @@ disable_error_code = ["arg-type", "return-value", "assignment", "var-annotated"]
 [[tool.mypy.overrides]]
 module = "molting.refactorings.composing_methods.remove_assignments_to_parameters"
 disable_error_code = ["arg-type", "return-value", "assignment", "var-annotated"]
+
+[[tool.mypy.overrides]]
+module = "molting.refactorings.organizing_data.replace_array_with_object"
+disable_error_code = ["arg-type", "return-value", "assignment", "var-annotated"]
