@@ -75,6 +75,7 @@ from molting.refactorings.simplifying_conditionals.replace_conditional_with_poly
 from molting.refactorings.simplifying_conditionals.replace_nested_conditional_with_guard_clauses import (
     ReplaceNestedConditionalWithGuardClauses,
 )
+from molting.refactorings.dealing_with_generalization.push_down_method import PushDownMethod
 from molting.refactorings.simplifying_method_calls.add_parameter import AddParameter
 from molting.refactorings.simplifying_method_calls.hide_method import HideMethod
 from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
@@ -166,6 +167,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
         ReplaceConditionalWithPolymorphism,
         ["target", "type_field"],
     ),
+    "push-down-method": (PushDownMethod, ["target", "to"]),
     "hide-method": (HideMethod, ["target"]),
     "remove-setting-method": (RemoveSettingMethod, ["target"]),
     "replace-error-code-with-exception": (ReplaceErrorCodeWithException, ["target"]),
