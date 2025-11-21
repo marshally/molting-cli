@@ -75,6 +75,9 @@ from molting.refactorings.simplifying_conditionals.replace_conditional_with_poly
 from molting.refactorings.simplifying_conditionals.replace_nested_conditional_with_guard_clauses import (
     ReplaceNestedConditionalWithGuardClauses,
 )
+from molting.refactorings.dealing_with_generalization.extract_interface import (
+    ExtractInterface,
+)
 from molting.refactorings.simplifying_method_calls.add_parameter import AddParameter
 from molting.refactorings.simplifying_method_calls.hide_method import HideMethod
 from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
@@ -126,6 +129,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "inline-class": (InlineClass, ["source_class", "into", "field_prefix"]),
     "remove-middle-man": (RemoveMiddleMan, ["target"]),
     "extract-class": (ExtractClass, ["source", "fields", "methods", "name"]),
+    "extract-interface": (ExtractInterface, ["target", "methods", "name"]),
     "introduce-local-extension": (IntroduceLocalExtension, ["target", "name", "extension_type"]),
     "change-reference-to-value": (ChangeReferenceToValue, ["target"]),
     "encapsulate-field": (EncapsulateField, ["target"]),
