@@ -25,6 +25,9 @@ from molting.refactorings.composing_methods.substitute_algorithm import Substitu
 from molting.refactorings.moving_features.move_field import MoveField
 from molting.refactorings.moving_features.move_method import MoveMethod
 from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
+from molting.refactorings.organizing_data.replace_data_value_with_object import (
+    ReplaceDataValueWithObject,
+)
 from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
     ReplaceMagicNumberWithSymbolicConstant,
 )
@@ -76,6 +79,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "move-method": (MoveMethod, ["source", "to"]),
     "move-field": (MoveField, ["source", "to"]),
     "encapsulate-field": (EncapsulateField, ["target"]),
+    "replace-data-value-with-object": (ReplaceDataValueWithObject, ["target", "name"]),
     "replace-magic-number-with-symbolic-constant": (
         ReplaceMagicNumberWithSymbolicConstant,
         ["target", "magic_number", "constant_name"],
