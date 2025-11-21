@@ -32,6 +32,24 @@ class RefactoringBase(ABC):
         """
         pass
 
+    def parse_qualified_target(self, target: str) -> Tuple[str, str]:
+        """Parse a qualified target in 'ClassName::method_name' format.
+
+        Args:
+            target: Target specification in the format 'ClassName::method_name'
+
+        Returns:
+            A tuple of (class_name, method_name)
+
+        Example:
+            >>> parse_qualified_target("MyClass::my_method")
+            ("MyClass", "my_method")
+        """
+        parts = target.split("::", 1)
+        class_name = parts[0]
+        method_name = parts[1] if len(parts) > 1 else ""
+        return class_name, method_name
+
     def parse_line_range_target(self, target: str) -> Tuple[str, int, int]:
         """Parse target specification with line range information.
 
