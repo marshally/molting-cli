@@ -355,7 +355,7 @@ class TestCalculateQualifiedOffset:
         assert offset > first_method_pos
 
     def test_offset_points_to_method_name(self):
-        """Test that offset specifically points to method name, not def keyword."""
+        """Test that offset specifically points to method name."""
         source = """class TestClass:
     def test_method(self):
         return True
@@ -363,10 +363,11 @@ class TestCalculateQualifiedOffset:
         refactoring = ConcreteRefactoring()
         offset = refactoring.calculate_qualified_offset(source, "TestClass", "test_method")
 
-        # Offset should point to 'test_method', not 'def'
+        # Offset should point to 'test_method', not beyond it
         assert source[offset:offset+11] == "test_method"
-        # Make sure it's not pointing to 'def'
-        assert source[offset-4:offset] != "def "
+        # Verify that we're pointing to the start of the method name
+        # (after "def " which precedes it)
+        assert source[offset-4:offset] == "def "
 
     def test_with_leading_whitespace(self):
         """Test parsing source with leading blank lines."""
