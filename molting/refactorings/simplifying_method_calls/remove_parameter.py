@@ -7,6 +7,7 @@ import libcst as cst
 
 from molting.core.refactoring_base import RefactoringBase
 from molting.core.class_aware_transformer import ClassAwareTransformer
+from molting.core.class_aware_validator import ClassAwareValidator
 
 
 class RemoveParameter(RefactoringBase):
@@ -205,7 +206,7 @@ class RemoveParameterTransformer(ClassAwareTransformer):
         return func_def.with_changes(params=new_params)
 
 
-class ValidateRemoveParameterTransformer(cst.CSTVisitor):
+class ValidateRemoveParameterTransformer(ClassAwareValidator):
     """Visitor to check if the target function exists."""
 
     def __init__(self, class_name: Optional[str], function_name: str):
@@ -215,31 +216,4 @@ class ValidateRemoveParameterTransformer(cst.CSTVisitor):
             class_name: Optional class name if targeting a method
             function_name: Function or method name to find
         """
-        self.class_name = class_name
-        self.function_name = function_name
-        self.found = False
-        self.current_class = None
-
-    def visit_ClassDef(self, node: cst.ClassDef) -> bool:
-        """Track when entering a class."""
-        self.current_class = node.name.value
-        return True
-
-    def leave_ClassDef(self, node: cst.ClassDef) -> None:
-        """Track when leaving a class."""
-        self.current_class = None
-
-    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:
-        """Check if this is the target function."""
-        func_name = node.name.value
-
-        if self.class_name is None:
-            # Looking for module-level function
-            if self.current_class is None and func_name == self.function_name:
-                self.found = True
-        else:
-            # Looking for class method
-            if self.current_class == self.class_name and func_name == self.function_name:
-                self.found = True
-
-        return True
+        super().__init__(class_name, function_name)
