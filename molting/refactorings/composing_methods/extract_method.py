@@ -23,25 +23,14 @@ class ExtractMethod(RefactoringBase):
         self.target = target
         self.name = name
         self.source = self.file_path.read_text()
-        self._parse_target()
-
-    def _parse_target(self) -> None:
-        """Parse the target specification to extract line range information.
-
-        Parses targets like:
-        - "Order::print_owing#L9-L11" -> class/method + line range
-        - "Order::print_owing#L9" -> class/method + single line
-        """
-        # Pattern: optional_class::optional_method#L{start}-L{end} or #L{start}
-        pattern = r'^(.+?)#L(\d+)(?:-L(\d+))?$'
-        match = re.match(pattern, self.target)
-
-        if not match:
+        # Parse the target specification to extract line range information.
+        # Parses targets like:
+        # - "Order::print_owing#L9-L11" -> class/method + line range
+        # - "Order::print_owing#L9" -> class/method + single line
+        try:
+            self.method_spec, self.start_line, self.end_line = self.parse_line_range_target(self.target)
+        except ValueError:
             raise ValueError(f"Invalid target format: {self.target}")
-
-        self.method_spec = match.group(1)  # e.g., "Order::print_owing"
-        self.start_line = int(match.group(2))
-        self.end_line = int(match.group(3)) if match.group(3) else self.start_line
 
     def apply(self, source: str) -> str:
         """Apply the extract method refactoring to source code.

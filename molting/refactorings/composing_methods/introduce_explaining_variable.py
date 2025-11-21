@@ -111,28 +111,14 @@ class IntroduceExplainingVariable(RefactoringBase):
         self.variable_name = name  # Store as variable_name internally
         self.expression = expression
         self.source = self.file_path.read_text()
-        self._parse_target()
-
-    def _parse_target(self) -> None:
-        """Parse the target specification to extract function and line information.
-
-        Parses targets like:
-        - "function_name#L10" -> function + line number
-        - "ClassName::method_name#L10" -> class::method + line number
-
-        Raises:
-            ValueError: If target format is invalid
-        """
-        # Pattern: optional_class::optional_func#L{line}
-        pattern = r'^(.+?)#L(\d+)$'
-        match = re.match(pattern, self.target)
-
-        if not match:
+        # Parse the target specification to extract function and line information.
+        # Parses targets like:
+        # - "function_name#L10" -> function + line number
+        # - "ClassName::method_name#L10" -> class::method + line number
+        try:
+            full_spec, self.start_line, _ = self.parse_line_range_target(self.target)
+        except ValueError:
             raise ValueError(f"Invalid target format: {self.target}. Expected format: 'function_name#L10' or 'ClassName::method_name#L10'")
-
-        # Extract the function/method specification
-        full_spec = match.group(1)  # e.g., "ClassName::method_name" or "function_name"
-        self.start_line = int(match.group(2))
 
         # Extract the function name (the part after :: if present, otherwise the whole spec)
         if "::" in full_spec:

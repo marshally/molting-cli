@@ -21,30 +21,20 @@ class ReplaceNestedConditionalWithGuardClauses(RefactoringBase):
         self.file_path = Path(file_path)
         self.target = target
         self.source = self.file_path.read_text()
-        self._parse_target()
-
-    def _parse_target(self) -> None:
-        """Parse the target specification to extract function name and line number.
-
-        Parses targets like:
-        - "function_name#L2" -> function name + line number
-        - "function_name#L2-L5" -> function name + range of lines (use first line)
-        - "ClassName::method_name#L3" -> class name + method name + line number
-        - "ClassName::method_name#L3-L7" -> class + method + line range (use first line)
-        """
-        # Match both single line and range formats
-        pattern = r'^(.+?)#L(\d+)(?:-L\d+)?$'
-        match = re.match(pattern, self.target)
-
-        if not match:
+        # Parse the target specification to extract line range and function name
+        # Parses targets like:
+        # - "function_name#L2" -> function name + line number
+        # - "function_name#L2-L5" -> function name + range of lines (use first line)
+        # - "ClassName::method_name#L3" -> class name + method name + line number
+        # - "ClassName::method_name#L3-L7" -> class + method + line range (use first line)
+        try:
+            name_part, self.line_number, _ = self.parse_line_range_target(self.target)
+        except ValueError:
             raise ValueError(f"Invalid target format: {self.target}")
-
-        name_part = match.group(1)
-        self.line_number = int(match.group(2))
 
         # Check if it's a class method (contains ::)
         if "::" in name_part:
-            self.class_name, self.function_name = name_part.split("::", 1)
+            self.class_name, self.function_name = self.parse_qualified_target(name_part)
         else:
             self.class_name = None
             self.function_name = name_part

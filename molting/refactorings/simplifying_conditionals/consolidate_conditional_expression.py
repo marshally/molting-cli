@@ -20,32 +20,23 @@ class ConsolidateConditionalExpression(RefactoringBase):
         """
         self.file_path = Path(file_path)
         self.target = target
-        self._parse_target()
-        self.source = self.file_path.read_text()
-
-    def _parse_target(self) -> None:
-        """Parse the target specification to extract function name and line range.
-
-        Parses targets like:
-        - "function_name#L2-L7" -> function name + line range
-        - "ClassName::method_name#L3-L10" -> class name + method name + line range
-        """
-        pattern = r'^(.+?)#L(\d+)-L(\d+)$'
-        match = re.match(pattern, self.target)
-
-        if not match:
+        # Parse the target specification to extract function name and line range.
+        # Parses targets like:
+        # - "function_name#L2-L7" -> function name + line range
+        # - "ClassName::method_name#L3-L10" -> class name + method name + line range
+        try:
+            name_part, self.start_line, self.end_line = self.parse_line_range_target(self.target)
+        except ValueError:
             raise ValueError(f"Invalid target format: {self.target}")
-
-        name_part = match.group(1)
-        self.start_line = int(match.group(2))
-        self.end_line = int(match.group(3))
 
         # Check if it's a class method (contains ::)
         if "::" in name_part:
-            self.class_name, self.function_name = name_part.split("::", 1)
+            self.class_name, self.function_name = self.parse_qualified_target(name_part)
         else:
             self.class_name = None
             self.function_name = name_part
+
+        self.source = self.file_path.read_text()
 
     def apply(self, source: str) -> str:
         """Apply the consolidate conditional expression refactoring to source code.

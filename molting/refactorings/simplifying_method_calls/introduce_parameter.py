@@ -23,6 +23,10 @@ class IntroduceParameter(RefactoringBase):
         self.name = name
         self.default = default
         self.source = self.file_path.read_text()
+        # Parse the target specification - if it contains "::" it's "ClassName::method_name"
+        if "::" not in self.target:
+            raise ValueError(f"Target '{target}' must be in format 'ClassName::method_name'")
+        self.class_name, self.method_name = self.parse_qualified_target(target)
 
     def apply(self, source: str) -> str:
         """Apply the introduce parameter refactoring to source code.
@@ -41,8 +45,9 @@ class IntroduceParameter(RefactoringBase):
         except SyntaxError as e:
             raise ValueError(f"Failed to parse source code: {e}")
 
-        # Find and modify the method
-        class_name, method_name = self._parse_target()
+        # Use the instance variables set in __init__
+        class_name = self.class_name
+        method_name = self.method_name
         modified = False
 
         for node in tree.body:
@@ -79,20 +84,4 @@ class IntroduceParameter(RefactoringBase):
             True if refactoring can be applied, False otherwise
         """
         # Check that the target method exists in the source
-        if "::" in self.target:
-            class_name, method_name = self.target.split("::", 1)
-            return f"def {method_name}" in source and f"class {class_name}" in source
-        else:
-            return f"def {self.target}" in source
-
-    def _parse_target(self) -> tuple:
-        """Parse the target into class name and method name.
-
-        Returns:
-            Tuple of (class_name, method_name)
-        """
-        if "::" not in self.target:
-            raise ValueError(f"Target '{self.target}' must be in format 'ClassName::method_name'")
-
-        class_name, method_name = self.target.split("::", 1)
-        return class_name, method_name
+        return f"def {self.method_name}" in source and f"class {self.class_name}" in source

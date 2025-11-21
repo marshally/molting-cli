@@ -22,20 +22,10 @@ class RemoveSettingMethod(RefactoringBase):
         self.file_path = Path(file_path)
         self.target = target
         self.source = self.file_path.read_text()
-        self._parse_target()
-
-    def _parse_target(self) -> None:
-        """Parse the target specification.
-
-        Parses targets like:
-        - "ClassName::method_name" -> method in class
-        """
+        # Parse the target specification - must be "ClassName::method_name" format
         if "::" not in self.target:
             raise ValueError(f"Invalid target format: {self.target}. Expected 'ClassName::method_name'")
-
-        parts = self.target.split("::", 1)
-        self.class_name = parts[0]
-        self.method_name = parts[1]
+        self.class_name, self.method_name = self.parse_qualified_target(self.target)
 
     def apply(self, source: str) -> str:
         """Apply the remove setting method refactoring to source code.

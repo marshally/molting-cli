@@ -25,19 +25,10 @@ class RemoveParameter(RefactoringBase):
         self.target = target
         self.parameter = parameter
         self.source = self.file_path.read_text()
-        self._parse_target()
-
-    def _parse_target(self) -> None:
-        """Parse the target specification.
-
-        Parses targets like:
-        - "function_name" -> function at module level
-        - "ClassName::method_name" -> method in class
-        """
+        # Parse the target specification - if it contains "::" it's "ClassName::method_name"
+        # otherwise it's just "function_name"
         if "::" in self.target:
-            parts = self.target.split("::", 1)
-            self.class_name = parts[0]
-            self.function_name = parts[1]
+            self.class_name, self.function_name = self.parse_qualified_target(self.target)
         else:
             self.class_name = None
             self.function_name = self.target
