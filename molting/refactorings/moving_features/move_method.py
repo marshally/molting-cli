@@ -45,19 +45,19 @@ class MoveMethod(RefactoringBase):
             raise ValueError(f"Failed to parse source code: {e}")
 
         # Find the source class and method
-        source_class = self._find_class(tree, source_class_name)
+        source_class = self.find_class_def(tree, source_class_name)
         if source_class is None:
             raise ValueError(f"Class '{source_class_name}' not found")
 
         # Find the method in the source class
-        method_node = self._find_method_in_class(source_class, method_name)
+        method_node = self.find_method_in_class(source_class, method_name)
         if method_node is None:
             raise ValueError(
                 f"Method '{method_name}' not found in class '{source_class_name}'"
             )
 
         # Find the destination class
-        dest_class = self._find_class(tree, self.destination_class)
+        dest_class = self.find_class_def(tree, self.destination_class)
         if dest_class is None:
             raise ValueError(f"Class '{self.destination_class}' not found")
 
@@ -80,46 +80,16 @@ class MoveMethod(RefactoringBase):
         try:
             class_name, method_name = self._parse_source_location()
             tree = ast.parse(source)
-            source_class = self._find_class(tree, class_name)
+            source_class = self.find_class_def(tree, class_name)
             if source_class is None:
                 return False
-            method = self._find_method_in_class(source_class, method_name)
+            method = self.find_method_in_class(source_class, method_name)
             if method is None:
                 return False
-            dest_class = self._find_class(tree, self.destination_class)
+            dest_class = self.find_class_def(tree, self.destination_class)
             return dest_class is not None
         except Exception:
             return False
-
-    def _find_class(self, tree: ast.Module, class_name: str) -> ast.ClassDef:
-        """Find a class definition in the AST.
-
-        Args:
-            tree: The AST module
-            class_name: Name of the class to find
-
-        Returns:
-            The ClassDef node or None if not found
-        """
-        for node in tree.body:
-            if isinstance(node, ast.ClassDef) and node.name == class_name:
-                return node
-        return None
-
-    def _find_method_in_class(self, class_node: ast.ClassDef, method_name: str) -> ast.FunctionDef:
-        """Find a method in a class.
-
-        Args:
-            class_node: The ClassDef node
-            method_name: Name of the method to find
-
-        Returns:
-            The FunctionDef node or None if not found
-        """
-        for item in class_node.body:
-            if isinstance(item, ast.FunctionDef) and item.name == method_name:
-                return item
-        return None
 
     def _move_method_text(
         self,
