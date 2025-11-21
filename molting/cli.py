@@ -17,12 +17,9 @@ from molting.refactorings.composing_methods.introduce_explaining_variable import
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import (
     RemoveAssignmentsToParameters,
 )
-<<<<<<< HEAD
 from molting.refactorings.composing_methods.replace_method_with_method_object import (
     ReplaceMethodWithMethodObject,
 )
-=======
->>>>>>> fa70707 (🟢 Implement self-encapsulate-field refactoring)
 
 # Import all refactoring classes
 from molting.refactorings.composing_methods.rename import Rename
@@ -41,6 +38,9 @@ from molting.refactorings.moving_features.move_method import MoveMethod
 from molting.refactorings.moving_features.remove_middle_man import RemoveMiddleMan
 from molting.refactorings.organizing_data.change_reference_to_value import (
     ChangeReferenceToValue,
+)
+from molting.refactorings.organizing_data.change_value_to_reference import (
+    ChangeValueToReference,
 )
 from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
 from molting.refactorings.organizing_data.replace_array_with_object import (
@@ -128,6 +128,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "encapsulate-field": (EncapsulateField, ["target"]),
     "self-encapsulate-field": (SelfEncapsulateField, ["target"]),
     "replace-array-with-object": (ReplaceArrayWithObject, ["target", "class_name", "fields"]),
+    "change-value-to-reference": (ChangeValueToReference, ["target"]),
     "replace-data-value-with-object": (ReplaceDataValueWithObject, ["target", "name"]),
     "replace-type-code-with-class": (ReplaceTypeCodeWithClass, ["target", "name"]),
     "replace-type-code-with-subclasses": (ReplaceTypeCodeWithSubclasses, ["target", "type_field"]),
