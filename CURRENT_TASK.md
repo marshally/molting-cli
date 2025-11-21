@@ -1,35 +1,20 @@
-# Replace Conditional with Polymorphism - TDD Task
+# Pull Up Field Refactoring - TDD Task
 
-## Overview
-Implement the "replace-conditional-with-polymorphism" refactoring that transforms conditional logic into polymorphic method calls.
+## Feature Description
+Implement the "pull-up-field" refactoring that moves a field from subclasses to the superclass.
 
 ## Acceptance Criteria
 
-### 1. RED: Create failing test fixture and test
-- [ ] Create fixture files: `tests/fixtures/simplifying_conditionals/replace_conditional_with_polymorphism/simple/`
-  - input.py: Contains a class with conditional logic
-  - expected.py: Contains refactored code with polymorphic classes
-- [ ] Add test method to `tests/test_simplifying_conditionals.py`
-- [ ] Run test to confirm it fails
+- [ ] AC1: Directory `molting/refactorings/dealing_with_generalization/` exists with `__init__.py`
+- [ ] AC2: Implementation file exists at `molting/refactorings/dealing_with_generalization/pull_up_field.py`
+- [ ] AC3: Class `PullUpField` extends `RefactoringBase` with `apply()` and `validate()` methods
+- [ ] AC4: Can parse target specification (ClassName::field_name, to=SuperclassName)
+- [ ] AC5: Transform field assignments from subclasses to superclass __init__
+- [ ] AC6: Update subclass __init__ to call super().__init__() with field values
+- [ ] AC7: Test simple case passes (input.py -> expected.py)
+- [ ] AC8: Register refactoring in REFACTORING_REGISTRY in cli.py
+- [ ] AC9: All linters pass (ruff check and ruff format)
+- [ ] AC10: Push to GitHub and create PR
 
-### 2. GREEN: Implement ReplaceConditionalWithPolymorphism class
-- [ ] Create `molting/refactorings/simplifying_conditionals/replace_conditional_with_polymorphism.py`
-- [ ] Implement initialization with target and type_field parameters
-- [ ] Implement apply() method to refactor conditional logic
-- [ ] Implement validate() method
-- [ ] Run test to confirm it passes
-
-### 3. REFACTOR: Add to CLI registry
-- [ ] Add import to `molting/cli.py`
-- [ ] Add entry to REFACTORING_REGISTRY
-- [ ] Verify all tests pass
-
-### 4. FINAL: Code quality and commits
-- [ ] Run linter and fix any style issues
-- [ ] Create appropriate commits for each phase
-- [ ] Create PR with summary
-
-## Notes
-- Target format: "ClassName::method_name#L13-L20"
-- Parameters: target (method range) and type_field (field containing type)
-- Transform conditional type checking into class hierarchy with polymorphic methods
+## Current Status
+Starting with RED phase - no implementation yet.

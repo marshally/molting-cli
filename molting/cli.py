@@ -17,17 +17,18 @@ from molting.refactorings.composing_methods.introduce_explaining_variable import
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import (
     RemoveAssignmentsToParameters,
 )
-from molting.refactorings.composing_methods.replace_method_with_method_object import (
-    ReplaceMethodWithMethodObject,
-)
 
 # Import all refactoring classes
 from molting.refactorings.composing_methods.rename import Rename
+from molting.refactorings.composing_methods.replace_method_with_method_object import (
+    ReplaceMethodWithMethodObject,
+)
 from molting.refactorings.composing_methods.replace_temp_with_query import (
     ReplaceTempWithQuery,
 )
 from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
 from molting.refactorings.composing_methods.substitute_algorithm import SubstituteAlgorithm
+from molting.refactorings.dealing_with_generalization.pull_up_field import PullUpField
 from molting.refactorings.moving_features.extract_class import ExtractClass
 from molting.refactorings.moving_features.hide_delegate import HideDelegate
 from molting.refactorings.moving_features.inline_class import InlineClass
@@ -180,6 +181,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     ),
     "separate-query-from-modifier": (SeparateQueryFromModifier, ["target", "modifier_name"]),
     "preserve-whole-object": (PreserveWholeObject, ["target"]),
+    "pull-up-field": (PullUpField, ["target", "to"]),
 }
 
 
