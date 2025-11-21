@@ -107,6 +107,7 @@ class RemoveParameterTransformer(cst.CSTTransformer):
         self.parameter_name = parameter_name
         self.current_class = None
         self.modified = False
+        self.parameter_index = None  # Will be set when we find and modify the function
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:
         """Track when entering a class."""
@@ -116,6 +117,26 @@ class RemoveParameterTransformer(cst.CSTTransformer):
     def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
         """Track when leaving a class."""
         self.current_class = None
+        return updated_node
+
+    def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
+        """Update call sites to remove the argument corresponding to the removed parameter."""
+        # Only update calls if we've identified the parameter to remove
+        if self.parameter_index is None:
+            return updated_node
+
+        # Check if this call is to the function we're modifying
+        if isinstance(updated_node.func, cst.Name):
+            # Direct function call
+            func_name = updated_node.func.value
+            if func_name == self.function_name and self.class_name is None:
+                return self._remove_argument_from_call(updated_node)
+        elif isinstance(updated_node.func, cst.Attribute):
+            # Method call like obj.method()
+            if (isinstance(updated_node.func.attr, cst.Name) and
+                updated_node.func.attr.value == self.function_name):
+                return self._remove_argument_from_call(updated_node)
+
         return updated_node
 
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
@@ -140,6 +161,32 @@ class RemoveParameterTransformer(cst.CSTTransformer):
         self.modified = True
         return self._remove_parameter_from_function(updated_node)
 
+    def _remove_argument_from_call(self, call: cst.Call) -> cst.Call:
+        """Remove an argument from a function call.
+
+        Args:
+            call: The Call node to modify
+
+        Returns:
+            Modified call node with argument removed
+        """
+        args = call.args
+        if self.parameter_index is None or self.parameter_index >= len(args):
+            return call
+
+        # Remove the argument at parameter_index
+        new_args_list = []
+        for i, arg in enumerate(args):
+            if i != self.parameter_index:
+                new_args_list.append(arg)
+
+        # Remove trailing comma from the last argument if it exists
+        if new_args_list:
+            last_arg = new_args_list[-1]
+            new_args_list[-1] = last_arg.with_changes(comma=cst.MaybeSentinel.DEFAULT)
+
+        return call.with_changes(args=tuple(new_args_list))
+
     def _remove_parameter_from_function(self, func_def: cst.FunctionDef) -> cst.FunctionDef:
         """Remove a parameter from the function signature.
 
@@ -151,13 +198,15 @@ class RemoveParameterTransformer(cst.CSTTransformer):
         """
         params = func_def.params
 
-        # Find and remove the parameter
+        # Find and remove the parameter, tracking its index
         new_params_list = []
         found = False
+        self.parameter_index = None
 
-        for param in params.params:
+        for i, param in enumerate(params.params):
             if param.name.value == self.parameter_name:
                 found = True
+                self.parameter_index = i
                 # Skip this parameter (remove it)
             else:
                 new_params_list.append(param)
