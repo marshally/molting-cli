@@ -23,6 +23,7 @@ from molting.refactorings.simplifying_method_calls.replace_constructor_with_fact
 from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
 from molting.refactorings.simplifying_method_calls.add_parameter import AddParameter
 from molting.refactorings.simplifying_method_calls.remove_parameter import RemoveParameter
+from molting.refactorings.simplifying_method_calls.hide_method import HideMethod
 from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
 from molting.refactorings.simplifying_conditionals.decompose_conditional import DecomposeConditional
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import RemoveAssignmentsToParameters
@@ -52,6 +53,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "remove-assignments-to-parameters": (RemoveAssignmentsToParameters, ["target"]),
     "remove-control-flag": (RemoveControlFlag, ["target"]),
     "replace-nested-conditional-with-guard-clauses": (ReplaceNestedConditionalWithGuardClauses, ["target"]),
+    "hide-method": (HideMethod, ["target"]),
 }
 
 
@@ -321,3 +323,17 @@ def replace_nested_conditional_with_guard_clauses(file_path: str, target: str) -
     """
     refactor_file("replace-nested-conditional-with-guard-clauses", file_path, target=target)
     click.echo(f"✓ Replaced nested conditional with guard clauses in '{target}' in {file_path}")
+
+
+@main.command(name="hide-method")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+def hide_method(file_path: str, target: str) -> None:
+    """Hide a method by making it private with underscore prefix.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target method to hide (e.g., "ClassName::method_name")
+    """
+    refactor_file("hide-method", file_path, target=target)
+    click.echo(f"✓ Hidden method '{target}' in {file_path}")
