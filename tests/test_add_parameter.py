@@ -3,6 +3,7 @@ Tests for Add Parameter refactoring.
 
 This module tests refactorings that add new parameters to function/method signatures.
 """
+import pytest
 from tests.conftest import RefactoringTestBase
 
 
@@ -34,3 +35,22 @@ class TestAddParameter(RefactoringTestBase):
             target="Calculator::add",
             name="precision"
         )
+
+    def test_add_parameter_invalid_target(self):
+        """Raise error when target function does not exist."""
+        from molting.cli import refactor_file
+        from pathlib import Path
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            test_file = Path(tmp_dir) / "test.py"
+            test_file.write_text("def calculate(x, y):\n    return x + y\n")
+
+            with pytest.raises(ValueError, match="Could not find target"):
+                refactor_file(
+                    "add-parameter",
+                    str(test_file),
+                    target="nonexistent_function",
+                    name="new_param",
+                    default=None
+                )

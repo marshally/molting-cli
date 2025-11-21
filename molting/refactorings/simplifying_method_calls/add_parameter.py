@@ -68,6 +68,9 @@ class AddParameter(RefactoringBase):
         )
         modified_tree = tree.visit(transformer)
 
+        if not transformer.modified:
+            raise ValueError(f"Could not find target: {self.target}")
+
         return modified_tree.code
 
     def validate(self, source: str) -> bool:
