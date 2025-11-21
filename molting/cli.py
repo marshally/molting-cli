@@ -22,6 +22,7 @@ from molting.refactorings.composing_methods.remove_assignments_to_parameters imp
 from molting.refactorings.composing_methods.rename import Rename
 from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
 from molting.refactorings.composing_methods.substitute_algorithm import SubstituteAlgorithm
+from molting.refactorings.moving_features.extract_class import ExtractClass
 from molting.refactorings.moving_features.hide_delegate import HideDelegate
 from molting.refactorings.moving_features.inline_class import InlineClass
 from molting.refactorings.moving_features.move_field import MoveField
@@ -84,6 +85,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "hide-delegate": (HideDelegate, ["target"]),
     "inline-class": (InlineClass, ["source_class", "into", "field_prefix"]),
     "remove-middle-man": (RemoveMiddleMan, ["target"]),
+    "extract-class": (ExtractClass, ["source", "fields", "methods", "name"]),
     "encapsulate-field": (EncapsulateField, ["target"]),
     "replace-data-value-with-object": (ReplaceDataValueWithObject, ["target", "name"]),
     "replace-magic-number-with-symbolic-constant": (
