@@ -57,7 +57,10 @@ class TestReplaceArrayWithObject(RefactoringTestBase):
     def test_simple(self):
         """Replace an array with an object that has a field for each element."""
         self.refactor(
-            "replace-array-with-object", target="analyze_performance::row", name="Performance"
+            "replace-array-with-object",
+            target="analyze_performance::row",
+            class_name="Performance",
+            fields="name,wins,losses",
         )
 
 
