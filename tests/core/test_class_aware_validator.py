@@ -32,7 +32,7 @@ class TestClassAwareValidatorInit:
 
     def test_init_with_optional_class(self):
         """Initialize validator with optional class name."""
-        validator = ConcreteValidator(function_name="my_function")
+        validator = ConcreteValidator(class_name=None, function_name="my_function")
         assert validator.class_name is None
         assert validator.function_name == "my_function"
 
@@ -49,7 +49,7 @@ class MyClass:
 """
         validator = ConcreteValidator(class_name="MyClass", function_name="my_method")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is True
 
     def test_finds_module_level_function(self):
@@ -60,7 +60,7 @@ def my_function():
 """
         validator = ConcreteValidator(class_name=None, function_name="my_function")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is True
 
     def test_finds_class_method(self):
@@ -72,7 +72,7 @@ class MyClass:
 """
         validator = ConcreteValidator(class_name="MyClass", function_name="my_method")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is True
 
     def test_not_found_missing_function(self):
@@ -83,7 +83,7 @@ def other_function():
 """
         validator = ConcreteValidator(class_name=None, function_name="my_function")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is False
 
     def test_not_found_missing_class(self):
@@ -95,7 +95,7 @@ class OtherClass:
 """
         validator = ConcreteValidator(class_name="MyClass", function_name="my_method")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is False
 
     def test_not_found_missing_method(self):
@@ -107,7 +107,7 @@ class MyClass:
 """
         validator = ConcreteValidator(class_name="MyClass", function_name="my_method")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is False
 
 
@@ -126,7 +126,7 @@ class MyClass:
 """
         validator = ConcreteValidator(class_name="MyClass", function_name="my_method")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is False
 
     def test_ignores_class_method_when_looking_for_module_function(self):
@@ -138,7 +138,7 @@ class MyClass:
 """
         validator = ConcreteValidator(class_name=None, function_name="my_function")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is False
 
     def test_multiple_classes_finds_correct_one(self):
@@ -154,7 +154,7 @@ class MyClass:
 """
         validator = ConcreteValidator(class_name="MyClass", function_name="my_method")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is True
 
     def test_nested_functions_ignored(self):
@@ -168,7 +168,7 @@ def outer_function():
         # as they are visited. This may need to be refined based on requirements.
         validator = ConcreteValidator(class_name=None, function_name="my_function")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         # Nested functions will be found by visitor, which is current behavior
         assert validator.found is True
 
@@ -185,7 +185,7 @@ class MyClass(BaseClass):
 """
         validator = ConcreteValidator(class_name="MyClass", function_name="other_method")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is True
 
     def test_empty_source_not_found(self):
@@ -193,7 +193,7 @@ class MyClass(BaseClass):
         source = ""
         validator = ConcreteValidator(class_name=None, function_name="my_function")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is False
 
     def test_source_with_only_comments(self):
@@ -204,7 +204,7 @@ class MyClass(BaseClass):
 """
         validator = ConcreteValidator(class_name=None, function_name="my_function")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is False
 
 
@@ -235,7 +235,7 @@ class MyClass:
 """
         validator = CustomValidator(class_name=None, function_name="func1")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is True
         assert validator.function_count == 3
 
@@ -270,7 +270,7 @@ class MyClass:
             required_params=2
         )
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is True
         assert validator.param_count == 3  # self + a + b
 
@@ -285,5 +285,5 @@ def my_function():
 """
         validator = ExtendedValidator(class_name=None, function_name="my_function")
         tree = cst.parse_module(source)
-        tree.walk(validator)
+        tree.visit(validator)
         assert validator.found is True
