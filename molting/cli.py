@@ -17,9 +17,12 @@ from molting.refactorings.composing_methods.introduce_explaining_variable import
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import (
     RemoveAssignmentsToParameters,
 )
+<<<<<<< HEAD
 from molting.refactorings.composing_methods.replace_method_with_method_object import (
     ReplaceMethodWithMethodObject,
 )
+=======
+>>>>>>> fa70707 (🟢 Implement self-encapsulate-field refactoring)
 
 # Import all refactoring classes
 from molting.refactorings.composing_methods.rename import Rename
@@ -46,9 +49,12 @@ from molting.refactorings.organizing_data.replace_data_value_with_object import 
 from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
     ReplaceMagicNumberWithSymbolicConstant,
 )
+<<<<<<< HEAD
 from molting.refactorings.organizing_data.replace_type_code_with_class import (
     ReplaceTypeCodeWithClass,
 )
+=======
+>>>>>>> fa70707 (🟢 Implement self-encapsulate-field refactoring)
 from molting.refactorings.organizing_data.self_encapsulate_field import SelfEncapsulateField
 from molting.refactorings.simplifying_conditionals.consolidate_conditional_expression import (
     ConsolidateConditionalExpression,
