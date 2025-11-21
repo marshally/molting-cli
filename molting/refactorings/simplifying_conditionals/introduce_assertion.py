@@ -1,6 +1,5 @@
 """Introduce Assertion refactoring - make assumptions explicit with assertions."""
 
-import re
 from pathlib import Path
 import libcst as cst
 from typing import Optional
