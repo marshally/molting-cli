@@ -92,3 +92,59 @@ class TestConsolidateDuplicateConditionalFragmentsCLI:
         # The command should exist and display help
         assert result.exit_code == 0
         assert "consolidate-duplicate-conditional-fragments" in result.output or "Consolidate" in result.output
+
+    def test_cli_command_integration(self):
+        """Test the consolidate-duplicate-conditional-fragments CLI command executes correctly."""
+        import tempfile
+        from pathlib import Path
+        from molting.cli import main
+
+        # Create a temporary file with code that needs refactoring
+        code = """def calculate_price(is_special, price):
+    if is_special:
+        total = price * 0.95
+        send_order()
+    else:
+        total = price * 0.98
+        send_order()
+    return total
+"""
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(code)
+            temp_file = f.name
+
+        try:
+            runner = CliRunner()
+            result = runner.invoke(main, [
+                "consolidate-duplicate-conditional-fragments",
+                temp_file,
+                "calculate_price#L2"
+            ])
+
+            # The command should execute successfully
+            assert result.exit_code == 0
+            assert "✓ Consolidated duplicate conditional fragments" in result.output
+
+            # Verify the file was modified correctly
+            modified_code = Path(temp_file).read_text()
+            assert "send_order()" in modified_code
+            # Check that send_order() is now outside the if-else
+            lines = modified_code.split('\n')
+            send_order_line = None
+            if_line = None
+            else_line = None
+            for i, line in enumerate(lines):
+                if 'if is_special' in line:
+                    if_line = i
+                if 'else:' in line:
+                    else_line = i
+                if 'send_order()' in line:
+                    send_order_line = i
+
+            # send_order() should be after the else block
+            assert send_order_line is not None
+            assert else_line is not None
+            assert send_order_line > else_line
+        finally:
+            Path(temp_file).unlink()
