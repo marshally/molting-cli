@@ -2,7 +2,7 @@
 
 import ast
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, cast
 
 from molting.core.refactoring_base import RefactoringBase
 
@@ -172,11 +172,14 @@ class IntroduceLocalExtension(RefactoringBase):
 
         # Create the class with the target class as base
         base = ast.Name(id=self.target_class, ctx=ast.Load())
+        body: list[ast.stmt] = cast(
+            list[ast.stmt], methods if methods else [ast.Pass()]  # type: ignore[list-item]
+        )
         extension_class = ast.ClassDef(
             name=self.extension_class_name,
             bases=[base],
             keywords=[],
-            body=methods if methods else [ast.Pass()],
+            body=body,
             decorator_list=[],
         )
 
@@ -269,7 +272,10 @@ class IntroduceLocalExtension(RefactoringBase):
         class CallUpdater(ast.NodeTransformer):
             def visit_Call(self, node: ast.Call) -> ast.expr:
                 # First, visit children
-                node = self.generic_visit(node)
+                updated = self.generic_visit(node)
+                if not isinstance(updated, ast.Call):
+                    return updated  # type: ignore[return-value]
+                node = updated
 
                 # Check if this is a call to one of the helper functions
                 if isinstance(node.func, ast.Name) and node.func.id in function_names:
