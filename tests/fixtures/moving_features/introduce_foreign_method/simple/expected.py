@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 
 
 class Report:
@@ -7,5 +7,4 @@ class Report:
         new_start = self.next_day(previous_end)
 
     def next_day(self, arg):
-        # Foreign method for date
-        return arg + timedelta(days=1)
+        return date(arg.year, arg.month, arg.day + 1)
