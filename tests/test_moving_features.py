@@ -97,8 +97,5 @@ class TestIntroduceLocalExtension(RefactoringTestBase):
     def test_simple(self):
         """Create new class with extra methods as subclass/wrapper."""
         self.refactor(
-            "introduce-local-extension",
-            target="date",
-            name="MfDate",
-            extension_type="subclass"
+            "introduce-local-extension", target="date", name="MfDate", extension_type="subclass"
         )
