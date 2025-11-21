@@ -64,6 +64,13 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
             target="process_order#L2"
         )
 
+    def test_duplicate_at_start(self):
+        """Consolidate duplicate code at the start of both branches."""
+        self.refactor(
+            "consolidate-duplicate-conditional-fragments",
+            target="process_order#L2"
+        )
+
 
 class TestConsolidateDuplicateConditionalFragmentsCLI:
     """Tests for consolidate-duplicate-conditional-fragments CLI command."""
