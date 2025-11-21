@@ -69,6 +69,9 @@ from molting.refactorings.simplifying_conditionals.decompose_conditional import 
 from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
 from molting.refactorings.simplifying_conditionals.introduce_null_object import IntroduceNullObject
 from molting.refactorings.simplifying_conditionals.remove_control_flag import RemoveControlFlag
+from molting.refactorings.simplifying_conditionals.replace_conditional_with_polymorphism import (
+    ReplaceConditionalWithPolymorphism,
+)
 from molting.refactorings.simplifying_conditionals.replace_nested_conditional_with_guard_clauses import (
     ReplaceNestedConditionalWithGuardClauses,
 )
@@ -158,6 +161,10 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "consolidate-duplicate-conditional-fragments": (
         ConsolidateDuplicateConditionalFragments,
         ["target"],
+    ),
+    "replace-conditional-with-polymorphism": (
+        ReplaceConditionalWithPolymorphism,
+        ["target", "type_field"],
     ),
     "hide-method": (HideMethod, ["target"]),
     "remove-setting-method": (RemoveSettingMethod, ["target"]),
