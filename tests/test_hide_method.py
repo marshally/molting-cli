@@ -17,3 +17,10 @@ class TestHideMethod(RefactoringTestBase):
             "hide-method",
             target="Calculator::helper"
         )
+
+    def test_update_multiple_call_sites(self):
+        """Update all call sites when hiding a method that is called multiple times."""
+        self.refactor(
+            "hide-method",
+            target="Calculator::compute"
+        )
