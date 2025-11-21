@@ -27,6 +27,22 @@ class TestRemoveParameter(RefactoringTestBase):
             parameter="old_param"
         )
 
+    def test_remove_first_parameter(self):
+        """Remove the first parameter from a parameter list."""
+        self.refactor(
+            "remove-parameter",
+            target="calculate",
+            parameter="old_param"
+        )
+
+    def test_remove_only_parameter(self):
+        """Remove the only parameter from a function."""
+        self.refactor(
+            "remove-parameter",
+            target="process",
+            parameter="unused_param"
+        )
+
     def test_remove_parameter_invalid_target(self):
         """Raise error when target function does not exist."""
         from molting.cli import refactor_file
