@@ -44,6 +44,7 @@ from molting.refactorings.simplifying_conditionals.consolidate_duplicate_conditi
 )
 from molting.refactorings.simplifying_conditionals.decompose_conditional import DecomposeConditional
 from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
+from molting.refactorings.simplifying_conditionals.introduce_null_object import IntroduceNullObject
 from molting.refactorings.simplifying_conditionals.remove_control_flag import RemoveControlFlag
 from molting.refactorings.simplifying_conditionals.replace_nested_conditional_with_guard_clauses import (
     ReplaceNestedConditionalWithGuardClauses,
@@ -110,6 +111,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "parameterize-method": (ParameterizeMethod, ["target1", "target2", "new_name"]),
     "remove-parameter": (RemoveParameter, ["target", "parameter"]),
     "introduce-assertion": (IntroduceAssertion, ["target", "condition", "message"]),
+    "introduce-null-object": (IntroduceNullObject, ["target_class"]),
     "decompose-conditional": (DecomposeConditional, ["target"]),
     "remove-assignments-to-parameters": (RemoveAssignmentsToParameters, ["target"]),
     "remove-control-flag": (RemoveControlFlag, ["target"]),
