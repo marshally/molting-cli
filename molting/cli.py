@@ -43,6 +43,9 @@ from molting.refactorings.organizing_data.replace_data_value_with_object import 
 from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
     ReplaceMagicNumberWithSymbolicConstant,
 )
+from molting.refactorings.organizing_data.replace_type_code_with_state_strategy import (
+    ReplaceTypeCodeWithStateStrategy,
+)
 from molting.refactorings.organizing_data.self_encapsulate_field import SelfEncapsulateField
 from molting.refactorings.simplifying_conditionals.consolidate_conditional_expression import (
     ConsolidateConditionalExpression,
@@ -116,6 +119,10 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "replace-magic-number-with-symbolic-constant": (
         ReplaceMagicNumberWithSymbolicConstant,
         ["target", "magic_number", "constant_name"],
+    ),
+    "replace-type-code-with-state-strategy": (
+        ReplaceTypeCodeWithStateStrategy,
+        ["target", "name"],
     ),
     "replace-constructor-with-factory-function": (
         ReplaceConstructorWithFactoryFunction,
