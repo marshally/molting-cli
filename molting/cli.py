@@ -17,12 +17,9 @@ from molting.refactorings.composing_methods.introduce_explaining_variable import
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import (
     RemoveAssignmentsToParameters,
 )
-<<<<<<< HEAD
 from molting.refactorings.composing_methods.replace_method_with_method_object import (
     ReplaceMethodWithMethodObject,
 )
-=======
->>>>>>> fa70707 (🟢 Implement self-encapsulate-field refactoring)
 
 # Import all refactoring classes
 from molting.refactorings.composing_methods.rename import Rename
