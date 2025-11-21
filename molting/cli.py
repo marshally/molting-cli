@@ -17,12 +17,12 @@ from molting.refactorings.composing_methods.introduce_explaining_variable import
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import (
     RemoveAssignmentsToParameters,
 )
-from molting.refactorings.composing_methods.replace_temp_with_query import (
-    ReplaceTempWithQuery,
-)
 
 # Import all refactoring classes
 from molting.refactorings.composing_methods.rename import Rename
+from molting.refactorings.composing_methods.replace_temp_with_query import (
+    ReplaceTempWithQuery,
+)
 from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
 from molting.refactorings.composing_methods.substitute_algorithm import SubstituteAlgorithm
 from molting.refactorings.moving_features.extract_class import ExtractClass
