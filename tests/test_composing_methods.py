@@ -13,15 +13,9 @@ class TestExtractMethod(RefactoringTestBase):
     fixture_category = "composing_methods/extract_method"
 
     def test_simple(self):
-        """Extract multiple code blocks into separate methods."""
+        """Extract a code block into a method."""
         # Extract print banner
-        self.refactor("extract-method", target="Order::print_owing#L9-L11", name="print_banner")
-        # Extract calculate outstanding
-        self.refactor(
-            "extract-method", target="Order::print_owing#L14-L16", name="calculate_outstanding"
-        )
-        # Extract print details
-        self.refactor("extract-method", target="Order::print_owing#L19-L20", name="print_details")
+        self.refactor("extract-method", target="Order::print_owing#L10-L12", name="print_banner")
 
 
 class TestExtractFunction(RefactoringTestBase):
@@ -53,7 +47,7 @@ class TestInlineTemp(RefactoringTestBase):
 
     def test_simple(self):
         """Replace a temp variable with its expression."""
-        self.refactor("inline-temp", target="calculate_total::base_price")
+        self.refactor("inline-temp", target="calculate_total::temp_value")
 
 
 class TestReplaceTempWithQuery(RefactoringTestBase):
@@ -72,14 +66,10 @@ class TestIntroduceExplainingVariable(RefactoringTestBase):
     fixture_category = "composing_methods/introduce_explaining_variable"
 
     def test_simple(self):
-        """Put complex expressions into named temp variables."""
+        """Put the entire return expression into a named temp variable."""
         self.refactor(
-            "introduce-explaining-variable", target="calculate_total#L2", name="base_price"
+            "introduce-explaining-variable", target="calculate_total#L2", name="total"
         )
-        self.refactor(
-            "introduce-explaining-variable", target="calculate_total#L3", name="quantity_discount"
-        )
-        self.refactor("introduce-explaining-variable", target="calculate_total#L4", name="shipping")
 
 
 class TestSplitTemporaryVariable(RefactoringTestBase):

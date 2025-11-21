@@ -35,6 +35,9 @@ class InlineTemp(RefactoringBase):
         # Use the provided source code
         self.source = source
 
+        # Write source to file so rope can read it
+        self.file_path.write_text(source)
+
         # Create a rope project in a temporary location
         project_root = self.file_path.parent
         project = Project(str(project_root))
@@ -82,20 +85,38 @@ class InlineTemp(RefactoringBase):
         Returns:
             Byte offset of the variable identifier in the source code
         """
-        # Check if it's a qualified target (e.g., "ClassName::method_name" or "ClassName::method_name::var_name")
+        # Check if it's a qualified target (e.g., "function_name::var_name", "ClassName::method_name", or "ClassName::method_name::var_name")
         if "::" in self.target:
             parts = self.target.split("::")
             if len(parts) == 2:
-                class_name, var_name = parts
-                method_name = None
+                container_name, var_name = parts
+                # Check if it's a function or class
+                try:
+                    tree = ast.parse(self.source)
+                except SyntaxError as e:
+                    raise ValueError(f"Failed to parse source code: {e}")
+
+                # Look for a function with this name first
+                for node in tree.body:
+                    if isinstance(node, ast.FunctionDef) and node.name == container_name:
+                        # It's a function - find the variable in it
+                        return self._find_variable_in_scope(var_name, node.lineno)
+
+                # Not a function, try as a class
+                for node in tree.body:
+                    if isinstance(node, ast.ClassDef) and node.name == container_name:
+                        for item in node.body:
+                            if isinstance(item, ast.FunctionDef):
+                                try:
+                                    return self._find_variable_in_scope(var_name, item.lineno)
+                                except ValueError:
+                                    continue
+                        raise ValueError(f"Variable '{var_name}' not found in class '{container_name}'")
+
+                raise ValueError(f"Function or class '{container_name}' not found in {self.file_path}")
+
             elif len(parts) == 3:
                 class_name, method_name, var_name = parts
-            else:
-                raise ValueError(f"Invalid target format: {self.target}")
-
-            # If method_name is specified, use calculate_qualified_offset to find the method
-            # then search for the variable within that method's scope
-            if method_name:
                 # Use the base class method to get the method offset
                 method_offset = self.calculate_qualified_offset(
                     self.source, class_name, method_name
@@ -103,23 +124,7 @@ class InlineTemp(RefactoringBase):
                 # Now find the variable starting from that method
                 return self._find_variable_in_scope_from_offset(var_name, method_offset)
             else:
-                # Look in all methods of the class for the variable
-                try:
-                    tree = ast.parse(self.source)
-                except SyntaxError as e:
-                    raise ValueError(f"Failed to parse source code: {e}")
-
-                for node in tree.body:
-                    if isinstance(node, ast.ClassDef) and node.name == class_name:
-                        for item in node.body:
-                            if isinstance(item, ast.FunctionDef):
-                                try:
-                                    return self._find_variable_in_scope(var_name, item.lineno)
-                                except ValueError:
-                                    continue
-                        raise ValueError(f"Variable '{var_name}' not found in class '{class_name}'")
-
-                raise ValueError(f"Class '{class_name}' not found in {self.file_path}")
+                raise ValueError(f"Invalid target format: {self.target}")
         else:
             # Simple target - just find it in source
             offset = self.source.find(self.target)

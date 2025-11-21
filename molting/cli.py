@@ -47,6 +47,9 @@ from molting.refactorings.simplifying_method_calls.remove_setting_method import 
 from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import (
     ReplaceConstructorWithFactoryFunction,
 )
+from molting.refactorings.simplifying_method_calls.replace_exception_with_test import (
+    ReplaceExceptionWithTest,
+)
 
 # Registry mapping refactoring names to (class, param_names)
 REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
@@ -55,6 +58,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "extract-variable": (ExtractVariable, ["target", "variable_name"]),
     "introduce-explaining-variable": (IntroduceExplainingVariable, ["target", "name"]),
     "inline": (InlineMethod, ["target"]),
+    "inline-method": (InlineMethod, ["target"]),
     "inline-temp": (InlineTemp, ["target"]),
     "split-temporary-variable": (SplitTemporaryVariable, ["target"]),
     "move-method": (MoveMethod, ["source", "to"]),
@@ -86,6 +90,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     ),
     "hide-method": (HideMethod, ["target"]),
     "remove-setting-method": (RemoveSettingMethod, ["target"]),
+    "replace-exception-with-test": (ReplaceExceptionWithTest, ["target"]),
 }
 
 
