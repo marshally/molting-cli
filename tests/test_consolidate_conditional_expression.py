@@ -28,6 +28,13 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             target="Order::get_discount#L3-L8"
         )
 
+    def test_nested_conditions(self):
+        """Combine three conditions that all return None."""
+        self.refactor(
+            "consolidate-conditional-expression",
+            target="process_data#L2-L7"
+        )
+
 
 class TestConsolidateConditionalExpressionInvalidTargets:
     """Tests for invalid target handling."""
