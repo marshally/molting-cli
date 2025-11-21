@@ -1,11 +1,14 @@
 class Employee:
+    def __init__(self, name):
+        self.name = name
+
     def get_quota(self):
         return 100
 
 
-class Engineer(Employee):
+class Salesman(Employee):
     pass
 
 
-class Salesman(Employee):
+class Engineer(Employee):
     pass
