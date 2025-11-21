@@ -47,6 +47,9 @@ from molting.refactorings.simplifying_method_calls.remove_setting_method import 
 from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import (
     ReplaceConstructorWithFactoryFunction,
 )
+from molting.refactorings.simplifying_method_calls.replace_error_code_with_exception import (
+    ReplaceErrorCodeWithException,
+)
 
 # Registry mapping refactoring names to (class, param_names)
 REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
@@ -86,6 +89,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     ),
     "hide-method": (HideMethod, ["target"]),
     "remove-setting-method": (RemoveSettingMethod, ["target"]),
+    "replace-error-code-with-exception": (ReplaceErrorCodeWithException, ["target"]),
 }
 
 
