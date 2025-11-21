@@ -21,6 +21,7 @@ from molting.refactorings.organizing_data.encapsulate_field import EncapsulateFi
 from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import ReplaceMagicNumberWithSymbolicConstant
 from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
 from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
+from molting.refactorings.simplifying_method_calls.add_parameter import AddParameter
 from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
 from molting.refactorings.simplifying_conditionals.decompose_conditional import DecomposeConditional
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import RemoveAssignmentsToParameters
@@ -43,6 +44,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "replace-magic-number-with-symbolic-constant": (ReplaceMagicNumberWithSymbolicConstant, ["target", "magic_number", "constant_name"]),
     "replace-constructor-with-factory-function": (ReplaceConstructorWithFactoryFunction, ["target"]),
     "introduce-parameter": (IntroduceParameter, ["target", "name", "default"]),
+    "add-parameter": (AddParameter, ["target", "name", "default"]),
     "introduce-assertion": (IntroduceAssertion, ["target", "condition", "message"]),
     "decompose-conditional": (DecomposeConditional, ["target"]),
     "remove-assignments-to-parameters": (RemoveAssignmentsToParameters, ["target"]),
@@ -168,6 +170,24 @@ def introduce_parameter(file_path: str, target: str, name: str, default: str = N
     refactor_file("introduce-parameter", file_path, target=target, name=name, default=default)
     param_desc = f"'{name}' with default '{default}'" if default else f"'{name}'"
     click.echo(f"✓ Introduced parameter {param_desc} to '{target}' in {file_path}")
+
+
+@main.command(name="add-parameter")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+@click.argument("name")
+@click.option("--default", default=None, help="Default value for the new parameter")
+def add_parameter(file_path: str, target: str, name: str, default: str = None) -> None:
+    """Add a new parameter to a function or method.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target function (e.g., "function_name" or "ClassName::method_name")
+        NAME: Name of the new parameter
+    """
+    refactor_file("add-parameter", file_path, target=target, name=name, default=default)
+    param_desc = f"'{name}' with default '{default}'" if default else f"'{name}'"
+    click.echo(f"✓ Added parameter {param_desc} to '{target}' in {file_path}")
 
 
 @main.command(name="introduce-assertion")

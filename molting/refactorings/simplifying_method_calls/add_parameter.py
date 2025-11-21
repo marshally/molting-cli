@@ -1,0 +1,225 @@
+"""Add Parameter refactoring - add a new parameter to a method signature."""
+
+import re
+from pathlib import Path
+from typing import Optional
+import libcst as cst
+
+from molting.core.refactoring_base import RefactoringBase
+
+
+class AddParameter(RefactoringBase):
+    """Add a new parameter to a function or method signature."""
+
+    def __init__(self, file_path: str, target: str, name: str, default: Optional[str] = None):
+        """Initialize the AddParameter refactoring.
+
+        Args:
+            file_path: Path to the Python file to refactor
+            target: Target function/method (e.g., "function_name" or "ClassName::method_name")
+            name: Name of the new parameter
+            default: Optional default value for the new parameter
+        """
+        self.file_path = Path(file_path)
+        self.target = target
+        self.name = name
+        self.default = default
+        self.source = self.file_path.read_text()
+        self._parse_target()
+
+    def _parse_target(self) -> None:
+        """Parse the target specification.
+
+        Parses targets like:
+        - "function_name" -> function at module level
+        - "ClassName::method_name" -> method in class
+        """
+        if "::" in self.target:
+            parts = self.target.split("::", 1)
+            self.class_name = parts[0]
+            self.function_name = parts[1]
+        else:
+            self.class_name = None
+            self.function_name = self.target
+
+    def apply(self, source: str) -> str:
+        """Apply the add parameter refactoring to source code.
+
+        Args:
+            source: Python source code to refactor
+
+        Returns:
+            Refactored source code with new parameter added
+        """
+        self.source = source
+
+        # Parse the source code with libcst
+        try:
+            tree = cst.parse_module(source)
+        except Exception as e:
+            raise ValueError(f"Failed to parse source code: {e}")
+
+        # Transform the tree
+        transformer = AddParameterTransformer(
+            class_name=self.class_name,
+            function_name=self.function_name,
+            param_name=self.name,
+            param_default=self.default
+        )
+        modified_tree = tree.visit(transformer)
+
+        return modified_tree.code
+
+    def validate(self, source: str) -> bool:
+        """Validate that the refactoring can be applied.
+
+        Args:
+            source: Python source code to validate
+
+        Returns:
+            True if refactoring can be applied, False otherwise
+        """
+        try:
+            tree = cst.parse_module(source)
+            validator = ValidateAddParameterTransformer(
+                class_name=self.class_name,
+                function_name=self.function_name
+            )
+            tree.visit(validator)
+            return validator.found
+        except Exception:
+            return False
+
+
+class AddParameterTransformer(cst.CSTTransformer):
+    """Transform to add a parameter to a function/method."""
+
+    def __init__(self, class_name: Optional[str], function_name: str, param_name: str, param_default: Optional[str]):
+        """Initialize the transformer.
+
+        Args:
+            class_name: Optional class name if targeting a method
+            function_name: Function or method name to modify
+            param_name: Name of the new parameter to add
+            param_default: Optional default value for the parameter
+        """
+        self.class_name = class_name
+        self.function_name = function_name
+        self.param_name = param_name
+        self.param_default = param_default
+        self.current_class = None
+        self.modified = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:
+        """Track when entering a class."""
+        self.current_class = node.name.value
+        return True
+
+    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+        """Track when leaving a class."""
+        self.current_class = None
+        return updated_node
+
+    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+        """Modify function definition if it matches the target."""
+        # Check if this is the function we're looking for
+        func_name = original_node.name.value
+
+        if self.class_name is None:
+            # Module-level function
+            if self.current_class is not None:
+                return updated_node
+            if func_name != self.function_name:
+                return updated_node
+        else:
+            # Class method
+            if self.current_class != self.class_name:
+                return updated_node
+            if func_name != self.function_name:
+                return updated_node
+
+        # Found the target function, add the parameter
+        self.modified = True
+        return self._add_parameter_to_function(updated_node)
+
+    def _add_parameter_to_function(self, func_def: cst.FunctionDef) -> cst.FunctionDef:
+        """Add a parameter to the function signature.
+
+        Args:
+            func_def: The function definition node
+
+        Returns:
+            Modified function definition with new parameter added
+        """
+        params = func_def.params
+
+        # Create the new parameter
+        if self.param_default is not None:
+            # Parameter with default value
+            # Need to handle if there are already default values
+            new_param = cst.Param(
+                name=cst.Name(self.param_name),
+                equal=cst.AssignEqual(
+                    whitespace_before=cst.SimpleWhitespace(""),
+                    whitespace_after=cst.SimpleWhitespace("")
+                ),
+                default=cst.SimpleString(f'"{self.param_default}"') if not self._is_numeric(self.param_default) else cst.Name(self.param_default) if not self._is_numeric(self.param_default) else cst.Integer(self.param_default)
+            )
+        else:
+            # Parameter without default value
+            new_param = cst.Param(name=cst.Name(self.param_name))
+
+        # Add the parameter to the params
+        new_params = params.with_changes(
+            params=(*params.params, new_param)
+        )
+
+        return func_def.with_changes(params=new_params)
+
+    def _is_numeric(self, value: str) -> bool:
+        """Check if a value is numeric."""
+        try:
+            float(value)
+            return True
+        except (ValueError, TypeError):
+            return False
+
+
+class ValidateAddParameterTransformer(cst.CSTVisitor):
+    """Visitor to check if the target function exists."""
+
+    def __init__(self, class_name: Optional[str], function_name: str):
+        """Initialize the validator.
+
+        Args:
+            class_name: Optional class name if targeting a method
+            function_name: Function or method name to find
+        """
+        self.class_name = class_name
+        self.function_name = function_name
+        self.found = False
+        self.current_class = None
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:
+        """Track when entering a class."""
+        self.current_class = node.name.value
+        return True
+
+    def leave_ClassDef(self, node: cst.ClassDef) -> None:
+        """Track when leaving a class."""
+        self.current_class = None
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:
+        """Check if this is the target function."""
+        func_name = node.name.value
+
+        if self.class_name is None:
+            # Looking for module-level function
+            if self.current_class is None and func_name == self.function_name:
+                self.found = True
+        else:
+            # Looking for class method
+            if self.current_class == self.class_name and func_name == self.function_name:
+                self.found = True
+
+        return True
