@@ -191,31 +191,30 @@ class AddParameterTransformer(cst.CSTTransformer):
         # Try to parse as a Python literal
         try:
             # Check if it's a float
-            if '.' in value:
+            if '.' in value and self._is_all_numeric(value):
                 float(value)
                 return cst.Float(value)
             # Check if it's an integer
-            else:
+            elif value.isdigit() or (value.startswith('-') and value[1:].isdigit()):
                 int(value)
                 return cst.Integer(value)
         except ValueError:
             pass
 
-        # Try to parse it as a Python expression
-        try:
-            parsed = cst.parse_expression(value)
-            return parsed
-        except Exception:
-            # Fall back to treating it as a string literal
-            return cst.SimpleString(f'"{value}"')
+        # Check if it's a known constant or looks like a Python construct
+        if value in ('None', 'True', 'False'):
+            try:
+                parsed = cst.parse_expression(value)
+                return parsed
+            except Exception:
+                pass
 
-    def _is_numeric(self, value: str) -> bool:
-        """Check if a value is numeric."""
-        try:
-            float(value)
-            return True
-        except (ValueError, TypeError):
-            return False
+        # Fall back to treating it as a string literal
+        return cst.SimpleString(f'"{value}"')
+
+    def _is_all_numeric(self, value: str) -> bool:
+        """Check if a string contains only numeric characters and a decimal point."""
+        return all(c.isdigit() or c == '.' for c in value)
 
 
 class ValidateAddParameterTransformer(cst.CSTVisitor):

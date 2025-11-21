@@ -54,3 +54,32 @@ class TestAddParameter(RefactoringTestBase):
                     name="new_param",
                     default=None
                 )
+
+    def test_cli_command_add_parameter(self):
+        """Test the CLI command integration for add-parameter."""
+        from click.testing import CliRunner
+        from molting.cli import main
+        from pathlib import Path
+        import tempfile
+
+        runner = CliRunner()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            test_file = Path(tmp_dir) / "test.py"
+            test_file.write_text("def greet(name):\n    return f'Hello, {name}!'\n")
+
+            result = runner.invoke(main, [
+                "add-parameter",
+                str(test_file),
+                "greet",
+                "greeting",
+                "--default", "Hello"
+            ])
+
+            assert result.exit_code == 0
+            assert "Added parameter" in result.output
+            assert "greeting" in result.output
+
+            # Verify the file was modified correctly
+            modified_content = test_file.read_text()
+            assert "greeting='Hello'" in modified_content or 'greeting="Hello"' in modified_content
