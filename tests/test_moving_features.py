@@ -83,7 +83,7 @@ class TestIntroduceForeignMethod(RefactoringTestBase):
         """Create method in client with server instance as first arg."""
         self.refactor(
             "introduce-foreign-method",
-            target="Report::generate#L6",
+            target="Report::generate#L7",
             for_class="date",
             name="next_day",
         )
