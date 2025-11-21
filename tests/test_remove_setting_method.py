@@ -17,3 +17,10 @@ class TestRemoveSettingMethod(RefactoringTestBase):
             "remove-setting-method",
             target="Account::set_id"
         )
+
+    def test_set_field_pattern(self):
+        """Remove a setter method that follows the set_field pattern."""
+        self.refactor(
+            "remove-setting-method",
+            target="User::set_name"
+        )
