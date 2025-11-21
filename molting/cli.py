@@ -49,12 +49,12 @@ from molting.refactorings.organizing_data.replace_data_value_with_object import 
 from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
     ReplaceMagicNumberWithSymbolicConstant,
 )
-<<<<<<< HEAD
 from molting.refactorings.organizing_data.replace_type_code_with_class import (
     ReplaceTypeCodeWithClass,
 )
-=======
->>>>>>> fa70707 (🟢 Implement self-encapsulate-field refactoring)
+from molting.refactorings.organizing_data.replace_type_code_with_subclasses import (
+    ReplaceTypeCodeWithSubclasses,
+)
 from molting.refactorings.organizing_data.self_encapsulate_field import SelfEncapsulateField
 from molting.refactorings.simplifying_conditionals.consolidate_conditional_expression import (
     ConsolidateConditionalExpression,
@@ -126,6 +126,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "replace-array-with-object": (ReplaceArrayWithObject, ["target", "class_name", "fields"]),
     "replace-data-value-with-object": (ReplaceDataValueWithObject, ["target", "name"]),
     "replace-type-code-with-class": (ReplaceTypeCodeWithClass, ["target", "name"]),
+    "replace-type-code-with-subclasses": (ReplaceTypeCodeWithSubclasses, ["target", "type_field"]),
     "replace-magic-number-with-symbolic-constant": (
         ReplaceMagicNumberWithSymbolicConstant,
         ["target", "magic_number", "constant_name"],

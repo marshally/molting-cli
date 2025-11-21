@@ -90,3 +90,7 @@ disable_error_code = ["arg-type", "return-value", "assignment", "var-annotated"]
 [[tool.mypy.overrides]]
 module = "molting.refactorings.organizing_data.replace_array_with_object"
 disable_error_code = ["arg-type", "return-value", "assignment", "var-annotated"]
+
+[[tool.mypy.overrides]]
+module = "molting.refactorings.organizing_data.replace_type_code_with_subclasses"
+disable_error_code = ["arg-type"]
