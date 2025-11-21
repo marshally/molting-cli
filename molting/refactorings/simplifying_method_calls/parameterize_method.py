@@ -289,7 +289,9 @@ class ParameterizeMethodTransformer(ClassAwareTransformer):
     def _create_wrapper_method(self, method_name: str, param_value: float) -> cst.FunctionDef:
         """Create a wrapper method that calls the parameterized method."""
         # Create the method signature: five_percent_raise(self)
-        new_params = cst.Parameters(params=(cst.Param(name=cst.Name("self")),))
+        new_params = cst.Parameters(
+            params=(cst.Param(name=cst.Name("self")),)
+        )
 
         # Create the call: self.raise_salary(5)
         call = cst.Call(
