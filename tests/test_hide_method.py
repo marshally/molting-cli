@@ -24,3 +24,10 @@ class TestHideMethod(RefactoringTestBase):
             "hide-method",
             target="Calculator::compute"
         )
+
+    def test_method_already_private(self):
+        """Handle method that already starts with underscore."""
+        self.refactor(
+            "hide-method",
+            target="Calculator::_internal"
+        )
