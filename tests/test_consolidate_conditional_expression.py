@@ -19,3 +19,10 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             "consolidate-conditional-expression",
             target="disability_amount#L2-L7"
         )
+
+    def test_class_method(self):
+        """Combine multiple if statements in a class method."""
+        self.refactor(
+            "consolidate-conditional-expression",
+            target="Order::get_discount#L3-L8"
+        )
