@@ -1,18 +1,35 @@
-# Replace Exception with Test Refactoring - TDD Task
+# Replace Conditional with Polymorphism - TDD Task
 
-## Feature Description
-Implement the "replace-exception-with-test" refactoring that transforms try-except blocks into explicit condition checks.
+## Overview
+Implement the "replace-conditional-with-polymorphism" refactoring that transforms conditional logic into polymorphic method calls.
 
 ## Acceptance Criteria
 
-- [ ] AC1: Implementation file exists at molting/refactorings/simplifying_method_calls/replace_exception_with_test.py
-- [ ] AC2: Class extends RefactoringBase with apply() and validate() methods
-- [ ] AC3: Can parse target specification (function name with optional line ranges)
-- [ ] AC4: Transform try-except IndexError blocks into explicit length checks
-- [ ] AC5: Test simple case passes (input.py -> expected.py)
-- [ ] AC6: Register refactoring in REFACTORING_REGISTRY in cli.py
-- [ ] AC7: All linters pass (ruff check and ruff format)
-- [ ] AC8: Push to GitHub and create PR
+### 1. RED: Create failing test fixture and test
+- [ ] Create fixture files: `tests/fixtures/simplifying_conditionals/replace_conditional_with_polymorphism/simple/`
+  - input.py: Contains a class with conditional logic
+  - expected.py: Contains refactored code with polymorphic classes
+- [ ] Add test method to `tests/test_simplifying_conditionals.py`
+- [ ] Run test to confirm it fails
 
-## Current Status
-Starting with RED phase - no implementation yet.
+### 2. GREEN: Implement ReplaceConditionalWithPolymorphism class
+- [ ] Create `molting/refactorings/simplifying_conditionals/replace_conditional_with_polymorphism.py`
+- [ ] Implement initialization with target and type_field parameters
+- [ ] Implement apply() method to refactor conditional logic
+- [ ] Implement validate() method
+- [ ] Run test to confirm it passes
+
+### 3. REFACTOR: Add to CLI registry
+- [ ] Add import to `molting/cli.py`
+- [ ] Add entry to REFACTORING_REGISTRY
+- [ ] Verify all tests pass
+
+### 4. FINAL: Code quality and commits
+- [ ] Run linter and fix any style issues
+- [ ] Create appropriate commits for each phase
+- [ ] Create PR with summary
+
+## Notes
+- Target format: "ClassName::method_name#L13-L20"
+- Parameters: target (method range) and type_field (field containing type)
+- Transform conditional type checking into class hierarchy with polymorphic methods

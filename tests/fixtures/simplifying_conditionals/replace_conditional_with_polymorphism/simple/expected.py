@@ -1,29 +1,27 @@
 class Employee:
-    def __init__(self, monthly_salary):
-        self.monthly_salary = monthly_salary
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
+        self.base_salary = 1000
+        self.bonus = 500
 
     def pay_amount(self):
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class Engineer(Employee):
-    def pay_amount(self):
-        return self.monthly_salary
-
-
-class Salesman(Employee):
-    def __init__(self, monthly_salary, commission):
-        super().__init__(monthly_salary)
-        self.commission = commission
 
     def pay_amount(self):
-        return self.monthly_salary + self.commission
+        return self.base_salary
 
 
 class Manager(Employee):
-    def __init__(self, monthly_salary, bonus):
-        super().__init__(monthly_salary)
-        self.bonus = bonus
 
     def pay_amount(self):
-        return self.monthly_salary + self.bonus
+        return self.base_salary + self.bonus
+
+
+class Intern(Employee):
+
+    def pay_amount(self):
+        return self.base_salary * 0.5
