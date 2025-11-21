@@ -339,3 +339,20 @@ def hide_method(file_path: str, target: str) -> None:
     """
     refactor_file("hide-method", file_path, target=target)
     click.echo(f"✓ Hidden method '{target}' in {file_path}")
+
+
+@main.command(name="remove-setting-method")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+def remove_setting_method(file_path: str, target: str) -> None:
+    """Remove a setter method from a class.
+
+    A field should be set at creation time and never altered. This refactoring
+    removes any setter method for that field.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target setter method to remove (e.g., "ClassName::set_field" or "ClassName::property_name")
+    """
+    refactor_file("remove-setting-method", file_path, target=target)
+    click.echo(f"✓ Removed setting method '{target}' in {file_path}")

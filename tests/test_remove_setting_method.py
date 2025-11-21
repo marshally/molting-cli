@@ -67,3 +67,40 @@ class TestRemoveSettingMethod(RefactoringTestBase):
 
             with pytest.raises(ValueError, match="Invalid target format"):
                 RemoveSettingMethod(str(test_file), "invalid_target")
+
+    def test_cli_command_remove_setting_method(self):
+        """Test the CLI command integration for remove-setting-method."""
+        from click.testing import CliRunner
+        from molting.cli import main
+        from pathlib import Path
+        import tempfile
+
+        runner = CliRunner()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            test_file = Path(tmp_dir) / "test.py"
+            test_file.write_text("""class Counter:
+    def __init__(self, count):
+        self._count = count
+
+    def get_count(self):
+        return self._count
+
+    def set_count(self, count):
+        self._count = count
+""")
+
+            result = runner.invoke(main, [
+                "remove-setting-method",
+                str(test_file),
+                "Counter::set_count"
+            ])
+
+            assert result.exit_code == 0
+            assert "Removed setting method" in result.output
+            assert "set_count" in result.output
+
+            # Verify the file was modified correctly - setter should be gone
+            modified_content = test_file.read_text()
+            assert "set_count" not in modified_content
+            assert "get_count" in modified_content  # Getter should remain
