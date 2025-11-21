@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.core.refactoring_base import RefactoringBase
 from molting.core.class_aware_transformer import ClassAwareTransformer
+from molting.core.class_aware_validator import ClassAwareValidator
 
 
 class RemoveSettingMethod(RefactoringBase):
@@ -144,7 +145,7 @@ class RemoveSettingMethodTransformer(ClassAwareTransformer):
         return len(node.decorators) == 0
 
 
-class ValidateRemoveSettingMethodTransformer(cst.CSTVisitor):
+class ValidateRemoveSettingMethodTransformer(ClassAwareValidator):
     """Visitor to check if the target method exists."""
 
     def __init__(self, class_name: str, method_name: str):
@@ -154,22 +155,4 @@ class ValidateRemoveSettingMethodTransformer(cst.CSTVisitor):
             class_name: Class name containing the method
             method_name: Method name to find
         """
-        self.class_name = class_name
-        self.method_name = method_name
-        self.found = False
-        self.current_class = None
-
-    def visit_ClassDef(self, node: cst.ClassDef) -> bool:
-        """Track when entering a class."""
-        self.current_class = node.name.value
-        return True
-
-    def leave_ClassDef(self, node: cst.ClassDef) -> None:
-        """Track when leaving a class."""
-        self.current_class = None
-
-    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:
-        """Check if this is the target method."""
-        if self.current_class == self.class_name and node.name.value == self.method_name:
-            self.found = True
-        return True
+        super().__init__(class_name, method_name)
