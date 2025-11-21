@@ -6,6 +6,7 @@ from typing import Optional
 import libcst as cst
 
 from molting.core.refactoring_base import RefactoringBase
+from molting.core.class_aware_transformer import ClassAwareTransformer
 
 
 class RemoveParameter(RefactoringBase):
@@ -91,7 +92,7 @@ class RemoveParameter(RefactoringBase):
             return False
 
 
-class RemoveParameterTransformer(cst.CSTTransformer):
+class RemoveParameterTransformer(ClassAwareTransformer):
     """Transform to remove a parameter from a function/method."""
 
     def __init__(self, class_name: Optional[str], function_name: str, parameter_name: str):
@@ -102,22 +103,10 @@ class RemoveParameterTransformer(cst.CSTTransformer):
             function_name: Function or method name to modify
             parameter_name: Name of the parameter to remove
         """
-        self.class_name = class_name
-        self.function_name = function_name
+        super().__init__(class_name=class_name, function_name=function_name)
         self.parameter_name = parameter_name
-        self.current_class = None
         self.modified = False
         self.parameter_index = None  # Will be set when we find and modify the function
-
-    def visit_ClassDef(self, node: cst.ClassDef) -> bool:
-        """Track when entering a class."""
-        self.current_class = node.name.value
-        return True
-
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
-        """Track when leaving a class."""
-        self.current_class = None
-        return updated_node
 
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
         """Update call sites to remove the argument corresponding to the removed parameter."""
@@ -144,18 +133,9 @@ class RemoveParameterTransformer(cst.CSTTransformer):
         # Check if this is the function we're looking for
         func_name = original_node.name.value
 
-        if self.class_name is None:
-            # Module-level function
-            if self.current_class is not None:
-                return updated_node
-            if func_name != self.function_name:
-                return updated_node
-        else:
-            # Class method
-            if self.current_class != self.class_name:
-                return updated_node
-            if func_name != self.function_name:
-                return updated_node
+        # Check if this function matches the target
+        if not self.matches_target() or func_name != self.function_name:
+            return updated_node
 
         # Found the target function, remove the parameter
         self.modified = True

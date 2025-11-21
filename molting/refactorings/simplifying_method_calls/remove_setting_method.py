@@ -5,6 +5,7 @@ from typing import Optional
 import libcst as cst
 
 from molting.core.refactoring_base import RefactoringBase
+from molting.core.class_aware_transformer import ClassAwareTransformer
 
 
 class RemoveSettingMethod(RefactoringBase):
@@ -85,7 +86,7 @@ class RemoveSettingMethod(RefactoringBase):
             return False
 
 
-class RemoveSettingMethodTransformer(cst.CSTTransformer):
+class RemoveSettingMethodTransformer(ClassAwareTransformer):
     """Transform to remove a setter method from a class."""
 
     def __init__(self, class_name: str, method_name: str):
@@ -95,15 +96,9 @@ class RemoveSettingMethodTransformer(cst.CSTTransformer):
             class_name: Class name containing the method
             method_name: Method name to remove
         """
-        self.class_name = class_name
+        super().__init__(class_name=class_name, function_name=method_name)
         self.method_name = method_name
-        self.current_class = None
         self.modified = False
-
-    def visit_ClassDef(self, node: cst.ClassDef) -> bool:
-        """Track when entering a class."""
-        self.current_class = node.name.value
-        return True
 
     def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
         """Remove the setter method from the class body."""
