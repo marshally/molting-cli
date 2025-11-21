@@ -329,6 +329,20 @@ def replace_nested_conditional_with_guard_clauses(file_path: str, target: str) -
     click.echo(f"✓ Replaced nested conditional with guard clauses in '{target}' in {file_path}")
 
 
+@main.command(name="consolidate-conditional-expression")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+def consolidate_conditional_expression(file_path: str, target: str) -> None:
+    """Consolidate a sequence of conditional checks with the same result.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target function with line range (e.g., "function_name#L2-L7" or "ClassName::method_name#L3-L10")
+    """
+    refactor_file("consolidate-conditional-expression", file_path, target=target)
+    click.echo(f"✓ Consolidated conditional expression in '{target}' in {file_path}")
+
+
 @main.command(name="hide-method")
 @click.argument("file_path", type=click.Path(exists=True))
 @click.argument("target")

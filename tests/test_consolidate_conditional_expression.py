@@ -38,3 +38,18 @@ class TestConsolidateConditionalExpressionInvalidTargets:
 
         with pytest.raises(ValueError, match="Invalid target format"):
             ConsolidateConditionalExpression("dummy.py", "invalid_target")
+
+
+class TestConsolidateConditionalExpressionCLI:
+    """Tests for consolidate-conditional-expression CLI command."""
+
+    def test_cli_command_exists(self):
+        """Test that the consolidate-conditional-expression CLI command is registered."""
+        from molting.cli import main
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["consolidate-conditional-expression", "--help"])
+
+        # The command should exist and display help
+        assert result.exit_code == 0
+        assert "consolidate-conditional-expression" in result.output or "Consolidate" in result.output
