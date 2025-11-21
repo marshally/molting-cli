@@ -81,6 +81,13 @@ class TestHideMethod(RefactoringTestBase):
                     target="just_a_function"
                 )
 
+    def test_complex_method_calls(self):
+        """Hide method with complex call patterns in multiple methods."""
+        self.refactor(
+            "hide-method",
+            target="DataProcessor::validate"
+        )
+
     def test_cli_command_hide_method(self):
         """Test the CLI command integration for hide-method."""
         from click.testing import CliRunner
