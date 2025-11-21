@@ -80,3 +80,37 @@ class TestHideMethod(RefactoringTestBase):
                     str(test_file),
                     target="just_a_function"
                 )
+
+    def test_cli_command_hide_method(self):
+        """Test the CLI command integration for hide-method."""
+        from click.testing import CliRunner
+        from molting.cli import main
+        import tempfile
+
+        runner = CliRunner()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            test_file = Path(tmp_dir) / "test.py"
+            test_file.write_text(
+                "class Service:\n"
+                "    def process(self, data):\n"
+                "        return self.validate(data)\n"
+                "    def validate(self, data):\n"
+                "        return data is not None\n"
+            )
+
+            result = runner.invoke(main, [
+                "hide-method",
+                str(test_file),
+                "Service::validate"
+            ])
+
+            assert result.exit_code == 0
+            assert "Hidden method" in result.output
+            assert "Service::validate" in result.output
+
+            # Verify the file was modified correctly
+            modified_content = test_file.read_text()
+            assert "def _validate" in modified_content
+            assert "self._validate" in modified_content
+            assert "def validate" not in modified_content
