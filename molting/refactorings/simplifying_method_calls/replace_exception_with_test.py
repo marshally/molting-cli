@@ -1,7 +1,7 @@
 """Replace Exception with Test refactoring - use explicit condition checks instead of try-except."""
 
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import libcst as cst
 
