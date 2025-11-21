@@ -15,15 +15,18 @@ class Salesman(EmployeeType):
 
 class Manager(EmployeeType):
     def pay_amount(self, employee):
-        return employee.monthly_salary + employee.bonus
+        return employee.monthly_salary
 
 
 class Employee:
-    def __init__(self, employee_type):
+    ENGINEER = Engineer()
+    SALESMAN = Salesman()
+    MANAGER = Manager()
+
+    def __init__(self, employee_type, monthly_salary=0, commission=0):
         self.type = employee_type
-        self.monthly_salary = 0
-        self.commission = 0
-        self.bonus = 0
+        self.monthly_salary = monthly_salary
+        self.commission = commission
 
     def pay_amount(self):
         return self.type.pay_amount(self)
