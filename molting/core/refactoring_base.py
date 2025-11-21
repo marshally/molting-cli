@@ -1,8 +1,9 @@
 """Base classes for refactoring operations."""
 
+import ast
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple
 
 
 class RefactoringBase(ABC):
@@ -80,3 +81,33 @@ class RefactoringBase(ABC):
         end_line = int(match.group(3)) if match.group(3) else start_line
 
         return method_spec, start_line, end_line
+
+    def find_class_def(self, tree: ast.Module, class_name: str) -> Optional[ast.ClassDef]:
+        """Find a class definition in the AST by class name.
+
+        Args:
+            tree: The AST module
+            class_name: Name of the class to find
+
+        Returns:
+            The ClassDef node if found, None otherwise
+        """
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef) and node.name == class_name:
+                return node
+        return None
+
+    def find_method_in_class(self, class_node: ast.ClassDef, method_name: str) -> Optional[ast.FunctionDef]:
+        """Find a method in a class by method name.
+
+        Args:
+            class_node: The ClassDef node
+            method_name: Name of the method to find
+
+        Returns:
+            The FunctionDef node if found, None otherwise
+        """
+        for item in class_node.body:
+            if isinstance(item, ast.FunctionDef) and item.name == method_name:
+                return item
+        return None

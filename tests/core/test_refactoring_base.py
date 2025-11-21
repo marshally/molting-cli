@@ -1,5 +1,6 @@
-"""Tests for RefactoringBase class."""
+"""Tests for RefactoringBase AST navigation helper methods."""
 
+import ast
 import pytest
 from molting.core.refactoring_base import RefactoringBase
 
@@ -132,3 +133,71 @@ class TestParseQualifiedTarget:
 
         assert class_name == "Class2"
         assert method_name == "method3"
+
+
+def test_find_class_def():
+    """Test finding a class definition by name in an AST."""
+    refactoring = ConcreteRefactoring()
+
+    source_code = """
+class MyClass:
+    def method(self):
+        pass
+
+class AnotherClass:
+    pass
+"""
+
+    tree = ast.parse(source_code)
+
+    # Find existing class
+    my_class = refactoring.find_class_def(tree, "MyClass")
+    assert my_class is not None
+    assert isinstance(my_class, ast.ClassDef)
+    assert my_class.name == "MyClass"
+
+    # Find another class
+    another_class = refactoring.find_class_def(tree, "AnotherClass")
+    assert another_class is not None
+    assert isinstance(another_class, ast.ClassDef)
+    assert another_class.name == "AnotherClass"
+
+    # Class not found returns None
+    not_found = refactoring.find_class_def(tree, "NonExistentClass")
+    assert not_found is None
+
+
+def test_find_method_in_class():
+    """Test finding a method in a class by name."""
+    refactoring = ConcreteRefactoring()
+
+    source_code = """
+class MyClass:
+    def method_one(self):
+        pass
+
+    def method_two(self):
+        pass
+
+    def method_three(self, arg):
+        return arg
+"""
+
+    tree = ast.parse(source_code)
+    my_class = tree.body[0]  # Get the class node
+
+    # Find existing method
+    method_one = refactoring.find_method_in_class(my_class, "method_one")
+    assert method_one is not None
+    assert isinstance(method_one, ast.FunctionDef)
+    assert method_one.name == "method_one"
+
+    # Find another method
+    method_three = refactoring.find_method_in_class(my_class, "method_three")
+    assert method_three is not None
+    assert isinstance(method_three, ast.FunctionDef)
+    assert method_three.name == "method_three"
+
+    # Method not found returns None
+    not_found = refactoring.find_method_in_class(my_class, "nonexistent_method")
+    assert not_found is None
