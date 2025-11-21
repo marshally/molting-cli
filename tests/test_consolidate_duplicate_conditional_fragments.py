@@ -71,6 +71,13 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
             target="process_order#L2"
         )
 
+    def test_class_method(self):
+        """Consolidate duplicate code in a class method."""
+        self.refactor(
+            "consolidate-duplicate-conditional-fragments",
+            target="Order::calculate_total#L3"
+        )
+
 
 class TestConsolidateDuplicateConditionalFragmentsCLI:
     """Tests for consolidate-duplicate-conditional-fragments CLI command."""
