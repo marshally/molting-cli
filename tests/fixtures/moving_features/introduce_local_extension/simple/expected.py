@@ -9,5 +9,7 @@ class MfDate(date):
         return self + timedelta(days=days)
 
 
-# Client code
-# new_start = previous_end.next_day()
+# Client code using methods
+previous_end = MfDate(2024, 1, 1)
+new_start = previous_end.next_day()
+result = previous_end.days_after(5)

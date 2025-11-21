@@ -29,6 +29,7 @@ from molting.refactorings.moving_features.extract_class import ExtractClass
 from molting.refactorings.moving_features.hide_delegate import HideDelegate
 from molting.refactorings.moving_features.inline_class import InlineClass
 from molting.refactorings.moving_features.introduce_foreign_method import IntroduceForeignMethod
+from molting.refactorings.moving_features.introduce_local_extension import IntroduceLocalExtension
 from molting.refactorings.moving_features.move_field import MoveField
 from molting.refactorings.moving_features.move_method import MoveMethod
 from molting.refactorings.moving_features.remove_middle_man import RemoveMiddleMan
@@ -100,6 +101,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "inline-class": (InlineClass, ["source_class", "into", "field_prefix"]),
     "remove-middle-man": (RemoveMiddleMan, ["target"]),
     "extract-class": (ExtractClass, ["source", "fields", "methods", "name"]),
+    "introduce-local-extension": (IntroduceLocalExtension, ["target", "name", "extension_type"]),
     "encapsulate-field": (EncapsulateField, ["target"]),
     "self-encapsulate-field": (SelfEncapsulateField, ["target"]),
     "replace-data-value-with-object": (ReplaceDataValueWithObject, ["target", "name"]),
