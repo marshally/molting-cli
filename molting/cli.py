@@ -39,6 +39,9 @@ from molting.refactorings.moving_features.introduce_local_extension import Intro
 from molting.refactorings.moving_features.move_field import MoveField
 from molting.refactorings.moving_features.move_method import MoveMethod
 from molting.refactorings.moving_features.remove_middle_man import RemoveMiddleMan
+from molting.refactorings.organizing_data.change_reference_to_value import (
+    ChangeReferenceToValue,
+)
 from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
 from molting.refactorings.organizing_data.replace_array_with_object import (
     ReplaceArrayWithObject,
@@ -121,6 +124,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "remove-middle-man": (RemoveMiddleMan, ["target"]),
     "extract-class": (ExtractClass, ["source", "fields", "methods", "name"]),
     "introduce-local-extension": (IntroduceLocalExtension, ["target", "name", "extension_type"]),
+    "change-reference-to-value": (ChangeReferenceToValue, ["target"]),
     "encapsulate-field": (EncapsulateField, ["target"]),
     "self-encapsulate-field": (SelfEncapsulateField, ["target"]),
     "replace-array-with-object": (ReplaceArrayWithObject, ["target", "class_name", "fields"]),
