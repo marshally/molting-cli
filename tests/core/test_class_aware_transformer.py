@@ -28,8 +28,8 @@ class SimpleTransformer(ClassAwareTransformer):
             {"name": func_name, "class": self.current_class}
         )
 
-        # Record if this matches the target
-        if self.matches_target():
+        # Record if this matches the target (check both class context and function name)
+        if self.matches_target() and original_node.name.value == self.function_name:
             self.visited_functions[-1]["matched"] = True
 
         return updated_node
