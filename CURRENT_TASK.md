@@ -1,35 +1,49 @@
-# Replace Conditional with Polymorphism - TDD Task
+# Push Down Method - TDD Task (COMPLETED)
 
 ## Overview
-Implement the "replace-conditional-with-polymorphism" refactoring that transforms conditional logic into polymorphic method calls.
+Implement the "push-down-method" refactoring that moves a method from a superclass to specific subclasses that need it.
 
 ## Acceptance Criteria
 
 ### 1. RED: Create failing test fixture and test
-- [ ] Create fixture files: `tests/fixtures/simplifying_conditionals/replace_conditional_with_polymorphism/simple/`
-  - input.py: Contains a class with conditional logic
-  - expected.py: Contains refactored code with polymorphic classes
-- [ ] Add test method to `tests/test_simplifying_conditionals.py`
-- [ ] Run test to confirm it fails
+- [x] Create fixture directory: `tests/fixtures/dealing_with_generalization/push_down_method/simple/`
+  - input.py: Contains Employee superclass with get_quota() method, with Salesman and Engineer subclasses
+  - expected.py: Contains refactored code with get_quota() only in Salesman subclass
+- [x] Create `tests/test_dealing_with_generalization.py` with TestPushDownMethod class
+- [x] Add test method that calls refactor("push-down-method", target="Employee::get_quota", to="Salesman")
+- [x] Run test to confirm it fails
 
-### 2. GREEN: Implement ReplaceConditionalWithPolymorphism class
-- [ ] Create `molting/refactorings/simplifying_conditionals/replace_conditional_with_polymorphism.py`
-- [ ] Implement initialization with target and type_field parameters
-- [ ] Implement apply() method to refactor conditional logic
-- [ ] Implement validate() method
-- [ ] Run test to confirm it passes
+### 2. GREEN: Implement PushDownMethod class
+- [x] Create `molting/refactorings/dealing_with_generalization/push_down_method.py`
+- [x] Implement initialization with target and to parameters
+- [x] Implement apply() method to move method from superclass to subclass(es)
+- [x] Implement validate() method to check superclass and method exist
+- [x] Run test to confirm it passes
 
 ### 3. REFACTOR: Add to CLI registry
-- [ ] Add import to `molting/cli.py`
-- [ ] Add entry to REFACTORING_REGISTRY
-- [ ] Verify all tests pass
+- [x] Create `molting/refactorings/dealing_with_generalization/__init__.py`
+- [x] Add import to `molting/cli.py`
+- [x] Add entry to REFACTORING_REGISTRY: `"push-down-method": (PushDownMethod, ["target", "to"])`
+- [x] Verify all tests pass
 
 ### 4. FINAL: Code quality and commits
-- [ ] Run linter and fix any style issues
-- [ ] Create appropriate commits for each phase
-- [ ] Create PR with summary
+- [x] Run linter and fix any style issues
+- [x] Ensure all tests pass
+- [x] Create appropriate commits for each phase
+- [x] Create PR with summary
 
-## Notes
-- Target format: "ClassName::method_name#L13-L20"
-- Parameters: target (method range) and type_field (field containing type)
-- Transform conditional type checking into class hierarchy with polymorphic methods
+## Completion Status
+✓ ALL CRITERIA MET - Task completed successfully!
+
+## Commits Created
+1. adc4ac9 - 🔴 Add failing test and fixtures for push-down-method refactoring
+2. 3961ea0 - 🟢 Implement PushDownMethod refactoring class
+3. 2e5ffd3 - 🔧 Register push-down-method refactoring in REFACTORING_REGISTRY
+
+## Pull Request
+https://github.com/marshally/molting-cli/pull/43
+
+## Test Results
+✓ tests/test_dealing_with_generalization.py::TestPushDownMethod::test_simple PASSED
+✓ All linter checks passed
+✓ No remaining issues
