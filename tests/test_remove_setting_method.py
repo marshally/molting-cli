@@ -24,3 +24,10 @@ class TestRemoveSettingMethod(RefactoringTestBase):
             "remove-setting-method",
             target="User::set_name"
         )
+
+    def test_property_setter(self):
+        """Remove a property setter decorated with @property.setter."""
+        self.refactor(
+            "remove-setting-method",
+            target="Product::price"
+        )
