@@ -3,6 +3,7 @@
 This module tests the Encapsulate Field refactoring which makes a field
 private and provides getter/setter accessors using rope's encapsulate field refactoring.
 """
+
 from tests.conftest import RefactoringTestBase
 
 

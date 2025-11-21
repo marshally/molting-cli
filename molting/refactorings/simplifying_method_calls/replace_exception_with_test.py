@@ -144,7 +144,9 @@ class ReplaceExceptionWithTestTransformer(cst.CSTTransformer):
 
         return updated_node.with_changes(body=new_body)
 
-    def _transform_try_except(self, try_stmt: cst.Try) -> Optional[Sequence[cst.BaseCompoundStatement]]:
+    def _transform_try_except(
+        self, try_stmt: cst.Try
+    ) -> Optional[Sequence[cst.BaseCompoundStatement]]:
         """Transform a try-except IndexError block into if-else."""
         # Check if this try block has an IndexError handler
         index_error_handler = None
@@ -244,7 +246,9 @@ class ReplaceExceptionWithTestTransformer(cst.CSTTransformer):
 class ValidateReplaceExceptionWithTestTransformer(cst.CSTVisitor):
     """Visitor to check if the target function exists."""
 
-    def __init__(self, func_name: str, start_line: Optional[int] = None, end_line: Optional[int] = None):
+    def __init__(
+        self, func_name: str, start_line: Optional[int] = None, end_line: Optional[int] = None
+    ):
         """Initialize the validator.
 
         Args:

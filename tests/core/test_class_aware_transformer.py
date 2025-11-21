@@ -4,6 +4,7 @@ Tests for ClassAwareTransformer base class.
 This module tests the ClassAwareTransformer base class that provides
 class/method context tracking for libcst transformers.
 """
+
 from typing import Optional
 
 import libcst as cst

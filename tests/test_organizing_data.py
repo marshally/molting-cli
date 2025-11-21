@@ -4,6 +4,7 @@ Tests for Organizing Data refactorings.
 This module tests refactorings that organize data structures, improve encapsulation,
 and replace primitives with objects.
 """
+
 from tests.conftest import RefactoringTestBase
 
 

@@ -4,6 +4,7 @@ Tests for Moving Features refactorings.
 This module tests refactorings that move functionality between classes
 and create new classes.
 """
+
 from tests.conftest import RefactoringTestBase
 
 

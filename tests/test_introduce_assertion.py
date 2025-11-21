@@ -4,6 +4,7 @@ Tests for Introduce Assertion refactoring.
 This module tests the Introduce Assertion refactoring that makes assumptions
 explicit with assertions.
 """
+
 from pathlib import Path
 
 from click.testing import CliRunner

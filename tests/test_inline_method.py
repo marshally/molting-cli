@@ -3,6 +3,7 @@
 This module tests the Inline Method refactoring which allows replacing
 calls to a method with the method's body using rope's inline refactoring.
 """
+
 import pytest
 
 from tests.conftest import RefactoringTestBase

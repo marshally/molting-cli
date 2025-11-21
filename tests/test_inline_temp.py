@@ -3,6 +3,7 @@
 This module tests the Inline Temp refactoring which allows inlining
 temporary variables using rope's inline refactoring capability.
 """
+
 from tests.conftest import RefactoringTestBase
 
 

@@ -3,6 +3,7 @@
 This module tests the Rename refactoring which allows renaming
 variables, methods, classes, or modules using rope's rename capability.
 """
+
 from tests.conftest import RefactoringTestBase
 
 

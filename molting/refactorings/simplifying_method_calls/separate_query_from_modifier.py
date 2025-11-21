@@ -25,7 +25,7 @@ class SeparateQueryFromModifier(RefactoringBase):
         self.target = target
         self.modifier_name = modifier_name
         self.source = self.file_path.read_text()
-        
+
         # Parse the target specification
         self.class_name: Optional[str]
         self.function_name: str
@@ -148,7 +148,7 @@ class SeparateQueryFromModifierTransformer(ClassAwareTransformer):
         # Transform the function to be a pure query (remove side effects)
         cleaner = SideEffectRemover()
         cleaned_body = updated_node.body.visit(cleaner)
-        
+
         return updated_node.with_changes(body=cleaned_body)
 
     def _create_modifier_method(self, original_func: cst.FunctionDef) -> cst.FunctionDef:
@@ -166,12 +166,12 @@ class SeparateQueryFromModifierTransformer(ClassAwareTransformer):
         params_str = ", ".join(
             param.name.value for param in params.params if param.name.value != "self"
         )
-        
+
         first_stmt = cst.parse_statement(f"found = self.{self.function_name}({params_str})")
-        
+
         # Build the if statement that calls _send_alert
         if_stmt = cst.parse_statement("if found:\n    self._send_alert(found)")
-        
+
         return cst.FunctionDef(
             name=cst.Name(self.modifier_name),
             params=params,
@@ -188,7 +188,7 @@ class SideEffectRemover(cst.CSTTransformer):
         """Remove statements that call methods (like _send_alert or .pop())."""
         new_body = []
         has_side_effects = False
-        
+
         for stmt in updated_node.body:
             if isinstance(stmt, cst.Expr) and isinstance(stmt.value, cst.Call):
                 call = stmt.value
@@ -204,15 +204,15 @@ class SideEffectRemover(cst.CSTTransformer):
             else:
                 # Keep other statements
                 new_body.append(stmt)
-        
+
         # If all statements were removed, remove this line entirely
         if not new_body:
             return cst.RemovalSentinel.REMOVE
-        
+
         # If only some were removed, return with the remaining statements
         if has_side_effects and new_body:
             return updated_node.with_changes(body=tuple(new_body))
-        
+
         return updated_node
 
 

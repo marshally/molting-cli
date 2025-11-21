@@ -99,9 +99,9 @@ class RemoveParameterTransformer(ClassAwareTransformer):
         super().__init__(class_name=class_name, function_name=function_name)
         self.parameter_name = parameter_name
         self.modified = False
-        self.parameter_index: Optional[
-            int
-        ] = None  # Will be set when we find and modify the function
+        self.parameter_index: Optional[int] = (
+            None  # Will be set when we find and modify the function
+        )
 
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
         """Update call sites to remove the argument corresponding to the removed parameter."""

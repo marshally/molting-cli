@@ -6,6 +6,7 @@ between classes, including pulling up/pushing down fields and methods, extractin
 superclasses and subclasses, collapsing hierarchies, and converting between
 inheritance and delegation patterns.
 """
+
 from tests.conftest import RefactoringTestBase
 
 

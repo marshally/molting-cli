@@ -4,6 +4,7 @@ Tests for Introduce Parameter refactoring.
 This module tests the refactoring that adds a new parameter to a method
 and updates call sites accordingly.
 """
+
 from tests.conftest import RefactoringTestBase
 
 

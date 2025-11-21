@@ -3,6 +3,7 @@ Tests for Simplifying Conditionals refactorings.
 
 This module tests refactorings that simplify and clarify conditional logic.
 """
+
 from tests.conftest import RefactoringTestBase
 
 

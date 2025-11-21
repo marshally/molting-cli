@@ -4,6 +4,7 @@ Tests for Composing Methods refactorings.
 This module tests refactorings that improve the internal structure of methods
 by extracting, inlining, and reorganizing code.
 """
+
 from tests.conftest import RefactoringTestBase
 
 
@@ -67,9 +68,7 @@ class TestIntroduceExplainingVariable(RefactoringTestBase):
 
     def test_simple(self):
         """Put the entire return expression into a named temp variable."""
-        self.refactor(
-            "introduce-explaining-variable", target="calculate_total#L2", name="total"
-        )
+        self.refactor("introduce-explaining-variable", target="calculate_total#L2", name="total")
 
 
 class TestSplitTemporaryVariable(RefactoringTestBase):
