@@ -7,6 +7,9 @@ from rope.refactor.inline import InlineMethod as RopeInlineMethod
 from molting.core.refactoring_base import RefactoringBase
 
 
+import ast
+
+
 class InlineMethod(RefactoringBase):
     """Inline a method by replacing calls with the method's body using rope's inline refactoring."""
 
@@ -76,51 +79,10 @@ class InlineMethod(RefactoringBase):
         Returns:
             Byte offset of the method definition in the source code
         """
-        import ast
-
         # Check if it's a qualified target (e.g., "ClassName::method_name")
         if "::" in self.target:
             class_name, method_name = self.target.split("::", 1)
-            return self._get_qualified_offset(class_name, method_name)
+            # Use the base class method to get the qualified offset
+            return self.calculate_qualified_offset(self.source, class_name, method_name)
         else:
             raise ValueError(f"Target must be in format 'ClassName::method_name', got '{self.target}'")
-
-    def _get_qualified_offset(self, class_name: str, method_name: str) -> int:
-        """Get the offset of a qualified method (e.g., ClassName::method_name).
-
-        Args:
-            class_name: Name of the class
-            method_name: Name of the method
-
-        Returns:
-            Byte offset of the method definition in the source code
-        """
-        import ast
-
-        try:
-            tree = ast.parse(self.source)
-        except SyntaxError as e:
-            raise ValueError(f"Failed to parse source code: {e}")
-
-        # Find the class definition - only look at top-level classes
-        for node in tree.body:
-            if isinstance(node, ast.ClassDef) and node.name == class_name:
-                # Find the method in the class
-                for item in node.body:
-                    if isinstance(item, ast.FunctionDef) and item.name == method_name:
-                        # Get the offset using the line and column
-                        # We need to find "def method_name" in the source
-                        lines = self.source.split('\n')
-                        offset = 0
-                        for i, line in enumerate(lines):
-                            if i < item.lineno - 1:
-                                offset += len(line) + 1  # +1 for newline
-                            else:
-                                # Found the line, now find the method_name in it
-                                col_offset = line.find(method_name)
-                                if col_offset != -1:
-                                    return offset + col_offset
-                                break
-                        raise ValueError(f"Could not find offset for {method_name}")
-                raise ValueError(f"Method '{method_name}' not found in class '{class_name}'")
-        raise ValueError(f"Class '{class_name}' not found in {self.file_path}")
