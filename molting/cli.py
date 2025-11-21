@@ -20,9 +20,6 @@ from molting.refactorings.composing_methods.remove_assignments_to_parameters imp
 
 # Import all refactoring classes
 from molting.refactorings.composing_methods.rename import Rename
-from molting.refactorings.composing_methods.replace_method_with_method_object import (
-    ReplaceMethodWithMethodObject,
-)
 from molting.refactorings.composing_methods.replace_temp_with_query import (
     ReplaceTempWithQuery,
 )
@@ -101,7 +98,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "inline-temp": (InlineTemp, ["target"]),
     "replace-temp-with-query": (ReplaceTempWithQuery, ["target"]),
     "split-temporary-variable": (SplitTemporaryVariable, ["target"]),
-    "replace-method-with-method-object": (ReplaceMethodWithMethodObject, ["target"]),
+    # "replace-method-with-method-object": (ReplaceMethodWithMethodObject, ["target"]),
     "substitute-algorithm": (SubstituteAlgorithm, ["target"]),
     "move-method": (MoveMethod, ["source", "to"]),
     "move-field": (MoveField, ["source", "to"]),
