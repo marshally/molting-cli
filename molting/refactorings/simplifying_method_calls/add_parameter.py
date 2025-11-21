@@ -6,6 +6,7 @@ from typing import Optional
 import libcst as cst
 
 from molting.core.refactoring_base import RefactoringBase
+from molting.core.class_aware_transformer import ClassAwareTransformer
 
 
 class AddParameter(RefactoringBase):
@@ -94,7 +95,7 @@ class AddParameter(RefactoringBase):
             return False
 
 
-class AddParameterTransformer(cst.CSTTransformer):
+class AddParameterTransformer(ClassAwareTransformer):
     """Transform to add a parameter to a function/method."""
 
     def __init__(self, class_name: Optional[str], function_name: str, param_name: str, param_default: Optional[str]):
@@ -106,40 +107,19 @@ class AddParameterTransformer(cst.CSTTransformer):
             param_name: Name of the new parameter to add
             param_default: Optional default value for the parameter
         """
-        self.class_name = class_name
-        self.function_name = function_name
+        super().__init__(class_name=class_name, function_name=function_name)
         self.param_name = param_name
         self.param_default = param_default
-        self.current_class = None
         self.modified = False
-
-    def visit_ClassDef(self, node: cst.ClassDef) -> bool:
-        """Track when entering a class."""
-        self.current_class = node.name.value
-        return True
-
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
-        """Track when leaving a class."""
-        self.current_class = None
-        return updated_node
 
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
         """Modify function definition if it matches the target."""
         # Check if this is the function we're looking for
         func_name = original_node.name.value
 
-        if self.class_name is None:
-            # Module-level function
-            if self.current_class is not None:
-                return updated_node
-            if func_name != self.function_name:
-                return updated_node
-        else:
-            # Class method
-            if self.current_class != self.class_name:
-                return updated_node
-            if func_name != self.function_name:
-                return updated_node
+        # Check if this function matches the target
+        if not self.matches_target() or func_name != self.function_name:
+            return updated_node
 
         # Found the target function, add the parameter
         self.modified = True

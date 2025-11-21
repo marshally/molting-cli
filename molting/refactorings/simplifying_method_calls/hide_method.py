@@ -5,6 +5,7 @@ from typing import Optional
 import libcst as cst
 
 from molting.core.refactoring_base import RefactoringBase
+from molting.core.class_aware_transformer import ClassAwareTransformer
 
 
 class HideMethod(RefactoringBase):
@@ -85,7 +86,7 @@ class HideMethod(RefactoringBase):
             return False
 
 
-class HideMethodTransformer(cst.CSTTransformer):
+class HideMethodTransformer(ClassAwareTransformer):
     """Transform to hide a method by adding underscore prefix."""
 
     def __init__(self, class_name: str, method_name: str):
@@ -95,30 +96,15 @@ class HideMethodTransformer(cst.CSTTransformer):
             class_name: Class name containing the method
             method_name: Method name to hide
         """
-        self.class_name = class_name
+        super().__init__(class_name=class_name, function_name=method_name)
         self.method_name = method_name
-        self.current_class = None
         self.modified = False
         self.new_method_name = f"_{method_name}"
-
-    def visit_ClassDef(self, node: cst.ClassDef) -> bool:
-        """Track when entering a class."""
-        self.current_class = node.name.value
-        return True
-
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
-        """Track when leaving a class."""
-        if self.current_class == self.class_name:
-            self.current_class = None
-        return updated_node
 
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
         """Rename method if it matches the target."""
         # Check if this is the method we're looking for
-        if self.current_class != self.class_name:
-            return updated_node
-
-        if original_node.name.value != self.method_name:
+        if not self.matches_target() or original_node.name.value != self.method_name:
             return updated_node
 
         # Found the target method, rename it with underscore prefix
@@ -132,7 +118,7 @@ class HideMethodTransformer(cst.CSTTransformer):
         # Check if this is a self.method_name call
         if isinstance(updated_node.attr, cst.Name) and updated_node.attr.value == self.method_name:
             if isinstance(updated_node.value, cst.Name) and updated_node.value.value == "self":
-                if self.current_class == self.class_name:
+                if self.matches_target():
                     # Update the attribute name
                     return updated_node.with_changes(
                         attr=cst.Name(self.new_method_name)
