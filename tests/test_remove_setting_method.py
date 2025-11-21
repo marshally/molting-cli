@@ -31,3 +31,39 @@ class TestRemoveSettingMethod(RefactoringTestBase):
             "remove-setting-method",
             target="Product::price"
         )
+
+    def test_invalid_target_nonexistent_method(self):
+        """Raise error when target method does not exist."""
+        from molting.cli import refactor_file
+        from pathlib import Path
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            test_file = Path(tmp_dir) / "test.py"
+            test_file.write_text("""class Employee:
+    def __init__(self, id):
+        self._id = id
+
+    def get_id(self):
+        return self._id
+""")
+
+            with pytest.raises(ValueError, match="Could not find target"):
+                refactor_file(
+                    "remove-setting-method",
+                    str(test_file),
+                    target="Employee::nonexistent_method"
+                )
+
+    def test_invalid_target_format(self):
+        """Raise error when target format is invalid."""
+        from molting.refactorings.simplifying_method_calls.remove_setting_method import RemoveSettingMethod
+        from pathlib import Path
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            test_file = Path(tmp_dir) / "test.py"
+            test_file.write_text("def foo():\n    pass\n")
+
+            with pytest.raises(ValueError, match="Invalid target format"):
+                RemoveSettingMethod(str(test_file), "invalid_target")
