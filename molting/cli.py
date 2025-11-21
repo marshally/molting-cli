@@ -31,7 +31,7 @@ from molting.refactorings.composing_methods.remove_assignments_to_parameters imp
 from molting.refactorings.simplifying_conditionals.remove_control_flag import RemoveControlFlag
 from molting.refactorings.simplifying_conditionals.replace_nested_conditional_with_guard_clauses import ReplaceNestedConditionalWithGuardClauses
 from molting.refactorings.simplifying_conditionals.consolidate_conditional_expression import ConsolidateConditionalExpression
-# from molting.refactorings.simplifying_conditionals.consolidate_duplicate_conditional_fragments import ConsolidateDuplicateConditionalFragments
+from molting.refactorings.simplifying_conditionals.consolidate_duplicate_conditional_fragments import ConsolidateDuplicateConditionalFragments
 
 
 # Registry mapping refactoring names to (class, param_names)
@@ -57,7 +57,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "remove-control-flag": (RemoveControlFlag, ["target"]),
     "replace-nested-conditional-with-guard-clauses": (ReplaceNestedConditionalWithGuardClauses, ["target"]),
     "consolidate-conditional-expression": (ConsolidateConditionalExpression, ["target"]),
-    # "consolidate-duplicate-conditional-fragments": (ConsolidateDuplicateConditionalFragments, ["target"]),
+    "consolidate-duplicate-conditional-fragments": (ConsolidateDuplicateConditionalFragments, ["target"]),
     "hide-method": (HideMethod, ["target"]),
     "remove-setting-method": (RemoveSettingMethod, ["target"]),
 }
@@ -345,18 +345,18 @@ def consolidate_conditional_expression(file_path: str, target: str) -> None:
     click.echo(f"✓ Consolidated conditional expression in '{target}' in {file_path}")
 
 
-# @main.command(name="consolidate-duplicate-conditional-fragments")
-# @click.argument("file_path", type=click.Path(exists=True))
-# @click.argument("target")
-# def consolidate_duplicate_conditional_fragments(file_path: str, target: str) -> None:
-#     """Move identical code from all branches of a conditional outside the conditional.
-#
-#     Args:
-#         FILE_PATH: Path to the Python file to refactor
-#         TARGET: Target function with line number (e.g., "function_name#L2" or "ClassName::method_name#L3")
-#     """
-#     refactor_file("consolidate-duplicate-conditional-fragments", file_path, target=target)
-#     click.echo(f"✓ Consolidated duplicate conditional fragments in '{target}' in {file_path}")
+@main.command(name="consolidate-duplicate-conditional-fragments")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.argument("target")
+def consolidate_duplicate_conditional_fragments(file_path: str, target: str) -> None:
+    """Move identical code from all branches of a conditional outside the conditional.
+
+    Args:
+        FILE_PATH: Path to the Python file to refactor
+        TARGET: Target function with line number (e.g., "function_name#L2" or "ClassName::method_name#L3")
+    """
+    refactor_file("consolidate-duplicate-conditional-fragments", file_path, target=target)
+    click.echo(f"✓ Consolidated duplicate conditional fragments in '{target}' in {file_path}")
 
 
 @main.command(name="hide-method")
