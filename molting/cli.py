@@ -50,6 +50,9 @@ from molting.refactorings.simplifying_conditionals.replace_nested_conditional_wi
 from molting.refactorings.simplifying_method_calls.add_parameter import AddParameter
 from molting.refactorings.simplifying_method_calls.hide_method import HideMethod
 from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
+from molting.refactorings.simplifying_method_calls.introduce_parameter_object import (
+    IntroduceParameterObject,
+)
 from molting.refactorings.simplifying_method_calls.parameterize_method import ParameterizeMethod
 from molting.refactorings.simplifying_method_calls.remove_parameter import RemoveParameter
 from molting.refactorings.simplifying_method_calls.remove_setting_method import RemoveSettingMethod
@@ -97,6 +100,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
         ["target"],
     ),
     "introduce-parameter": (IntroduceParameter, ["target", "name", "default"]),
+    "introduce-parameter-object": (IntroduceParameterObject, ["target", "params", "name"]),
     "add-parameter": (AddParameter, ["target", "name", "default"]),
     "parameterize-method": (ParameterizeMethod, ["target1", "target2", "new_name"]),
     "remove-parameter": (RemoveParameter, ["target", "parameter"]),
