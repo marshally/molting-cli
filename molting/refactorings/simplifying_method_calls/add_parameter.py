@@ -156,14 +156,14 @@ class AddParameterTransformer(cst.CSTTransformer):
         # Create the new parameter
         if self.param_default is not None:
             # Parameter with default value
-            # Need to handle if there are already default values
+            default_value = self._create_default_value(self.param_default)
             new_param = cst.Param(
                 name=cst.Name(self.param_name),
                 equal=cst.AssignEqual(
                     whitespace_before=cst.SimpleWhitespace(""),
                     whitespace_after=cst.SimpleWhitespace("")
                 ),
-                default=cst.SimpleString(f'"{self.param_default}"') if not self._is_numeric(self.param_default) else cst.Name(self.param_default) if not self._is_numeric(self.param_default) else cst.Integer(self.param_default)
+                default=default_value
             )
         else:
             # Parameter without default value
@@ -175,6 +175,36 @@ class AddParameterTransformer(cst.CSTTransformer):
         )
 
         return func_def.with_changes(params=new_params)
+
+    def _create_default_value(self, value: str) -> cst.BaseExpression:
+        """Create a CST node for the default value.
+
+        Args:
+            value: The default value as a string
+
+        Returns:
+            CST expression node
+        """
+        # Try to parse as a Python literal
+        try:
+            # Check if it's a float
+            if '.' in value:
+                float(value)
+                return cst.Float(value)
+            # Check if it's an integer
+            else:
+                int(value)
+                return cst.Integer(value)
+        except ValueError:
+            pass
+
+        # Try to parse it as a Python expression
+        try:
+            parsed = cst.parse_expression(value)
+            return parsed
+        except Exception:
+            # Fall back to treating it as a string literal
+            return cst.SimpleString(f'"{value}"')
 
     def _is_numeric(self, value: str) -> bool:
         """Check if a value is numeric."""

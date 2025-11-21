@@ -17,3 +17,12 @@ class TestAddParameter(RefactoringTestBase):
             target="calculate",
             name="new_param"
         )
+
+    def test_add_parameter_with_default_value(self):
+        """Add a parameter with a default value to a function."""
+        self.refactor(
+            "add-parameter",
+            target="calculate_total",
+            name="tax_rate",
+            default="0.0"
+        )
