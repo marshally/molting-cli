@@ -65,6 +65,9 @@ from molting.refactorings.simplifying_method_calls.replace_exception_with_test i
 from molting.refactorings.simplifying_method_calls.replace_parameter_with_explicit_methods import (
     ReplaceParameterWithExplicitMethods,
 )
+from molting.refactorings.simplifying_method_calls.replace_parameter_with_method_call import (
+    ReplaceParameterWithMethodCall,
+)
 from molting.refactorings.simplifying_method_calls.separate_query_from_modifier import (
     SeparateQueryFromModifier,
 )
@@ -120,6 +123,10 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "replace-parameter-with-explicit-methods": (
         ReplaceParameterWithExplicitMethods,
         ["target", "parameter_name"],
+    ),
+    "replace-parameter-with-method-call": (
+        ReplaceParameterWithMethodCall,
+        ["target"],
     ),
     "separate-query-from-modifier": (SeparateQueryFromModifier, ["target", "modifier_name"]),
 }
