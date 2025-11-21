@@ -24,6 +24,7 @@ from molting.refactorings.simplifying_method_calls.introduce_parameter import In
 from molting.refactorings.simplifying_method_calls.add_parameter import AddParameter
 from molting.refactorings.simplifying_method_calls.remove_parameter import RemoveParameter
 from molting.refactorings.simplifying_method_calls.hide_method import HideMethod
+from molting.refactorings.simplifying_method_calls.remove_setting_method import RemoveSettingMethod
 from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
 from molting.refactorings.simplifying_conditionals.decompose_conditional import DecomposeConditional
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import RemoveAssignmentsToParameters
@@ -54,6 +55,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "remove-control-flag": (RemoveControlFlag, ["target"]),
     "replace-nested-conditional-with-guard-clauses": (ReplaceNestedConditionalWithGuardClauses, ["target"]),
     "hide-method": (HideMethod, ["target"]),
+    "remove-setting-method": (RemoveSettingMethod, ["target"]),
 }
 
 
