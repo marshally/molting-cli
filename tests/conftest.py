@@ -3,6 +3,7 @@
 import ast
 import shutil
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
@@ -26,7 +27,10 @@ class RefactoringTestBase:
         - Example: test_simple() -> fixtures/composing_methods/extract_method/simple/
     """
 
-    fixture_category = None  # Must be set in subclass
+    fixture_category: Optional[str] = None  # Must be set in subclass
+    test_file: Optional[Path] = None
+    expected_file: Optional[Path] = None
+    _should_defer_assertion: bool = False
 
     @pytest.fixture(autouse=True)
     def _setup_fixture(self, tmp_path, request):
@@ -36,8 +40,10 @@ class RefactoringTestBase:
             self.tmp_path: Temporary directory for this test
             self.test_file: Path to input.py (copied to tmp_path)
             self.expected_file: Path to expected.py (in fixtures)
+            self._should_defer_assertion: Flag to defer assertion until end
         """
         self.tmp_path = tmp_path
+        self._should_defer_assertion = False
 
         # Derive fixture name from test method name
         # test_simple_case -> simple_case
@@ -75,10 +81,17 @@ class RefactoringTestBase:
 
         yield
 
+        # Assert at the end of test if deferred
+        if self._should_defer_assertion and self.test_file and self.expected_file:
+            self.assert_matches_expected()
+
         # Cleanup handled automatically by tmp_path fixture
 
-    def refactor(self, refactoring_name, **params):
+    def refactor(self, refactoring_name: str, **params) -> None:
         """Run refactoring and assert result matches expected output.
+
+        For tests that call refactor() multiple times, assertion is deferred until
+        the end of the test method.
 
         Args:
             refactoring_name: Name of refactoring (e.g., "extract-method")
@@ -94,12 +107,13 @@ class RefactoringTestBase:
         from molting.cli import refactor_file
 
         # Run the refactoring
-        refactor_file(refactoring_name, self.test_file, **params)
+        refactor_file(refactoring_name, str(self.test_file), **params)
 
-        # Validate result
-        self.assert_matches_expected()
+        # Defer assertion - it will be checked at the end of the test
+        # This allows tests to chain multiple refactorings before assertion
+        self._should_defer_assertion = True
 
-    def assert_matches_expected(self, normalize=True):
+    def assert_matches_expected(self, normalize: bool = True) -> None:
         """Assert that test_file matches expected_file.
 
         Args:
