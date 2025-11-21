@@ -1,9 +1,8 @@
 """Introduce Local Extension refactoring - create subclass or wrapper with new methods."""
 
 import ast
-import re
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from molting.core.refactoring_base import RefactoringBase
 
@@ -117,7 +116,9 @@ class IntroduceLocalExtension(RefactoringBase):
 
         return helper_functions
 
-    def _uses_parameter(self, func_node: ast.FunctionDef, param_name: str, target_class: str) -> bool:
+    def _uses_parameter(
+        self, func_node: ast.FunctionDef, param_name: str, target_class: str
+    ) -> bool:
         """Check if a function uses the parameter in a way that suggests it's the target class.
 
         Args:
@@ -211,7 +212,9 @@ class IntroduceLocalExtension(RefactoringBase):
 
         return method
 
-    def _replace_parameter_in_body(self, body: List[ast.stmt], old_param: str, new_param: str) -> List[ast.stmt]:
+    def _replace_parameter_in_body(
+        self, body: List[ast.stmt], old_param: str, new_param: str
+    ) -> List[ast.stmt]:
         """Replace parameter names in the function body.
 
         Args:
@@ -222,6 +225,7 @@ class IntroduceLocalExtension(RefactoringBase):
         Returns:
             Updated list of statements
         """
+
         class ParameterReplacer(ast.NodeTransformer):
             def visit_Name(self, node: ast.Name) -> ast.expr:
                 if node.id == old_param:
@@ -315,4 +319,8 @@ class IntroduceLocalExtension(RefactoringBase):
         function_names = {name for name, _ in helper_functions}
 
         # Remove functions with matching names
-        tree.body = [node for node in tree.body if not (isinstance(node, ast.FunctionDef) and node.name in function_names)]
+        tree.body = [
+            node
+            for node in tree.body
+            if not (isinstance(node, ast.FunctionDef) and node.name in function_names)
+        ]
