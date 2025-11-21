@@ -36,6 +36,14 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
         )
 
 
+    def test_no_consolidation_with_else(self):
+        """Don't consolidate if statements with else clauses."""
+        self.refactor(
+            "consolidate-conditional-expression",
+            target="calculate#L2-L7"
+        )
+
+
 class TestConsolidateConditionalExpressionInvalidTargets:
     """Tests for invalid target handling."""
 
