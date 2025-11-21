@@ -50,7 +50,7 @@ class SubstituteAlgorithm(RefactoringBase):
         """Replace function body with provided new_body."""
         # Find the target function
         target_func = self._find_function(tree)
-        if not target_func is None:
+        if target_func is not None:
             # Parse the new body to get AST nodes
             try:
                 new_ast = ast.parse(self.new_body)
@@ -138,7 +138,9 @@ class SubstituteAlgorithm(RefactoringBase):
 
         return True
 
-    def _transform_equality_chain(self, tree: ast.Module, func: ast.FunctionDef, source: str) -> str:
+    def _transform_equality_chain(
+        self, tree: ast.Module, func: ast.FunctionDef, source: str
+    ) -> str:
         """Transform equality chain pattern to use membership check."""
         # Extract the loop variable, candidates, and return value
         for_loop = func.body[0]
@@ -169,8 +171,7 @@ class SubstituteAlgorithm(RefactoringBase):
         # Create the assignment: candidates = [...]
         candidates_list = ast.List(elts=candidates, ctx=ast.Load())
         candidates_assign = ast.Assign(
-            targets=[ast.Name(id="candidates", ctx=ast.Store())],
-            value=candidates_list
+            targets=[ast.Name(id="candidates", ctx=ast.Store())], value=candidates_list
         )
 
         # Create new if body with membership check
@@ -178,19 +179,14 @@ class SubstituteAlgorithm(RefactoringBase):
         new_test = ast.Compare(
             left=ast.Name(id=loop_var_name, ctx=ast.Load()),
             ops=[ast.In()],
-            comparators=[ast.Name(id="candidates", ctx=ast.Load())]
+            comparators=[ast.Name(id="candidates", ctx=ast.Load())],
         )
 
         new_return = ast.Return(value=ast.Name(id=loop_var_name, ctx=ast.Load()))
         new_if = ast.If(test=new_test, body=[new_return], orelse=[])
 
         # Create new for loop
-        new_for = ast.For(
-            target=loop_var,
-            iter=for_loop.iter,
-            body=[new_if],
-            orelse=[]
-        )
+        new_for = ast.For(target=loop_var, iter=for_loop.iter, body=[new_if], orelse=[])
 
         # Get the return statement from original function
         final_return = func.body[1]
