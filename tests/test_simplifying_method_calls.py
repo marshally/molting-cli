@@ -51,7 +51,11 @@ class TestSeparateQueryFromModifier(RefactoringTestBase):
 
     def test_simple(self):
         """Create two methods, one for the query and one for the modification."""
-        self.refactor("separate-query-from-modifier", target="Security::get_and_remove_intruder")
+        self.refactor(
+            "separate-query-from-modifier",
+            target="Security::get_and_remove_intruder",
+            modifier_name="alert_for_intruder",
+        )
 
 
 class TestParameterizeMethod(RefactoringTestBase):
