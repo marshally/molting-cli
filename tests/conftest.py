@@ -1,9 +1,10 @@
 """Pytest configuration and shared fixtures for molting-cli tests."""
 
 import ast
-import pytest
-from pathlib import Path
 import shutil
+from pathlib import Path
+
+import pytest
 
 
 class RefactoringTestBase:
@@ -48,9 +49,7 @@ class RefactoringTestBase:
 
         # Construct fixture directory path
         if self.fixture_category is None:
-            raise ValueError(
-                f"{self.__class__.__name__} must set fixture_category class attribute"
-            )
+            raise ValueError(f"{self.__class__.__name__} must set fixture_category class attribute")
 
         fixture_dir = Path(__file__).parent / "fixtures" / self.fixture_category / fixture_name
 
@@ -60,13 +59,9 @@ class RefactoringTestBase:
             expected_file = fixture_dir / "expected.py"
 
             if not input_file.exists():
-                raise FileNotFoundError(
-                    f"Missing input.py in fixture directory: {fixture_dir}"
-                )
+                raise FileNotFoundError(f"Missing input.py in fixture directory: {fixture_dir}")
             if not expected_file.exists():
-                raise FileNotFoundError(
-                    f"Missing expected.py in fixture directory: {fixture_dir}"
-                )
+                raise FileNotFoundError(f"Missing expected.py in fixture directory: {fixture_dir}")
 
             # Copy input.py to temporary directory
             self.test_file = tmp_path / "input.py"
@@ -93,9 +88,7 @@ class RefactoringTestBase:
             AssertionError: If refactored output doesn't match expected
         """
         if self.test_file is None:
-            raise RuntimeError(
-                "No fixture loaded. Ensure fixture directory exists for this test."
-            )
+            raise RuntimeError("No fixture loaded. Ensure fixture directory exists for this test.")
 
         # Import here to avoid circular dependencies during test collection
         from molting.cli import refactor_file
@@ -135,7 +128,9 @@ class RefactoringTestBase:
             actual_ast = ast.parse(actual)
             expected_ast = ast.parse(expected)
         except SyntaxError as e:
-            pytest.fail(f"Syntax error in {'actual' if 'actual' in str(e) else 'expected'} code: {e}")
+            pytest.fail(
+                f"Syntax error in {'actual' if 'actual' in str(e) else 'expected'} code: {e}"
+            )
 
         actual_dump = ast.dump(actual_ast)
         expected_dump = ast.dump(expected_ast)
@@ -158,7 +153,7 @@ class RefactoringTestBase:
             actual.splitlines(keepends=True),
             fromfile="expected.py",
             tofile="actual.py",
-            lineterm=""
+            lineterm="",
         )
 
         return "".join(diff)
@@ -176,6 +171,7 @@ def normalize_code(code):
     try:
         # Try to use black for formatting if available
         import black
+
         return black.format_str(code, mode=black.Mode())
     except ImportError:
         # Fall back to just parsing and unparsing with ast

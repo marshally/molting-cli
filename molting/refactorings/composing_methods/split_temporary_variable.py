@@ -1,6 +1,8 @@
 """Split Temporary Variable refactoring using libcst."""
 
 from pathlib import Path
+from typing import Optional
+
 import libcst as cst
 
 from molting.core.refactoring_base import RefactoringBase
@@ -28,7 +30,9 @@ class SplitTemporaryVariable(RefactoringBase):
         # Parse target: "function_name::var_name" or "ClassName::method_name::var_name"
         parts = target.split("::")
         if len(parts) < 2:
-            raise ValueError(f"Invalid target format: {target}. Expected 'function::variable' or 'Class::method::variable'")
+            raise ValueError(
+                f"Invalid target format: {target}. Expected 'function::variable' or 'Class::method::variable'"
+            )
 
         self.var_name = parts[-1]  # Last part is always the variable name
 
@@ -41,7 +45,9 @@ class SplitTemporaryVariable(RefactoringBase):
             self.class_name = parts[0]
             self.func_name = parts[1]
         else:
-            raise ValueError(f"Invalid target format: {target}. Expected 'function::variable' or 'Class::method::variable'")
+            raise ValueError(
+                f"Invalid target format: {target}. Expected 'function::variable' or 'Class::method::variable'"
+            )
 
     def apply(self, source: str) -> str:
         """Apply the refactoring to source code.
@@ -82,7 +88,7 @@ class SplitTemporaryVariable(RefactoringBase):
 class TemporaryVariableSplitter(cst.CSTTransformer):
     """Transform code to split temporary variables."""
 
-    def __init__(self, func_name: str, class_name: str | None, var_name: str):
+    def __init__(self, func_name: str, class_name: Optional[str], var_name: str):
         """Initialize the splitter.
 
         Args:
@@ -95,7 +101,9 @@ class TemporaryVariableSplitter(cst.CSTTransformer):
         self.var_name = var_name
         self.assignment_count = {}  # Maps assignment index to new variable name
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         """Process the target function to split temporary variables."""
         # Check if this is the function we're looking for
         if original_node.name.value == self.func_name:
@@ -107,7 +115,9 @@ class TemporaryVariableSplitter(cst.CSTTransformer):
 
         return updated_node
 
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+    def leave_ClassDef(
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
         """Process class definitions to find target methods."""
         if original_node.name.value == self.class_name:
             # Process the class body
@@ -125,7 +135,9 @@ class TemporaryVariableSplitter(cst.CSTTransformer):
 
         return updated_node
 
-    def _process_function_body(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.IndentedBlock:
+    def _process_function_body(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.IndentedBlock:
         """Process the function body to split temporary variables."""
         body = updated_node.body
 
@@ -174,7 +186,10 @@ class TemporaryVariableSplitter(cst.CSTTransformer):
                 for s in stmt.body:
                     if isinstance(s, cst.Assign):
                         for target in s.targets:
-                            if isinstance(target.target, cst.Name) and target.target.value == self.var_name:
+                            if (
+                                isinstance(target.target, cst.Name)
+                                and target.target.value == self.var_name
+                            ):
                                 assignments.append(stmt_index)
                 stmt_index += 1
             else:

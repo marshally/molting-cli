@@ -1,13 +1,11 @@
 """Rename refactoring - rename variables, methods, classes, or modules."""
 
 from pathlib import Path
+
 from rope.base.project import Project
 from rope.refactor.rename import Rename as RopeRename
 
 from molting.core.refactoring_base import RefactoringBase
-
-
-import ast
 
 
 class Rename(RefactoringBase):

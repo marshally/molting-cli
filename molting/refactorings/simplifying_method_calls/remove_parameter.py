@@ -1,13 +1,13 @@
 """Remove Parameter refactoring - remove an unused parameter from a method signature."""
 
-import re
 from pathlib import Path
 from typing import Optional
+
 import libcst as cst
 
-from molting.core.refactoring_base import RefactoringBase
 from molting.core.class_aware_transformer import ClassAwareTransformer
 from molting.core.class_aware_validator import ClassAwareValidator
+from molting.core.refactoring_base import RefactoringBase
 
 
 class RemoveParameter(RefactoringBase):
@@ -27,6 +27,8 @@ class RemoveParameter(RefactoringBase):
         self.source = self.file_path.read_text()
         # Parse the target specification - if it contains "::" it's "ClassName::method_name"
         # otherwise it's just "function_name"
+        self.class_name: Optional[str]
+        self.function_name: str
         if "::" in self.target:
             self.class_name, self.function_name = self.parse_qualified_target(self.target)
         else:
@@ -54,7 +56,7 @@ class RemoveParameter(RefactoringBase):
         transformer = RemoveParameterTransformer(
             class_name=self.class_name,
             function_name=self.function_name,
-            parameter_name=self.parameter
+            parameter_name=self.parameter,
         )
         modified_tree = tree.visit(transformer)
 
@@ -75,8 +77,7 @@ class RemoveParameter(RefactoringBase):
         try:
             tree = cst.parse_module(source)
             validator = ValidateRemoveParameterTransformer(
-                class_name=self.class_name,
-                function_name=self.function_name
+                class_name=self.class_name, function_name=self.function_name
             )
             tree.visit(validator)
             return validator.found
@@ -98,7 +99,9 @@ class RemoveParameterTransformer(ClassAwareTransformer):
         super().__init__(class_name=class_name, function_name=function_name)
         self.parameter_name = parameter_name
         self.modified = False
-        self.parameter_index = None  # Will be set when we find and modify the function
+        self.parameter_index: Optional[
+            int
+        ] = None  # Will be set when we find and modify the function
 
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
         """Update call sites to remove the argument corresponding to the removed parameter."""
@@ -114,13 +117,17 @@ class RemoveParameterTransformer(ClassAwareTransformer):
                 return self._remove_argument_from_call(updated_node)
         elif isinstance(updated_node.func, cst.Attribute):
             # Method call like obj.method()
-            if (isinstance(updated_node.func.attr, cst.Name) and
-                updated_node.func.attr.value == self.function_name):
+            if (
+                isinstance(updated_node.func.attr, cst.Name)
+                and updated_node.func.attr.value == self.function_name
+            ):
                 return self._remove_argument_from_call(updated_node)
 
         return updated_node
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         """Modify function definition if it matches the target."""
         # Check if this is the function we're looking for
         func_name = original_node.name.value
@@ -184,7 +191,9 @@ class RemoveParameterTransformer(ClassAwareTransformer):
                 new_params_list.append(param)
 
         if not found:
-            raise ValueError(f"Parameter '{self.parameter_name}' not found in function '{self.function_name}'")
+            raise ValueError(
+                f"Parameter '{self.parameter_name}' not found in function '{self.function_name}'"
+            )
 
         # Remove trailing comma from the last parameter if it exists
         if new_params_list:

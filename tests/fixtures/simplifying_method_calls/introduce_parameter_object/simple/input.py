@@ -13,5 +13,4 @@ class Account:
 
 
 def flow_between(start_date, end_date, account):
-    return sum(charge.amount for charge in account.charges
-               if start_date <= charge.date <= end_date)
+    return sum(charge.amount for charge in account.charges if start_date <= charge.date <= end_date)

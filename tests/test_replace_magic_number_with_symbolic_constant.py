@@ -3,8 +3,8 @@
 This module tests the Replace Magic Number with Symbolic Constant refactoring
 which replaces numeric literals with named constants.
 """
+
 import pytest
-from pathlib import Path
 
 
 class TestReplaceMagicNumberParseTarget:
@@ -12,16 +12,15 @@ class TestReplaceMagicNumberParseTarget:
 
     def test_parse_line_number_from_target(self, tmp_path):
         """Test extracting line number from target specification."""
-        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import ReplaceMagicNumberWithSymbolicConstant
+        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
+            ReplaceMagicNumberWithSymbolicConstant,
+        )
 
         test_file = tmp_path / "test.py"
         test_file.write_text("x = 0.05\n")
 
         refactor = ReplaceMagicNumberWithSymbolicConstant(
-            str(test_file),
-            "calculate#L1",
-            "0.05",
-            "TAX_RATE"
+            str(test_file), "calculate#L1", "0.05", "TAX_RATE"
         )
 
         # Should parse the line number correctly
@@ -33,17 +32,16 @@ class TestReplaceMagicNumberSimpleExpression:
 
     def test_replace_simple_magic_number_in_expression(self, tmp_path):
         """Test replacing a simple numeric literal with a constant."""
-        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import ReplaceMagicNumberWithSymbolicConstant
+        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
+            ReplaceMagicNumberWithSymbolicConstant,
+        )
 
         test_file = tmp_path / "test.py"
         source = "def calculate_tax(amount):\n    return amount * 0.05\n"
         test_file.write_text(source)
 
         refactor = ReplaceMagicNumberWithSymbolicConstant(
-            str(test_file),
-            "calculate_tax#L2",
-            "0.05",
-            "TAX_RATE"
+            str(test_file), "calculate_tax#L2", "0.05", "TAX_RATE"
         )
 
         result = refactor.apply(source)
@@ -61,7 +59,9 @@ class TestReplaceMagicNumberMultipleOccurrences:
 
     def test_replace_multiple_occurrences_of_same_number(self, tmp_path):
         """Test replacing all instances of the magic number throughout file."""
-        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import ReplaceMagicNumberWithSymbolicConstant
+        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
+            ReplaceMagicNumberWithSymbolicConstant,
+        )
 
         test_file = tmp_path / "test.py"
         source = """def calculate_tax(amount):
@@ -73,10 +73,7 @@ def calculate_discount(amount):
         test_file.write_text(source)
 
         refactor = ReplaceMagicNumberWithSymbolicConstant(
-            str(test_file),
-            "calculate_tax#L2",
-            "0.05",
-            "TAX_RATE"
+            str(test_file), "calculate_tax#L2", "0.05", "TAX_RATE"
         )
 
         result = refactor.apply(source)
@@ -95,7 +92,9 @@ class TestReplaceMagicNumberInClassMethods:
 
     def test_replace_magic_number_in_class_method(self, tmp_path):
         """Test replacing a magic number in a class method."""
-        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import ReplaceMagicNumberWithSymbolicConstant
+        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
+            ReplaceMagicNumberWithSymbolicConstant,
+        )
 
         test_file = tmp_path / "test.py"
         source = """class TaxCalculator:
@@ -105,10 +104,7 @@ class TestReplaceMagicNumberInClassMethods:
         test_file.write_text(source)
 
         refactor = ReplaceMagicNumberWithSymbolicConstant(
-            str(test_file),
-            "TaxCalculator::calculate_tax#L3",
-            "0.05",
-            "TAX_RATE"
+            str(test_file), "TaxCalculator::calculate_tax#L3", "0.05", "TAX_RATE"
         )
 
         result = refactor.apply(source)
@@ -126,17 +122,16 @@ class TestReplaceMagicNumberErrorHandling:
 
     def test_invalid_target_format_no_line_number(self, tmp_path):
         """Test error when target doesn't have line number."""
-        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import ReplaceMagicNumberWithSymbolicConstant
+        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
+            ReplaceMagicNumberWithSymbolicConstant,
+        )
 
         test_file = tmp_path / "test.py"
         test_file.write_text("x = 0.05\n")
 
         with pytest.raises(ValueError, match="Invalid target format"):
-            refactor = ReplaceMagicNumberWithSymbolicConstant(
-                str(test_file),
-                "calculate",  # Missing #L number
-                "0.05",
-                "TAX_RATE"
+            ReplaceMagicNumberWithSymbolicConstant(
+                str(test_file), "calculate", "0.05", "TAX_RATE"  # Missing #L number
             )
 
 
@@ -145,17 +140,16 @@ class TestReplaceMagicNumberIntegerLiterals:
 
     def test_replace_integer_magic_number(self, tmp_path):
         """Test replacing an integer literal with a constant."""
-        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import ReplaceMagicNumberWithSymbolicConstant
+        from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
+            ReplaceMagicNumberWithSymbolicConstant,
+        )
 
         test_file = tmp_path / "test.py"
         source = "def calculate_items(quantity):\n    return quantity * 100\n"
         test_file.write_text(source)
 
         refactor = ReplaceMagicNumberWithSymbolicConstant(
-            str(test_file),
-            "calculate_items#L2",
-            "100",
-            "ITEMS_PER_BATCH"
+            str(test_file), "calculate_items#L2", "100", "ITEMS_PER_BATCH"
         )
 
         result = refactor.apply(source)
@@ -183,7 +177,7 @@ class TestReplaceMagicNumberCLI:
             str(test_file),
             target="calculate_tax#L2",
             magic_number="0.05",
-            constant_name="TAX_RATE"
+            constant_name="TAX_RATE",
         )
 
         # Check the result

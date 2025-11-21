@@ -2,6 +2,7 @@
 
 import ast
 from pathlib import Path
+
 from rope.base.project import Project
 from rope.refactor.inline import create_inline
 
@@ -96,7 +97,9 @@ class InlineTemp(RefactoringBase):
             # then search for the variable within that method's scope
             if method_name:
                 # Use the base class method to get the method offset
-                method_offset = self.calculate_qualified_offset(self.source, class_name, method_name)
+                method_offset = self.calculate_qualified_offset(
+                    self.source, class_name, method_name
+                )
                 # Now find the variable starting from that method
                 return self._find_variable_in_scope_from_offset(var_name, method_offset)
             else:
@@ -134,7 +137,7 @@ class InlineTemp(RefactoringBase):
         Returns:
             Byte offset of the variable in the source code
         """
-        lines = self.source.split('\n')
+        lines = self.source.split("\n")
         offset = 0
 
         for i, line in enumerate(lines):
@@ -142,7 +145,7 @@ class InlineTemp(RefactoringBase):
                 offset += len(line) + 1  # +1 for newline
             else:
                 # Search in this and subsequent lines
-                remaining_source = '\n'.join(lines[i:])
+                remaining_source = "\n".join(lines[i:])
                 var_offset = remaining_source.find(var_name)
                 if var_offset != -1:
                     return offset + var_offset

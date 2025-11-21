@@ -4,28 +4,23 @@ Tests for Decompose Conditional refactoring.
 This module tests the Decompose Conditional refactoring that extracts
 condition and branches into separate methods.
 """
-from pathlib import Path
 from click.testing import CliRunner
+
 from tests.conftest import RefactoringTestBase
 
 
 class TestDecomposeConditional(RefactoringTestBase):
     """Tests for Decompose Conditional refactoring."""
+
     fixture_category = "simplifying_conditionals/decompose_conditional"
 
     def test_simple(self):
         """Extract condition and branches into separate methods."""
-        self.refactor(
-            "decompose-conditional",
-            target="calculate_charge#L2"
-        )
+        self.refactor("decompose-conditional", target="calculate_charge#L2")
 
     def test_class_method(self):
         """Extract condition and branches from a class method."""
-        self.refactor(
-            "decompose-conditional",
-            target="Order::get_discount#L3"
-        )
+        self.refactor("decompose-conditional", target="Order::get_discount#L3")
 
 
 class TestDecomposeConditionalCLI:
@@ -48,21 +43,22 @@ class TestDecomposeConditionalInvalidTargets:
 
     def test_invalid_target_format(self):
         """Test that invalid target format raises an error."""
-        import pytest
-        from pathlib import Path
         import tempfile
-        from molting.refactorings.simplifying_conditionals.decompose_conditional import DecomposeConditional
+        from pathlib import Path
+
+        import pytest
+
+        from molting.refactorings.simplifying_conditionals.decompose_conditional import (
+            DecomposeConditional,
+        )
 
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("def test_func():\n    pass\n")
             temp_file = f.name
 
         try:
             with pytest.raises(ValueError, match="Invalid target format"):
-                DecomposeConditional(
-                    temp_file,
-                    target="function_without_line"
-                )
+                DecomposeConditional(temp_file, target="function_without_line")
         finally:
             Path(temp_file).unlink()

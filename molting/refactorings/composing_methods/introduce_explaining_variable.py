@@ -1,10 +1,9 @@
 """Introduce Explaining Variable refactoring - extract complex expressions into named variables."""
 
-import re
 from pathlib import Path
-from typing import Sequence, Union
+from typing import Optional, Union
+
 import libcst as cst
-from libcst import matchers as m
 
 from molting.core.refactoring_base import RefactoringBase
 
@@ -19,8 +18,8 @@ class _IntroduceExplainingVariableTransformer(cst.CSTTransformer):
         target_line: int,
         func_name: str,
         variable_name: str,
-        expression: str = None,
-        source_code: str = None
+        expression: Optional[str] = None,
+        source_code: Optional[str] = None,
     ):
         """Initialize the transformer.
 
@@ -76,7 +75,7 @@ class _IntroduceExplainingVariableTransformer(cst.CSTTransformer):
                             body=[
                                 cst.Assign(
                                     targets=[cst.AssignTarget(target=cst.Name(self.variable_name))],
-                                    value=extracted_value
+                                    value=extracted_value,
                                 )
                             ]
                         )
@@ -97,7 +96,7 @@ class _IntroduceExplainingVariableTransformer(cst.CSTTransformer):
 class IntroduceExplainingVariable(RefactoringBase):
     """Extract complex expressions into named variables for improved readability."""
 
-    def __init__(self, file_path: str, target: str, name: str, expression: str = None):
+    def __init__(self, file_path: str, target: str, name: str, expression: Optional[str] = None):
         """Initialize the Introduce Explaining Variable refactoring.
 
         Args:
@@ -118,7 +117,9 @@ class IntroduceExplainingVariable(RefactoringBase):
         try:
             full_spec, self.start_line, _ = self.parse_line_range_target(self.target)
         except ValueError:
-            raise ValueError(f"Invalid target format: {self.target}. Expected format: 'function_name#L10' or 'ClassName::method_name#L10'")
+            raise ValueError(
+                f"Invalid target format: {self.target}. Expected format: 'function_name#L10' or 'ClassName::method_name#L10'"
+            )
 
         # Extract the function name (the part after :: if present, otherwise the whole spec)
         if "::" in full_spec:
@@ -147,7 +148,7 @@ class IntroduceExplainingVariable(RefactoringBase):
             func_name=self.func_name,
             variable_name=self.variable_name,
             expression=self.expression,
-            source_code=source
+            source_code=source,
         )
 
         # Use metadata-based visiting
@@ -164,6 +165,6 @@ class IntroduceExplainingVariable(RefactoringBase):
         Returns:
             True if refactoring can be applied, False otherwise
         """
-        lines = source.split('\n')
+        lines = source.split("\n")
         # Check that the line number is within bounds
         return 1 <= self.start_line <= len(lines)

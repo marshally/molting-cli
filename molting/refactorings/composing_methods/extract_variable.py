@@ -1,6 +1,7 @@
 """Extract Variable refactoring - extract an expression into a named variable."""
 
 from pathlib import Path
+
 from rope.base.project import Project
 from rope.refactor.extract import ExtractVariable as RopeExtractVariable
 
@@ -50,9 +51,7 @@ class ExtractVariable(RefactoringBase):
             start_offset, end_offset = self._get_offset_range(start_line, end_line)
 
             # Create extract variable refactoring
-            extract_refactor = RopeExtractVariable(
-                project, resource, start_offset, end_offset
-            )
+            extract_refactor = RopeExtractVariable(project, resource, start_offset, end_offset)
 
             # Apply the extract
             changes = extract_refactor.get_changes(self.variable_name)
@@ -127,7 +126,7 @@ class ExtractVariable(RefactoringBase):
         lines = self.source.split("\n")
 
         # Calculate base offset (start of the line)
-        base_offset = sum(len(line) + 1 for line in lines[:start_line - 1])
+        base_offset = sum(len(line) + 1 for line in lines[: start_line - 1])
 
         line = lines[start_line - 1]
 

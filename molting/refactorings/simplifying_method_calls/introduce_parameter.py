@@ -2,6 +2,7 @@
 
 import ast
 from pathlib import Path
+from typing import Optional
 
 from molting.core.refactoring_base import RefactoringBase
 
@@ -9,7 +10,7 @@ from molting.core.refactoring_base import RefactoringBase
 class IntroduceParameter(RefactoringBase):
     """Add a new parameter to a method."""
 
-    def __init__(self, file_path: str, target: str, name: str, default: str = None):
+    def __init__(self, file_path: str, target: str, name: str, default: Optional[str] = None):
         """Initialize the IntroduceParameter refactoring.
 
         Args:

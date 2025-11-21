@@ -3,7 +3,7 @@ class Employee:
         self.salary = salary
 
     def raise_salary(self, percentage):
-        self.salary *= (1 + percentage / 100)
+        self.salary *= 1 + percentage / 100
 
     def five_percent_raise(self):
         self.raise_salary(5)

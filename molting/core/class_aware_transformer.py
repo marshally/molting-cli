@@ -5,6 +5,7 @@ to provide automatic tracking of class and method context during tree traversal.
 """
 
 from typing import Optional
+
 import libcst as cst
 
 

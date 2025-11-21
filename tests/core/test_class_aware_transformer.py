@@ -4,9 +4,9 @@ Tests for ClassAwareTransformer base class.
 This module tests the ClassAwareTransformer base class that provides
 class/method context tracking for libcst transformers.
 """
-import pytest
-import libcst as cst
 from typing import Optional
+
+import libcst as cst
 
 from molting.core.class_aware_transformer import ClassAwareTransformer
 
@@ -24,9 +24,7 @@ class SimpleTransformer(ClassAwareTransformer):
     ) -> cst.FunctionDef:
         """Track which functions were visited."""
         func_name = original_node.name.value
-        self.visited_functions.append(
-            {"name": func_name, "class": self.current_class}
-        )
+        self.visited_functions.append({"name": func_name, "class": self.current_class})
 
         # Record if this matches the target (check both class context and function name)
         if self.matches_target() and original_node.name.value == self.function_name:
@@ -254,6 +252,8 @@ class Child(Parent):
 
         # Looking for parent_method in Child, but it's defined in Parent
         # Should not match (matching is based on definition location, not inheritance)
-        parent_method = [f for f in transformer.visited_functions if f["name"] == "parent_method"][0]
+        parent_method = [f for f in transformer.visited_functions if f["name"] == "parent_method"][
+            0
+        ]
         assert parent_method["class"] == "Parent"
         assert parent_method.get("matched") is None

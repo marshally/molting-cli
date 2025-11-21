@@ -3,7 +3,7 @@
 import ast
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Tuple
+from typing import Optional, Tuple
 
 
 class RefactoringBase(ABC):
@@ -70,7 +70,7 @@ class RefactoringBase(ABC):
             ValueError: If target format is invalid
         """
         # Pattern: optional_class::optional_method#L{start}-L{end} or #L{start}
-        pattern = r'^(.+?)#L(\d+)(?:-L(\d+))?$'
+        pattern = r"^(.+?)#L(\d+)(?:-L(\d+))?$"
         match = re.match(pattern, target)
 
         if not match:
@@ -97,7 +97,9 @@ class RefactoringBase(ABC):
                 return node
         return None
 
-    def find_method_in_class(self, class_node: ast.ClassDef, method_name: str) -> Optional[ast.FunctionDef]:
+    def find_method_in_class(
+        self, class_node: ast.ClassDef, method_name: str
+    ) -> Optional[ast.FunctionDef]:
         """Find a method in a class by method name.
 
         Args:
@@ -112,9 +114,7 @@ class RefactoringBase(ABC):
                 return item
         return None
 
-    def calculate_qualified_offset(
-        self, source: str, class_name: str, method_name: str
-    ) -> int:
+    def calculate_qualified_offset(self, source: str, class_name: str, method_name: str) -> int:
         """Calculate byte offset for a qualified class::method target.
 
         Finds the byte offset in the source code where a method name appears
@@ -144,7 +144,7 @@ class RefactoringBase(ABC):
                 for item in node.body:
                     if isinstance(item, ast.FunctionDef) and item.name == method_name:
                         # Calculate offset from line and column numbers
-                        lines = source.split('\n')
+                        lines = source.split("\n")
                         offset = 0
 
                         # Sum up bytes from all previous lines
@@ -161,8 +161,6 @@ class RefactoringBase(ABC):
 
                         raise ValueError(f"Could not find offset for {method_name}")
 
-                raise ValueError(
-                    f"Method '{method_name}' not found in class '{class_name}'"
-                )
+                raise ValueError(f"Method '{method_name}' not found in class '{class_name}'")
 
         raise ValueError(f"Class '{class_name}' not found in source code")

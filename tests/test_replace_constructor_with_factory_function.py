@@ -4,8 +4,6 @@ Tests for Replace Constructor with Factory Function refactoring.
 This test module uses TDD to implement the Replace Constructor with Factory Function
 refactoring, which replaces direct constructor calls with a factory function.
 """
-import pytest
-from pathlib import Path
 
 
 class TestTargetParsing:
@@ -13,7 +11,9 @@ class TestTargetParsing:
 
     def test_parse_class_name_only(self):
         """Test parsing target with just class name."""
-        from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
+        from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import (
+            ReplaceConstructorWithFactoryFunction,
+        )
 
         # Create a simple test file
         test_code = """class Employee:
@@ -22,9 +22,7 @@ class TestTargetParsing:
 """
         # This should not raise an error
         refactoring = ReplaceConstructorWithFactoryFunction(
-            file_path="/tmp/test.py",
-            target="Employee",
-            source_code=test_code
+            file_path="/tmp/test.py", target="Employee", source_code=test_code
         )
 
         assert refactoring.target == "Employee"
@@ -36,7 +34,9 @@ class TestFactoryCreation:
 
     def test_creates_factory_function(self, tmp_path):
         """Test that factory function is created from a simple class."""
-        from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
+        from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import (
+            ReplaceConstructorWithFactoryFunction,
+        )
 
         input_code = """class Employee:
     ENGINEER = 0
@@ -52,8 +52,7 @@ class TestFactoryCreation:
         test_file.write_text(input_code)
 
         refactoring = ReplaceConstructorWithFactoryFunction(
-            file_path=str(test_file),
-            target="Employee"
+            file_path=str(test_file), target="Employee"
         )
 
         result = refactoring.apply(input_code)
@@ -71,6 +70,6 @@ class TestCLIIntegration:
         from molting.cli import main
 
         # Get the CLI group and check for the command
-        assert hasattr(main, 'commands')
+        assert hasattr(main, "commands")
         command_names = list(main.commands.keys())
         assert "replace-constructor-with-factory-function" in command_names

@@ -1,13 +1,11 @@
 """Inline Method refactoring - replace calls to a method with the method's body."""
 
 from pathlib import Path
+
 from rope.base.project import Project
 from rope.refactor.inline import InlineMethod as RopeInlineMethod
 
 from molting.core.refactoring_base import RefactoringBase
-
-
-import ast
 
 
 class InlineMethod(RefactoringBase):
@@ -85,4 +83,6 @@ class InlineMethod(RefactoringBase):
             # Use the base class method to get the qualified offset
             return self.calculate_qualified_offset(self.source, class_name, method_name)
         else:
-            raise ValueError(f"Target must be in format 'ClassName::method_name', got '{self.target}'")
+            raise ValueError(
+                f"Target must be in format 'ClassName::method_name', got '{self.target}'"
+            )

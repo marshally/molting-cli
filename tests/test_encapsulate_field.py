@@ -3,20 +3,17 @@
 This module tests the Encapsulate Field refactoring which makes a field
 private and provides getter/setter accessors using rope's encapsulate field refactoring.
 """
-from pathlib import Path
 from tests.conftest import RefactoringTestBase
 
 
 class TestEncapsulateFieldSimple(RefactoringTestBase):
     """Tests for encapsulating a simple field."""
+
     fixture_category = "organizing_data/encapsulate_field"
 
     def test_simple(self):
         """Encapsulate a simple field with getter and setter."""
-        self.refactor(
-            "encapsulate-field",
-            target="Person::name"
-        )
+        self.refactor("encapsulate-field", target="Person::name")
 
 
 class TestEncapsulateFieldCLI:
@@ -28,7 +25,9 @@ class TestEncapsulateFieldCLI:
 
         # Create a test file
         test_file = tmp_path / "test.py"
-        test_file.write_text("class Person:\n    def __init__(self, name):\n        self.name = name\n")
+        test_file.write_text(
+            "class Person:\n    def __init__(self, name):\n        self.name = name\n"
+        )
 
         # Run the refactoring
         refactor_file("encapsulate-field", str(test_file), target="Person::name")
@@ -46,10 +45,13 @@ class TestEncapsulateFieldErrorHandling:
     def test_invalid_target_format(self, tmp_path):
         """Test error when target doesn't have ClassName::field_name format."""
         import pytest
+
         from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
 
         test_file = tmp_path / "test.py"
-        test_file.write_text("class Person:\n    def __init__(self, name):\n        self.name = name\n")
+        test_file.write_text(
+            "class Person:\n    def __init__(self, name):\n        self.name = name\n"
+        )
 
         with pytest.raises(ValueError, match="Target must be in format"):
             refactor = EncapsulateField(str(test_file), "invalid_target")
@@ -58,10 +60,13 @@ class TestEncapsulateFieldErrorHandling:
     def test_class_not_found(self, tmp_path):
         """Test error when target class doesn't exist."""
         import pytest
+
         from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
 
         test_file = tmp_path / "test.py"
-        test_file.write_text("class Person:\n    def __init__(self, name):\n        self.name = name\n")
+        test_file.write_text(
+            "class Person:\n    def __init__(self, name):\n        self.name = name\n"
+        )
 
         with pytest.raises(ValueError, match="Class 'NonExistent' not found"):
             refactor = EncapsulateField(str(test_file), "NonExistent::name")

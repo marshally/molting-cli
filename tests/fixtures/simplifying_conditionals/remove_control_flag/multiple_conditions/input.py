@@ -10,5 +10,6 @@ def check_security(people):
                 found = True
     return found
 
+
 def send_alert():
     print("Alert sent!")

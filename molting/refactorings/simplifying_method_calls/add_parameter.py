@@ -1,13 +1,13 @@
 """Add Parameter refactoring - add a new parameter to a method signature."""
 
-import re
 from pathlib import Path
 from typing import Optional
+
 import libcst as cst
 
-from molting.core.refactoring_base import RefactoringBase
 from molting.core.class_aware_transformer import ClassAwareTransformer
 from molting.core.class_aware_validator import ClassAwareValidator
+from molting.core.refactoring_base import RefactoringBase
 
 
 class AddParameter(RefactoringBase):
@@ -29,6 +29,8 @@ class AddParameter(RefactoringBase):
         self.source = self.file_path.read_text()
         # Parse the target specification - if it contains "::" it's "ClassName::method_name"
         # otherwise it's just "function_name"
+        self.class_name: Optional[str]
+        self.function_name: str
         if "::" in self.target:
             self.class_name, self.function_name = self.parse_qualified_target(self.target)
         else:
@@ -57,7 +59,7 @@ class AddParameter(RefactoringBase):
             class_name=self.class_name,
             function_name=self.function_name,
             param_name=self.name,
-            param_default=self.default
+            param_default=self.default,
         )
         modified_tree = tree.visit(transformer)
 
@@ -78,8 +80,7 @@ class AddParameter(RefactoringBase):
         try:
             tree = cst.parse_module(source)
             validator = ValidateAddParameterTransformer(
-                class_name=self.class_name,
-                function_name=self.function_name
+                class_name=self.class_name, function_name=self.function_name
             )
             tree.visit(validator)
             return validator.found
@@ -90,7 +91,13 @@ class AddParameter(RefactoringBase):
 class AddParameterTransformer(ClassAwareTransformer):
     """Transform to add a parameter to a function/method."""
 
-    def __init__(self, class_name: Optional[str], function_name: str, param_name: str, param_default: Optional[str]):
+    def __init__(
+        self,
+        class_name: Optional[str],
+        function_name: str,
+        param_name: str,
+        param_default: Optional[str],
+    ):
         """Initialize the transformer.
 
         Args:
@@ -104,7 +111,9 @@ class AddParameterTransformer(ClassAwareTransformer):
         self.param_default = param_default
         self.modified = False
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         """Modify function definition if it matches the target."""
         # Check if this is the function we're looking for
         func_name = original_node.name.value
@@ -136,18 +145,16 @@ class AddParameterTransformer(ClassAwareTransformer):
                 name=cst.Name(self.param_name),
                 equal=cst.AssignEqual(
                     whitespace_before=cst.SimpleWhitespace(""),
-                    whitespace_after=cst.SimpleWhitespace("")
+                    whitespace_after=cst.SimpleWhitespace(""),
                 ),
-                default=default_value
+                default=default_value,
             )
         else:
             # Parameter without default value
             new_param = cst.Param(name=cst.Name(self.param_name))
 
         # Add the parameter to the params
-        new_params = params.with_changes(
-            params=(*params.params, new_param)
-        )
+        new_params = params.with_changes(params=(*params.params, new_param))
 
         return func_def.with_changes(params=new_params)
 
@@ -163,18 +170,18 @@ class AddParameterTransformer(ClassAwareTransformer):
         # Try to parse as a Python literal
         try:
             # Check if it's a float
-            if '.' in value and self._is_all_numeric(value):
+            if "." in value and self._is_all_numeric(value):
                 float(value)
                 return cst.Float(value)
             # Check if it's an integer
-            elif value.isdigit() or (value.startswith('-') and value[1:].isdigit()):
+            elif value.isdigit() or (value.startswith("-") and value[1:].isdigit()):
                 int(value)
                 return cst.Integer(value)
         except ValueError:
             pass
 
         # Check if it's a known constant or looks like a Python construct
-        if value in ('None', 'True', 'False'):
+        if value in ("None", "True", "False"):
             try:
                 parsed = cst.parse_expression(value)
                 return parsed
@@ -186,7 +193,7 @@ class AddParameterTransformer(ClassAwareTransformer):
 
     def _is_all_numeric(self, value: str) -> bool:
         """Check if a string contains only numeric characters and a decimal point."""
-        return all(c.isdigit() or c == '.' for c in value)
+        return all(c.isdigit() or c == "." for c in value)
 
 
 class ValidateAddParameterTransformer(ClassAwareValidator):

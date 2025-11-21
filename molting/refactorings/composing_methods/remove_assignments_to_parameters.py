@@ -1,8 +1,8 @@
 """Remove Assignments to Parameters refactoring using libcst."""
 
 from pathlib import Path
+
 import libcst as cst
-from typing import Sequence
 
 from molting.core.refactoring_base import RefactoringBase
 
@@ -76,7 +76,9 @@ class ParameterAssignmentTransformer(cst.CSTTransformer):
         self.target_func_name = target_func_name
         self.param_names = set()  # Will be populated when we visit the function
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         """Process the target function to remove parameter assignments."""
         if original_node.name.value == self.target_func_name:
             # Get the parameter names
@@ -114,7 +116,9 @@ class ParameterAssignmentTransformer(cst.CSTTransformer):
 
         return param_names
 
-    def _process_function_body(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.IndentedBlock:
+    def _process_function_body(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.IndentedBlock:
         """Process the function body to remove parameter assignments."""
         body = updated_node.body
 
@@ -139,7 +143,7 @@ class ParameterAssignmentTransformer(cst.CSTTransformer):
             body=[
                 cst.Assign(
                     targets=[cst.AssignTarget(target=cst.Name(temp_var_name))],
-                    value=cst.Name(param_to_replace)
+                    value=cst.Name(param_to_replace),
                 )
             ]
         )
@@ -212,7 +216,9 @@ class ParameterUsageReplacer(cst.CSTTransformer):
 
         return updated_node
 
-    def leave_AugAssign(self, original_node: cst.AugAssign, updated_node: cst.AugAssign) -> cst.AugAssign:
+    def leave_AugAssign(
+        self, original_node: cst.AugAssign, updated_node: cst.AugAssign
+    ) -> cst.AugAssign:
         """Handle augmented assignments (+=, -=, etc.) to the parameter."""
         target = original_node.target
 

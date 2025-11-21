@@ -1,6 +1,7 @@
 """Base class for validation of class-aware refactorings using libcst."""
 
 from typing import Optional
+
 import libcst as cst
 
 
@@ -35,7 +36,7 @@ class ClassAwareValidator(cst.CSTVisitor):
         self.class_name = class_name
         self.function_name = function_name
         self.found = False
-        self.current_class = None
+        self.current_class: Optional[str] = None
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:
         """Track when entering a class definition.

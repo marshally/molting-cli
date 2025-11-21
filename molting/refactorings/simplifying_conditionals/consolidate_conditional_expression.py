@@ -1,8 +1,9 @@
 """Consolidate Conditional Expression refactoring - combine conditions with same result."""
 
 from pathlib import Path
+from typing import List, Optional
+
 import libcst as cst
-from typing import Optional, Tuple, List, Set
 
 from molting.core.refactoring_base import RefactoringBase
 
@@ -60,7 +61,7 @@ class ConsolidateConditionalExpression(RefactoringBase):
             class_name=self.class_name,
             start_line=self.start_line,
             end_line=self.end_line,
-            source_lines=source.split('\n')
+            source_lines=source.split("\n"),
         )
         modified_tree = tree.visit(transformer)
 
@@ -82,7 +83,14 @@ class ConsolidateConditionalExpression(RefactoringBase):
 class ConsolidateConditionalTransformer(cst.CSTTransformer):
     """Transform CST to consolidate conditional expressions."""
 
-    def __init__(self, function_name: str, class_name: Optional[str], start_line: int, end_line: int, source_lines: list):
+    def __init__(
+        self,
+        function_name: str,
+        class_name: Optional[str],
+        start_line: int,
+        end_line: int,
+        source_lines: list,
+    ):
         """Initialize the transformer.
 
         Args:
@@ -106,13 +114,17 @@ class ConsolidateConditionalTransformer(cst.CSTTransformer):
             self.inside_target_class = True
         return True
 
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+    def leave_ClassDef(
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
         """Process the class definition."""
         if self.class_name and updated_node.name.value == self.class_name:
             self.inside_target_class = False
         return updated_node
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         """Process function definitions."""
         if updated_node.name.value != self.function_name:
             return updated_node
@@ -144,15 +156,15 @@ class ConsolidateConditionalTransformer(cst.CSTTransformer):
 
         while i < len(statements):
             stmt = statements[i]
-            
+
             # Check if this is an if statement in our target range
             if isinstance(stmt, cst.If):
                 # Collect all consecutive if statements with same body
                 consolidated = self._try_consolidate_ifs(statements, i)
-                
+
                 if consolidated:
-                    new_statements.append(consolidated['statement'])
-                    i += consolidated['count']
+                    new_statements.append(consolidated["statement"])
+                    i += consolidated["count"]
                 else:
                     new_statements.append(stmt)
                     i += 1
@@ -181,7 +193,7 @@ class ConsolidateConditionalTransformer(cst.CSTTransformer):
 
         while i < len(statements) and isinstance(statements[i], cst.If):
             if_stmt = statements[i]
-            
+
             # Only process if statements without else clauses
             if if_stmt.orelse is None:
                 if_statements.append(if_stmt)
@@ -196,8 +208,7 @@ class ConsolidateConditionalTransformer(cst.CSTTransformer):
         # Check if all have the same body
         first_body = if_statements[0].body
         all_same_body = all(
-            self._bodies_equal(if_stmt.body, first_body)
-            for if_stmt in if_statements[1:]
+            self._bodies_equal(if_stmt.body, first_body) for if_stmt in if_statements[1:]
         )
 
         if not all_same_body:
@@ -210,12 +221,11 @@ class ConsolidateConditionalTransformer(cst.CSTTransformer):
         # Create the consolidated if statement
         consolidated_if = if_statements[0].with_changes(test=consolidated_condition)
 
-        return {
-            'statement': consolidated_if,
-            'count': len(if_statements)
-        }
+        return {"statement": consolidated_if, "count": len(if_statements)}
 
-    def _bodies_equal(self, body1: cst.BaseCompoundStatement, body2: cst.BaseCompoundStatement) -> bool:
+    def _bodies_equal(
+        self, body1: cst.BaseCompoundStatement, body2: cst.BaseCompoundStatement
+    ) -> bool:
         """Check if two statement bodies are equal.
 
         Args:
@@ -227,7 +237,9 @@ class ConsolidateConditionalTransformer(cst.CSTTransformer):
         """
         return body1.deep_equals(body2)
 
-    def _combine_conditions_with_or(self, conditions: List[cst.BaseExpression]) -> cst.BaseExpression:
+    def _combine_conditions_with_or(
+        self, conditions: List[cst.BaseExpression]
+    ) -> cst.BaseExpression:
         """Combine multiple conditions with OR logic.
 
         Args:
@@ -245,10 +257,6 @@ class ConsolidateConditionalTransformer(cst.CSTTransformer):
         # Build OR chain: condition1 or condition2 or condition3
         result = conditions[0]
         for condition in conditions[1:]:
-            result = cst.BooleanOperation(
-                operator=cst.Or(),
-                left=result,
-                right=condition
-            )
+            result = cst.BooleanOperation(operator=cst.Or(), left=result, right=condition)
 
         return result

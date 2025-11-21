@@ -1,8 +1,9 @@
 """Introduce Assertion refactoring - make assumptions explicit with assertions."""
 
 from pathlib import Path
-import libcst as cst
 from typing import Optional
+
+import libcst as cst
 
 from molting.core.refactoring_base import RefactoringBase
 
@@ -57,7 +58,7 @@ class IntroduceAssertion(RefactoringBase):
             line_number=self.line_number,
             condition=self.condition,
             message=self.message,
-            source_lines=source.split('\n')
+            source_lines=source.split("\n"),
         )
         modified_tree = tree.visit(transformer)
 
@@ -79,7 +80,14 @@ class IntroduceAssertion(RefactoringBase):
 class AssertionTransformer(cst.CSTTransformer):
     """Transform CST to insert assertion statements."""
 
-    def __init__(self, function_name: str, line_number: int, condition: str, message: Optional[str], source_lines: list):
+    def __init__(
+        self,
+        function_name: str,
+        line_number: int,
+        condition: str,
+        message: Optional[str],
+        source_lines: list,
+    ):
         """Initialize the transformer.
 
         Args:
@@ -104,7 +112,9 @@ class AssertionTransformer(cst.CSTTransformer):
             return True
         return True
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         """Process function definitions to insert assertions."""
         if updated_node.name.value != self.function_name:
             return updated_node
@@ -142,12 +152,7 @@ class AssertionTransformer(cst.CSTTransformer):
 
         # Create assertion with message
         assert_stmt = cst.SimpleStatementLine(
-            body=[
-                cst.Assert(
-                    test=condition_expr,
-                    msg=cst.SimpleString(f'"{message_str}"')
-                )
-            ]
+            body=[cst.Assert(test=condition_expr, msg=cst.SimpleString(f'"{message_str}"'))]
         )
 
         # Get the first statement in the body

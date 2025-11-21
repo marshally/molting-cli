@@ -22,5 +22,4 @@ class Account:
 
 
 def flow_between(date_range, account):
-    return sum(charge.amount for charge in account.charges
-               if date_range.includes(charge.date))
+    return sum(charge.amount for charge in account.charges if date_range.includes(charge.date))

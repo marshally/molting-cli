@@ -1,8 +1,7 @@
 """Tests for Split Temporary Variable refactoring."""
 
-from pathlib import Path
-import pytest
 import tempfile
+from pathlib import Path
 
 
 class TestSplitTemporaryVariableParsing:
@@ -10,7 +9,9 @@ class TestSplitTemporaryVariableParsing:
 
     def test_parse_function_and_variable_from_target(self):
         """Parse function::variable target format correctly."""
-        from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
+        from molting.refactorings.composing_methods.split_temporary_variable import (
+            SplitTemporaryVariable,
+        )
 
         source = """def calculate(a, b):
     temp = a + b
@@ -19,7 +20,7 @@ class TestSplitTemporaryVariableParsing:
     return temp
 """
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(source)
             temp_file = f.name
 
@@ -34,7 +35,9 @@ class TestSplitTemporaryVariableParsing:
 
     def test_detect_multiple_assignments_to_variable(self):
         """Detect when a variable is assigned more than once."""
-        from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
+        from molting.refactorings.composing_methods.split_temporary_variable import (
+            SplitTemporaryVariable,
+        )
 
         source = """def calculate(a, b):
     temp = a + b
@@ -43,7 +46,7 @@ class TestSplitTemporaryVariableParsing:
     return temp
 """
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(source)
             temp_file = f.name
 
@@ -57,7 +60,9 @@ class TestSplitTemporaryVariableParsing:
 
     def test_split_two_assignments_simple(self):
         """Split a variable with two assignments into two variables."""
-        from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
+        from molting.refactorings.composing_methods.split_temporary_variable import (
+            SplitTemporaryVariable,
+        )
 
         source = """def calculate(a, b):
     temp = a + b
@@ -72,7 +77,7 @@ class TestSplitTemporaryVariableParsing:
     return temp_2
 """
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(source)
             temp_file = f.name
 
@@ -82,13 +87,16 @@ class TestSplitTemporaryVariableParsing:
 
             # Compare by parsing both as AST to ignore formatting differences
             import ast
+
             assert ast.dump(ast.parse(result)) == ast.dump(ast.parse(expected))
         finally:
             Path(temp_file).unlink()
 
     def test_split_three_assignments(self):
         """Split a variable with three assignments into three variables."""
-        from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
+        from molting.refactorings.composing_methods.split_temporary_variable import (
+            SplitTemporaryVariable,
+        )
 
         source = """def calculate(a, b, c):
     temp = a + b
@@ -107,7 +115,7 @@ class TestSplitTemporaryVariableParsing:
     return temp_3
 """
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(source)
             temp_file = f.name
 
@@ -117,13 +125,16 @@ class TestSplitTemporaryVariableParsing:
 
             # Compare by parsing both as AST to ignore formatting differences
             import ast
+
             assert ast.dump(ast.parse(result)) == ast.dump(ast.parse(expected))
         finally:
             Path(temp_file).unlink()
 
     def test_split_class_method_target(self):
         """Split a temp variable in a class method."""
-        from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
+        from molting.refactorings.composing_methods.split_temporary_variable import (
+            SplitTemporaryVariable,
+        )
 
         source = """class Calculator:
     def calculate(self, a, b):
@@ -140,7 +151,7 @@ class TestSplitTemporaryVariableParsing:
         return temp_2
 """
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(source)
             temp_file = f.name
 
@@ -150,21 +161,25 @@ class TestSplitTemporaryVariableParsing:
 
             # Compare by parsing both as AST to ignore formatting differences
             import ast
+
             assert ast.dump(ast.parse(result)) == ast.dump(ast.parse(expected))
         finally:
             Path(temp_file).unlink()
 
     def test_invalid_target_format(self):
         """Reject invalid target formats."""
-        from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
         import pytest
+
+        from molting.refactorings.composing_methods.split_temporary_variable import (
+            SplitTemporaryVariable,
+        )
 
         source = """def calculate(a, b):
     temp = a + b
     return temp
 """
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(source)
             temp_file = f.name
 

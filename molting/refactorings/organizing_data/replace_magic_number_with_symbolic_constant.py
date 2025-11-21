@@ -33,7 +33,7 @@ class ReplaceMagicNumberWithSymbolicConstant(RefactoringBase):
         Returns:
             Line number as integer
         """
-        match = re.search(r'#L(\d+)', self.target)
+        match = re.search(r"#L(\d+)", self.target)
         if match:
             return int(match.group(1))
         raise ValueError(f"Invalid target format: {self.target}. Expected format: 'method#L10'")
@@ -54,11 +54,7 @@ class ReplaceMagicNumberWithSymbolicConstant(RefactoringBase):
 
         # Create a transformer to replace the magic number with metadata support
         wrapper = cst.metadata.MetadataWrapper(tree)
-        transformer = MagicNumberReplacer(
-            self.magic_number,
-            self.constant_name,
-            self.line_number
-        )
+        transformer = MagicNumberReplacer(self.magic_number, self.constant_name, self.line_number)
 
         # Apply the transformation
         modified_tree = wrapper.visit(transformer)
@@ -68,7 +64,9 @@ class ReplaceMagicNumberWithSymbolicConstant(RefactoringBase):
             body=[
                 cst.Assign(
                     targets=[cst.AssignTarget(target=cst.Name(self.constant_name))],
-                    value=cst.Float(self.magic_number) if '.' in self.magic_number else cst.Integer(self.magic_number)
+                    value=cst.Float(self.magic_number)
+                    if "." in self.magic_number
+                    else cst.Integer(self.magic_number),
                 )
             ]
         )
@@ -114,7 +112,9 @@ class MagicNumberReplacer(cst.CSTTransformer):
             return cst.Name(self.constant_name)
         return updated_node
 
-    def leave_Integer(self, original_node: cst.Integer, updated_node: cst.Integer) -> cst.BaseExpression:
+    def leave_Integer(
+        self, original_node: cst.Integer, updated_node: cst.Integer
+    ) -> cst.BaseExpression:
         """Replace integer literals that match the magic number."""
         if original_node.value == self.magic_number:
             return cst.Name(self.constant_name)

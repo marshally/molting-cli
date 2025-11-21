@@ -1,9 +1,9 @@
 """Consolidate Duplicate Conditional Fragments refactoring - move duplicate code outside conditionals."""
 
-import re
 from pathlib import Path
+from typing import List, Optional
+
 import libcst as cst
-from typing import Optional, Tuple, List, Set
 
 from molting.core.refactoring_base import RefactoringBase
 
@@ -63,7 +63,7 @@ class ConsolidateDuplicateConditionalFragments(RefactoringBase):
             function_name=self.function_name,
             class_name=self.class_name,
             line_number=self.line_number,
-            source_lines=source.split('\n')
+            source_lines=source.split("\n"),
         )
         modified_tree = tree.visit(transformer)
 
@@ -85,7 +85,9 @@ class ConsolidateDuplicateConditionalFragments(RefactoringBase):
 class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
     """Transform CST to consolidate duplicate conditional fragments."""
 
-    def __init__(self, function_name: str, class_name: Optional[str], line_number: int, source_lines: list):
+    def __init__(
+        self, function_name: str, class_name: Optional[str], line_number: int, source_lines: list
+    ):
         """Initialize the transformer.
 
         Args:
@@ -107,13 +109,17 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
             self.inside_target_class = True
         return True
 
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+    def leave_ClassDef(
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
         """Process the class definition."""
         if self.class_name and updated_node.name.value == self.class_name:
             self.inside_target_class = False
         return updated_node
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         """Process function definitions."""
         if updated_node.name.value != self.function_name:
             return updated_node
@@ -199,7 +205,9 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
             return list(body.body)
         return []
 
-    def _find_duplicates_at_end(self, if_body: List[cst.BaseStatement], else_body: List[cst.BaseStatement]) -> List[cst.BaseStatement]:
+    def _find_duplicates_at_end(
+        self, if_body: List[cst.BaseStatement], else_body: List[cst.BaseStatement]
+    ) -> List[cst.BaseStatement]:
         """Find duplicate statements at the end of both branches.
 
         Args:
@@ -209,7 +217,7 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
         Returns:
             List of duplicate statements at the end
         """
-        duplicates = []
+        duplicates: List[cst.BaseStatement] = []
         min_len = min(len(if_body), len(else_body))
 
         # Check from the end backwards
@@ -224,7 +232,9 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
 
         return duplicates
 
-    def _find_duplicates_at_start(self, if_body: List[cst.BaseStatement], else_body: List[cst.BaseStatement]) -> List[cst.BaseStatement]:
+    def _find_duplicates_at_start(
+        self, if_body: List[cst.BaseStatement], else_body: List[cst.BaseStatement]
+    ) -> List[cst.BaseStatement]:
         """Find duplicate statements at the start of both branches.
 
         Args:
@@ -261,7 +271,9 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
         """
         return stmt1.deep_equals(stmt2)
 
-    def _consolidate_duplicates_at_end(self, if_stmt: cst.If, duplicates: List[cst.BaseStatement]) -> List[cst.BaseStatement]:
+    def _consolidate_duplicates_at_end(
+        self, if_stmt: cst.If, duplicates: List[cst.BaseStatement]
+    ) -> List[cst.BaseStatement]:
         """Move duplicate statements from the end of branches to after the if-else.
 
         Args:
@@ -282,13 +294,15 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
         # Create new if statement with shortened branches
         new_if_stmt = if_stmt.with_changes(
             body=cst.IndentedBlock(body=new_if_body),
-            orelse=cst.Else(body=cst.IndentedBlock(body=new_else_body))
+            orelse=cst.Else(body=cst.IndentedBlock(body=new_else_body)),
         )
 
         # Return the modified if statement followed by the duplicate statements
         return [new_if_stmt] + duplicates
 
-    def _consolidate_duplicates_at_start(self, if_stmt: cst.If, duplicates: List[cst.BaseStatement]) -> List[cst.BaseStatement]:
+    def _consolidate_duplicates_at_start(
+        self, if_stmt: cst.If, duplicates: List[cst.BaseStatement]
+    ) -> List[cst.BaseStatement]:
         """Move duplicate statements from the start of branches to before the if-else.
 
         Args:
@@ -309,7 +323,7 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
         # Create new if statement with shortened branches
         new_if_stmt = if_stmt.with_changes(
             body=cst.IndentedBlock(body=new_if_body),
-            orelse=cst.Else(body=cst.IndentedBlock(body=new_else_body))
+            orelse=cst.Else(body=cst.IndentedBlock(body=new_else_body)),
         )
 
         # Return the duplicate statements followed by the modified if statement

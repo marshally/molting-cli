@@ -33,7 +33,9 @@ class EncapsulateField(RefactoringBase):
         self.source = source
 
         if "::" not in self.target:
-            raise ValueError(f"Target must be in format 'ClassName::field_name', got '{self.target}'")
+            raise ValueError(
+                f"Target must be in format 'ClassName::field_name', got '{self.target}'"
+            )
 
         class_name, field_name = self.target.split("::", 1)
 
@@ -89,9 +91,11 @@ class EncapsulateField(RefactoringBase):
                 # Replace self.field_name with self._field_name
                 for node in ast.walk(item):
                     if isinstance(node, ast.Attribute):
-                        if (isinstance(node.value, ast.Name) and
-                            node.value.id == "self" and
-                            node.attr == field_name):
+                        if (
+                            isinstance(node.value, ast.Name)
+                            and node.value.id == "self"
+                            and node.attr == field_name
+                        ):
                             node.attr = private_field_name
 
         # Step 2: Find the position to insert properties (after __init__)
@@ -110,11 +114,16 @@ class EncapsulateField(RefactoringBase):
         # Step 5: Insert properties into class
         # Find if properties already exist and remove them
         class_node.body = [
-            item for item in class_node.body
-            if not (isinstance(item, ast.FunctionDef) and
-                    item.name == field_name and
-                    any(isinstance(dec, ast.Name) and dec.id == "property"
-                        for dec in item.decorator_list))
+            item
+            for item in class_node.body
+            if not (
+                isinstance(item, ast.FunctionDef)
+                and item.name == field_name
+                and any(
+                    isinstance(dec, ast.Name) and dec.id == "property"
+                    for dec in item.decorator_list
+                )
+            )
         ]
 
         # Find the insert position again after filtering
@@ -144,9 +153,7 @@ class EncapsulateField(RefactoringBase):
         # Create the function body: return self._field_name
         return_stmt = ast.Return(
             value=ast.Attribute(
-                value=ast.Name(id="self", ctx=ast.Load()),
-                attr=private_field_name,
-                ctx=ast.Load()
+                value=ast.Name(id="self", ctx=ast.Load()), attr=private_field_name, ctx=ast.Load()
             )
         )
 
@@ -158,11 +165,11 @@ class EncapsulateField(RefactoringBase):
                 args=[ast.arg(arg="self", annotation=None)],
                 kwonlyargs=[],
                 kw_defaults=[],
-                defaults=[]
+                defaults=[],
             ),
             body=[return_stmt],
             decorator_list=[property_decorator],
-            returns=None
+            returns=None,
         )
 
         return func_def
@@ -179,9 +186,7 @@ class EncapsulateField(RefactoringBase):
         """
         # Create the decorator: @field_name.setter
         setter_decorator = ast.Attribute(
-            value=ast.Name(id=field_name, ctx=ast.Load()),
-            attr="setter",
-            ctx=ast.Load()
+            value=ast.Name(id=field_name, ctx=ast.Load()), attr="setter", ctx=ast.Load()
         )
 
         # Create the function body: self._field_name = value
@@ -190,10 +195,10 @@ class EncapsulateField(RefactoringBase):
                 ast.Attribute(
                     value=ast.Name(id="self", ctx=ast.Load()),
                     attr=private_field_name,
-                    ctx=ast.Store()
+                    ctx=ast.Store(),
                 )
             ],
-            value=ast.Name(id="value", ctx=ast.Load())
+            value=ast.Name(id="value", ctx=ast.Load()),
         )
 
         # Create the function definition
@@ -201,17 +206,14 @@ class EncapsulateField(RefactoringBase):
             name=field_name,
             args=ast.arguments(
                 posonlyargs=[],
-                args=[
-                    ast.arg(arg="self", annotation=None),
-                    ast.arg(arg="value", annotation=None)
-                ],
+                args=[ast.arg(arg="self", annotation=None), ast.arg(arg="value", annotation=None)],
                 kwonlyargs=[],
                 kw_defaults=[],
-                defaults=[]
+                defaults=[],
             ),
             body=[assign_stmt],
             decorator_list=[setter_decorator],
-            returns=None
+            returns=None,
         )
 
         return func_def

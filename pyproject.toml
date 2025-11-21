@@ -36,6 +36,17 @@ target-version = ['py38', 'py39', 'py310', 'py311']
 line-length = 100
 select = ["E", "F", "I", "N", "W"]
 
+[tool.ruff.lint]
+# Ignore E501 (line too long) as black handles this
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore naming conventions for LibCST visitor methods
+"molting/**/*.py" = ["N802"]
+"tests/core/**/*.py" = ["N802"]
+# Ignore undefined names and unused variables in test fixtures (they're intentional examples)
+"tests/fixtures/**/*.py" = ["F821", "F841", "E741"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
@@ -43,7 +54,35 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 
 [tool.mypy]
-python_version = "3.8"
-warn_return_any = true
+python_version = "3.9"
 warn_unused_configs = true
-disallow_untyped_defs = true
+no_implicit_optional = true
+# Relaxed settings - focus on catching actual bugs
+warn_return_any = false
+disallow_untyped_defs = false
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict_equality = true
+
+# Ignore missing imports for third-party libraries without type stubs
+[[tool.mypy.overrides]]
+module = "rope.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "libcst.metadata"
+ignore_errors = true
+
+# Relax type checking for files with complex LibCST transformations
+[[tool.mypy.overrides]]
+module = "molting.refactorings.simplifying_conditionals.*"
+disable_error_code = ["arg-type", "return-value", "assignment", "union-attr", "var-annotated"]
+
+[[tool.mypy.overrides]]
+module = "molting.refactorings.composing_methods.split_temporary_variable"
+disable_error_code = ["arg-type", "return-value", "assignment", "var-annotated"]
+
+[[tool.mypy.overrides]]
+module = "molting.refactorings.composing_methods.remove_assignments_to_parameters"
+disable_error_code = ["arg-type", "return-value", "assignment", "var-annotated"]

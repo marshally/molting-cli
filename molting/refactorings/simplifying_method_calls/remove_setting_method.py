@@ -1,12 +1,12 @@
 """Remove Setting Method refactoring - remove a setter method from a class."""
 
 from pathlib import Path
-from typing import Optional
+
 import libcst as cst
 
-from molting.core.refactoring_base import RefactoringBase
 from molting.core.class_aware_transformer import ClassAwareTransformer
 from molting.core.class_aware_validator import ClassAwareValidator
+from molting.core.refactoring_base import RefactoringBase
 
 
 class RemoveSettingMethod(RefactoringBase):
@@ -24,7 +24,9 @@ class RemoveSettingMethod(RefactoringBase):
         self.source = self.file_path.read_text()
         # Parse the target specification - must be "ClassName::method_name" format
         if "::" not in self.target:
-            raise ValueError(f"Invalid target format: {self.target}. Expected 'ClassName::method_name'")
+            raise ValueError(
+                f"Invalid target format: {self.target}. Expected 'ClassName::method_name'"
+            )
         self.class_name, self.method_name = self.parse_qualified_target(self.target)
 
     def apply(self, source: str) -> str:
@@ -46,8 +48,7 @@ class RemoveSettingMethod(RefactoringBase):
 
         # Transform the tree
         transformer = RemoveSettingMethodTransformer(
-            class_name=self.class_name,
-            method_name=self.method_name
+            class_name=self.class_name, method_name=self.method_name
         )
         modified_tree = tree.visit(transformer)
 
@@ -68,8 +69,7 @@ class RemoveSettingMethod(RefactoringBase):
         try:
             tree = cst.parse_module(source)
             validator = ValidateRemoveSettingMethodTransformer(
-                class_name=self.class_name,
-                method_name=self.method_name
+                class_name=self.class_name, method_name=self.method_name
             )
             tree.visit(validator)
             return validator.found
@@ -91,7 +91,9 @@ class RemoveSettingMethodTransformer(ClassAwareTransformer):
         self.method_name = method_name
         self.modified = False
 
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+    def leave_ClassDef(
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
         """Remove the setter method from the class body."""
         if original_node.name.value != self.class_name:
             return updated_node
@@ -111,9 +113,7 @@ class RemoveSettingMethodTransformer(ClassAwareTransformer):
             new_body.append(statement)
 
         if self.modified:
-            return updated_node.with_changes(
-                body=updated_node.body.with_changes(body=new_body)
-            )
+            return updated_node.with_changes(body=updated_node.body.with_changes(body=new_body))
 
         return updated_node
 
@@ -124,8 +124,12 @@ class RemoveSettingMethodTransformer(ClassAwareTransformer):
             if isinstance(decorator.decorator, cst.Attribute):
                 attr = decorator.decorator
                 # Check for pattern like @price.setter where price is our method name
-                if (isinstance(attr.attr, cst.Name) and attr.attr.value == "setter" and
-                    isinstance(attr.value, cst.Name) and attr.value.value == self.method_name):
+                if (
+                    isinstance(attr.attr, cst.Name)
+                    and attr.attr.value == "setter"
+                    and isinstance(attr.value, cst.Name)
+                    and attr.value.value == self.method_name
+                ):
                     return True
         return False
 

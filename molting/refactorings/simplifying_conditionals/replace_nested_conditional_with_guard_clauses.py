@@ -1,8 +1,9 @@
 """Replace Nested Conditional with Guard Clauses refactoring."""
 
 from pathlib import Path
+from typing import List, Optional
+
 import libcst as cst
-from typing import Optional, List
 
 from molting.core.refactoring_base import RefactoringBase
 
@@ -60,7 +61,7 @@ class ReplaceNestedConditionalWithGuardClauses(RefactoringBase):
             function_name=self.function_name,
             class_name=self.class_name,
             line_number=self.line_number,
-            source_lines=source.split('\n')
+            source_lines=source.split("\n"),
         )
         modified_tree = tree.visit(transformer)
 
@@ -82,7 +83,9 @@ class ReplaceNestedConditionalWithGuardClauses(RefactoringBase):
 class ReplaceNestedConditionalTransformer(cst.CSTTransformer):
     """Transform CST to replace nested conditionals with guard clauses."""
 
-    def __init__(self, function_name: str, class_name: Optional[str], line_number: int, source_lines: list):
+    def __init__(
+        self, function_name: str, class_name: Optional[str], line_number: int, source_lines: list
+    ):
         """Initialize the transformer.
 
         Args:
@@ -104,13 +107,17 @@ class ReplaceNestedConditionalTransformer(cst.CSTTransformer):
             self.inside_target_class = True
         return True
 
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+    def leave_ClassDef(
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
         """Process the class definition."""
         if self.class_name and updated_node.name.value == self.class_name:
             self.inside_target_class = False
         return updated_node
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         """Process function definitions."""
         if updated_node.name.value != self.function_name:
             return updated_node
@@ -147,7 +154,7 @@ class ReplaceNestedConditionalTransformer(cst.CSTTransformer):
                 self.found_target = True
                 # Skip the original return statement that follows the if
                 # The converted guard clauses handle all return paths
-                remaining_stmts = statements[i + 1:]
+                remaining_stmts = statements[i + 1 :]
                 # Only add statements that are not simple return statements
                 for remaining in remaining_stmts:
                     if not isinstance(remaining, cst.SimpleStatementLine) or not any(
@@ -185,12 +192,8 @@ class ReplaceNestedConditionalTransformer(cst.CSTTransformer):
             guard = cst.If(
                 test=condition,
                 body=cst.IndentedBlock(
-                    body=[
-                        cst.SimpleStatementLine(
-                            body=[cst.Return(value=return_value)]
-                        )
-                    ]
-                )
+                    body=[cst.SimpleStatementLine(body=[cst.Return(value=return_value)])]
+                ),
             )
             guard_clauses.append(guard)
 
@@ -211,18 +214,14 @@ class ReplaceNestedConditionalTransformer(cst.CSTTransformer):
                             # Regular else block with assignment
                             return_value = self._extract_return_value(orelse.body)
                             guard_clauses.append(
-                                cst.SimpleStatementLine(
-                                    body=[cst.Return(value=return_value)]
-                                )
+                                cst.SimpleStatementLine(body=[cst.Return(value=return_value)])
                             )
                             break
                     else:
                         # Final else block
                         return_value = self._extract_return_value(orelse.body)
                         guard_clauses.append(
-                            cst.SimpleStatementLine(
-                                body=[cst.Return(value=return_value)]
-                            )
+                            cst.SimpleStatementLine(body=[cst.Return(value=return_value)])
                         )
                         break
                 elif isinstance(orelse, cst.If):

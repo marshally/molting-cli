@@ -8,5 +8,6 @@ def check_security(people):
             return True
     return False
 
+
 def send_alert():
     print("Alert sent!")

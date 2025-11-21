@@ -1,6 +1,7 @@
 """Extract Method refactoring - extract a code block into a new method."""
 
 from pathlib import Path
+
 from rope.base.project import Project
 from rope.refactor.extract import ExtractMethod as RopeExtractMethod
 
@@ -27,7 +28,9 @@ class ExtractMethod(RefactoringBase):
         # - "Order::print_owing#L9-L11" -> class/method + line range
         # - "Order::print_owing#L9" -> class/method + single line
         try:
-            self.method_spec, self.start_line, self.end_line = self.parse_line_range_target(self.target)
+            self.method_spec, self.start_line, self.end_line = self.parse_line_range_target(
+                self.target
+            )
         except ValueError:
             raise ValueError(f"Invalid target format: {self.target}")
 
@@ -53,7 +56,7 @@ class ExtractMethod(RefactoringBase):
 
             # Calculate byte offsets from line numbers
             # Lines in rope are 1-indexed, so line 9 is at index 8
-            lines = source.split('\n')
+            lines = source.split("\n")
 
             # Calculate start offset (beginning of start_line)
             start_offset = 0
@@ -69,12 +72,7 @@ class ExtractMethod(RefactoringBase):
             end_offset -= 1
 
             # Create extract method refactoring
-            extract_refactor = RopeExtractMethod(
-                project,
-                resource,
-                start_offset,
-                end_offset
-            )
+            extract_refactor = RopeExtractMethod(project, resource, start_offset, end_offset)
 
             # Apply the refactoring
             changes = extract_refactor.get_changes(self.name)
@@ -98,5 +96,5 @@ class ExtractMethod(RefactoringBase):
             True if refactoring can be applied, False otherwise
         """
         # Check that the line numbers are within bounds
-        lines = source.split('\n')
+        lines = source.split("\n")
         return self.end_line <= len(lines) and self.start_line >= 1

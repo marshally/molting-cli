@@ -5,9 +5,12 @@ This module implements test-driven development for the Introduce Explaining Vari
 refactoring, which extracts complex expressions into named variables for improved
 readability.
 """
+
 import pytest
-from pathlib import Path
-from molting.refactorings.composing_methods.introduce_explaining_variable import IntroduceExplainingVariable
+
+from molting.refactorings.composing_methods.introduce_explaining_variable import (
+    IntroduceExplainingVariable,
+)
 
 
 class TestIntroduceExplainingVariableBasicParsing:
@@ -21,10 +24,7 @@ class TestIntroduceExplainingVariableBasicParsing:
 
         # Should parse without raising
         refactor = IntroduceExplainingVariable(
-            str(test_file),
-            target="foo#L2",
-            name="result",
-            expression="1"
+            str(test_file), target="foo#L2", name="result", expression="1"
         )
 
         assert refactor.target == "foo#L2"
@@ -38,10 +38,7 @@ class TestIntroduceExplainingVariableBasicParsing:
         test_file.write_text("class Foo:\n    def bar(self):\n        x = 1\n")
 
         refactor = IntroduceExplainingVariable(
-            str(test_file),
-            target="Foo::bar#L3",
-            name="result",
-            expression="1"
+            str(test_file), target="Foo::bar#L3", name="result", expression="1"
         )
 
         assert refactor.target == "Foo::bar#L3"
@@ -55,10 +52,7 @@ class TestIntroduceExplainingVariableBasicParsing:
 
         with pytest.raises(ValueError):
             IntroduceExplainingVariable(
-                str(test_file),
-                target="invalid_target_format",
-                name="result",
-                expression="1"
+                str(test_file), target="invalid_target_format", name="result", expression="1"
             )
 
     def test_validate_returns_true_for_valid_target(self, tmp_path):
@@ -68,10 +62,7 @@ class TestIntroduceExplainingVariableBasicParsing:
         test_file.write_text(code)
 
         refactor = IntroduceExplainingVariable(
-            str(test_file),
-            target="calculate#L2",
-            name="result",
-            expression="x * 2 + 5"
+            str(test_file), target="calculate#L2", name="result", expression="x * 2 + 5"
         )
 
         assert refactor.validate(code) is True
@@ -83,10 +74,7 @@ class TestIntroduceExplainingVariableBasicParsing:
         test_file.write_text(code)
 
         refactor = IntroduceExplainingVariable(
-            str(test_file),
-            target="foo#L100",
-            name="result",
-            expression="1"
+            str(test_file), target="foo#L100", name="result", expression="1"
         )
 
         assert refactor.validate(code) is False
@@ -102,10 +90,7 @@ class TestIntroduceExplainingVariableSimpleExtraction:
         test_file.write_text(code)
 
         refactor = IntroduceExplainingVariable(
-            str(test_file),
-            target="calculate#L2",
-            name="result",
-            expression="x * 2 + y"
+            str(test_file), target="calculate#L2", name="result", expression="x * 2 + y"
         )
 
         result = refactor.apply(code)
@@ -126,7 +111,7 @@ class TestIntroduceExplainingVariableSimpleExtraction:
             str(test_file),
             target="process#L2",
             name="processed",
-            expression='s.upper().replace("A", "B")'
+            expression='s.upper().replace("A", "B")',
         )
 
         result = refactor.apply(code)

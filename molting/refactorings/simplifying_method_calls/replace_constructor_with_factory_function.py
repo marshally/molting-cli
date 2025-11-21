@@ -1,15 +1,18 @@
 """Replace Constructor with Factory Function refactoring."""
 
 from pathlib import Path
+from typing import Optional
+
 from rope.base.project import Project
 from rope.refactor.introduce_factory import IntroduceFactory
+
 from molting.core.refactoring_base import RefactoringBase
 
 
 class ReplaceConstructorWithFactoryFunction(RefactoringBase):
     """Replace direct constructor calls with a factory function."""
 
-    def __init__(self, file_path: str, target: str, source_code: str = None):
+    def __init__(self, file_path: str, target: str, source_code: Optional[str] = None):
         """Initialize the ReplaceConstructorWithFactoryFunction refactoring.
 
         Args:
@@ -96,7 +99,7 @@ class ReplaceConstructorWithFactoryFunction(RefactoringBase):
         for node in tree.body:
             if isinstance(node, ast.ClassDef) and node.name == self.class_name:
                 # Get the offset of the class name
-                lines = self.source.split('\n')
+                lines = self.source.split("\n")
                 offset = 0
                 for i, line in enumerate(lines):
                     if i < node.lineno - 1:

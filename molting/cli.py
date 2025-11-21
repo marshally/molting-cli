@@ -1,38 +1,52 @@
 """CLI entry point for molting."""
 
-import click
 from pathlib import Path
-from typing import Type, List, Tuple
+from typing import List, Optional, Tuple, Type
+
+import click
 
 from molting import __version__
 from molting.core.refactoring_base import RefactoringBase
+from molting.refactorings.composing_methods.extract_method import ExtractMethod
+from molting.refactorings.composing_methods.extract_variable import ExtractVariable
+from molting.refactorings.composing_methods.inline_method import InlineMethod
+from molting.refactorings.composing_methods.inline_temp import InlineTemp
+from molting.refactorings.composing_methods.introduce_explaining_variable import (
+    IntroduceExplainingVariable,
+)
+from molting.refactorings.composing_methods.remove_assignments_to_parameters import (
+    RemoveAssignmentsToParameters,
+)
 
 # Import all refactoring classes
 from molting.refactorings.composing_methods.rename import Rename
-from molting.refactorings.composing_methods.inline_method import InlineMethod
-from molting.refactorings.composing_methods.inline_temp import InlineTemp
-from molting.refactorings.composing_methods.extract_method import ExtractMethod
-from molting.refactorings.composing_methods.extract_variable import ExtractVariable
-from molting.refactorings.composing_methods.introduce_explaining_variable import IntroduceExplainingVariable
 from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
-from molting.refactorings.moving_features.move_method import MoveMethod
 from molting.refactorings.moving_features.move_field import MoveField
+from molting.refactorings.moving_features.move_method import MoveMethod
 from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
-from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import ReplaceMagicNumberWithSymbolicConstant
-from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import ReplaceConstructorWithFactoryFunction
-from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
-from molting.refactorings.simplifying_method_calls.add_parameter import AddParameter
-from molting.refactorings.simplifying_method_calls.remove_parameter import RemoveParameter
-from molting.refactorings.simplifying_method_calls.hide_method import HideMethod
-from molting.refactorings.simplifying_method_calls.remove_setting_method import RemoveSettingMethod
-from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
+from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
+    ReplaceMagicNumberWithSymbolicConstant,
+)
+from molting.refactorings.simplifying_conditionals.consolidate_conditional_expression import (
+    ConsolidateConditionalExpression,
+)
+from molting.refactorings.simplifying_conditionals.consolidate_duplicate_conditional_fragments import (
+    ConsolidateDuplicateConditionalFragments,
+)
 from molting.refactorings.simplifying_conditionals.decompose_conditional import DecomposeConditional
-from molting.refactorings.composing_methods.remove_assignments_to_parameters import RemoveAssignmentsToParameters
+from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
 from molting.refactorings.simplifying_conditionals.remove_control_flag import RemoveControlFlag
-from molting.refactorings.simplifying_conditionals.replace_nested_conditional_with_guard_clauses import ReplaceNestedConditionalWithGuardClauses
-from molting.refactorings.simplifying_conditionals.consolidate_conditional_expression import ConsolidateConditionalExpression
-from molting.refactorings.simplifying_conditionals.consolidate_duplicate_conditional_fragments import ConsolidateDuplicateConditionalFragments
-
+from molting.refactorings.simplifying_conditionals.replace_nested_conditional_with_guard_clauses import (
+    ReplaceNestedConditionalWithGuardClauses,
+)
+from molting.refactorings.simplifying_method_calls.add_parameter import AddParameter
+from molting.refactorings.simplifying_method_calls.hide_method import HideMethod
+from molting.refactorings.simplifying_method_calls.introduce_parameter import IntroduceParameter
+from molting.refactorings.simplifying_method_calls.remove_parameter import RemoveParameter
+from molting.refactorings.simplifying_method_calls.remove_setting_method import RemoveSettingMethod
+from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import (
+    ReplaceConstructorWithFactoryFunction,
+)
 
 # Registry mapping refactoring names to (class, param_names)
 REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
@@ -46,8 +60,14 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "move-method": (MoveMethod, ["source", "to"]),
     "move-field": (MoveField, ["source", "to"]),
     "encapsulate-field": (EncapsulateField, ["target"]),
-    "replace-magic-number-with-symbolic-constant": (ReplaceMagicNumberWithSymbolicConstant, ["target", "magic_number", "constant_name"]),
-    "replace-constructor-with-factory-function": (ReplaceConstructorWithFactoryFunction, ["target"]),
+    "replace-magic-number-with-symbolic-constant": (
+        ReplaceMagicNumberWithSymbolicConstant,
+        ["target", "magic_number", "constant_name"],
+    ),
+    "replace-constructor-with-factory-function": (
+        ReplaceConstructorWithFactoryFunction,
+        ["target"],
+    ),
     "introduce-parameter": (IntroduceParameter, ["target", "name", "default"]),
     "add-parameter": (AddParameter, ["target", "name", "default"]),
     "remove-parameter": (RemoveParameter, ["target", "parameter"]),
@@ -55,9 +75,15 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "decompose-conditional": (DecomposeConditional, ["target"]),
     "remove-assignments-to-parameters": (RemoveAssignmentsToParameters, ["target"]),
     "remove-control-flag": (RemoveControlFlag, ["target"]),
-    "replace-nested-conditional-with-guard-clauses": (ReplaceNestedConditionalWithGuardClauses, ["target"]),
+    "replace-nested-conditional-with-guard-clauses": (
+        ReplaceNestedConditionalWithGuardClauses,
+        ["target"],
+    ),
     "consolidate-conditional-expression": (ConsolidateConditionalExpression, ["target"]),
-    "consolidate-duplicate-conditional-fragments": (ConsolidateDuplicateConditionalFragments, ["target"]),
+    "consolidate-duplicate-conditional-fragments": (
+        ConsolidateDuplicateConditionalFragments,
+        ["target"],
+    ),
     "hide-method": (HideMethod, ["target"]),
     "remove-setting-method": (RemoveSettingMethod, ["target"]),
 }
@@ -87,8 +113,8 @@ def refactor_file(refactoring_name: str, file_path: str, **kwargs) -> None:
 
     refactor_class, param_names = REFACTORING_REGISTRY[refactoring_name]
     params = [kwargs.get(p) for p in param_names]
-    refactor = refactor_class(file_path, *params)
-    refactored_code = refactor.apply(refactor.source)
+    refactor = refactor_class(file_path, *params)  # type: ignore[call-arg]
+    refactored_code = refactor.apply(refactor.source)  # type: ignore[attr-defined]
     Path(file_path).write_text(refactored_code)
 
 
@@ -169,7 +195,9 @@ def replace_constructor_with_factory_function(file_path: str, target: str) -> No
 @click.argument("target")
 @click.argument("name")
 @click.option("--default", default=None, help="Default value for the new parameter")
-def introduce_parameter(file_path: str, target: str, name: str, default: str = None) -> None:
+def introduce_parameter(
+    file_path: str, target: str, name: str, default: Optional[str] = None
+) -> None:
     """Add a new parameter to a method.
 
     Args:
@@ -187,7 +215,7 @@ def introduce_parameter(file_path: str, target: str, name: str, default: str = N
 @click.argument("target")
 @click.argument("name")
 @click.option("--default", default=None, help="Default value for the new parameter")
-def add_parameter(file_path: str, target: str, name: str, default: str = None) -> None:
+def add_parameter(file_path: str, target: str, name: str, default: Optional[str] = None) -> None:
     """Add a new parameter to a function or method.
 
     Args:
@@ -221,7 +249,9 @@ def remove_parameter(file_path: str, target: str, parameter: str) -> None:
 @click.argument("target")
 @click.argument("condition")
 @click.option("--message", default=None, help="Custom assertion message")
-def introduce_assertion(file_path: str, target: str, condition: str, message: str = None) -> None:
+def introduce_assertion(
+    file_path: str, target: str, condition: str, message: Optional[str] = None
+) -> None:
     """Make assumptions explicit with an assertion.
 
     Args:
@@ -229,7 +259,9 @@ def introduce_assertion(file_path: str, target: str, condition: str, message: st
         TARGET: Target function (e.g., "function_name#L10")
         CONDITION: The assertion condition as a Python expression
     """
-    refactor_file("introduce-assertion", file_path, target=target, condition=condition, message=message)
+    refactor_file(
+        "introduce-assertion", file_path, target=target, condition=condition, message=message
+    )
     click.echo(f"✓ Introduced assertion '{condition}' to '{target}' in {file_path}")
 
 
@@ -270,9 +302,11 @@ def replace_magic_number_with_symbolic_constant(
         file_path,
         target=target,
         magic_number=magic_number,
-        constant_name=constant_name
+        constant_name=constant_name,
     )
-    click.echo(f"✓ Replaced magic number '{magic_number}' with constant '{constant_name}' in {file_path}")
+    click.echo(
+        f"✓ Replaced magic number '{magic_number}' with constant '{constant_name}' in {file_path}"
+    )
 
 
 @main.command(name="remove-assignments-to-parameters")

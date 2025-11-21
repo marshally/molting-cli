@@ -1,6 +1,5 @@
 """Remove Control Flag refactoring - replace control flag variables with break or return statements."""
 
-import re
 from pathlib import Path
 from typing import Optional
 
@@ -38,7 +37,9 @@ class RemoveControlFlag(RefactoringBase):
             self.class_name = None
         elif len(parts) == 3:
             # ClassName::method_name::flag_name - use parse_qualified_target for first two parts
-            self.class_name, self.function_name = self.parse_qualified_target(f"{parts[0]}::{parts[1]}")
+            self.class_name, self.function_name = self.parse_qualified_target(
+                f"{parts[0]}::{parts[1]}"
+            )
             self.flag_name = parts[2]
         else:
             raise ValueError(f"Invalid target format: {self.target}")
@@ -65,9 +66,7 @@ class RemoveControlFlag(RefactoringBase):
 
         # Transform the tree
         transformer = RemoveControlFlagTransformer(
-            function_name=self.function_name,
-            class_name=self.class_name,
-            flag_name=self.flag_name
+            function_name=self.function_name, class_name=self.class_name, flag_name=self.flag_name
         )
         modified_tree = tree.visit(transformer)
 
@@ -110,7 +109,9 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
             self.inside_target_class = True
         return True
 
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+    def leave_ClassDef(
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
         """Track when we leave the target class."""
         if self.class_name and updated_node.name.value == self.class_name:
             self.inside_target_class = False
@@ -129,10 +130,14 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
                 self.has_return_in_function = self._check_for_return(node.body)
         return True
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         """Process function definitions."""
         if updated_node.name.value == self.function_name:
-            if (self.class_name and self.inside_target_class) or (not self.class_name and not self.inside_target_class):
+            if (self.class_name and self.inside_target_class) or (
+                not self.class_name and not self.inside_target_class
+            ):
                 # We're in the target function - process its body
                 new_body = self._process_function_body(updated_node.body)
                 self.inside_target_function = False
@@ -173,9 +178,7 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
                 # Replace "return flag_name" with "return flag_init_value"
                 if flag_init_value is None:
                     flag_init_value = cst.Name("False")
-                return_stmt = cst.SimpleStatementLine(
-                    body=[cst.Return(value=flag_init_value)]
-                )
+                return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=flag_init_value)])
                 new_statements.append(return_stmt)
             else:
                 # Process the statement to replace flag checks and assignments
@@ -350,6 +353,7 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
 
     class _UnwrapMarker:
         """Marker class for statements that should be unwrapped."""
+
         def __init__(self, statements):
             self.statements = statements
 
@@ -388,7 +392,7 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         # This will be handled by the parent context
         new_if = if_stmt.with_changes(
             test=cst.Name("True"),  # Replace with always-true condition
-            body=if_stmt.body.with_changes(body=processed_body)
+            body=if_stmt.body.with_changes(body=processed_body),
         )
         return new_if
 

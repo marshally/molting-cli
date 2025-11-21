@@ -6,7 +6,9 @@ class methods.
 """
 
 import ast
+
 import pytest
+
 from molting.core.refactoring_base import RefactoringBase
 
 
@@ -51,9 +53,7 @@ class TestParseLineRangeTarget:
     def test_parse_line_range_target_with_function_only(self):
         """Test parsing target with function name only like 'calculate#L5-L7'."""
         refactoring = ConcreteRefactoring()
-        method_spec, start_line, end_line = refactoring.parse_line_range_target(
-            "calculate#L5-L7"
-        )
+        method_spec, start_line, end_line = refactoring.parse_line_range_target("calculate#L5-L7")
 
         assert method_spec == "calculate"
         assert start_line == 5
@@ -62,9 +62,7 @@ class TestParseLineRangeTarget:
     def test_parse_line_range_target_function_single_line(self):
         """Test parsing target with function name and single line like 'calculate#L5'."""
         refactoring = ConcreteRefactoring()
-        method_spec, start_line, end_line = refactoring.parse_line_range_target(
-            "calculate#L5"
-        )
+        method_spec, start_line, end_line = refactoring.parse_line_range_target("calculate#L5")
 
         assert method_spec == "calculate"
         assert start_line == 5
@@ -222,7 +220,7 @@ class TestCalculateQualifiedOffset:
         offset = refactoring.calculate_qualified_offset(source, "Calculator", "add")
 
         # The offset should point to the start of "add" in "def add"
-        assert source[offset:offset+3] == "add"
+        assert source[offset : offset + 3] == "add"
 
     def test_multiple_methods_in_class(self):
         """Test finding offset when class has multiple methods."""
@@ -237,7 +235,7 @@ class TestCalculateQualifiedOffset:
         offset = refactoring.calculate_qualified_offset(source, "Calculator", "subtract")
 
         # The offset should point to "subtract" in "def subtract"
-        assert source[offset:offset+8] == "subtract"
+        assert source[offset : offset + 8] == "subtract"
 
     def test_indented_method(self):
         """Test finding offset of indented method."""
@@ -252,7 +250,7 @@ class TestCalculateQualifiedOffset:
         offset = refactoring.calculate_qualified_offset(source, "MyClass", "method_two")
 
         # Verify we found the right method
-        assert source[offset:offset+10] == "method_two"
+        assert source[offset : offset + 10] == "method_two"
 
     def test_class_with_init(self):
         """Test finding offset of __init__ method."""
@@ -267,7 +265,7 @@ class TestCalculateQualifiedOffset:
         offset = refactoring.calculate_qualified_offset(source, "Person", "__init__")
 
         # Verify we found __init__
-        assert source[offset:offset+8] == "__init__"
+        assert source[offset : offset + 8] == "__init__"
 
     def test_method_with_decorators(self):
         """Test finding offset of decorated method."""
@@ -284,7 +282,7 @@ class TestCalculateQualifiedOffset:
         offset = refactoring.calculate_qualified_offset(source, "Service", "helper")
 
         # Verify we found the right method name
-        assert source[offset:offset+6] == "helper"
+        assert source[offset : offset + 6] == "helper"
 
     def test_class_not_found(self):
         """Test error when class doesn't exist."""
@@ -333,7 +331,7 @@ class TestCalculateQualifiedOffset:
         offset = refactoring.calculate_qualified_offset(source, "Handler", "process")
 
         # Should find "process" in the method name
-        assert source[offset:offset+7] == "process"
+        assert source[offset : offset + 7] == "process"
 
     def test_nested_classes_uses_toplevel(self):
         """Test that only top-level classes are found."""
@@ -349,7 +347,7 @@ class TestCalculateQualifiedOffset:
         offset = refactoring.calculate_qualified_offset(source, "Outer", "method")
 
         # Should find Outer::method, not Inner::method
-        assert source[offset:offset+6] == "method"
+        assert source[offset : offset + 6] == "method"
         # Verify it's the second 'method' definition (from Outer class)
         first_method_pos = source.find("method")
         assert offset > first_method_pos
@@ -364,10 +362,10 @@ class TestCalculateQualifiedOffset:
         offset = refactoring.calculate_qualified_offset(source, "TestClass", "test_method")
 
         # Offset should point to 'test_method', not beyond it
-        assert source[offset:offset+11] == "test_method"
+        assert source[offset : offset + 11] == "test_method"
         # Verify that we're pointing to the start of the method name
         # (after "def " which precedes it)
-        assert source[offset-4:offset] == "def "
+        assert source[offset - 4 : offset] == "def "
 
     def test_with_leading_whitespace(self):
         """Test parsing source with leading blank lines."""
@@ -380,7 +378,7 @@ class MyClass:
         refactoring = ConcreteRefactoring()
         offset = refactoring.calculate_qualified_offset(source, "MyClass", "my_method")
 
-        assert source[offset:offset+9] == "my_method"
+        assert source[offset : offset + 9] == "my_method"
 
     def test_with_comments(self):
         """Test class and method with comments."""
@@ -394,4 +392,4 @@ class MyClass:
         refactoring = ConcreteRefactoring()
         offset = refactoring.calculate_qualified_offset(source, "Example", "method")
 
-        assert source[offset:offset+6] == "method"
+        assert source[offset : offset + 6] == "method"

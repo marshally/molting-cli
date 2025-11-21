@@ -9,85 +9,72 @@ from tests.conftest import RefactoringTestBase
 
 class TestSelfEncapsulateField(RefactoringTestBase):
     """Tests for Self Encapsulate Field refactoring."""
+
     fixture_category = "organizing_data/self_encapsulate_field"
 
     def test_simple(self):
         """Create getter and setter methods for a field."""
-        self.refactor(
-            "self-encapsulate-field",
-            target="Range::low"
-        )
-        self.refactor(
-            "self-encapsulate-field",
-            target="Range::high"
-        )
+        self.refactor("self-encapsulate-field", target="Range::low")
+        self.refactor("self-encapsulate-field", target="Range::high")
 
 
 class TestReplaceDataValueWithObject(RefactoringTestBase):
     """Tests for Replace Data Value with Object refactoring."""
+
     fixture_category = "organizing_data/replace_data_value_with_object"
 
     def test_simple(self):
         """Turn a data item into an object."""
-        self.refactor(
-            "replace-data-value-with-object",
-            target="Order::customer",
-            name="Customer"
-        )
+        self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
 
 
 class TestChangeValueToReference(RefactoringTestBase):
     """Tests for Change Value to Reference refactoring."""
+
     fixture_category = "organizing_data/change_value_to_reference"
 
     def test_simple(self):
         """Turn a value object into a reference object."""
-        self.refactor(
-            "change-value-to-reference",
-            target="Customer"
-        )
+        self.refactor("change-value-to-reference", target="Customer")
 
 
 class TestChangeReferenceToValue(RefactoringTestBase):
     """Tests for Change Reference to Value refactoring."""
+
     fixture_category = "organizing_data/change_reference_to_value"
 
     def test_simple(self):
         """Turn a reference object into a value object."""
-        self.refactor(
-            "change-reference-to-value",
-            target="Currency"
-        )
+        self.refactor("change-reference-to-value", target="Currency")
 
 
 class TestReplaceArrayWithObject(RefactoringTestBase):
     """Tests for Replace Array with Object refactoring."""
+
     fixture_category = "organizing_data/replace_array_with_object"
 
     def test_simple(self):
         """Replace an array with an object that has a field for each element."""
         self.refactor(
-            "replace-array-with-object",
-            target="analyze_performance::row",
-            name="Performance"
+            "replace-array-with-object", target="analyze_performance::row", name="Performance"
         )
 
 
 class TestDuplicateObservedData(RefactoringTestBase):
     """Tests for Duplicate Observed Data refactoring."""
+
     fixture_category = "organizing_data/duplicate_observed_data"
 
     def test_simple(self):
         """Copy data from domain object to GUI object and set up observer pattern."""
         self.refactor(
-            "duplicate-observed-data",
-            target="IntervalWindow::start_field",
-            domain="Interval"
+            "duplicate-observed-data", target="IntervalWindow::start_field", domain="Interval"
         )
 
 
 class TestChangeUnidirectionalAssociationToBidirectional(RefactoringTestBase):
     """Tests for Change Unidirectional Association to Bidirectional refactoring."""
+
     fixture_category = "organizing_data/change_unidirectional_association_to_bidirectional"
 
     def test_simple(self):
@@ -95,24 +82,25 @@ class TestChangeUnidirectionalAssociationToBidirectional(RefactoringTestBase):
         self.refactor(
             "change-unidirectional-association-to-bidirectional",
             target="Order::customer",
-            back="orders"
+            back="orders",
         )
 
 
 class TestChangeBidirectionalAssociationToUnidirectional(RefactoringTestBase):
     """Tests for Change Bidirectional Association to Unidirectional refactoring."""
+
     fixture_category = "organizing_data/change_bidirectional_association_to_unidirectional"
 
     def test_simple(self):
         """Remove back pointers."""
         self.refactor(
-            "change-bidirectional-association-to-unidirectional",
-            target="Customer::_orders"
+            "change-bidirectional-association-to-unidirectional", target="Customer::_orders"
         )
 
 
 class TestReplaceMagicNumberWithSymbolicConstant(RefactoringTestBase):
     """Tests for Replace Magic Number with Symbolic Constant refactoring."""
+
     fixture_category = "organizing_data/replace_magic_number_with_symbolic_constant"
 
     def test_simple(self):
@@ -120,67 +108,59 @@ class TestReplaceMagicNumberWithSymbolicConstant(RefactoringTestBase):
         self.refactor(
             "replace-magic-number-with-symbolic-constant",
             target="potential_energy#L2",
-            name="GRAVITATIONAL_CONSTANT"
+            name="GRAVITATIONAL_CONSTANT",
         )
 
 
 class TestEncapsulateField(RefactoringTestBase):
     """Tests for Encapsulate Field refactoring."""
+
     fixture_category = "organizing_data/encapsulate_field"
 
     def test_simple(self):
         """Make the field private and provide accessors."""
-        self.refactor(
-            "encapsulate-field",
-            target="Person::name"
-        )
+        self.refactor("encapsulate-field", target="Person::name")
 
 
 class TestEncapsulateCollection(RefactoringTestBase):
     """Tests for Encapsulate Collection refactoring."""
+
     fixture_category = "organizing_data/encapsulate_collection"
 
     def test_simple(self):
         """Make the method return a read-only view and provide add/remove methods."""
-        self.refactor(
-            "encapsulate-collection",
-            target="Person::courses"
-        )
+        self.refactor("encapsulate-collection", target="Person::courses")
 
 
 class TestReplaceTypeCodeWithClass(RefactoringTestBase):
     """Tests for Replace Type Code with Class refactoring."""
+
     fixture_category = "organizing_data/replace_type_code_with_class"
 
     def test_simple(self):
         """Replace the type code with a new class."""
         self.refactor(
-            "replace-type-code-with-class",
-            target="Person::blood_group",
-            name="BloodGroup"
+            "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
         )
 
 
 class TestReplaceTypeCodeWithSubclasses(RefactoringTestBase):
     """Tests for Replace Type Code with Subclasses refactoring."""
+
     fixture_category = "organizing_data/replace_type_code_with_subclasses"
 
     def test_simple(self):
         """Replace the type code with subclasses."""
-        self.refactor(
-            "replace-type-code-with-subclasses",
-            target="Employee::type"
-        )
+        self.refactor("replace-type-code-with-subclasses", target="Employee::type")
 
 
 class TestReplaceTypeCodeWithStateStrategy(RefactoringTestBase):
     """Tests for Replace Type Code with State/Strategy refactoring."""
+
     fixture_category = "organizing_data/replace_type_code_with_state_strategy"
 
     def test_simple(self):
         """Replace the type code with a state object."""
         self.refactor(
-            "replace-type-code-with-state-strategy",
-            target="Employee::type",
-            name="EmployeeType"
+            "replace-type-code-with-state-strategy", target="Employee::type", name="EmployeeType"
         )

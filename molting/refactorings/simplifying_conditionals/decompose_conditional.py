@@ -1,8 +1,9 @@
 """Decompose Conditional refactoring - extract condition and branches into methods."""
 
 from pathlib import Path
+from typing import List, Optional
+
 import libcst as cst
-from typing import Optional, Tuple, List, Set
 
 from molting.core.refactoring_base import RefactoringBase
 
@@ -58,7 +59,7 @@ class DecomposeConditional(RefactoringBase):
             function_name=self.function_name,
             class_name=self.class_name,
             line_number=self.line_number,
-            source_lines=source.split('\n')
+            source_lines=source.split("\n"),
         )
         modified_tree = tree.visit(transformer)
 
@@ -80,7 +81,9 @@ class DecomposeConditional(RefactoringBase):
 class DecomposeConditionalTransformer(cst.CSTTransformer):
     """Transform CST to decompose conditional statements."""
 
-    def __init__(self, function_name: str, class_name: Optional[str], line_number: int, source_lines: list):
+    def __init__(
+        self, function_name: str, class_name: Optional[str], line_number: int, source_lines: list
+    ):
         """Initialize the transformer.
 
         Args:
@@ -111,13 +114,17 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             self.inside_target_class = True
         return True
 
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+    def leave_ClassDef(
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
         """Process the class definition."""
         if self.class_name and updated_node.name.value == self.class_name:
             self.inside_target_class = False
         return updated_node
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         """Process function definitions."""
         if updated_node.name.value != self.function_name:
             return updated_node
@@ -201,23 +208,25 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         # Create new condition call with proper arguments
         if self.class_name:
             # For class methods, pass self
-            new_condition = cst.Call(func=cst.Name(condition_method_name), args=[cst.Arg(cst.Name("self"))])
+            new_condition = cst.Call(
+                func=cst.Name(condition_method_name), args=[cst.Arg(cst.Name("self"))]
+            )
         else:
-            new_condition = cst.Call(func=cst.Name(condition_method_name), args=[cst.Arg(cst.Name("date"))])
+            new_condition = cst.Call(
+                func=cst.Name(condition_method_name), args=[cst.Arg(cst.Name("date"))]
+            )
 
         # Create new body with method calls
         new_body = self._create_new_then_body(then_method_name)
 
         # Build the new if statement
-        new_if_stmt = if_stmt.with_changes(
-            test=new_condition,
-            body=new_body,
-            orelse=new_else
-        )
+        new_if_stmt = if_stmt.with_changes(test=new_condition, body=new_body, orelse=new_else)
 
         return new_if_stmt
 
-    def _create_condition_method(self, method_name: str, condition: cst.BaseExpression) -> cst.FunctionDef:
+    def _create_condition_method(
+        self, method_name: str, condition: cst.BaseExpression
+    ) -> cst.FunctionDef:
         """Create a method that returns the condition.
 
         Args:
@@ -228,9 +237,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             A FunctionDef for the condition method
         """
         # Create the return statement with the condition
-        return_stmt = cst.SimpleStatementLine(
-            body=[cst.Return(value=condition)]
-        )
+        return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=condition)])
 
         # Create function body
         body = cst.IndentedBlock(body=[return_stmt])
@@ -238,23 +245,17 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         # Create function parameters
         if self.class_name:
             # For class methods, need self parameter
-            params = cst.Parameters(
-                params=[cst.Param(name=cst.Name("self"))]
-            )
+            params = cst.Parameters(params=[cst.Param(name=cst.Name("self"))])
         else:
             # For standalone functions
-            params = cst.Parameters(
-                params=[cst.Param(name=cst.Name("date"))]
-            )
+            params = cst.Parameters(params=[cst.Param(name=cst.Name("date"))])
 
         # Create and return the function definition
-        return cst.FunctionDef(
-            name=cst.Name(method_name),
-            params=params,
-            body=body
-        )
+        return cst.FunctionDef(name=cst.Name(method_name), params=params, body=body)
 
-    def _create_then_method(self, method_name: str, then_block: cst.BaseCompoundStatement) -> cst.FunctionDef:
+    def _create_then_method(
+        self, method_name: str, then_block: cst.BaseCompoundStatement
+    ) -> cst.FunctionDef:
         """Create a method for the then-block.
 
         Args:
@@ -276,9 +277,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             assign = assign_stmt.body[0]
             if isinstance(assign, cst.Assign):
                 # Return the right side of the assignment
-                return_stmt = cst.SimpleStatementLine(
-                    body=[cst.Return(value=assign.value)]
-                )
+                return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=assign.value)])
                 body = cst.IndentedBlock(body=[return_stmt])
             else:
                 body = cst.IndentedBlock(body=statements)
@@ -294,18 +293,16 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
                 params=[
                     cst.Param(name=cst.Name("quantity")),
                     cst.Param(name=cst.Name("winter_rate")),
-                    cst.Param(name=cst.Name("winter_service_charge"))
+                    cst.Param(name=cst.Name("winter_service_charge")),
                 ]
             )
 
         # Create and return the function definition
-        return cst.FunctionDef(
-            name=cst.Name(method_name),
-            params=params,
-            body=body
-        )
+        return cst.FunctionDef(name=cst.Name(method_name), params=params, body=body)
 
-    def _create_else_method(self, method_name: str, else_block: cst.BaseCompoundStatement) -> cst.FunctionDef:
+    def _create_else_method(
+        self, method_name: str, else_block: cst.BaseCompoundStatement
+    ) -> cst.FunctionDef:
         """Create a method for the else-block.
 
         Args:
@@ -327,13 +324,15 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
         # Get the assignment statement and extract its value
         assign_stmt = statements[0] if statements else None
-        if assign_stmt and isinstance(assign_stmt, cst.SimpleStatementLine) and len(assign_stmt.body) > 0:
+        if (
+            assign_stmt
+            and isinstance(assign_stmt, cst.SimpleStatementLine)
+            and len(assign_stmt.body) > 0
+        ):
             assign = assign_stmt.body[0]
             if isinstance(assign, cst.Assign):
                 # Return the right side of the assignment
-                return_stmt = cst.SimpleStatementLine(
-                    body=[cst.Return(value=assign.value)]
-                )
+                return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=assign.value)])
                 body = cst.IndentedBlock(body=[return_stmt])
             else:
                 body = cst.IndentedBlock(body=statements)
@@ -348,16 +347,12 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             params = cst.Parameters(
                 params=[
                     cst.Param(name=cst.Name("quantity")),
-                    cst.Param(name=cst.Name("summer_rate"))
+                    cst.Param(name=cst.Name("summer_rate")),
                 ]
             )
 
         # Create and return the function definition
-        return cst.FunctionDef(
-            name=cst.Name(method_name),
-            params=params,
-            body=body
-        )
+        return cst.FunctionDef(name=cst.Name(method_name), params=params, body=body)
 
     def _create_new_then_body(self, method_name: str) -> cst.IndentedBlock:
         """Create the new body for the then-block with a method call.
@@ -378,14 +373,16 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
                 args=[
                     cst.Arg(cst.Name("quantity")),
                     cst.Arg(cst.Name("winter_rate")),
-                    cst.Arg(cst.Name("winter_service_charge"))
-                ]
+                    cst.Arg(cst.Name("winter_service_charge")),
+                ],
             )
 
         # Create the assignment
         assign = cst.Assign(
-            targets=[cst.AssignTarget(target=cst.Name("discount_rate" if self.class_name else "charge"))],
-            value=call
+            targets=[
+                cst.AssignTarget(target=cst.Name("discount_rate" if self.class_name else "charge"))
+            ],
+            value=call,
         )
 
         # Create the statement
@@ -409,16 +406,15 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         else:
             call = cst.Call(
                 func=cst.Name(method_name),
-                args=[
-                    cst.Arg(cst.Name("quantity")),
-                    cst.Arg(cst.Name("summer_rate"))
-                ]
+                args=[cst.Arg(cst.Name("quantity")), cst.Arg(cst.Name("summer_rate"))],
             )
 
         # Create the assignment
         assign = cst.Assign(
-            targets=[cst.AssignTarget(target=cst.Name("discount_rate" if self.class_name else "charge"))],
-            value=call
+            targets=[
+                cst.AssignTarget(target=cst.Name("discount_rate" if self.class_name else "charge"))
+            ],
+            value=call,
         )
 
         # Create the statement

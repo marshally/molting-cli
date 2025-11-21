@@ -3,13 +3,14 @@
 This module tests the ClassAwareValidator base class that provides
 validation patterns for libcst-based refactorings.
 """
-import pytest
 import libcst as cst
+
 from molting.core.class_aware_validator import ClassAwareValidator
 
 
 class ConcreteValidator(ClassAwareValidator):
     """Concrete implementation of ClassAwareValidator for testing."""
+
     pass
 
 
@@ -213,6 +214,7 @@ class TestClassAwareValidatorSubclassing:
 
     def test_subclass_can_override_visit_function_def(self):
         """Subclass can override visit_FunctionDef for custom validation."""
+
         class CustomValidator(ClassAwareValidator):
             def __init__(self, class_name, function_name):
                 super().__init__(class_name, function_name)
@@ -241,6 +243,7 @@ class MyClass:
 
     def test_subclass_can_add_custom_validation_logic(self):
         """Subclass can add custom validation logic."""
+
         class ParamCountValidator(ClassAwareValidator):
             def __init__(self, class_name, function_name, required_params):
                 super().__init__(class_name, function_name)
@@ -265,9 +268,7 @@ class MyClass:
         pass
 """
         validator = ParamCountValidator(
-            class_name="MyClass",
-            function_name="my_method",
-            required_params=2
+            class_name="MyClass", function_name="my_method", required_params=2
         )
         tree = cst.parse_module(source)
         tree.visit(validator)
@@ -276,6 +277,7 @@ class MyClass:
 
     def test_subclass_inherits_found_tracking(self):
         """Subclass inherits found tracking from parent."""
+
         class ExtendedValidator(ClassAwareValidator):
             pass
 

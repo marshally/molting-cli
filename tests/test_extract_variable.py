@@ -3,12 +3,12 @@
 This module tests the Extract Variable refactoring which allows extracting
 expressions into named variables using rope's extract variable capability.
 """
-from pathlib import Path
 from tests.conftest import RefactoringTestBase
 
 
 class TestExtractVariableParseLineRange(RefactoringTestBase):
     """Tests for parsing line range from target specification."""
+
     fixture_category = "composing_methods/extract_variable"
 
     def test_parse_line_range_simple(self):
@@ -17,13 +17,15 @@ class TestExtractVariableParseLineRange(RefactoringTestBase):
 
         # Create a simple test file
         test_file = self.tmp_path / "input.py"
-        test_file.write_text("""
+        test_file.write_text(
+            """
 def calculate():
     price = 100
     discount = 0.1
     final = price * (1 - discount)
     return final
-""")
+"""
+        )
 
         # Test parsing line range
         refactor = ExtractVariable(str(test_file), "calculate#L5-L5", "result")
@@ -35,19 +37,17 @@ def calculate():
 
 class TestExtractVariableSimple(RefactoringTestBase):
     """Tests for extracting simple expressions into variables."""
+
     fixture_category = "composing_methods/extract_variable"
 
     def test_simple(self):
         """Extract a simple expression into a variable."""
-        self.refactor(
-            "extract-variable",
-            target="calculate_total#L2",
-            variable_name="tax_amount"
-        )
+        self.refactor("extract-variable", target="calculate_total#L2", variable_name="tax_amount")
 
 
 class TestExtractVariableComplex(RefactoringTestBase):
     """Tests for extracting complex expressions into variables."""
+
     fixture_category = "composing_methods/extract_variable"
 
     def test_complex(self):
@@ -55,12 +55,13 @@ class TestExtractVariableComplex(RefactoringTestBase):
         self.refactor(
             "extract-variable",
             target="Calculator::compute_discount#L4",
-            variable_name="adjusted_price"
+            variable_name="adjusted_price",
         )
 
 
 class TestExtractVariableErrorHandling(RefactoringTestBase):
     """Tests for error handling in extract variable refactoring."""
+
     fixture_category = "composing_methods/extract_variable"
 
     def test_invalid_target_no_line_range(self):
@@ -69,14 +70,17 @@ class TestExtractVariableErrorHandling(RefactoringTestBase):
 
         # Create a simple test file
         test_file = self.tmp_path / "input.py"
-        test_file.write_text("""
+        test_file.write_text(
+            """
 def foo():
     x = 5
     return x
-""")
+"""
+        )
 
         with pytest.raises(ValueError, match="does not contain line range"):
             from molting.refactorings.composing_methods.extract_variable import ExtractVariable
+
             refactor = ExtractVariable(str(test_file), "foo", "result")
             refactor.apply(test_file.read_text())
 
@@ -86,8 +90,9 @@ class TestExtractVariableCLI:
 
     def test_extract_variable_command_exists(self):
         """Test that the extract-variable command can be called via CLI."""
-        from molting.cli import main
         from click.testing import CliRunner
+
+        from molting.cli import main
 
         runner = CliRunner()
         result = runner.invoke(main, ["--help"])
@@ -104,10 +109,7 @@ class TestExtractVariableCLI:
 
         # Apply refactoring using the CLI interface
         refactor_file(
-            "extract-variable",
-            str(test_file),
-            target="calculate#L2",
-            variable_name="doubled"
+            "extract-variable", str(test_file), target="calculate#L2", variable_name="doubled"
         )
 
         # Verify the refactoring was applied

@@ -57,12 +57,15 @@ class MoveField(RefactoringBase):
             raise ValueError(f"Destination class '{self.to}' not found")
 
         # Find and extract the field from the source class
-        field_assignment, init_method = self._find_field_assignment_and_init(source_class, field_name)
+        field_assignment, init_method = self._find_field_assignment_and_init(
+            source_class, field_name
+        )
         if not field_assignment:
             raise ValueError(f"Field '{field_name}' not found in class '{class_name}'")
 
         # Make a deep copy of the field assignment
         import copy
+
         field_assignment_copy = copy.deepcopy(field_assignment)
 
         # Remove the field from source class __init__
@@ -135,9 +138,11 @@ class MoveField(RefactoringBase):
                     if isinstance(stmt, ast.Assign):
                         for target in stmt.targets:
                             if isinstance(target, ast.Attribute):
-                                if (isinstance(target.value, ast.Name) and
-                                    target.value.id == "self" and
-                                    target.attr == field_name):
+                                if (
+                                    isinstance(target.value, ast.Name)
+                                    and target.value.id == "self"
+                                    and target.attr == field_name
+                                ):
                                     return stmt
         return None
 
@@ -157,9 +162,11 @@ class MoveField(RefactoringBase):
                     if isinstance(stmt, ast.Assign):
                         for target in stmt.targets:
                             if isinstance(target, ast.Attribute):
-                                if (isinstance(target.value, ast.Name) and
-                                    target.value.id == "self" and
-                                    target.attr == field_name):
+                                if (
+                                    isinstance(target.value, ast.Name)
+                                    and target.value.id == "self"
+                                    and target.attr == field_name
+                                ):
                                     return stmt, item
         return None, None
 
@@ -186,25 +193,23 @@ class MoveField(RefactoringBase):
                     args=[ast.arg(arg="self", annotation=None)],
                     kwonlyargs=[],
                     kw_defaults=[],
-                    defaults=[]
+                    defaults=[],
                 ),
                 body=[field_assignment],
                 decorator_list=[],
-                returns=None
+                returns=None,
             )
 
             # Remove `pass` statements from class body and insert __init__ at start
-            class_node.body = [
-                item for item in class_node.body
-                if not (isinstance(item, ast.Pass))
-            ]
+            class_node.body = [item for item in class_node.body if not (isinstance(item, ast.Pass))]
             class_node.body.insert(0, init_method)
         else:
             # Add to existing __init__
             init_method.body.append(field_assignment)
 
-    def _update_field_references(self, class_node: ast.ClassDef, field_name: str,
-                                  dest_attr_name: str):
+    def _update_field_references(
+        self, class_node: ast.ClassDef, field_name: str, dest_attr_name: str
+    ):
         """Update references to a field in class methods.
 
         Args:
@@ -228,14 +233,16 @@ class MoveField(RefactoringBase):
         """
         for child in ast.walk(node):
             if isinstance(child, ast.Attribute):
-                if (isinstance(child.value, ast.Name) and
-                    child.value.id == "self" and
-                    child.attr == field_name):
+                if (
+                    isinstance(child.value, ast.Name)
+                    and child.value.id == "self"
+                    and child.attr == field_name
+                ):
                     # Replace self.field_name with self.dest_attr_name.field_name
                     child.value = ast.Attribute(
                         value=ast.Name(id="self", ctx=ast.Load()),
                         attr=dest_attr_name,
-                        ctx=ast.Load()
+                        ctx=ast.Load(),
                     )
                     child.attr = field_name
 
@@ -261,11 +268,11 @@ class MoveField(RefactoringBase):
                     posonlyargs=[],
                     args=[
                         ast.arg(arg="self", annotation=None),
-                        ast.arg(arg=dest_attr_name, annotation=None)
+                        ast.arg(arg=dest_attr_name, annotation=None),
                     ],
                     kwonlyargs=[],
                     kw_defaults=[],
-                    defaults=[]
+                    defaults=[],
                 ),
                 body=[
                     ast.Assign(
@@ -273,14 +280,14 @@ class MoveField(RefactoringBase):
                             ast.Attribute(
                                 value=ast.Name(id="self", ctx=ast.Store()),
                                 attr=dest_attr_name,
-                                ctx=ast.Store()
+                                ctx=ast.Store(),
                             )
                         ],
-                        value=ast.Name(id=dest_attr_name, ctx=ast.Load())
+                        value=ast.Name(id=dest_attr_name, ctx=ast.Load()),
                     )
                 ],
                 decorator_list=[],
-                returns=None
+                returns=None,
             )
             class_node.body.insert(0, init_method)
         else:
@@ -293,10 +300,10 @@ class MoveField(RefactoringBase):
                     ast.Attribute(
                         value=ast.Name(id="self", ctx=ast.Store()),
                         attr=dest_attr_name,
-                        ctx=ast.Store()
+                        ctx=ast.Store(),
                     )
                 ],
-                value=ast.Name(id=dest_attr_name, ctx=ast.Load())
+                value=ast.Name(id=dest_attr_name, ctx=ast.Load()),
             )
             init_method.body.insert(0, assignment)
 
@@ -310,7 +317,8 @@ class MoveField(RefactoringBase):
             The snake_case name (e.g., "account_type")
         """
         import re
+
         # Insert underscore before uppercase letters (except the first one)
-        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+        s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
         # Insert underscore before uppercase letters in acronyms
-        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()

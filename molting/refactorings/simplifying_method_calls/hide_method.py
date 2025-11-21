@@ -1,12 +1,12 @@
 """Hide Method refactoring - make a public method private by adding underscore prefix."""
 
 from pathlib import Path
-from typing import Optional
+
 import libcst as cst
 
-from molting.core.refactoring_base import RefactoringBase
 from molting.core.class_aware_transformer import ClassAwareTransformer
 from molting.core.class_aware_validator import ClassAwareValidator
+from molting.core.refactoring_base import RefactoringBase
 
 
 class HideMethod(RefactoringBase):
@@ -24,7 +24,9 @@ class HideMethod(RefactoringBase):
         self.source = self.file_path.read_text()
         # Parse the target specification - must be "ClassName::method_name" format
         if "::" not in self.target:
-            raise ValueError(f"Invalid target format: {self.target}. Expected 'ClassName::method_name'")
+            raise ValueError(
+                f"Invalid target format: {self.target}. Expected 'ClassName::method_name'"
+            )
         self.class_name, self.method_name = self.parse_qualified_target(self.target)
 
     def apply(self, source: str) -> str:
@@ -46,8 +48,7 @@ class HideMethod(RefactoringBase):
 
         # Transform the tree
         transformer = HideMethodTransformer(
-            class_name=self.class_name,
-            method_name=self.method_name
+            class_name=self.class_name, method_name=self.method_name
         )
         modified_tree = tree.visit(transformer)
 
@@ -68,8 +69,7 @@ class HideMethod(RefactoringBase):
         try:
             tree = cst.parse_module(source)
             validator = ValidateHideMethodTransformer(
-                class_name=self.class_name,
-                method_name=self.method_name
+                class_name=self.class_name, method_name=self.method_name
             )
             tree.visit(validator)
             return validator.found
@@ -92,7 +92,9 @@ class HideMethodTransformer(ClassAwareTransformer):
         self.modified = False
         self.new_method_name = f"_{method_name}"
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         """Rename method if it matches the target."""
         # Check if this is the method we're looking for
         if not self.matches_target() or original_node.name.value != self.method_name:
@@ -100,20 +102,18 @@ class HideMethodTransformer(ClassAwareTransformer):
 
         # Found the target method, rename it with underscore prefix
         self.modified = True
-        return updated_node.with_changes(
-            name=cst.Name(self.new_method_name)
-        )
+        return updated_node.with_changes(name=cst.Name(self.new_method_name))
 
-    def leave_Attribute(self, original_node: cst.Attribute, updated_node: cst.Attribute) -> cst.Attribute:
+    def leave_Attribute(
+        self, original_node: cst.Attribute, updated_node: cst.Attribute
+    ) -> cst.Attribute:
         """Update method calls within the same class."""
         # Check if this is a self.method_name call
         if isinstance(updated_node.attr, cst.Name) and updated_node.attr.value == self.method_name:
             if isinstance(updated_node.value, cst.Name) and updated_node.value.value == "self":
                 if self.matches_target():
                     # Update the attribute name
-                    return updated_node.with_changes(
-                        attr=cst.Name(self.new_method_name)
-                    )
+                    return updated_node.with_changes(attr=cst.Name(self.new_method_name))
 
         return updated_node
 

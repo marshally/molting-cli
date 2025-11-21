@@ -3,22 +3,17 @@
 This module tests the Move Field refactoring which allows moving
 a field from one class to another using rope's move refactoring.
 """
-import pytest
-from pathlib import Path
 from tests.conftest import RefactoringTestBase
 
 
 class TestMoveField(RefactoringTestBase):
     """Tests for Move Field refactoring."""
+
     fixture_category = "moving_features/move_field"
 
     def test_simple(self):
         """Move a field from one class to another."""
-        self.refactor(
-            "move-field",
-            source="Account::interest_rate",
-            to="AccountType"
-        )
+        self.refactor("move-field", source="Account::interest_rate", to="AccountType")
 
     def test_nonexistent_source_field(self):
         """Test error when source field doesn't exist."""
@@ -26,7 +21,8 @@ class TestMoveField(RefactoringTestBase):
 
         # Use simple fixture
         self.test_file = self.tmp_path / "input.py"
-        self.test_file.write_text("""
+        self.test_file.write_text(
+            """
 class Account:
     def __init__(self):
         self.balance = 100.0
@@ -37,10 +33,12 @@ class Account:
 
 class AccountType:
     pass
-""")
+"""
+        )
 
         with pytest.raises(ValueError, match="Field 'nonexistent' not found"):
             from molting.refactorings.moving_features.move_field import MoveField
+
             refactor = MoveField(str(self.test_file), "Account::nonexistent", "AccountType")
             refactor.apply(self.test_file.read_text())
 
@@ -50,17 +48,20 @@ class AccountType:
 
         # Use simple fixture
         self.test_file = self.tmp_path / "input.py"
-        self.test_file.write_text("""
+        self.test_file.write_text(
+            """
 class Account:
     def __init__(self):
         self.interest_rate = 0.05
 
     def get_rate(self):
         return self.interest_rate
-""")
+"""
+        )
 
         with pytest.raises(ValueError, match="Destination class 'NonExistent' not found"):
             from molting.refactorings.moving_features.move_field import MoveField
+
             refactor = MoveField(str(self.test_file), "Account::interest_rate", "NonExistent")
             refactor.apply(self.test_file.read_text())
 
@@ -70,12 +71,11 @@ class TestMoveFieldCLI:
 
     def test_move_field_command_integration(self, tmp_path):
         """Test running move-field via CLI command."""
-        from molting.cli import main
-        from click.testing import CliRunner
 
         # Create a test file
         test_file = tmp_path / "test.py"
-        test_file.write_text("""class Account:
+        test_file.write_text(
+            """class Account:
     def __init__(self):
         self.interest_rate = 0.05
 
@@ -85,13 +85,16 @@ class TestMoveFieldCLI:
 
 class AccountType:
     pass
-""")
+"""
+        )
 
-        runner = CliRunner()
         # Note: For now, the move-field command may not be exposed as a Click command
         # but it should work through the refactor_file function
         from molting.cli import refactor_file
-        refactor_file("move-field", str(test_file), source="Account::interest_rate", to="AccountType")
+
+        refactor_file(
+            "move-field", str(test_file), source="Account::interest_rate", to="AccountType"
+        )
 
         result_code = test_file.read_text()
         assert "account_type" in result_code

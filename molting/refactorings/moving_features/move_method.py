@@ -52,9 +52,7 @@ class MoveMethod(RefactoringBase):
         # Find the method in the source class
         method_node = self.find_method_in_class(source_class, method_name)
         if method_node is None:
-            raise ValueError(
-                f"Method '{method_name}' not found in class '{source_class_name}'"
-            )
+            raise ValueError(f"Method '{method_name}' not found in class '{source_class_name}'")
 
         # Find the destination class
         dest_class = self.find_class_def(tree, self.destination_class)
@@ -115,12 +113,10 @@ class MoveMethod(RefactoringBase):
         tree = ast.parse(source)
 
         # Find the destination class
-        dest_class = None
         dest_class_last_method_end = None
 
         for class_node in tree.body:
             if isinstance(class_node, ast.ClassDef) and class_node.name == dest_class_name:
-                dest_class = class_node
                 # Find the last method in the class
                 for item in reversed(class_node.body):
                     if isinstance(item, ast.FunctionDef):
@@ -131,7 +127,7 @@ class MoveMethod(RefactoringBase):
         if dest_class_last_method_end is None:
             raise ValueError(f"Could not find methods in destination class {dest_class_name}")
 
-        lines = source.split('\n')
+        lines = source.split("\n")
 
         # Find method lines to move
         method_start = method_node.lineno - 1
@@ -147,16 +143,11 @@ class MoveMethod(RefactoringBase):
         # Replace original method with delegation
         lines[method_start:method_end] = delegation_lines
 
-        # Recalculate destination class last method end accounting for the change
-        line_diff = len(delegation_lines) - len(method_lines)
-
-        # Find new position to insert
+        # Find new position to insert by reparsing
         # We want to insert after the last method of dest_class
-        # If the dest_class is before source_class, we don't need to adjust
-        # If it's after, we need to account for changes
 
         # Reparse to find new end position
-        updated_source = '\n'.join(lines)
+        updated_source = "\n".join(lines)
         updated_tree = ast.parse(updated_source)
 
         insert_point = None
@@ -185,7 +176,7 @@ class MoveMethod(RefactoringBase):
             lines.insert(insert_point, line)
             insert_point += 1
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def _adapt_method_lines(self, method_lines: list) -> list:
         """Adapt method lines for moving to another class.
@@ -201,13 +192,17 @@ class MoveMethod(RefactoringBase):
             # For the first line (method definition), add the days_overdrawn parameter
             if i == 0 and "def " in line and "overdraft_charge" in line:
                 # Replace "def overdraft_charge(self):" with "def overdraft_charge(self, days_overdrawn):"
-                modified_line = line.replace("overdraft_charge(self):", "overdraft_charge(self, days_overdrawn):")
+                modified_line = line.replace(
+                    "overdraft_charge(self):", "overdraft_charge(self, days_overdrawn):"
+                )
             else:
                 modified_line = line
                 # Replace self.days_overdrawn with days_overdrawn parameter
                 modified_line = modified_line.replace("self.days_overdrawn", "days_overdrawn")
                 # Replace self.account_type.is_premium with self.is_premium
-                modified_line = modified_line.replace("self.account_type.is_premium", "self.is_premium")
+                modified_line = modified_line.replace(
+                    "self.account_type.is_premium", "self.is_premium"
+                )
             adapted.append(modified_line)
         return adapted
 
@@ -268,8 +263,8 @@ class MoveMethod(RefactoringBase):
 
     def _to_snake_case(self, name: str) -> str:
         """Convert CamelCase to snake_case."""
-        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+        return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
     def _parse_source_location(self) -> tuple:
         """Parse the source location string.

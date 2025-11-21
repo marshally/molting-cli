@@ -3,9 +3,7 @@
 This module tests the Extract Method refactoring which extracts a code block
 into a new method using rope's extract method refactoring.
 """
-from pathlib import Path
 import pytest
-from tests.conftest import RefactoringTestBase
 
 
 class TestExtractMethodLineRangeParsing:
@@ -20,7 +18,7 @@ class TestExtractMethodLineRangeParsing:
         em = ExtractMethod(
             file_path="tests/fixtures/composing_methods/extract_method/simple/input.py",
             target=target,
-            name="print_banner"
+            name="print_banner",
         )
         # Verify the line range was parsed correctly
         assert em.start_line == 9
@@ -34,7 +32,7 @@ class TestExtractMethodLineRangeParsing:
         em = ExtractMethod(
             file_path="tests/fixtures/composing_methods/extract_method/simple/input.py",
             target=target,
-            name="print_banner"
+            name="print_banner",
         )
         # For a single line, start_line and end_line should be the same
         assert em.start_line == 9
@@ -50,17 +48,15 @@ class TestExtractMethodValidation:
 
         # Create a test file
         test_file = tmp_path / "test.py"
-        test_file.write_text("""
+        test_file.write_text(
+            """
 def foo():
     x = 1
     y = 2
-""")
+"""
+        )
         with pytest.raises(ValueError, match="Invalid target format"):
-            ExtractMethod(
-                file_path=str(test_file),
-                target="foo",  # Missing line range
-                name="bar"
-            )
+            ExtractMethod(file_path=str(test_file), target="foo", name="bar")  # Missing line range
 
     def test_validate_out_of_bounds(self, tmp_path):
         """Test that out-of-bounds line numbers are invalid."""
@@ -80,8 +76,9 @@ class TestExtractMethodCLI:
 
     def test_extract_method_command_exists(self):
         """Test that the extract-method command is registered in the CLI."""
-        from molting.cli import main
         from click.testing import CliRunner
+
+        from molting.cli import main
 
         runner = CliRunner()
         result = runner.invoke(main, ["--help"])
