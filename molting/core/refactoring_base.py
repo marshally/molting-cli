@@ -111,3 +111,58 @@ class RefactoringBase(ABC):
             if isinstance(item, ast.FunctionDef) and item.name == method_name:
                 return item
         return None
+
+    def calculate_qualified_offset(
+        self, source: str, class_name: str, method_name: str
+    ) -> int:
+        """Calculate byte offset for a qualified class::method target.
+
+        Finds the byte offset in the source code where a method name appears
+        within a specific class. This is useful for tools like rope that require
+        an offset to identify the target for refactoring.
+
+        Args:
+            source: Python source code
+            class_name: Name of the class containing the method
+            method_name: Name of the method to find
+
+        Returns:
+            Byte offset of the method name in the source code
+
+        Raises:
+            ValueError: If class not found, method not found, or syntax error
+        """
+        try:
+            tree = ast.parse(source)
+        except SyntaxError as e:
+            raise ValueError(f"Failed to parse source code: {e}")
+
+        # Find the class definition - only look at top-level classes
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef) and node.name == class_name:
+                # Find the method in the class
+                for item in node.body:
+                    if isinstance(item, ast.FunctionDef) and item.name == method_name:
+                        # Calculate offset from line and column numbers
+                        lines = source.split('\n')
+                        offset = 0
+
+                        # Sum up bytes from all previous lines
+                        for i, line in enumerate(lines):
+                            if i < item.lineno - 1:
+                                offset += len(line) + 1  # +1 for newline character
+                            else:
+                                # Found the line with the method definition
+                                # Find the method name in this line
+                                col_offset = line.find(method_name)
+                                if col_offset != -1:
+                                    return offset + col_offset
+                                break
+
+                        raise ValueError(f"Could not find offset for {method_name}")
+
+                raise ValueError(
+                    f"Method '{method_name}' not found in class '{class_name}'"
+                )
+
+        raise ValueError(f"Class '{class_name}' not found in source code")
