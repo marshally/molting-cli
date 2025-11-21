@@ -17,6 +17,9 @@ from molting.refactorings.composing_methods.introduce_explaining_variable import
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import (
     RemoveAssignmentsToParameters,
 )
+from molting.refactorings.composing_methods.replace_method_with_method_object import (
+    ReplaceMethodWithMethodObject,
+)
 
 # Import all refactoring classes
 from molting.refactorings.composing_methods.rename import Rename
@@ -42,6 +45,9 @@ from molting.refactorings.organizing_data.replace_data_value_with_object import 
 )
 from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
     ReplaceMagicNumberWithSymbolicConstant,
+)
+from molting.refactorings.organizing_data.replace_type_code_with_class import (
+    ReplaceTypeCodeWithClass,
 )
 from molting.refactorings.organizing_data.self_encapsulate_field import SelfEncapsulateField
 from molting.refactorings.simplifying_conditionals.consolidate_conditional_expression import (
@@ -97,9 +103,9 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "inline": (InlineMethod, ["target"]),
     "inline-method": (InlineMethod, ["target"]),
     "inline-temp": (InlineTemp, ["target"]),
+    "replace-method-with-method-object": (ReplaceMethodWithMethodObject, ["target"]),
     "replace-temp-with-query": (ReplaceTempWithQuery, ["target"]),
     "split-temporary-variable": (SplitTemporaryVariable, ["target"]),
-    # "replace-method-with-method-object": (ReplaceMethodWithMethodObject, ["target"]),
     "substitute-algorithm": (SubstituteAlgorithm, ["target"]),
     "move-method": (MoveMethod, ["source", "to"]),
     "move-field": (MoveField, ["source", "to"]),
@@ -113,6 +119,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "self-encapsulate-field": (SelfEncapsulateField, ["target"]),
     "replace-array-with-object": (ReplaceArrayWithObject, ["target", "class_name", "fields"]),
     "replace-data-value-with-object": (ReplaceDataValueWithObject, ["target", "name"]),
+    "replace-type-code-with-class": (ReplaceTypeCodeWithClass, ["target", "name"]),
     "replace-magic-number-with-symbolic-constant": (
         ReplaceMagicNumberWithSymbolicConstant,
         ["target", "magic_number", "constant_name"],
