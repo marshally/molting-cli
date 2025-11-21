@@ -1,6 +1,5 @@
 """Extract Method refactoring - extract a code block into a new method."""
 
-import re
 from pathlib import Path
 from rope.base.project import Project
 from rope.refactor.extract import ExtractMethod as RopeExtractMethod

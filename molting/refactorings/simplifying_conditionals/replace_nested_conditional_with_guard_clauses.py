@@ -1,6 +1,5 @@
 """Replace Nested Conditional with Guard Clauses refactoring."""
 
-import re
 from pathlib import Path
 import libcst as cst
 from typing import Optional, List

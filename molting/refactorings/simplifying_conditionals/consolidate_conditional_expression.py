@@ -1,6 +1,5 @@
 """Consolidate Conditional Expression refactoring - combine conditions with same result."""
 
-import re
 from pathlib import Path
 import libcst as cst
 from typing import Optional, Tuple, List, Set
