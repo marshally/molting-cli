@@ -55,6 +55,9 @@ from molting.refactorings.simplifying_method_calls.introduce_parameter_object im
     IntroduceParameterObject,
 )
 from molting.refactorings.simplifying_method_calls.parameterize_method import ParameterizeMethod
+from molting.refactorings.simplifying_method_calls.preserve_whole_object import (
+    PreserveWholeObject,
+)
 from molting.refactorings.simplifying_method_calls.remove_parameter import RemoveParameter
 from molting.refactorings.simplifying_method_calls.remove_setting_method import RemoveSettingMethod
 from molting.refactorings.simplifying_method_calls.replace_constructor_with_factory_function import (
@@ -128,6 +131,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
         ["target", "parameter_name"],
     ),
     "separate-query-from-modifier": (SeparateQueryFromModifier, ["target", "modifier_name"]),
+    "preserve-whole-object": (PreserveWholeObject, ["target"]),
 }
 
 
