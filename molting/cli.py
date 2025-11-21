@@ -39,6 +39,7 @@ from molting.refactorings.organizing_data.replace_data_value_with_object import 
 from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_constant import (
     ReplaceMagicNumberWithSymbolicConstant,
 )
+from molting.refactorings.organizing_data.self_encapsulate_field import SelfEncapsulateField
 from molting.refactorings.simplifying_conditionals.consolidate_conditional_expression import (
     ConsolidateConditionalExpression,
 )
@@ -100,6 +101,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "remove-middle-man": (RemoveMiddleMan, ["target"]),
     "extract-class": (ExtractClass, ["source", "fields", "methods", "name"]),
     "encapsulate-field": (EncapsulateField, ["target"]),
+    "self-encapsulate-field": (SelfEncapsulateField, ["target"]),
     "replace-data-value-with-object": (ReplaceDataValueWithObject, ["target", "name"]),
     "replace-magic-number-with-symbolic-constant": (
         ReplaceMagicNumberWithSymbolicConstant,
