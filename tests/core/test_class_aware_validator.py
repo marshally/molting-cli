@@ -3,6 +3,7 @@
 This module tests the ClassAwareValidator base class that provides
 validation patterns for libcst-based refactorings.
 """
+
 import libcst as cst
 
 from molting.core.class_aware_validator import ClassAwareValidator

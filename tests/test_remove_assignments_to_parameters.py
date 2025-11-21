@@ -3,6 +3,7 @@
 This module tests the Remove Assignments to Parameters refactoring which
 replaces parameter reassignments with local variables using libcst.
 """
+
 from tests.conftest import RefactoringTestBase
 
 

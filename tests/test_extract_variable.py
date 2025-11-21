@@ -3,6 +3,7 @@
 This module tests the Extract Variable refactoring which allows extracting
 expressions into named variables using rope's extract variable capability.
 """
+
 from tests.conftest import RefactoringTestBase
 
 

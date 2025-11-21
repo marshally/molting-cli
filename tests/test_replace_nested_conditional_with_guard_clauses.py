@@ -4,6 +4,7 @@ Tests for Replace Nested Conditional with Guard Clauses refactoring.
 This module tests the Replace Nested Conditional with Guard Clauses refactoring
 that converts nested if-else statements to guard clauses with early returns.
 """
+
 from click.testing import CliRunner
 
 from tests.conftest import RefactoringTestBase

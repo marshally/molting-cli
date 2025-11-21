@@ -3,6 +3,7 @@ Tests for Remove Setting Method refactoring.
 
 This module tests refactorings that remove setter methods from classes.
 """
+
 import pytest
 
 from tests.conftest import RefactoringTestBase

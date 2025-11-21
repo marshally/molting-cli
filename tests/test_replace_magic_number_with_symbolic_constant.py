@@ -131,7 +131,10 @@ class TestReplaceMagicNumberErrorHandling:
 
         with pytest.raises(ValueError, match="Invalid target format"):
             ReplaceMagicNumberWithSymbolicConstant(
-                str(test_file), "calculate", "0.05", "TAX_RATE"  # Missing #L number
+                str(test_file),
+                "calculate",
+                "0.05",
+                "TAX_RATE",  # Missing #L number
             )
 
 

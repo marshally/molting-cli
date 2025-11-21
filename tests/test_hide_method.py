@@ -3,6 +3,7 @@ Tests for Hide Method refactoring.
 
 This module tests refactorings that hide methods by adding underscore prefix.
 """
+
 from pathlib import Path
 
 import pytest

@@ -3,6 +3,7 @@
 This module tests the Extract Method refactoring which extracts a code block
 into a new method using rope's extract method refactoring.
 """
+
 import pytest
 
 

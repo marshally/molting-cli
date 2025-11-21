@@ -3,6 +3,7 @@ Tests for Add Parameter refactoring.
 
 This module tests refactorings that add new parameters to function/method signatures.
 """
+
 import pytest
 
 from tests.conftest import RefactoringTestBase

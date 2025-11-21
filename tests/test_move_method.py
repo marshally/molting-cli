@@ -1,6 +1,7 @@
 """
 Tests for Move Method refactoring implementation using TDD.
 """
+
 from tests.conftest import RefactoringTestBase
 
 

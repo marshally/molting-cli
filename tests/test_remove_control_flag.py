@@ -4,6 +4,7 @@ Tests for Remove Control Flag refactoring.
 This module tests the Remove Control Flag refactoring that replaces
 control flag variables with break or return statements.
 """
+
 from pathlib import Path
 
 import pytest

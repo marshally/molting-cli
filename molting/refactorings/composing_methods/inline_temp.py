@@ -111,9 +111,13 @@ class InlineTemp(RefactoringBase):
                                     return self._find_variable_in_scope(var_name, item.lineno)
                                 except ValueError:
                                     continue
-                        raise ValueError(f"Variable '{var_name}' not found in class '{container_name}'")
+                        raise ValueError(
+                            f"Variable '{var_name}' not found in class '{container_name}'"
+                        )
 
-                raise ValueError(f"Function or class '{container_name}' not found in {self.file_path}")
+                raise ValueError(
+                    f"Function or class '{container_name}' not found in {self.file_path}"
+                )
 
             elif len(parts) == 3:
                 class_name, method_name, var_name = parts

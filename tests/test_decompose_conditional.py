@@ -4,6 +4,7 @@ Tests for Decompose Conditional refactoring.
 This module tests the Decompose Conditional refactoring that extracts
 condition and branches into separate methods.
 """
+
 from click.testing import CliRunner
 
 from tests.conftest import RefactoringTestBase
