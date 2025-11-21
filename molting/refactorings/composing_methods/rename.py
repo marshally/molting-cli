@@ -36,6 +36,9 @@ class Rename(RefactoringBase):
         # Use the provided source code
         self.source = source
 
+        # Write source to file so rope can read it
+        self.file_path.write_text(source)
+
         # Create a rope project in a temporary location
         project_root = self.file_path.parent
         project = Project(str(project_root))
