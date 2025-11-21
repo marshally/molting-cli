@@ -1,11 +1,4 @@
-def disability_amount(employee):
-    if is_not_eligible_for_disability(employee):
+def disability_amount(seniority, months_disabled, is_part_time):
+    if seniority < 2 or months_disabled > 12 or is_part_time:
         return 0
-    # calculate disability amount
-    return 100
-
-
-def is_not_eligible_for_disability(employee):
-    return (employee.seniority < 2 or
-            employee.months_disabled > 12 or
-            employee.is_part_time)
+    return calculate_disability()
