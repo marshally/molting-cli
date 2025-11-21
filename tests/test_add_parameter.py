@@ -26,3 +26,11 @@ class TestAddParameter(RefactoringTestBase):
             name="tax_rate",
             default="0.0"
         )
+
+    def test_add_parameter_to_class_method(self):
+        """Add a parameter to a class method."""
+        self.refactor(
+            "add-parameter",
+            target="Calculator::add",
+            name="precision"
+        )
