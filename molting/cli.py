@@ -30,6 +30,7 @@ from molting.refactorings.simplifying_conditionals.decompose_conditional import 
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import RemoveAssignmentsToParameters
 from molting.refactorings.simplifying_conditionals.remove_control_flag import RemoveControlFlag
 from molting.refactorings.simplifying_conditionals.replace_nested_conditional_with_guard_clauses import ReplaceNestedConditionalWithGuardClauses
+from molting.refactorings.simplifying_conditionals.consolidate_conditional_expression import ConsolidateConditionalExpression
 
 
 # Registry mapping refactoring names to (class, param_names)
@@ -54,6 +55,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "remove-assignments-to-parameters": (RemoveAssignmentsToParameters, ["target"]),
     "remove-control-flag": (RemoveControlFlag, ["target"]),
     "replace-nested-conditional-with-guard-clauses": (ReplaceNestedConditionalWithGuardClauses, ["target"]),
+    "consolidate-conditional-expression": (ConsolidateConditionalExpression, ["target"]),
     "hide-method": (HideMethod, ["target"]),
     "remove-setting-method": (RemoveSettingMethod, ["target"]),
 }
