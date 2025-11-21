@@ -17,6 +17,9 @@ from molting.refactorings.composing_methods.introduce_explaining_variable import
 from molting.refactorings.composing_methods.remove_assignments_to_parameters import (
     RemoveAssignmentsToParameters,
 )
+from molting.refactorings.composing_methods.replace_method_with_method_object import (
+    ReplaceMethodWithMethodObject,
+)
 from molting.refactorings.composing_methods.replace_temp_with_query import (
     ReplaceTempWithQuery,
 )
@@ -29,10 +32,17 @@ from molting.refactorings.moving_features.extract_class import ExtractClass
 from molting.refactorings.moving_features.hide_delegate import HideDelegate
 from molting.refactorings.moving_features.inline_class import InlineClass
 from molting.refactorings.moving_features.introduce_foreign_method import IntroduceForeignMethod
+from molting.refactorings.moving_features.introduce_local_extension import IntroduceLocalExtension
 from molting.refactorings.moving_features.move_field import MoveField
 from molting.refactorings.moving_features.move_method import MoveMethod
 from molting.refactorings.moving_features.remove_middle_man import RemoveMiddleMan
+from molting.refactorings.organizing_data.change_reference_to_value import (
+    ChangeReferenceToValue,
+)
 from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
+from molting.refactorings.organizing_data.replace_array_with_object import (
+    ReplaceArrayWithObject,
+)
 from molting.refactorings.organizing_data.replace_data_value_with_object import (
     ReplaceDataValueWithObject,
 )
@@ -41,6 +51,9 @@ from molting.refactorings.organizing_data.replace_magic_number_with_symbolic_con
 )
 from molting.refactorings.organizing_data.replace_type_code_with_class import (
     ReplaceTypeCodeWithClass,
+)
+from molting.refactorings.organizing_data.replace_type_code_with_subclasses import (
+    ReplaceTypeCodeWithSubclasses,
 )
 from molting.refactorings.organizing_data.self_encapsulate_field import SelfEncapsulateField
 from molting.refactorings.simplifying_conditionals.consolidate_conditional_expression import (
@@ -96,6 +109,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "inline": (InlineMethod, ["target"]),
     "inline-method": (InlineMethod, ["target"]),
     "inline-temp": (InlineTemp, ["target"]),
+    "replace-method-with-method-object": (ReplaceMethodWithMethodObject, ["target"]),
     "replace-temp-with-query": (ReplaceTempWithQuery, ["target"]),
     "split-temporary-variable": (SplitTemporaryVariable, ["target"]),
     "substitute-algorithm": (SubstituteAlgorithm, ["target"]),
@@ -106,10 +120,14 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "inline-class": (InlineClass, ["source_class", "into", "field_prefix"]),
     "remove-middle-man": (RemoveMiddleMan, ["target"]),
     "extract-class": (ExtractClass, ["source", "fields", "methods", "name"]),
+    "introduce-local-extension": (IntroduceLocalExtension, ["target", "name", "extension_type"]),
+    "change-reference-to-value": (ChangeReferenceToValue, ["target"]),
     "encapsulate-field": (EncapsulateField, ["target"]),
     "self-encapsulate-field": (SelfEncapsulateField, ["target"]),
+    "replace-array-with-object": (ReplaceArrayWithObject, ["target", "class_name", "fields"]),
     "replace-data-value-with-object": (ReplaceDataValueWithObject, ["target", "name"]),
     "replace-type-code-with-class": (ReplaceTypeCodeWithClass, ["target", "name"]),
+    "replace-type-code-with-subclasses": (ReplaceTypeCodeWithSubclasses, ["target", "type_field"]),
     "replace-magic-number-with-symbolic-constant": (
         ReplaceMagicNumberWithSymbolicConstant,
         ["target", "magic_number", "constant_name"],
