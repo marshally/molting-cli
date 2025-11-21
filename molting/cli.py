@@ -20,12 +20,12 @@ from molting.refactorings.composing_methods.remove_assignments_to_parameters imp
 from molting.refactorings.composing_methods.replace_method_with_method_object import (
     ReplaceMethodWithMethodObject,
 )
-from molting.refactorings.composing_methods.replace_temp_with_query import (
-    ReplaceTempWithQuery,
-)
 
 # Import all refactoring classes
 from molting.refactorings.composing_methods.rename import Rename
+from molting.refactorings.composing_methods.replace_temp_with_query import (
+    ReplaceTempWithQuery,
+)
 from molting.refactorings.composing_methods.split_temporary_variable import SplitTemporaryVariable
 from molting.refactorings.composing_methods.substitute_algorithm import SubstituteAlgorithm
 from molting.refactorings.moving_features.extract_class import ExtractClass
@@ -38,6 +38,9 @@ from molting.refactorings.moving_features.move_method import MoveMethod
 from molting.refactorings.moving_features.remove_middle_man import RemoveMiddleMan
 from molting.refactorings.organizing_data.change_reference_to_value import (
     ChangeReferenceToValue,
+)
+from molting.refactorings.organizing_data.change_value_to_reference import (
+    ChangeValueToReference,
 )
 from molting.refactorings.organizing_data.encapsulate_field import EncapsulateField
 from molting.refactorings.organizing_data.replace_array_with_object import (
@@ -56,6 +59,7 @@ from molting.refactorings.organizing_data.replace_type_code_with_subclasses impo
     ReplaceTypeCodeWithSubclasses,
 )
 from molting.refactorings.organizing_data.self_encapsulate_field import SelfEncapsulateField
+from molting.refactorings.dealing_with_generalization.push_down_field import PushDownField
 from molting.refactorings.simplifying_conditionals.consolidate_conditional_expression import (
     ConsolidateConditionalExpression,
 )
@@ -66,6 +70,9 @@ from molting.refactorings.simplifying_conditionals.decompose_conditional import 
 from molting.refactorings.simplifying_conditionals.introduce_assertion import IntroduceAssertion
 from molting.refactorings.simplifying_conditionals.introduce_null_object import IntroduceNullObject
 from molting.refactorings.simplifying_conditionals.remove_control_flag import RemoveControlFlag
+from molting.refactorings.simplifying_conditionals.replace_conditional_with_polymorphism import (
+    ReplaceConditionalWithPolymorphism,
+)
 from molting.refactorings.simplifying_conditionals.replace_nested_conditional_with_guard_clauses import (
     ReplaceNestedConditionalWithGuardClauses,
 )
@@ -125,6 +132,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     "encapsulate-field": (EncapsulateField, ["target"]),
     "self-encapsulate-field": (SelfEncapsulateField, ["target"]),
     "replace-array-with-object": (ReplaceArrayWithObject, ["target", "class_name", "fields"]),
+    "change-value-to-reference": (ChangeValueToReference, ["target"]),
     "replace-data-value-with-object": (ReplaceDataValueWithObject, ["target", "name"]),
     "replace-type-code-with-class": (ReplaceTypeCodeWithClass, ["target", "name"]),
     "replace-type-code-with-subclasses": (ReplaceTypeCodeWithSubclasses, ["target", "type_field"]),
@@ -155,6 +163,10 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
         ConsolidateDuplicateConditionalFragments,
         ["target"],
     ),
+    "replace-conditional-with-polymorphism": (
+        ReplaceConditionalWithPolymorphism,
+        ["target", "type_field"],
+    ),
     "hide-method": (HideMethod, ["target"]),
     "remove-setting-method": (RemoveSettingMethod, ["target"]),
     "replace-error-code-with-exception": (ReplaceErrorCodeWithException, ["target"]),
@@ -169,6 +181,7 @@ REFACTORING_REGISTRY: dict[str, Tuple[Type[RefactoringBase], List[str]]] = {
     ),
     "separate-query-from-modifier": (SeparateQueryFromModifier, ["target", "modifier_name"]),
     "preserve-whole-object": (PreserveWholeObject, ["target"]),
+    "push-down-field": (PushDownField, ["target", "to"]),
 }
 
 
