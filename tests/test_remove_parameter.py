@@ -62,3 +62,32 @@ class TestRemoveParameter(RefactoringTestBase):
                     target="calculate",
                     parameter="z"
                 )
+
+    def test_cli_command_remove_parameter(self):
+        """Test the CLI command integration for remove-parameter."""
+        from click.testing import CliRunner
+        from molting.cli import main
+        from pathlib import Path
+        import tempfile
+
+        runner = CliRunner()
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            test_file = Path(tmp_dir) / "test.py"
+            test_file.write_text("def add(x, y, unused):\n    return x + y\n")
+
+            result = runner.invoke(main, [
+                "remove-parameter",
+                str(test_file),
+                "add",
+                "unused"
+            ])
+
+            assert result.exit_code == 0
+            assert "Removed parameter" in result.output
+            assert "unused" in result.output
+
+            # Verify the file was modified correctly
+            modified_content = test_file.read_text()
+            assert "def add(x, y):" in modified_content
+            assert "unused" not in modified_content

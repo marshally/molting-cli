@@ -165,6 +165,11 @@ class RemoveParameterTransformer(cst.CSTTransformer):
         if not found:
             raise ValueError(f"Parameter '{self.parameter_name}' not found in function '{self.function_name}'")
 
+        # Remove trailing comma from the last parameter if it exists
+        if new_params_list:
+            last_param = new_params_list[-1]
+            new_params_list[-1] = last_param.with_changes(comma=cst.MaybeSentinel.DEFAULT)
+
         # Also handle kwonly_params if needed
         new_params = params.with_changes(params=tuple(new_params_list))
 
