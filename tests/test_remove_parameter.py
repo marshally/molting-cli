@@ -43,6 +43,14 @@ class TestRemoveParameter(RefactoringTestBase):
             parameter="unused_param"
         )
 
+    def test_update_call_sites(self):
+        """Update call sites when removing a parameter."""
+        self.refactor(
+            "remove-parameter",
+            target="calculate_total",
+            parameter="old_param"
+        )
+
     def test_remove_parameter_invalid_target(self):
         """Raise error when target function does not exist."""
         from molting.cli import refactor_file
