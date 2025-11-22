@@ -289,9 +289,11 @@ The hook automatically runs:
 The hook will:
 1. Stash any unstaged changes
 2. Run linters on staged Python files
-3. Auto-add any fixed files
-4. Restore your stashed changes
-5. Block the commit if checks fail
+3. **If linters made changes**: Create a separate commit with just the formatting fixes, then ask you to run `git commit` again for your actual changes
+4. **If no linter changes**: Run type checking and allow your commit to proceed
+5. Restore your stashed changes
+
+This keeps linter auto-fixes separate from your code changes, making git history cleaner.
 
 #### Bypassing the Hook
 

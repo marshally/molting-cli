@@ -3,16 +3,17 @@
 # Pre-commit hook that:
 # 1. Stashes unstaged changes
 # 2. Runs linters in autofix mode (black, ruff)
-# 3. Runs type checker (mypy)
-# 4. Allows commit if all checks pass
+# 3. If linters made changes, commits them separately
+# 4. Runs type checker (mypy)
 # 5. Restores stashed changes
-
+#
 set -e
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${YELLOW}Running pre-commit checks...${NC}"
@@ -56,6 +57,30 @@ if ! ruff check --fix $STAGED_FILES; then
     exit 1
 fi
 
+# Check if linters made any changes
+LINTER_CHANGES=$(git diff --name-only $STAGED_FILES || true)
+
+if [ -n "$LINTER_CHANGES" ]; then
+    echo -e "${BLUE}Linters made changes to: $(echo $LINTER_CHANGES | tr '\n' ' ')${NC}"
+
+    # Stage the linter changes
+    git add $STAGED_FILES
+
+    # Create a separate commit for the linter fixes
+    echo -e "${BLUE}Creating separate commit for linter auto-fixes...${NC}"
+    git commit --no-verify -m "Auto-fix: black and ruff formatting
+
+Applied automatic formatting and linting fixes.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+    echo -e "${GREEN}Linter fixes committed separately.${NC}"
+    echo -e "${YELLOW}Please run 'git commit' again to commit your changes.${NC}"
+    exit 1
+fi
+
 echo -e "${YELLOW}Running mypy (type checking)...${NC}"
 # Filter out conftest.py and fixtures to avoid "found twice" error
 MYPY_FILES=$(echo "$STAGED_FILES" | tr ' ' '\n' | grep -v 'conftest\.py$' | grep -v 'tests/fixtures/' | tr '\n' ' ')
@@ -65,13 +90,6 @@ if [ -n "$MYPY_FILES" ]; then
         exit 1
     fi
 fi
-
-# Add any files that were auto-fixed
-for file in $STAGED_FILES; do
-    if [ -f "$file" ]; then
-        git add "$file"
-    fi
-done
 
 echo -e "${GREEN}All linting checks passed!${NC}"
 exit 0
