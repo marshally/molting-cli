@@ -7,6 +7,7 @@ import click
 
 # Import commands to register them
 import molting.commands.composing_methods.extract_method  # noqa: F401
+import molting.commands.dealing_with_generalization.collapse_hierarchy  # noqa: F401
 import molting.commands.dealing_with_generalization.replace_delegation_with_inheritance  # noqa: F401
 import molting.commands.dealing_with_generalization.replace_inheritance_with_delegation  # noqa: F401
 import molting.commands.simplifying_method_calls.add_parameter  # noqa: F401
