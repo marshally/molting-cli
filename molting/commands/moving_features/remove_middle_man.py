@@ -50,6 +50,14 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         self.target_class = target_class
         self.delegate_field: str | None = None
         self.delegation_methods: list[str] = []
+        self.in_target_class = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Visit class definitions."""
+        if node.name.value == self.target_class:
+            self.in_target_class = True
+            self._identify_delegate_and_methods(node)
+        return True
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -58,26 +66,45 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         if original_node.name.value != self.target_class:
             return updated_node
 
-        # First pass: identify delegate field and delegation methods
-        self._identify_delegate_and_methods(original_node)
+        self.in_target_class = False
 
-        # Second pass: transform the class
+        # Transform the class body
         new_body: list[Any] = []
         for item in updated_node.body.body:
             # Skip delegation methods
             if isinstance(item, cst.FunctionDef):
                 if item.name.value in self.delegation_methods:
                     continue
-            # Transform field assignments
-            elif isinstance(item, cst.SimpleStatementLine):
-                transformed = self._transform_field_assignment(item)
-                if transformed is not None:
-                    new_body.append(transformed)
-                    continue
-
-            new_body.append(item)
+                # Transform method to rename fields
+                transformed_method = self._transform_method(item)
+                new_body.append(transformed_method)
+            else:
+                # Handle other statements
+                new_body.append(item)
 
         return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
+
+    def _transform_method(self, method: cst.FunctionDef) -> cst.FunctionDef:
+        """Transform a method to rename delegate fields.
+
+        Args:
+            method: The method to transform
+
+        Returns:
+            The transformed method
+        """
+        if not isinstance(method.body, cst.IndentedBlock):
+            return method
+
+        new_stmts: list[Any] = []
+        for stmt in method.body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                new_stmt = self._transform_field_assignment_in_stmt(stmt)
+                new_stmts.append(new_stmt)
+            else:
+                new_stmts.append(stmt)
+
+        return method.with_changes(body=cst.IndentedBlock(body=new_stmts))
 
     def _identify_delegate_and_methods(self, class_def: cst.ClassDef) -> None:
         """Identify the delegate field and delegation methods.
