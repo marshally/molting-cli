@@ -132,6 +132,20 @@ class InlineClassTransformer(cst.CSTTransformer):
             body=updated_node.body.with_changes(body=tuple(new_body_stmts))
         )
 
+    def _is_source_class_instantiation(self, value: cst.BaseExpression) -> bool:
+        """Check if a value is an instantiation of the source class.
+
+        Args:
+            value: The expression to check
+
+        Returns:
+            True if the value is a Call to the source class constructor
+        """
+        if isinstance(value, cst.Call):
+            if isinstance(value.func, cst.Name):
+                return value.func.value == self.source_class
+        return False
+
     def _extract_source_features(self, class_def: cst.ClassDef) -> None:
         """Extract fields and methods from source class.
 
@@ -187,25 +201,16 @@ class InlineClassTransformer(cst.CSTTransformer):
                                                 and target.target.value.value == "self"
                                             ):
                                                 # Check if value is instantiation of source class
-                                                if isinstance(item.value, cst.Call):
-                                                    if isinstance(item.value.func, cst.Name):
-                                                        if (
-                                                            item.value.func.value
-                                                            == self.source_class
-                                                        ):
-                                                            # Extract prefix from field name
-                                                            delegation_field = (
-                                                                target.target.attr.value
-                                                            )
-                                                            # office_telephone -> office_
-                                                            # Take everything before last underscore
-                                                            if "_" in delegation_field:
-                                                                parts = delegation_field.rsplit(
-                                                                    "_", 1
-                                                                )
-                                                                self.field_prefix = parts[0] + "_"
-                                                            else:
-                                                                self.field_prefix = ""
+                                                if self._is_source_class_instantiation(item.value):
+                                                    # Extract prefix from field name
+                                                    delegation_field = target.target.attr.value
+                                                    # office_telephone -> office_
+                                                    # Take everything before last underscore
+                                                    if "_" in delegation_field:
+                                                        parts = delegation_field.rsplit("_", 1)
+                                                        self.field_prefix = parts[0] + "_"
+                                                    else:
+                                                        self.field_prefix = ""
 
     def _transform_init_method(self, node: cst.FunctionDef) -> cst.FunctionDef:
         """Transform the __init__ method to inline source class fields.
@@ -232,11 +237,9 @@ class InlineClassTransformer(cst.CSTTransformer):
                                         and target.target.value.value == "self"
                                     ):
                                         # Check if value is instantiation of source class
-                                        if isinstance(item.value, cst.Call):
-                                            if isinstance(item.value.func, cst.Name):
-                                                if item.value.func.value == self.source_class:
-                                                    is_delegation_field = True
-                                                    break
+                                        if self._is_source_class_instantiation(item.value):
+                                            is_delegation_field = True
+                                            break
 
                     if is_delegation_field:
                         # Replace with inlined field assignments
