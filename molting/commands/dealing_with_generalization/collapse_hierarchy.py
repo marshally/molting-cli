@@ -72,14 +72,10 @@ class CollapseHierarchyTransformer(cst.CSTTransformer):
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
     ) -> cst.Module:
-        """Clean up the module after removing classes."""
-        # Filter out any RemovalSentinel items and clean up whitespace
-        new_body = []
-        for stmt in updated_node.body:
-            if not isinstance(stmt, cst.RemovalSentinel):
-                new_body.append(stmt)
+        """Clean up trailing empty lines after class removal."""
+        new_body = list(updated_node.body)
 
-        # Remove trailing empty lines
+        # Remove trailing empty lines for cleaner output
         while new_body and isinstance(new_body[-1], cst.EmptyLine):
             new_body.pop()
 
