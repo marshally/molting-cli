@@ -140,7 +140,9 @@ class InlineClassTransformer(cst.CSTTransformer):
             return updated_node
 
         source_method_names = self._get_source_method_names()
-        new_body_stmts = self._build_target_class_body(updated_node.body.body, source_method_names)
+        new_body_stmts = self._build_target_class_body(
+            cast(tuple[cst.BaseStatement, ...], updated_node.body.body), source_method_names
+        )
         self._add_inlined_methods(new_body_stmts)
 
         return updated_node.with_changes(
@@ -260,8 +262,9 @@ class InlineClassTransformer(cst.CSTTransformer):
             }
 
             for stmt in node.body.body:
-                if stmt in self_assignments:
-                    _, assignment = self_assignments[stmt]
+                stmt_line = cast(cst.SimpleStatementLine, stmt)
+                if stmt_line in self_assignments:
+                    _, assignment = self_assignments[stmt_line]
                     if self._is_source_class_instantiation(assignment.value):
                         for field_name, field_value in self.source_fields.items():
                             new_field_name = self.field_prefix + field_name
@@ -298,7 +301,7 @@ class InlineClassTransformer(cst.CSTTransformer):
             The transformed method
         """
         transformer = FieldReferenceTransformer(self.source_fields, self.field_prefix)
-        return method.visit(transformer)
+        return cast(cst.FunctionDef, method.visit(transformer))
 
 
 class FieldReferenceTransformer(cst.CSTTransformer):
