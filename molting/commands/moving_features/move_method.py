@@ -264,17 +264,9 @@ class SelfReferenceCollector(cst.CSTVisitor):
 
     def visit_Attribute(self, node: cst.Attribute) -> None:  # noqa: N802
         """Visit attribute access to find self.field references."""
-        # Only look at direct self.field access (not nested like self.field.method())
         if isinstance(node.value, cst.Name) and node.value.value == "self":
             field_name = node.attr.value
-            # Skip the target class field since that will become 'self' in the new class
-            # Skip methods (they remain as self.method_name)
-            # Only collect fields that are actual instance variables
-            if (
-                field_name not in self.self_references
-                and field_name != self.target_class_field
-                and field_name != "is_premium"  # This is a method, not a field
-            ):
+            if field_name not in self.self_references and field_name != self.target_class_field:
                 self.self_references.append(field_name)
 
 
