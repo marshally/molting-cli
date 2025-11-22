@@ -170,6 +170,21 @@ class MoveFieldTransformer(cst.CSTTransformer):
                     return True
         return False
 
+    def _create_field_assignment(self) -> cst.SimpleStatementLine:
+        """Create a field assignment statement for the moved field."""
+        return cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[
+                        cst.AssignTarget(
+                            cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.field_name))
+                        )
+                    ],
+                    value=self.field_value if self.field_value else cst.Float("0.05"),
+                )
+            ]
+        )
+
     def _transform_target_class(self, node: cst.ClassDef) -> cst.ClassDef:
         """Transform the target class to add the field."""
         # Check if __init__ exists
@@ -203,42 +218,16 @@ class MoveFieldTransformer(cst.CSTTransformer):
         if isinstance(node.body, cst.IndentedBlock):
             new_stmts = list(node.body.body)
 
-        # Add field assignment
-        field_assignment = cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[
-                        cst.AssignTarget(
-                            cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.field_name))
-                        )
-                    ],
-                    value=self.field_value if self.field_value else cst.Float("0.05"),
-                )
-            ]
-        )
-        new_stmts.append(field_assignment)
+        new_stmts.append(self._create_field_assignment())
 
         return node.with_changes(body=cst.IndentedBlock(body=tuple(new_stmts)))
 
     def _create_init_with_field(self) -> cst.FunctionDef:
         """Create a new __init__ method with the field."""
-        field_assignment = cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[
-                        cst.AssignTarget(
-                            cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.field_name))
-                        )
-                    ],
-                    value=self.field_value if self.field_value else cst.Float("0.05"),
-                )
-            ]
-        )
-
         return cst.FunctionDef(
             name=cst.Name("__init__"),
             params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
-            body=cst.IndentedBlock(body=[field_assignment]),
+            body=cst.IndentedBlock(body=[self._create_field_assignment()]),
         )
 
 
