@@ -103,6 +103,25 @@ class MoveFieldTransformer(cst.CSTTransformer):
 
         return node.with_changes(body=node.body.with_changes(body=tuple(new_body_stmts)))
 
+    def _is_field_assignment(self, assign_node: cst.Assign) -> bool:
+        """Check if an assignment is for the field we're moving.
+
+        Args:
+            assign_node: The assignment node to check
+
+        Returns:
+            True if this assigns to self.field_name
+        """
+        for target in assign_node.targets:
+            if isinstance(target.target, cst.Attribute):
+                if (
+                    isinstance(target.target.value, cst.Name)
+                    and target.target.value.value == "self"
+                    and target.target.attr.value == self.field_name
+                ):
+                    return True
+        return False
+
     def _transform_source_init(self, node: cst.FunctionDef) -> cst.FunctionDef:
         """Transform source class __init__ to remove field and add target class parameter."""
         new_params = list(node.params.params)
@@ -117,19 +136,10 @@ class MoveFieldTransformer(cst.CSTTransformer):
                 if isinstance(stmt, cst.SimpleStatementLine):
                     keep_stmt = True
                     for item in stmt.body:
-                        if isinstance(item, cst.Assign):
-                            # Check if this is the field we're moving
-                            for target in item.targets:
-                                if isinstance(target.target, cst.Attribute):
-                                    if (
-                                        isinstance(target.target.value, cst.Name)
-                                        and target.target.value.value == "self"
-                                        and target.target.attr.value == self.field_name
-                                    ):
-                                        # Store the field value for later use
-                                        self.field_value = item.value
-                                        keep_stmt = False
-                                        break
+                        if isinstance(item, cst.Assign) and self._is_field_assignment(item):
+                            self.field_value = item.value
+                            keep_stmt = False
+                            break
                     if keep_stmt:
                         new_stmts.append(stmt)
                 else:
