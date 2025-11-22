@@ -23,7 +23,10 @@ class IntroduceLocalExtensionCommand(BaseCommand):
             )
 
     def execute(self) -> None:
-        """Apply introduce-local-extension refactoring using libCST.
+        """Apply introduce-local-extension refactoring.
+
+        Creates a new subclass that extends the target class with additional
+        convenience methods for common operations.
 
         Raises:
             ValueError: If transformation cannot be applied
