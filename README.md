@@ -241,18 +241,60 @@ For detailed documentation on each refactoring, see:
 
 ## Development
 
-### Prerequisites
-
-- Python 3.8+
-- libCST
-- rope
-
-### Running from source
+### Setup
 
 ```bash
+# Clone the repository
 git clone https://github.com/marshally/molting-cli.git
 cd molting-cli
-pip install -e .
+
+# Install dependencies with Poetry
+poetry install
+
+# Install pre-commit hook (optional but recommended)
+cp .git/hooks/pre-commit.sample .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+### Running Linters
+
+We use `make` to run code quality tools:
+
+```bash
+make help        # Show all available commands
+make format      # Auto-fix formatting with black and ruff
+make lint        # Check code style without modifying
+make typecheck   # Run mypy type checking
+make test        # Run tests
+make all         # Format, typecheck, and test everything
+```
+
+### Pre-commit Hook
+
+The pre-commit hook automatically runs before each commit:
+- **black** - Code formatting
+- **ruff** - Linting and auto-fixes
+- **mypy** - Type checking
+
+To bypass the hook (not recommended):
+```bash
+git commit --no-verify
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Run with verbose output
+make test-verbose
+
+# Run specific test file
+pytest tests/test_composing_methods.py -v
+
+# Run specific test
+pytest tests/test_composing_methods.py::TestExtractMethod::test_simple -v
 ```
 
 ## Contributing
