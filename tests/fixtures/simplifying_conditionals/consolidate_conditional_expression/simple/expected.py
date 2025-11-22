@@ -6,6 +6,4 @@ def disability_amount(employee):
 
 
 def is_not_eligible_for_disability(employee):
-    return (employee.seniority < 2 or
-            employee.months_disabled > 12 or
-            employee.is_part_time)
+    return employee.seniority < 2 or employee.months_disabled > 12 or employee.is_part_time
