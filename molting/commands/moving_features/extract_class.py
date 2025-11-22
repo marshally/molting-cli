@@ -33,21 +33,15 @@ class ExtractClassCommand(BaseCommand):
         methods_str = self.params["methods"]
         new_class_name = self.params["name"]
 
-        # Parse the comma-separated lists
         fields = [f.strip() for f in fields_str.split(",")]
         methods = [m.strip() for m in methods_str.split(",")]
 
-        # Read file
         source_code = self.file_path.read_text()
-
-        # Parse with libcst
         module = cst.parse_module(source_code)
 
-        # Transform the module
         transformer = ExtractClassTransformer(source_class, fields, methods, new_class_name)
         new_module = module.visit(transformer)
 
-        # Write back
         self.file_path.write_text(new_module.code)
 
 
@@ -90,20 +84,16 @@ class ExtractClassTransformer(cst.CSTTransformer):
         if updated_node.name.value != self.source_class:
             return updated_node
 
-        # Extract the fields and methods we want to move
         new_body = []
         delegate_field_name = self._calculate_delegate_field_name()
 
         for stmt in updated_node.body.body:
             if isinstance(stmt, cst.FunctionDef):
                 if stmt.name.value == "__init__":
-                    # Modify __init__ to remove extracted fields and add delegation
                     modified_init = self._modify_init(stmt, delegate_field_name)
                     new_body.append(modified_init)
                 elif stmt.name.value in self.methods:
-                    # Save the method for the new class
                     self.extracted_methods.append(stmt)
-                    # Create a delegating method in the source class
                     delegate_method = self._create_delegate_method(stmt, delegate_field_name)
                     new_body.append(delegate_method)
                 else:
@@ -111,13 +101,9 @@ class ExtractClassTransformer(cst.CSTTransformer):
             else:
                 new_body.append(stmt)
 
-        # Update the source class
         updated_class = updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
-
-        # Create the new class
         new_class = self._create_new_class()
 
-        # Return both classes
         return cst.FlattenSentinel(
             [
                 updated_class,
@@ -136,17 +122,14 @@ class ExtractClassTransformer(cst.CSTTransformer):
         Returns:
             The delegate field name
         """
-        # Convert TelephoneNumber to telephone (remove common suffixes)
         base_name = self.new_class_name
         for suffix in ["Number", "Info", "Data", "Class"]:
             if base_name.endswith(suffix):
                 base_name = base_name[: -len(suffix)]
                 break
-        # Convert to snake_case: Telephone -> telephone
         delegate_field_name = (
             base_name[0].lower() + base_name[1:] if base_name else self.new_class_name.lower()
         )
-        # For TelephoneNumber -> office_telephone
         return f"office_{delegate_field_name.lower()}"
 
     def _modify_init(
@@ -161,22 +144,17 @@ class ExtractClassTransformer(cst.CSTTransformer):
         Returns:
             Modified __init__ method
         """
-        # Find parameters that correspond to extracted fields
         extracted_param_names = []
-
         for param in init_method.params.params:
             if isinstance(param.name, cst.Name):
                 if param.name.value in self.fields:
                     extracted_param_names.append(param.name.value)
 
-        # Modify the body to create the delegated object and remove direct assignments
         new_body_stmts = []
         for stmt in init_method.body.body:
             if not self._is_assignment_to_extracted_field(stmt):
                 new_body_stmts.append(stmt)
 
-        # Add the delegation assignment
-        # self.office_telephone = TelephoneNumber(office_area_code, office_number)
         delegate_args = [
             cst.Arg(value=cst.Name(param_name)) for param_name in extracted_param_names
         ]
@@ -233,7 +211,6 @@ class ExtractClassTransformer(cst.CSTTransformer):
         Returns:
             Delegating method
         """
-        # Create: return self.office_telephone.get_telephone_number()
         delegate_call = cst.Return(
             value=cst.Call(
                 func=cst.Attribute(
@@ -254,13 +231,10 @@ class ExtractClassTransformer(cst.CSTTransformer):
         Returns:
             The new class definition
         """
-        # Create __init__ method for the new class
-        # The parameters should be named without the prefix (area_code, number)
-        # Map office_area_code -> area_code, office_number -> number
         param_mapping = {}
         for field in self.fields:
             if field.startswith("office_"):
-                param_mapping[field] = field[7:]  # Remove "office_" prefix
+                param_mapping[field] = field[7:]
             else:
                 param_mapping[field] = field
 
@@ -268,7 +242,6 @@ class ExtractClassTransformer(cst.CSTTransformer):
             cst.Param(name=cst.Name(param_mapping[field])) for field in self.fields
         ]
 
-        # Create assignments in __init__
         assignments = [
             cst.SimpleStatementLine(
                 body=[
@@ -294,15 +267,12 @@ class ExtractClassTransformer(cst.CSTTransformer):
             body=cst.IndentedBlock(body=assignments),
         )
 
-        # Update extracted methods to use new field names
         updated_methods = []
         for method in self.extracted_methods:
-            # Transform method to use new field names (area_code instead of office_area_code)
             transformer = FieldRenameTransformer(param_mapping)
             updated_method = method.visit(transformer)
             updated_methods.append(updated_method)
 
-        # Combine into class body
         class_body = [init_method, cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))]
         for i, method in enumerate(updated_methods):
             class_body.append(method)
