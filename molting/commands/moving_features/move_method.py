@@ -90,27 +90,25 @@ class MoveMethodTransformer(cst.CSTTransformer):
         Returns:
             Updated class definition with the method replaced by a delegation call
         """
-        new_body: list[Any] = []
+        updated_class_members: list[Any] = []
         method_found = False
 
         for item in node.body.body:
             if isinstance(item, cst.FunctionDef) and item.name.value == self.method_name:
                 method_found = True
                 self.method_to_move = item
-                # Find the field that references the target class
                 self.target_class_field = self._find_target_class_field(node)
-                # Create delegation method
                 delegation_method = self._create_delegation_method(item)
-                new_body.append(delegation_method)
+                updated_class_members.append(delegation_method)
             else:
-                new_body.append(item)
+                updated_class_members.append(item)
 
         if not method_found:
             raise ValueError(
                 f"Method '{self.method_name}' not found in class '{self.source_class}'"
             )
 
-        return node.with_changes(body=node.body.with_changes(body=tuple(new_body)))
+        return node.with_changes(body=node.body.with_changes(body=tuple(updated_class_members)))
 
     def _process_target_class(self, node: cst.ClassDef) -> cst.ClassDef:
         """Process the target class to add the moved method.
@@ -133,8 +131,8 @@ class MoveMethodTransformer(cst.CSTTransformer):
         )
 
         # Add the method to the target class
-        new_body = tuple(list(node.body.body) + [method_with_spacing])
-        return node.with_changes(body=node.body.with_changes(body=new_body))
+        updated_members = tuple(list(node.body.body) + [method_with_spacing])
+        return node.with_changes(body=node.body.with_changes(body=updated_members))
 
     def _find_target_class_field(self, node: cst.ClassDef) -> str | None:
         """Find the field that references the target class.
@@ -224,9 +222,9 @@ class MoveMethodTransformer(cst.CSTTransformer):
         )
 
         # Create the new method body
-        new_body = cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[delegation_call])])
+        delegation_body = cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[delegation_call])])
 
-        return original_method.with_changes(body=new_body)
+        return original_method.with_changes(body=delegation_body)
 
     def _collect_self_references(self, method: cst.FunctionDef) -> list[str]:
         """Collect self.field references that need to be passed as parameters.
@@ -260,10 +258,10 @@ class MoveMethodTransformer(cst.CSTTransformer):
 
         # Transform method body to replace self.field with parameter
         body_transformer = SelfReferenceReplacer(params_needed, self.target_class_field)
-        new_body = self.method_to_move.body.visit(body_transformer)
+        transformed_body = self.method_to_move.body.visit(body_transformer)
 
         return self.method_to_move.with_changes(
-            params=cst.Parameters(params=new_params), body=new_body
+            params=cst.Parameters(params=new_params), body=transformed_body
         )
 
 
