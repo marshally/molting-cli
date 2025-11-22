@@ -146,6 +146,32 @@ class InlineClassTransformer(cst.CSTTransformer):
                 return value.func.value == self.source_class
         return False
 
+    def _find_self_assignments(
+        self, func_body: cst.IndentedBlock
+    ) -> list[tuple[str, cst.Assign, cst.SimpleStatementLine]]:
+        """Find all self.field assignments in a function body.
+
+        Args:
+            func_body: The function body to search
+
+        Returns:
+            List of tuples (field_name, assignment_node, statement_line)
+        """
+        results: list[tuple[str, cst.Assign, cst.SimpleStatementLine]] = []
+        for stmt in func_body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for item in stmt.body:
+                    if isinstance(item, cst.Assign):
+                        for target in item.targets:
+                            if isinstance(target.target, cst.Attribute):
+                                if (
+                                    isinstance(target.target.value, cst.Name)
+                                    and target.target.value.value == "self"
+                                ):
+                                    field_name = target.target.attr.value
+                                    results.append((field_name, item, stmt))
+        return results
+
     def _extract_source_features(self, class_def: cst.ClassDef) -> None:
         """Extract fields and methods from source class.
 
@@ -166,18 +192,8 @@ class InlineClassTransformer(cst.CSTTransformer):
             init_method: The __init__ method
         """
         if isinstance(init_method.body, cst.IndentedBlock):
-            for stmt in init_method.body.body:
-                if isinstance(stmt, cst.SimpleStatementLine):
-                    for item in stmt.body:
-                        if isinstance(item, cst.Assign):
-                            for target in item.targets:
-                                if isinstance(target.target, cst.Attribute):
-                                    if (
-                                        isinstance(target.target.value, cst.Name)
-                                        and target.target.value.value == "self"
-                                    ):
-                                        field_name = target.target.attr.value
-                                        self.source_fields[field_name] = item.value
+            for field_name, assignment, _ in self._find_self_assignments(init_method.body):
+                self.source_fields[field_name] = assignment.value
 
     def _determine_field_prefix(self, target_class_def: cst.ClassDef) -> None:
         """Determine the prefix to use for inlined fields.
@@ -190,27 +206,17 @@ class InlineClassTransformer(cst.CSTTransformer):
         for stmt in target_class_def.body.body:
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
                 if isinstance(stmt.body, cst.IndentedBlock):
-                    for body_stmt in stmt.body.body:
-                        if isinstance(body_stmt, cst.SimpleStatementLine):
-                            for item in body_stmt.body:
-                                if isinstance(item, cst.Assign):
-                                    for target in item.targets:
-                                        if isinstance(target.target, cst.Attribute):
-                                            if (
-                                                isinstance(target.target.value, cst.Name)
-                                                and target.target.value.value == "self"
-                                            ):
-                                                # Check if value is instantiation of source class
-                                                if self._is_source_class_instantiation(item.value):
-                                                    # Extract prefix from field name
-                                                    delegation_field = target.target.attr.value
-                                                    # office_telephone -> office_
-                                                    # Take everything before last underscore
-                                                    if "_" in delegation_field:
-                                                        parts = delegation_field.rsplit("_", 1)
-                                                        self.field_prefix = parts[0] + "_"
-                                                    else:
-                                                        self.field_prefix = ""
+                    for field_name, assignment, _ in self._find_self_assignments(stmt.body):
+                        # Check if value is instantiation of source class
+                        if self._is_source_class_instantiation(assignment.value):
+                            # Extract prefix from field name
+                            # office_telephone -> office_
+                            # Take everything before last underscore
+                            if "_" in field_name:
+                                parts = field_name.rsplit("_", 1)
+                                self.field_prefix = parts[0] + "_"
+                            else:
+                                self.field_prefix = ""
 
     def _transform_init_method(self, node: cst.FunctionDef) -> cst.FunctionDef:
         """Transform the __init__ method to inline source class fields.
@@ -224,28 +230,21 @@ class InlineClassTransformer(cst.CSTTransformer):
         new_stmts: list[cst.BaseStatement] = []
 
         if isinstance(node.body, cst.IndentedBlock):
-            for stmt in node.body.body:
-                if isinstance(stmt, cst.SimpleStatementLine):
-                    # Check if this is the delegation field assignment
-                    is_delegation_field = False
-                    for item in stmt.body:
-                        if isinstance(item, cst.Assign):
-                            for target in item.targets:
-                                if isinstance(target.target, cst.Attribute):
-                                    if (
-                                        isinstance(target.target.value, cst.Name)
-                                        and target.target.value.value == "self"
-                                    ):
-                                        # Check if value is instantiation of source class
-                                        if self._is_source_class_instantiation(item.value):
-                                            is_delegation_field = True
-                                            break
+            # Find all self assignments to check for delegation field
+            self_assignments = {
+                stmt: (field_name, assignment)
+                for field_name, assignment, stmt in self._find_self_assignments(node.body)
+            }
 
-                    if is_delegation_field:
+            for stmt in node.body.body:
+                if stmt in self_assignments:
+                    _, assignment = self_assignments[stmt]
+                    # Check if this is the delegation field assignment
+                    if self._is_source_class_instantiation(assignment.value):
                         # Replace with inlined field assignments
                         for field_name, field_value in self.source_fields.items():
                             new_field_name = self.field_prefix + field_name
-                            assignment = cst.SimpleStatementLine(
+                            new_assignment = cst.SimpleStatementLine(
                                 body=[
                                     cst.Assign(
                                         targets=[
@@ -260,7 +259,7 @@ class InlineClassTransformer(cst.CSTTransformer):
                                     )
                                 ]
                             )
-                            new_stmts.append(assignment)
+                            new_stmts.append(new_assignment)
                     else:
                         new_stmts.append(stmt)
                 else:
