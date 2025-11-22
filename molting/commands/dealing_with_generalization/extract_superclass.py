@@ -186,17 +186,31 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
         if isinstance(init_method.body, cst.IndentedBlock):
             for stmt in init_method.body.body:
                 if isinstance(stmt, cst.SimpleStatementLine):
-                    for item in stmt.body:
-                        if isinstance(item, cst.Assign):
-                            for target in item.targets:
-                                if isinstance(target.target, cst.Attribute):
-                                    if (
-                                        isinstance(target.target.value, cst.Name)
-                                        and target.target.value.value == "self"
-                                    ):
-                                        fields.append(target.target.attr.value)
+                    field_name = self._get_self_field_assignment(stmt)
+                    if field_name:
+                        fields.append(field_name)
 
         return fields
+
+    def _get_self_field_assignment(self, stmt: cst.SimpleStatementLine) -> str | None:
+        """Extract field name if statement is a self.field assignment.
+
+        Args:
+            stmt: The statement to check
+
+        Returns:
+            Field name if this is a self.field assignment, None otherwise
+        """
+        for item in stmt.body:
+            if isinstance(item, cst.Assign):
+                for target in item.targets:
+                    if isinstance(target.target, cst.Attribute):
+                        if (
+                            isinstance(target.target.value, cst.Name)
+                            and target.target.value.value == "self"
+                        ):
+                            return target.target.attr.value
+        return None
 
     def _create_superclass(self) -> cst.ClassDef:
         """Create the superclass with common features.
