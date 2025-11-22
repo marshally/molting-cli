@@ -99,7 +99,7 @@ else
     CONFLICTED_FILES=$(git diff --name-only --diff-filter=U)
 
     if [ -z "$CONFLICTED_FILES" ]; then
-        error "No conflicted files found, but rebase failed"
+        error "No conflicted files found, but merge failed"
         exit 1
     fi
 
