@@ -7,6 +7,8 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 
+INIT_METHOD_NAME = "__init__"
+
 
 class InlineClassCommand(BaseCommand):
     """Command to inline a class into another class."""
@@ -102,14 +104,14 @@ class InlineClassTransformer(cst.CSTTransformer):
 
         # Collect method names from source class
         source_method_names = {
-            m.name.value for m in self.source_methods if m.name.value != "__init__"
+            m.name.value for m in self.source_methods if m.name.value != INIT_METHOD_NAME
         }
 
         # Update __init__ method and skip methods that will be replaced
         new_body_stmts: list[cst.BaseStatement] = []
         for stmt in updated_node.body.body:
             stmt = cast(cst.BaseStatement, stmt)
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
                 # Transform __init__ to inline source class fields
                 stmt = self._transform_init_method(stmt)
                 new_body_stmts.append(stmt)
@@ -121,7 +123,7 @@ class InlineClassTransformer(cst.CSTTransformer):
 
         # Add inlined methods from source class (skip __init__)
         for method in self.source_methods:
-            if method.name.value != "__init__":
+            if method.name.value != INIT_METHOD_NAME:
                 # Transform the method to use inlined fields
                 transformed_method = self._transform_method(method)
                 new_body_stmts.append(transformed_method)
@@ -140,7 +142,7 @@ class InlineClassTransformer(cst.CSTTransformer):
         for stmt in class_def.body.body:
             if isinstance(stmt, cst.FunctionDef):
                 self.source_methods.append(stmt)
-                if stmt.name.value == "__init__":
+                if stmt.name.value == INIT_METHOD_NAME:
                     self._extract_fields_from_init(stmt)
 
     def _extract_fields_from_init(self, init_method: cst.FunctionDef) -> None:
@@ -172,7 +174,7 @@ class InlineClassTransformer(cst.CSTTransformer):
         # Look for delegation field in target class __init__
         # e.g., self.office_telephone = TelephoneNumber()
         for stmt in target_class_def.body.body:
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
                 if isinstance(stmt.body, cst.IndentedBlock):
                     for body_stmt in stmt.body.body:
                         if isinstance(body_stmt, cst.SimpleStatementLine):
