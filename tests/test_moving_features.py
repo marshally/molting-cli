@@ -21,7 +21,6 @@ class TestMoveMethod(RefactoringTestBase):
         self.refactor("move-method", source="Account::overdraft_charge", to="AccountType")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestMoveField(RefactoringTestBase):
     """Tests for Move Field refactoring."""
 
