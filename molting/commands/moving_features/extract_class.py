@@ -174,21 +174,8 @@ class ExtractClassTransformer(cst.CSTTransformer):
         # Modify the body to create the delegated object and remove direct assignments
         new_body_stmts = []
         for stmt in init_method.body.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                # Check if this is an assignment to a field we're extracting
-                should_skip = False
-                for body_item in stmt.body:
-                    if isinstance(body_item, cst.Assign):
-                        for target in body_item.targets:
-                            if isinstance(target.target, cst.Attribute):
-                                if isinstance(target.target.value, cst.Name):
-                                    if target.target.value.value == "self":
-                                        if target.target.attr.value in self.fields:
-                                            should_skip = True
-                                            break
-
-                if not should_skip:
-                    new_body_stmts.append(stmt)
+            if not self._is_assignment_to_extracted_field(stmt):
+                new_body_stmts.append(stmt)
 
         # Add the delegation assignment
         # self.office_telephone = TelephoneNumber(office_area_code, office_number)
@@ -215,6 +202,26 @@ class ExtractClassTransformer(cst.CSTTransformer):
         return init_method.with_changes(
             body=cst.IndentedBlock(body=new_body_stmts),
         )
+
+    def _is_assignment_to_extracted_field(self, stmt: cst.BaseStatement) -> bool:
+        """Check if statement is an assignment to a field being extracted.
+
+        Args:
+            stmt: The statement to check
+
+        Returns:
+            True if statement assigns to an extracted field
+        """
+        if isinstance(stmt, cst.SimpleStatementLine):
+            for body_item in stmt.body:
+                if isinstance(body_item, cst.Assign):
+                    for target in body_item.targets:
+                        if isinstance(target.target, cst.Attribute):
+                            if isinstance(target.target.value, cst.Name):
+                                if target.target.value.value == "self":
+                                    if target.target.attr.value in self.fields:
+                                        return True
+        return False
 
     def _create_delegate_method(
         self, method: cst.FunctionDef, delegate_field_name: str
