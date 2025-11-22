@@ -178,8 +178,11 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
         for stmt in method.body.body:
             if isinstance(stmt, cst.SimpleStatementLine):
                 line_count += 1
-                if line_count == self.target_line + 1:
-                    # Replace the second line with the method call
+                # Track the actual line number in the file
+                # The first statement starts at target_line
+                stmt_line = self.target_line + line_count - 1
+                if stmt_line == self.target_line + 1:
+                    # Replace the next line after target_line with the method call
                     new_body_stmts.append(self._create_replacement_statement())
                     # Create the foreign method
                     self._create_foreign_method()

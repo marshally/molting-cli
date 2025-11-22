@@ -8,6 +8,8 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
 
+INIT_METHOD_NAME = "__init__"
+
 
 class ReplaceDataValueWithObjectCommand(BaseCommand):
     """Command to replace a primitive value with an object."""
@@ -64,6 +66,7 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
         self.class_name = class_name
         self.field_name = field_name
         self.new_class_name = new_class_name
+        self.param_name: str | None = None
 
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
@@ -102,18 +105,41 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
 
         for stmt in class_def.body.body:
             if isinstance(stmt, cst.FunctionDef):
-                if stmt.name.value == "__init__":
-                    # Modify __init__ to instantiate the new class
+                if stmt.name.value == INIT_METHOD_NAME:
+                    self._extract_parameter_name(stmt)
                     modified_init = self._modify_init_method(stmt)
                     new_body.append(modified_init)
                 else:
-                    # Update method body to use new_class_name.field_name
                     modified_method = self._modify_method_body(stmt)
                     new_body.append(modified_method)
             else:
                 new_body.append(stmt)
 
         return class_def.with_changes(body=cst.IndentedBlock(body=new_body))
+
+    def _extract_parameter_name(self, init_method: cst.FunctionDef) -> None:
+        """Extract the parameter name for the field from __init__.
+
+        Args:
+            init_method: The __init__ method to analyze
+        """
+        if self.param_name is not None:
+            return
+
+        for stmt in init_method.body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for body_item in stmt.body:
+                    if isinstance(body_item, cst.Assign):
+                        for target in body_item.targets:
+                            if isinstance(target.target, cst.Attribute):
+                                if (
+                                    isinstance(target.target.value, cst.Name)
+                                    and target.target.value.value == "self"
+                                    and target.target.attr.value == self.field_name
+                                ):
+                                    if isinstance(body_item.value, cst.Name):
+                                        self.param_name = body_item.value.value
+                                        return
 
     def _modify_init_method(self, init_method: cst.FunctionDef) -> cst.FunctionDef:
         """Modify __init__ to instantiate the new class.
@@ -192,7 +218,8 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
         Returns:
             Modified method
         """
-        transformer = FieldAccessTransformer(self.field_name, self.new_class_name)
+        param_name = self.param_name or "name"
+        transformer = FieldAccessTransformer(self.field_name, param_name)
         new_method = method.visit(transformer)
         return cast(cst.FunctionDef, new_method)
 
@@ -202,13 +229,10 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
         Returns:
             New class definition
         """
-        # Extract the parameter name from the original __init__
-        # For now, we'll use 'name' as the parameter and field name
-        param_name = "name"
+        param_name = self.param_name or "name"
 
-        # Create __init__ method
         init_method = cst.FunctionDef(
-            name=cst.Name("__init__"),
+            name=cst.Name(INIT_METHOD_NAME),
             params=cst.Parameters(
                 params=[
                     cst.Param(name=cst.Name("self")),
@@ -246,20 +270,20 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
 class FieldAccessTransformer(cst.CSTTransformer):
     """Transforms field access to use the new object's attribute."""
 
-    def __init__(self, field_name: str, new_class_name: str) -> None:
+    def __init__(self, field_name: str, param_name: str) -> None:
         """Initialize the transformer.
 
         Args:
             field_name: The field name being replaced
-            new_class_name: The new class name
+            param_name: The parameter name in the new class
         """
         self.field_name = field_name
-        self.new_class_name = new_class_name
+        self.param_name = param_name
 
     def leave_Attribute(  # noqa: N802
         self, original_node: cst.Attribute, updated_node: cst.Attribute
     ) -> cst.Attribute:
-        """Transform self.field_name to self.field_name.attribute.
+        """Transform self.field_name to self.field_name.param_name.
 
         Args:
             original_node: The original attribute node
@@ -270,11 +294,9 @@ class FieldAccessTransformer(cst.CSTTransformer):
         """
         if isinstance(updated_node.value, cst.Name):
             if updated_node.value.value == "self" and updated_node.attr.value == self.field_name:
-                # Transform self.customer -> self.customer.name
-                # We need to return an attribute that accesses the stored object's name
                 return cst.Attribute(
                     value=updated_node,
-                    attr=cst.Name("name"),
+                    attr=cst.Name(self.param_name),
                 )
 
         return updated_node
