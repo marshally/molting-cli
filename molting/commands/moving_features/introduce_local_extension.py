@@ -1,6 +1,6 @@
 """Introduce Local Extension refactoring command."""
 
-from typing import Any
+from typing import Any, cast
 
 import libcst as cst
 
@@ -78,19 +78,20 @@ class IntroduceLocalExtensionTransformer(cst.CSTTransformer):
         if self.processed:
             return updated_node
 
-        # Create the imports needed
-        new_body = self._add_imports(list(updated_node.body))
+        new_body = list(updated_node.body)
+
+        # Add the import statement at the beginning
+        new_body = self._add_imports(new_body)
 
         # Create the new extension class
         new_class = self._create_extension_class()
 
-        # Update comments in the code
+        # Update any comments that reference the old pattern
         new_body = self._update_comments(new_body)
 
-        # Add the new class at the end
-        new_body.append(cst.SimpleStatementLine(body=[]))  # Empty line for spacing
+        # Add the new class
+        new_body.append(cst.SimpleStatementLine(body=[]))
         new_body.append(new_class)
-        new_body.append(cst.SimpleStatementLine(body=[]))  # Empty line
 
         self.processed = True
         return updated_node.with_changes(body=new_body)
@@ -104,70 +105,24 @@ class IntroduceLocalExtensionTransformer(cst.CSTTransformer):
         Returns:
             Updated module body with imports
         """
-        # Check if imports already exist
-        has_datetime_import = False
-        has_date_import = False
-        has_timedelta_import = False
+        # Create the import statement: from datetime import date, timedelta
+        import_stmt = cst.SimpleStatementLine(
+            body=[
+                cst.ImportFrom(
+                    module=cst.Name("datetime"),
+                    names=[
+                        cst.ImportAlias(name=cst.Name("date")),
+                        cst.ImportAlias(name=cst.Name("timedelta")),
+                    ],
+                )
+            ]
+        )
 
-        for stmt in body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                for item in stmt.body:
-                    if isinstance(item, cst.ImportFrom):
-                        if isinstance(item.module, cst.Attribute):
-                            if isinstance(item.module.value, cst.Name):
-                                if item.module.value.value == "datetime":
-                                    # Check what's imported
-                                    if item.names and not isinstance(item.names, cst.ImportStar):
-                                        imported_names = [n.name.value for n in item.names]
-                                        if "date" in imported_names:
-                                            has_date_import = True
-                                        if "timedelta" in imported_names:
-                                            has_timedelta_import = True
+        # Replace the first non-empty statement with imports + blank line
+        new_body = [import_stmt, cst.SimpleStatementLine(body=[])]
+        new_body.extend(body)
 
-        # If we need to add imports
-        if not (has_datetime_import and has_date_import and has_timedelta_import):
-            # Create import statement: from datetime import date, timedelta
-            import_stmt = cst.SimpleStatementLine(
-                body=[
-                    cst.ImportFrom(
-                        module=cst.Name("datetime"),
-                        names=[
-                            cst.ImportAlias(name=cst.Name("date")),
-                            cst.ImportAlias(name=cst.Name("timedelta")),
-                        ],
-                    )
-                ]
-            )
-
-            # Check if there's already an import section
-            new_body = []
-            import_added = False
-
-            for stmt in body:
-                if isinstance(stmt, cst.SimpleStatementLine):
-                    has_import = False
-                    for item in stmt.body:
-                        if isinstance(item, (cst.Import, cst.ImportFrom)):
-                            has_import = True
-                            break
-                    if has_import:
-                        new_body.append(stmt)
-                        if not import_added:
-                            new_body.append(import_stmt)
-                            new_body.append(cst.SimpleStatementLine(body=[]))
-                            import_added = True
-                    else:
-                        new_body.append(stmt)
-                else:
-                    new_body.append(stmt)
-
-            if not import_added:
-                new_body.insert(0, import_stmt)
-                new_body.insert(1, cst.SimpleStatementLine(body=[]))
-
-            return new_body
-
-        return body
+        return new_body
 
     def _create_extension_class(self) -> cst.ClassDef:
         """Create the new extension class.
@@ -175,7 +130,7 @@ class IntroduceLocalExtensionTransformer(cst.CSTTransformer):
         Returns:
             The new class definition
         """
-        # Create methods for the extension
+        # Create next_day method
         next_day_method = cst.FunctionDef(
             name=cst.Name("next_day"),
             params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
@@ -203,6 +158,7 @@ class IntroduceLocalExtensionTransformer(cst.CSTTransformer):
             ),
         )
 
+        # Create days_after method
         days_after_method = cst.FunctionDef(
             name=cst.Name("days_after"),
             params=cst.Parameters(
@@ -232,7 +188,7 @@ class IntroduceLocalExtensionTransformer(cst.CSTTransformer):
             ),
         )
 
-        # Create the new class
+        # Create the new class that extends target_class
         new_class = cst.ClassDef(
             name=cst.Name(self.new_class_name),
             bases=[cst.Arg(value=cst.Name(self.target_class))],
@@ -248,7 +204,7 @@ class IntroduceLocalExtensionTransformer(cst.CSTTransformer):
         return new_class
 
     def _update_comments(self, body: list[Any]) -> list[Any]:
-        """Update comments to use the new extension methods.
+        """Update comments in the code.
 
         Args:
             body: Module body
@@ -260,27 +216,27 @@ class IntroduceLocalExtensionTransformer(cst.CSTTransformer):
 
         for stmt in body:
             if isinstance(stmt, cst.SimpleStatementLine):
-                updated_stmt = stmt
+                # Check if this line has a comment about date calculation
+                updated_body = []
                 for item in stmt.body:
-                    if isinstance(item, cst.EmptyLine):
-                        # Check if there's a comment
-                        if item.comment:
-                            comment_text = item.comment.value
-                            if "date(previous_end.year" in comment_text:
-                                # Replace the old calculation comment
-                                new_comment = "# new_start = previous_end.next_day()"
-                                new_stmt = cst.SimpleStatementLine(
-                                    body=[
-                                        cst.EmptyLine(
-                                            comment=cst.Comment(value=new_comment),
-                                            whitespace=cst.SimpleWhitespace(""),
-                                        )
-                                    ]
-                                )
-                                new_body.append(new_stmt)
-                                continue
+                    if isinstance(item, cst.EmptyLine) and item.comment:
+                        comment_text = item.comment.value
+                        if "date(previous_end.year" in comment_text:
+                            # Create new comment
+                            new_comment_text = "# new_start = previous_end.next_day()"
+                            new_item = cst.EmptyLine(comment=cst.Comment(value=new_comment_text))
+                            updated_body.append(new_item)
+                        else:
+                            updated_body.append(item)
+                    else:
+                        updated_body.append(item)
 
-                new_body.append(updated_stmt)
+                # Create statement with updated body
+                if updated_body:
+                    updated_stmt = stmt.with_changes(body=updated_body)
+                    new_body.append(cast(cst.BaseStatement, updated_stmt))
+                else:
+                    new_body.append(stmt)
             else:
                 new_body.append(stmt)
 
