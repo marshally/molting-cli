@@ -1,0 +1,72 @@
+name: Close Beads Issue on PR Merge
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  close-beads-issue:
+    # Only run if the PR was actually merged (not just closed)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history so beads can work properly
+          fetch-depth: 0
+
+      - name: Install beads
+        run: |
+          curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Extract beads issue ID and close it
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+        run: |
+          # Extract issue ID from PR title (looks for pattern like "molting-cli-357.1" in parentheses)
+          ISSUE_ID=$(echo "$PR_TITLE" | grep -oP '\(molting-cli-[a-z0-9.-]+\)' | tr -d '()')
+
+          # If not found in title, try branch name
+          if [ -z "$ISSUE_ID" ]; then
+            if [[ "$BRANCH_NAME" =~ ^molting-cli-[a-z0-9.-]+$ ]]; then
+              ISSUE_ID="$BRANCH_NAME"
+            fi
+          fi
+
+          if [ -z "$ISSUE_ID" ]; then
+            echo "⚠️  No beads issue ID found in PR title or branch name"
+            echo "   PR Title: $PR_TITLE"
+            echo "   Branch: $BRANCH_NAME"
+            echo "   Skipping beads issue closure"
+            exit 0
+          fi
+
+          echo "🎯 Found beads issue: $ISSUE_ID"
+          echo "📝 Closing issue with reference to PR #$PR_NUMBER"
+
+          # Close the beads issue
+          bd close "$ISSUE_ID" --reason "Closed by PR #$PR_NUMBER"
+
+          echo "✅ Issue $ISSUE_ID marked as closed"
+
+      - name: Commit and push beads changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if there are changes to commit
+          if [[ -n $(git status --porcelain .beads/) ]]; then
+            git add .beads/
+            git commit -m "Close beads issue from merged PR #${{ github.event.pull_request.number }}
+
+            🤖 Automated by GitHub Actions"
+            git push
+            echo "✅ Pushed beads database updates"
+          else
+            echo "ℹ️  No changes to beads database"
+          fi
