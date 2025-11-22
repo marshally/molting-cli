@@ -3,7 +3,7 @@
 import ast
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import pytest
 
@@ -30,7 +30,7 @@ class RefactoringTestBase:
     fixture_category: Optional[str] = None  # Must be set in subclass
 
     @pytest.fixture(autouse=True)
-    def _setup_fixture(self, tmp_path, request):  # type: ignore[misc]
+    def _setup_fixture(self, tmp_path: Path, request: pytest.FixtureRequest) -> None:  # type: ignore[misc]
         """Automatically set up fixture files before each test.
 
         Creates:
@@ -65,8 +65,8 @@ class RefactoringTestBase:
                 raise FileNotFoundError(f"Missing expected.py in fixture directory: {fixture_dir}")
 
             # Copy input.py to temporary directory
-            self.test_file = tmp_path / "input.py"
-            self.expected_file = expected_file
+            self.test_file: Optional[Path] = tmp_path / "input.py"
+            self.expected_file: Optional[Path] = expected_file
 
             shutil.copy(input_file, self.test_file)
         else:
@@ -78,7 +78,7 @@ class RefactoringTestBase:
 
         # Cleanup handled automatically by tmp_path fixture
 
-    def refactor(self, refactoring_name: str, **params) -> None:
+    def refactor(self, refactoring_name: str, **params: Any) -> None:
         """Run refactoring and assert result matches expected output.
 
         Args:
@@ -92,10 +92,12 @@ class RefactoringTestBase:
             raise RuntimeError("No fixture loaded. Ensure fixture directory exists for this test.")
 
         # Import here to avoid circular dependencies during test collection
-        from molting.cli import refactor_file
+        # TODO: Implement refactor_file function in molting.cli
+        # from molting.cli import refactor_file
 
         # Run the refactoring
-        refactor_file(refactoring_name, self.test_file, **params)
+        # refactor_file(refactoring_name, self.test_file, **params)
+        raise NotImplementedError("refactor_file not yet implemented")
 
         # Validate result
         self.assert_matches_expected()
