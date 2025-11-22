@@ -10,7 +10,6 @@ import pytest
 from tests.conftest import RefactoringTestBase
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestMoveMethod(RefactoringTestBase):
     """Tests for Move Method refactoring."""
 
