@@ -18,8 +18,8 @@ NC='\033[0m' # No Color
 
 echo -e "${YELLOW}Running pre-commit checks...${NC}"
 
-# Get the list of staged Python files
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+# Get the list of staged Python files (excluding fixtures)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' | grep -v 'tests/fixtures/' || true)
 
 if [ -z "$STAGED_FILES" ]; then
     echo -e "${GREEN}No Python files staged, skipping linters${NC}"
