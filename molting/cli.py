@@ -41,7 +41,7 @@ def _parse_target(target: str) -> tuple[str, str]:
 
 
 def _find_method_in_tree(
-    tree: ast.Module, method_name: str
+    tree: ast.AST, method_name: str
 ) -> Optional[tuple[ast.ClassDef, ast.FunctionDef]]:
     """Find a method in a class within the AST tree.
 
