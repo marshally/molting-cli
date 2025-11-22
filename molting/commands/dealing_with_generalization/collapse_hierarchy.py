@@ -13,16 +13,22 @@ class CollapseHierarchyCommand(BaseCommand):
     name = "collapse-hierarchy"
 
     def validate(self) -> None:
-        """Validate that required parameters are present.
+        """Validate that required parameters are present and well-formed.
 
         Raises:
-            ValueError: If required parameters are missing
+            ValueError: If required parameters are missing or invalid
         """
         try:
-            _ = self.params["target"]
+            target = self.params["target"]
             _ = self.params["into"]
         except KeyError as e:
             raise ValueError(f"Missing required parameter for collapse-hierarchy: {e}") from e
+
+        # Validate target class name format
+        try:
+            parse_target(target, expected_parts=1)
+        except ValueError as e:
+            raise ValueError(f"Invalid target format for collapse-hierarchy: {e}") from e
 
     def execute(self) -> None:
         """Apply collapse-hierarchy refactoring using libCST.
