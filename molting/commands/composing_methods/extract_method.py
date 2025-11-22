@@ -7,6 +7,11 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
 
+# Target format constants
+TARGET_SEPARATOR = "#"
+LINE_PREFIX = "L"
+LINE_RANGE_SEPARATOR = "-"
+
 
 class ExtractMethodCommand(BaseCommand):
     """Command to extract a code block into a new method."""
@@ -35,7 +40,7 @@ class ExtractMethodCommand(BaseCommand):
         new_method_name = self.params["name"]
 
         # Parse target format: "ClassName::method_name#L9-L11"
-        parts = target.split("#")
+        parts = target.split(TARGET_SEPARATOR)
         if len(parts) != 2:
             raise ValueError(
                 f"Invalid target format '{target}'. Expected 'ClassName::method_name#L9-L11'"
@@ -51,14 +56,14 @@ class ExtractMethodCommand(BaseCommand):
             raise ValueError(f"Invalid class::method format in target '{target}': {e}") from e
 
         # Parse line range: "L9-L11" -> [9, 11]
-        if not line_range.startswith("L"):
+        if not line_range.startswith(LINE_PREFIX):
             raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L9-L11'")
 
-        if "-" not in line_range:
+        if LINE_RANGE_SEPARATOR not in line_range:
             raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L9-L11' format")
 
         # Split on '-' and extract numbers: "L9-L11" -> ["L9", "L11"]
-        parts_range = line_range.split("-")
+        parts_range = line_range.split(LINE_RANGE_SEPARATOR)
         if len(parts_range) != 2:
             raise ValueError(
                 f"Invalid line range format '{line_range}'. " f"Expected 'L<start>-L<end>' format"
