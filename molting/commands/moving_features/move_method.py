@@ -145,27 +145,44 @@ class MoveMethodTransformer(cst.CSTTransformer):
         Returns:
             The field name that holds the target class instance, or None if not found
         """
-        # Look for field assignment in __init__
         for item in node.body.body:
             if isinstance(item, cst.FunctionDef) and item.name.value == "__init__":
-                for stmt in item.body.body:
-                    if isinstance(stmt, cst.SimpleStatementLine):
-                        for line in stmt.body:
-                            if isinstance(line, cst.Assign):
-                                for target in line.targets:
-                                    if isinstance(target.target, cst.Attribute):
-                                        attr = target.target
-                                        if (
-                                            isinstance(attr.value, cst.Name)
-                                            and attr.value.value == "self"
-                                        ):
-                                            # Found self.field_name assignment
-                                            field_name = attr.attr.value
-                                            # Check if assigned value could be target class
-                                            # For simplicity, we'll use the first self.field
-                                            # that's not a simple value
-                                            if isinstance(line.value, cst.Name):
-                                                return field_name
+                return self._extract_field_from_init(item)
+        return None
+
+    def _extract_field_from_init(self, init_method: cst.FunctionDef) -> str | None:
+        """Extract the field name from __init__ that holds the target class.
+
+        Args:
+            init_method: The __init__ method definition
+
+        Returns:
+            The field name, or None if not found
+        """
+        for stmt in init_method.body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for assignment in stmt.body:
+                    if isinstance(assignment, cst.Assign):
+                        field_name = self._get_self_field_assignment(assignment)
+                        if field_name:
+                            return field_name
+        return None
+
+    def _get_self_field_assignment(self, assignment: cst.Assign) -> str | None:
+        """Get the field name from a self.field = value assignment.
+
+        Args:
+            assignment: The assignment statement
+
+        Returns:
+            The field name if it's a self.field assignment, None otherwise
+        """
+        for target in assignment.targets:
+            if isinstance(target.target, cst.Attribute):
+                attr = target.target
+                if isinstance(attr.value, cst.Name) and attr.value.value == "self":
+                    if isinstance(assignment.value, cst.Name):
+                        return attr.attr.value
         return None
 
     def _create_delegation_method(self, original_method: cst.FunctionDef) -> cst.FunctionDef:
