@@ -140,12 +140,13 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
 
         return updated_node
 
-    def _transform_superclass(self, node: cst.ClassDef) -> cst.ClassDef:
-        """Transform the superclass to add the template method and abstract methods."""
-        new_body_stmts: list[cst.BaseStatement] = []
+    def _create_class_variable(self) -> cst.SimpleStatementLine:
+        """Create the class variable statement.
 
-        # Add class variable
-        tax_rate_assignment = cst.SimpleStatementLine(
+        Returns:
+            A SimpleStatementLine assigning CLASS_VARIABLE_NAME to CLASS_VARIABLE_VALUE
+        """
+        return cst.SimpleStatementLine(
             body=[
                 cst.Assign(
                     targets=[cst.AssignTarget(target=cst.Name(self.CLASS_VARIABLE_NAME))],
@@ -153,24 +154,39 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
                 )
             ]
         )
-        new_body_stmts.append(tax_rate_assignment)
 
-        # Add the template method
-        template_method = self._create_template_method()
-        new_body_stmts.append(template_method)
+    def _collect_existing_statements(self, node: cst.ClassDef) -> list[cst.BaseStatement]:
+        """Collect existing class statements, filtering out 'pass' statements.
 
-        # Add abstract methods
-        abstract_methods = self._create_abstract_methods()
-        new_body_stmts.extend(abstract_methods)
+        Args:
+            node: The class definition node
 
-        # Add existing statements (but skip 'pass' if it exists)
+        Returns:
+            List of existing statements except 'pass'
+        """
+        statements: list[cst.BaseStatement] = []
         for stmt in node.body.body:
             # Skip 'pass' statement
             if isinstance(stmt, cst.SimpleStatementLine):
                 has_pass = any(isinstance(item, cst.Pass) for item in stmt.body)
                 if has_pass:
                     continue
-            new_body_stmts.append(stmt)
+            statements.append(stmt)
+        return statements
+
+    def _transform_superclass(self, node: cst.ClassDef) -> cst.ClassDef:
+        """Transform the superclass to add the template method and abstract methods."""
+        new_body_stmts: list[cst.BaseStatement] = []
+
+        # Add class variable
+        new_body_stmts.append(self._create_class_variable())
+
+        # Add the template method and abstract methods
+        new_body_stmts.append(self._create_template_method())
+        new_body_stmts.extend(self._create_abstract_methods())
+
+        # Add existing statements
+        new_body_stmts.extend(self._collect_existing_statements(node))
 
         return node.with_changes(body=node.body.with_changes(body=tuple(new_body_stmts)))
 
