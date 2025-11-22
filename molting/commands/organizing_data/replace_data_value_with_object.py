@@ -71,26 +71,20 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
     ) -> cst.Module:
-        """Add the new class to the module."""
-        # Find the target class and modify it
-        new_body: list[cst.BaseStatement] = []
-        for stmt in updated_node.body:
-            if isinstance(stmt, cst.ClassDef):
-                if stmt.name.value == self.class_name:
-                    # Modify the class that contains the field
-                    modified_class = self._modify_class(stmt)
-                    new_body.append(modified_class)
-                else:
-                    new_body.append(stmt)
-            else:
-                new_body.append(stmt)
-
-        # Insert the new class at the beginning
+        """Add the new class to the module and modify the target class."""
         new_class = self._create_new_class()
-        new_body.insert(0, new_class)
-        new_body.insert(1, cst.EmptyLine())
+        modified_statements: list[cst.BaseStatement] = [
+            new_class,
+            cst.EmptyLine(),
+        ]
 
-        return updated_node.with_changes(body=tuple(new_body))
+        for stmt in updated_node.body:
+            if isinstance(stmt, cst.ClassDef) and stmt.name.value == self.class_name:
+                modified_statements.append(self._modify_class(stmt))
+            else:
+                modified_statements.append(stmt)
+
+        return updated_node.with_changes(body=tuple(modified_statements))
 
     def _modify_class(self, class_def: cst.ClassDef) -> cst.ClassDef:
         """Modify the original class to use the new object.
