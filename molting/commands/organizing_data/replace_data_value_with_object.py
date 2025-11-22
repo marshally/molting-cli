@@ -138,7 +138,15 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
                                     and target.target.attr.value == self.field_name
                                 ):
                                     if isinstance(body_item.value, cst.Name):
-                                        self.param_name = body_item.value.value
+                                        assigned_param = body_item.value.value
+                                        # Use simplified name for new class
+                                        # e.g., customer_name -> name
+                                        if assigned_param.endswith("_" + self.field_name):
+                                            self.param_name = "name"
+                                        elif assigned_param.startswith(self.field_name + "_"):
+                                            self.param_name = "name"
+                                        else:
+                                            self.param_name = "name"
                                         return
 
     def _modify_init_method(self, init_method: cst.FunctionDef) -> cst.FunctionDef:
