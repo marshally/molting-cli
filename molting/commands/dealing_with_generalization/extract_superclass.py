@@ -260,15 +260,9 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
 
         # Add all common methods (except __init__ which we already added)
         for method_name in sorted(self.common_methods):
-            for class_def in self.class_defs.values():
-                found = False
-                for stmt in class_def.body.body:
-                    if isinstance(stmt, cst.FunctionDef) and stmt.name.value == method_name:
-                        methods.append(stmt)
-                        found = True
-                        break
-                if found:
-                    break
+            method = self._find_method_in_classes(method_name)
+            if method:
+                methods.append(method)
 
         # Create the superclass
         superclass = cst.ClassDef(
@@ -277,6 +271,21 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
         )
 
         return superclass
+
+    def _find_method_in_classes(self, method_name: str) -> cst.FunctionDef | None:
+        """Find a method by name in any of the target classes.
+
+        Args:
+            method_name: Name of the method to find
+
+        Returns:
+            The method definition if found, None otherwise
+        """
+        for class_def in self.class_defs.values():
+            for stmt in class_def.body.body:
+                if isinstance(stmt, cst.FunctionDef) and stmt.name.value == method_name:
+                    return stmt
+        return None
 
     def _transform_init_method(self, node: cst.FunctionDef) -> cst.FunctionDef:
         """Transform the __init__ method to call super().__init__() and handle common fields.

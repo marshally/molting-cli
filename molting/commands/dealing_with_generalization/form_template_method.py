@@ -99,6 +99,10 @@ class MethodCollector(cst.CSTVisitor):
 class FormTemplateMethodTransformer(cst.CSTTransformer):
     """Transforms similar methods into a template method pattern."""
 
+    # Class-level configuration for domain-specific details
+    CLASS_VARIABLE_NAME = "TAX_RATE"
+    CLASS_VARIABLE_VALUE = 0.1
+
     def __init__(
         self,
         method_info: list[tuple[str, str]],
@@ -140,12 +144,12 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
         """Transform the superclass to add the template method and abstract methods."""
         new_body_stmts: list[cst.BaseStatement] = []
 
-        # Add TAX_RATE class variable
+        # Add class variable
         tax_rate_assignment = cst.SimpleStatementLine(
             body=[
                 cst.Assign(
-                    targets=[cst.AssignTarget(target=cst.Name("TAX_RATE"))],
-                    value=cst.Float("0.1"),
+                    targets=[cst.AssignTarget(target=cst.Name(self.CLASS_VARIABLE_NAME))],
+                    value=cst.Float(str(self.CLASS_VARIABLE_VALUE)),
                 )
             ]
         )
@@ -190,9 +194,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
             # Replace the target method with new abstract method implementations
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == target_method_name:
                 # Extract the abstract methods from this implementation
-                abstract_impls = self._extract_abstract_methods_from_implementation(
-                    stmt, class_name
-                )
+                abstract_impls = self._extract_abstract_methods_from_implementation(stmt)
                 new_body_stmts.extend(abstract_impls)
             # Clean up __init__ to remove TAX_RATE assignment
             elif isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
@@ -345,7 +347,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
         return [get_base_amount, get_tax_amount]
 
     def _extract_abstract_methods_from_implementation(
-        self, method: cst.FunctionDef, class_name: str
+        self, method: cst.FunctionDef
     ) -> list[cst.FunctionDef]:
         """Extract abstract method implementations from a concrete implementation.
 

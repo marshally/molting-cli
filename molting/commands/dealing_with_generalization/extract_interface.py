@@ -20,9 +20,11 @@ class ExtractInterfaceCommand(BaseCommand):
             ValueError: If required parameters are missing
         """
         required = ["target", "methods", "name"]
-        for param in required:
-            if param not in self.params:
-                raise ValueError(f"Missing required parameter for extract-interface: '{param}'")
+        missing = [param for param in required if param not in self.params]
+        if missing:
+            raise ValueError(
+                f"Missing required parameters for extract-interface: {', '.join(missing)}"
+            )
 
     def execute(self) -> None:
         """Apply extract-interface refactoring using libCST.
@@ -45,7 +47,11 @@ class ExtractInterfaceCommand(BaseCommand):
         except SyntaxError as e:
             raise ValueError(f"Invalid Python syntax: {e}") from e
 
-        method_types = self._extract_method_return_types(tree, methods)
+        method_types, methods_found = self._extract_method_return_types(tree, methods)
+
+        # Validate that at least one method was found
+        if not methods_found:
+            raise ValueError(f"Methods not found in class: {', '.join(methods)}")
 
         # Now parse with libcst for transformation
         module = cst.parse_module(source_code)
@@ -62,7 +68,9 @@ class ExtractInterfaceCommand(BaseCommand):
         # Write back
         self.file_path.write_text(new_module.code)
 
-    def _extract_method_return_types(self, tree: ast.Module, methods: list[str]) -> dict[str, str]:
+    def _extract_method_return_types(
+        self, tree: ast.Module, methods: list[str]
+    ) -> tuple[dict[str, str], set[str]]:
         """Extract return type hints from methods using ast analysis.
 
         Args:
@@ -70,14 +78,17 @@ class ExtractInterfaceCommand(BaseCommand):
             methods: List of method names to extract
 
         Returns:
-            Dictionary mapping method names to return type strings
+            Tuple of (dictionary mapping method names to return type strings,
+                      set of method names that were found)
         """
         method_types: dict[str, str] = {}
+        methods_found: set[str] = set()
 
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 for item in node.body:
                     if isinstance(item, ast.FunctionDef) and item.name in methods:
+                        methods_found.add(item.name)
                         # Try to infer type from return annotation
                         if item.returns:
                             method_types[item.name] = ast.unparse(item.returns)
@@ -92,7 +103,7 @@ class ExtractInterfaceCommand(BaseCommand):
             if method not in method_types:
                 method_types[method] = "Any"
 
-        return method_types
+        return method_types, methods_found
 
     def _infer_return_type(self, func: ast.FunctionDef) -> str | None:
         """Try to infer return type from function implementation.
