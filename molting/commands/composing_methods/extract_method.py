@@ -238,6 +238,25 @@ class ExtractMethodTransformer(cst.CSTTransformer):
         self.extracted_stmt_indices = extracted_stmt_indices
         self.new_method: cst.FunctionDef | None = None
 
+    def _create_method_call_statement(self) -> cst.SimpleStatementLine:
+        """Create a method call statement that invokes the extracted method.
+
+        Returns:
+            A SimpleStatementLine containing the method call
+        """
+        return cst.SimpleStatementLine(
+            body=[
+                cst.Expr(
+                    value=cst.Call(
+                        func=cst.Attribute(
+                            value=cst.Name("self"),
+                            attr=cst.Name(self.new_method_name),
+                        )
+                    )
+                )
+            ]
+        )
+
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
@@ -257,18 +276,7 @@ class ExtractMethodTransformer(cst.CSTTransformer):
                 extracted_stmts.append(stmt)
                 # Insert method call at the first extracted statement position
                 if len(extracted_stmts) == 1:
-                    method_call = cst.SimpleStatementLine(
-                        body=[
-                            cst.Expr(
-                                value=cst.Call(
-                                    func=cst.Attribute(
-                                        value=cst.Name("self"),
-                                        attr=cst.Name(self.new_method_name),
-                                    )
-                                )
-                            )
-                        ]
-                    )
+                    method_call = self._create_method_call_statement()
                     new_body.append(method_call)
             else:
                 new_body.append(stmt)
