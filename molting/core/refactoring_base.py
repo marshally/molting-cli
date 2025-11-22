@@ -1,7 +1,6 @@
 """Base classes for refactoring operations."""
 
 from abc import ABC, abstractmethod
-from typing import Any
 
 
 class RefactoringBase(ABC):
