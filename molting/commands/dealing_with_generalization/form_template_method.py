@@ -205,8 +205,27 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
 
         return node.with_changes(body=node.body.with_changes(body=tuple(new_body_stmts)))
 
+    def _is_class_variable_assignment(self, item: cst.Assign) -> bool:
+        """Check if an assignment is self.<CLASS_VARIABLE_NAME> = ...
+
+        Args:
+            item: The assignment to check
+
+        Returns:
+            True if this assigns to the class variable, False otherwise
+        """
+        for target in item.targets:
+            if isinstance(target.target, cst.Attribute):
+                if (
+                    isinstance(target.target.value, cst.Name)
+                    and target.target.value.value == "self"
+                    and target.target.attr.value == self.CLASS_VARIABLE_NAME
+                ):
+                    return True
+        return False
+
     def _clean_init_method(self, method: cst.FunctionDef) -> cst.FunctionDef:
-        """Remove TAX_RATE assignment from __init__ method.
+        """Remove class variable assignment from __init__ method.
 
         Args:
             method: The __init__ method to clean
@@ -221,24 +240,12 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
 
         for stmt in method.body.body:
             if isinstance(stmt, cst.SimpleStatementLine):
-                # Check if this statement assigns TAX_RATE
+                # Filter out class variable assignments
                 new_items: list[cst.BaseSmallStatement] = []
 
                 for item in stmt.body:
                     if isinstance(item, cst.Assign):
-                        # Check if this is TAX_RATE assignment
-                        is_tax_rate = False
-                        for target in item.targets:
-                            if isinstance(target.target, cst.Attribute):
-                                if (
-                                    isinstance(target.target.value, cst.Name)
-                                    and target.target.value.value == "self"
-                                    and target.target.attr.value == "TAX_RATE"
-                                ):
-                                    is_tax_rate = True
-                                    break
-
-                        if not is_tax_rate:
+                        if not self._is_class_variable_assignment(item):
                             new_items.append(item)
                     else:
                         new_items.append(item)
