@@ -133,11 +133,11 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         target = expr.targets[0].target
         field_name = self._get_self_attribute_name(target)
 
-        if field_name != self.delegate_field:
+        if not field_name or field_name != self.delegate_field:
             return expr
 
         # Rename field from private to public
-        public_name = field_name.lstrip("_") if field_name else field_name
+        public_name = field_name.lstrip("_")
         new_target = target.with_changes(attr=cst.Name(public_name))
         return expr.with_changes(targets=[cst.AssignTarget(target=new_target)])
 
