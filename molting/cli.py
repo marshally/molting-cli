@@ -38,9 +38,7 @@ def refactor_file(refactoring_name: str, file_path: Path, **params) -> None:
         # Parse target: "ClassName::method_name"
         parts = target.split("::")
         if len(parts) != 2:
-            raise ValueError(
-                f"Invalid target format '{target}'. Expected 'ClassName::method_name'"
-            )
+            raise ValueError(f"Invalid target format '{target}'. Expected 'ClassName::method_name'")
         _, method_name = parts
 
         # Open rope project

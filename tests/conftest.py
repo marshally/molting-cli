@@ -92,12 +92,10 @@ class RefactoringTestBase:
             raise RuntimeError("No fixture loaded. Ensure fixture directory exists for this test.")
 
         # Import here to avoid circular dependencies during test collection
-        # TODO: Implement refactor_file function in molting.cli
-        # from molting.cli import refactor_file
+        from molting.cli import refactor_file
 
         # Run the refactoring
-        # refactor_file(refactoring_name, self.test_file, **params)
-        raise NotImplementedError("refactor_file not yet implemented")
+        refactor_file(refactoring_name, self.test_file, **params)
 
         # Validate result
         self.assert_matches_expected()
