@@ -68,7 +68,6 @@ class TestHideDelegate(RefactoringTestBase):
         self.refactor("hide-delegate", target="Person::department")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestRemoveMiddleMan(RefactoringTestBase):
     """Tests for Remove Middle Man refactoring."""
 
