@@ -30,15 +30,18 @@ class ExtractMethodCommand(BaseCommand):
         except KeyError as e:
             raise ValueError(f"Missing required parameter for extract-method: {e}") from e
 
-    def execute(self) -> None:
-        """Apply extract-method refactoring using libCST.
+    def _parse_target_specification(self, target: str) -> tuple[str, str, str]:
+        """Parse target format into class::method and line range components.
+
+        Args:
+            target: Target string in format "ClassName::method_name#L9-L11"
+
+        Returns:
+            Tuple of (class_name, method_name, line_range)
 
         Raises:
-            ValueError: If method not found or target format is invalid
+            ValueError: If target format is invalid
         """
-        target = self.params["target"]
-        new_method_name = self.params["name"]
-
         # Parse target format: "ClassName::method_name#L9-L11"
         parts = target.split(TARGET_SEPARATOR)
         if len(parts) != 2:
@@ -55,6 +58,20 @@ class ExtractMethodCommand(BaseCommand):
         except ValueError as e:
             raise ValueError(f"Invalid class::method format in target '{target}': {e}") from e
 
+        return class_name, method_name, line_range
+
+    def _parse_line_range(self, line_range: str) -> tuple[int, int]:
+        """Parse line range string into start and end line numbers.
+
+        Args:
+            line_range: Line range in format "L9-L11"
+
+        Returns:
+            Tuple of (start_line, end_line)
+
+        Raises:
+            ValueError: If line range format is invalid
+        """
         # Parse line range: "L9-L11" -> [9, 11]
         if not line_range.startswith(LINE_PREFIX):
             raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L9-L11'")
@@ -75,6 +92,21 @@ class ExtractMethodCommand(BaseCommand):
             end_line = int(parts_range[1][1:])
         except ValueError as e:
             raise ValueError(f"Invalid line numbers in '{line_range}': {e}") from e
+
+        return start_line, end_line
+
+    def execute(self) -> None:
+        """Apply extract-method refactoring using libCST.
+
+        Raises:
+            ValueError: If method not found or target format is invalid
+        """
+        target = self.params["target"]
+        new_method_name = self.params["name"]
+
+        # Parse target and line range
+        class_name, method_name, line_range = self._parse_target_specification(target)
+        start_line, end_line = self._parse_line_range(line_range)
 
         # Read file
         source_code = self.file_path.read_text()
