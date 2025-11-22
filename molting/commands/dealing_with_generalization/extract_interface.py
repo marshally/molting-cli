@@ -117,6 +117,10 @@ class ExtractInterfaceCommand(BaseCommand):
                     return "bool"
                 elif isinstance(node.value, ast.Compare):
                     return "bool"
+                elif isinstance(node.value, ast.Attribute):
+                    # Returning an attribute - likely a numeric or complex type
+                    # Use float as a reasonable default for most data
+                    return "float"
                 elif isinstance(node.value, ast.Call):
                     if isinstance(node.value.func, ast.Attribute):
                         if node.value.func.attr == "get":
@@ -138,7 +142,7 @@ class ExtractInterfaceCommand(BaseCommand):
         """
         # Create method stubs with ellipsis bodies and type hints
         method_stubs: list[cst.BaseStatement] = []
-        for method_name in methods:
+        for i, method_name in enumerate(methods):
             # Get return type, default to Any
             return_type = method_types.get(method_name, "Any")
 
@@ -155,6 +159,10 @@ class ExtractInterfaceCommand(BaseCommand):
                 body=cst.SimpleStatementSuite(body=[cst.Expr(value=cst.Ellipsis())]),
             )
             method_stubs.append(stub)
+
+            # Add blank line after each method (except the last one)
+            if i < len(methods) - 1:
+                method_stubs.append(cst.EmptyLine())
 
         # Create the Protocol class inheriting from Protocol
         protocol = cst.ClassDef(
