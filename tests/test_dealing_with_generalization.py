@@ -80,7 +80,6 @@ class TestExtractSubclass(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestExtractSuperclass(RefactoringTestBase):
     """Tests for Extract Superclass refactoring."""
 
@@ -91,7 +90,6 @@ class TestExtractSuperclass(RefactoringTestBase):
         self.refactor("extract-superclass", targets="Employee,Department", name="Party")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestExtractInterface(RefactoringTestBase):
     """Tests for Extract Interface refactoring."""
 
