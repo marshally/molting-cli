@@ -92,18 +92,7 @@ class ExtractClassTransformer(cst.CSTTransformer):
 
         # Extract the fields and methods we want to move
         new_body = []
-        # Convert TelephoneNumber to telephone (remove common suffixes)
-        base_name = self.new_class_name
-        for suffix in ["Number", "Info", "Data", "Class"]:
-            if base_name.endswith(suffix):
-                base_name = base_name[: -len(suffix)]
-                break
-        # Convert to snake_case: Telephone -> telephone
-        delegate_field_name = (
-            base_name[0].lower() + base_name[1:] if base_name else self.new_class_name.lower()
-        )
-        # For TelephoneNumber -> office_telephone
-        delegate_field_name = f"office_{delegate_field_name.lower()}"
+        delegate_field_name = self._calculate_delegate_field_name()
 
         for stmt in updated_node.body.body:
             if isinstance(stmt, cst.FunctionDef):
@@ -137,6 +126,28 @@ class ExtractClassTransformer(cst.CSTTransformer):
                 new_class,
             ]
         )
+
+    def _calculate_delegate_field_name(self) -> str:
+        """Calculate the name for the delegate field.
+
+        Converts class name to snake_case and adds prefix.
+        For example: TelephoneNumber -> office_telephone
+
+        Returns:
+            The delegate field name
+        """
+        # Convert TelephoneNumber to telephone (remove common suffixes)
+        base_name = self.new_class_name
+        for suffix in ["Number", "Info", "Data", "Class"]:
+            if base_name.endswith(suffix):
+                base_name = base_name[: -len(suffix)]
+                break
+        # Convert to snake_case: Telephone -> telephone
+        delegate_field_name = (
+            base_name[0].lower() + base_name[1:] if base_name else self.new_class_name.lower()
+        )
+        # For TelephoneNumber -> office_telephone
+        return f"office_{delegate_field_name.lower()}"
 
     def _modify_init(
         self, init_method: cst.FunctionDef, delegate_field_name: str
