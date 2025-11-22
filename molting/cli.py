@@ -36,7 +36,7 @@ def refactor_file(refactoring_name: str, file_path: Path, **params) -> None:
             raise ValueError(f"Missing required parameter for rename-method: {e}") from e
 
         # Parse target: "ClassName::method_name"
-        class_name, method_name = target.split("::")
+        _, method_name = target.split("::")
 
         # Open rope project
         project = Project(str(file_path.parent))
