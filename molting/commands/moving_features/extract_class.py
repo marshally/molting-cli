@@ -162,14 +162,12 @@ class ExtractClassTransformer(cst.CSTTransformer):
             Modified __init__ method
         """
         # Find parameters that correspond to extracted fields
-        new_params = []
         extracted_param_names = []
 
         for param in init_method.params.params:
             if isinstance(param.name, cst.Name):
                 if param.name.value in self.fields:
                     extracted_param_names.append(param.name.value)
-                new_params.append(param)
 
         # Modify the body to create the delegated object and remove direct assignments
         new_body_stmts = []
