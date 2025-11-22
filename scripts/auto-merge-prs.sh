@@ -164,8 +164,10 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
         else
             error "Conflict resolution script not found: $SCRIPT_DIR/resolve-merge-conflicts.sh"
         fi
+    elif [ "$mergeable" = "UNKNOWN" ]; then
+        warn "PR #$number mergeable status is still being calculated by GitHub. Will check again next run."
     else
-        warn "PR #$number mergeable status is: $mergeable. Skipping."
+        warn "PR #$number has unexpected mergeable status: $mergeable. Skipping."
     fi
 
     echo ""

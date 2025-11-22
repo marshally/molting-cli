@@ -131,7 +131,7 @@ EOF
 
     # Use Claude in the repo directory
     # Note: This will open an interactive session
-    if claude --dangerously-disable-sandbox --message "$(cat "$CONFLICT_INFO")"; then
+    if claude --message "$(cat "$CONFLICT_INFO")"; then
         log "Claude session completed."
 
         # Check if rebase is still in progress
