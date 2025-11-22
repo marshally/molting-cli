@@ -1,10 +1,11 @@
 """CLI entry point for molting."""
 
 from pathlib import Path
+from typing import Any
 
 import click
-from rope.base.project import Project
-from rope.refactor.rename import Rename
+from rope.base.project import Project  # type: ignore[import-untyped]
+from rope.refactor.rename import Rename  # type: ignore[import-untyped]
 
 from molting import __version__
 
@@ -20,7 +21,7 @@ def main() -> None:
     pass
 
 
-def refactor_file(refactoring_name: str, file_path: Path, **params) -> None:
+def refactor_file(refactoring_name: str, file_path: Path, **params: Any) -> None:
     """Apply a refactoring to a file.
 
     Args:
