@@ -107,7 +107,6 @@ class TestExtractInterface(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestCollapseHierarchy(RefactoringTestBase):
     """Tests for Collapse Hierarchy refactoring."""
 
