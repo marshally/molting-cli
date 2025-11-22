@@ -177,53 +177,99 @@ class DelegationTransformer(cst.CSTTransformer):
         self, original_node: cst.Call, updated_node: cst.Call
     ) -> cst.BaseExpression:
         """Transform super() and inherited method calls."""
-        # Handle len(self) -> len(self._items)
-        if isinstance(updated_node.func, cst.Name) and updated_node.func.value == "len":
-            if len(updated_node.args) == 1:
-                arg = updated_node.args[0]
-                if isinstance(arg.value, cst.Name) and arg.value.value == "self":
-                    return cst.Call(
-                        func=cst.Name("len"),
-                        args=[
-                            cst.Arg(
-                                value=cst.Attribute(value=cst.Name("self"), attr=cst.Name("_items"))
-                            )
-                        ],
-                    )
+        # Try to transform len(self) -> len(self._items)
+        transformed = self._transform_len_call(updated_node)
+        if transformed is not None:
+            return transformed
 
-        # Handle super().method() -> self._items.method()
-        if isinstance(updated_node.func, cst.Attribute):
-            if isinstance(updated_node.func.value, cst.Call):
-                if isinstance(updated_node.func.value.func, cst.Name):
-                    if updated_node.func.value.func.value == "super":
-                        method_name = updated_node.func.attr.value
-                        return cst.Call(
-                            func=cst.Attribute(
-                                value=cst.Attribute(
-                                    value=cst.Name("self"), attr=cst.Name("_items")
-                                ),
-                                attr=cst.Name(method_name),
-                            ),
-                            args=updated_node.args,
-                        )
+        # Try to transform super().method() -> self._items.method()
+        transformed = self._transform_super_call(updated_node)
+        if transformed is not None:
+            return transformed
 
-            # Handle self.method() -> self._items.method() for list methods
-            if isinstance(updated_node.func, cst.Attribute):
-                if isinstance(updated_node.func.value, cst.Name):
-                    if updated_node.func.value.value == "self":
-                        method_name = updated_node.func.attr.value
-                        if method_name in self.DELEGATED_METHODS:
-                            return cst.Call(
-                                func=cst.Attribute(
-                                    value=cst.Attribute(
-                                        value=cst.Name("self"), attr=cst.Name("_items")
-                                    ),
-                                    attr=cst.Name(method_name),
-                                ),
-                                args=updated_node.args,
-                            )
+        # Try to transform self.method() -> self._items.method()
+        transformed = self._transform_delegated_method_call(updated_node)
+        if transformed is not None:
+            return transformed
 
         return updated_node
+
+    def _transform_len_call(self, node: cst.Call) -> cst.Call | None:
+        """Transform len(self) -> len(self._items).
+
+        Args:
+            node: Call node to potentially transform
+
+        Returns:
+            Transformed call node or None if not applicable
+        """
+        if not (isinstance(node.func, cst.Name) and node.func.value == "len"):
+            return None
+        if len(node.args) != 1:
+            return None
+        arg = node.args[0]
+        if not (isinstance(arg.value, cst.Name) and arg.value.value == "self"):
+            return None
+
+        return cst.Call(
+            func=cst.Name("len"),
+            args=[cst.Arg(value=cst.Attribute(value=cst.Name("self"), attr=cst.Name("_items")))],
+        )
+
+    def _transform_super_call(self, node: cst.Call) -> cst.Call | None:
+        """Transform super().method() -> self._items.method().
+
+        Args:
+            node: Call node to potentially transform
+
+        Returns:
+            Transformed call node or None if not applicable
+        """
+        if not isinstance(node.func, cst.Attribute):
+            return None
+        if not isinstance(node.func.value, cst.Call):
+            return None
+        if not isinstance(node.func.value.func, cst.Name):
+            return None
+        if node.func.value.func.value != "super":
+            return None
+
+        method_name = node.func.attr.value
+        return cst.Call(
+            func=cst.Attribute(
+                value=cst.Attribute(value=cst.Name("self"), attr=cst.Name("_items")),
+                attr=cst.Name(method_name),
+            ),
+            args=node.args,
+        )
+
+    def _transform_delegated_method_call(self, node: cst.Call) -> cst.Call | None:
+        """Transform self.method() -> self._items.method() for list methods.
+
+        Args:
+            node: Call node to potentially transform
+
+        Returns:
+            Transformed call node or None if not applicable
+        """
+        if not isinstance(node.func, cst.Attribute):
+            return None
+        if not isinstance(node.func.value, cst.Name):
+            return None
+        if node.func.value.value != "self":
+            return None
+
+        method_name = node.func.attr.value
+        if method_name not in self.DELEGATED_METHODS:
+            return None
+
+        return cst.Call(
+            func=cst.Attribute(
+                value=cst.Attribute(value=cst.Name("self"), attr=cst.Name("_items")),
+                attr=cst.Name(method_name),
+            ),
+            args=node.args,
+        )
 
 
 # Register the command
