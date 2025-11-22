@@ -1,6 +1,5 @@
 """Form Template Method refactoring command."""
 
-
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -45,35 +44,41 @@ class FormTemplateMethodCommand(BaseCommand):
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
 
-        # Apply transformation
-        transformer = FormTemplateMethodTransformer(method_info, template_method_name)
+        # First pass: identify superclass and collect method implementations
+        collector = MethodCollector(method_info)
+        module.visit(collector)
+
+        # Second pass: apply transformation
+        transformer = FormTemplateMethodTransformer(
+            method_info,
+            template_method_name,
+            collector.superclass_name,
+            collector.method_implementations,
+        )
         modified_tree = module.visit(transformer)
 
         # Write back
         self.file_path.write_text(modified_tree.code)
 
 
-class FormTemplateMethodTransformer(cst.CSTTransformer):
-    """Transforms similar methods into a template method pattern."""
+class MethodCollector(cst.CSTVisitor):
+    """Collects information about methods and their superclass."""
 
-    def __init__(self, method_info: list[tuple[str, str]], template_method_name: str) -> None:
-        """Initialize the transformer.
+    def __init__(self, method_info: list[tuple[str, str]]) -> None:
+        """Initialize the collector.
 
         Args:
             method_info: List of (class_name, method_name) tuples
-            template_method_name: Name to use for the template method
         """
         self.method_info = method_info
-        self.template_method_name = template_method_name
-        self.class_methods: dict[str, cst.FunctionDef] = {}
         self.superclass_name: str | None = None
-        self.template_method: cst.FunctionDef | None = None
+        self.method_implementations: dict[str, cst.FunctionDef] = {}
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
-        """Visit class definition to collect methods."""
+        """Visit class definition to identify superclass and collect methods."""
         class_name = node.name.value
 
-        # Check if this is a subclass (has a base class)
+        # Check if this is a subclass (has a base class) - find the superclass
         if node.bases and not self.superclass_name:
             for base in node.bases:
                 if isinstance(base.value, cst.Name):
@@ -85,10 +90,34 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
             if class_name == target_class:
                 for stmt in node.body.body:
                     if isinstance(stmt, cst.FunctionDef) and stmt.name.value == target_method:
-                        self.class_methods[class_name] = stmt
+                        self.method_implementations[class_name] = stmt
                         break
 
         return True
+
+
+class FormTemplateMethodTransformer(cst.CSTTransformer):
+    """Transforms similar methods into a template method pattern."""
+
+    def __init__(
+        self,
+        method_info: list[tuple[str, str]],
+        template_method_name: str,
+        superclass_name: str | None,
+        method_implementations: dict[str, cst.FunctionDef],
+    ) -> None:
+        """Initialize the transformer.
+
+        Args:
+            method_info: List of (class_name, method_name) tuples
+            template_method_name: Name to use for the template method
+            superclass_name: Name of the superclass
+            method_implementations: Dict of collected method implementations
+        """
+        self.method_info = method_info
+        self.template_method_name = template_method_name
+        self.superclass_name = superclass_name
+        self.method_implementations = method_implementations
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -111,7 +140,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
         """Transform the superclass to add the template method and abstract methods."""
         new_body_stmts: list[cst.BaseStatement] = []
 
-        # Add TAX_RATE class variable (from input fixture)
+        # Add TAX_RATE class variable
         tax_rate_assignment = cst.SimpleStatementLine(
             body=[
                 cst.Assign(
@@ -130,21 +159,12 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
         abstract_methods = self._create_abstract_methods()
         new_body_stmts.extend(abstract_methods)
 
-        # Add existing statements (but skip TAX_RATE if it exists)
+        # Add existing statements (but skip 'pass' if it exists)
         for stmt in node.body.body:
+            # Skip 'pass' statement
             if isinstance(stmt, cst.SimpleStatementLine):
-                # Skip existing TAX_RATE assignments
-                skip = False
-                for item in stmt.body:
-                    if isinstance(item, cst.Assign):
-                        for target in item.targets:
-                            if (
-                                isinstance(target.target, cst.Name)
-                                and target.target.value == "TAX_RATE"
-                            ):
-                                skip = True
-                                break
-                if skip:
+                has_pass = any(isinstance(item, cst.Pass) for item in stmt.body)
+                if has_pass:
                     continue
             new_body_stmts.append(stmt)
 
@@ -174,10 +194,60 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
                     stmt, class_name
                 )
                 new_body_stmts.extend(abstract_impls)
+            # Clean up __init__ to remove TAX_RATE assignment
+            elif isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+                new_init = self._clean_init_method(stmt)
+                new_body_stmts.append(new_init)
             else:
                 new_body_stmts.append(stmt)
 
         return node.with_changes(body=node.body.with_changes(body=tuple(new_body_stmts)))
+
+    def _clean_init_method(self, method: cst.FunctionDef) -> cst.FunctionDef:
+        """Remove TAX_RATE assignment from __init__ method.
+
+        Args:
+            method: The __init__ method to clean
+
+        Returns:
+            The cleaned __init__ method
+        """
+        if not isinstance(method.body, cst.IndentedBlock):
+            return method
+
+        new_body_stmts: list[cst.BaseStatement] = []
+
+        for stmt in method.body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                # Check if this statement assigns TAX_RATE
+                new_items: list[cst.BaseSmallStatement] = []
+
+                for item in stmt.body:
+                    if isinstance(item, cst.Assign):
+                        # Check if this is TAX_RATE assignment
+                        is_tax_rate = False
+                        for target in item.targets:
+                            if isinstance(target.target, cst.Attribute):
+                                if (
+                                    isinstance(target.target.value, cst.Name)
+                                    and target.target.value.value == "self"
+                                    and target.target.attr.value == "TAX_RATE"
+                                ):
+                                    is_tax_rate = True
+                                    break
+
+                        if not is_tax_rate:
+                            new_items.append(item)
+                    else:
+                        new_items.append(item)
+
+                # Only add statement if it has items
+                if new_items:
+                    new_body_stmts.append(stmt.with_changes(body=new_items))
+            else:
+                new_body_stmts.append(stmt)
+
+        return method.with_changes(body=cst.IndentedBlock(body=new_body_stmts))
 
     def _create_template_method(self) -> cst.FunctionDef:
         """Create the template method."""
@@ -252,16 +322,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
             ),
             body=cst.IndentedBlock(
                 body=[
-                    cst.SimpleStatementLine(
-                        body=[
-                            cst.Raise(
-                                exc=cst.Call(
-                                    func=cst.Name("NotImplementedError"),
-                                    args=[],
-                                )
-                            )
-                        ]
-                    )
+                    cst.SimpleStatementLine(body=[cst.Raise(exc=cst.Name("NotImplementedError"))])
                 ]
             ),
         )
@@ -276,16 +337,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
             ),
             body=cst.IndentedBlock(
                 body=[
-                    cst.SimpleStatementLine(
-                        body=[
-                            cst.Raise(
-                                exc=cst.Call(
-                                    func=cst.Name("NotImplementedError"),
-                                    args=[],
-                                )
-                            )
-                        ]
-                    )
+                    cst.SimpleStatementLine(body=[cst.Raise(exc=cst.Name("NotImplementedError"))])
                 ]
             ),
         )
