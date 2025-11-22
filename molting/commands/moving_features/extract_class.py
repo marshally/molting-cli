@@ -74,7 +74,6 @@ class ExtractClassTransformer(cst.CSTTransformer):
         self.methods = methods
         self.new_class_name = new_class_name
         self.extracted_methods: list[cst.FunctionDef] = []
-        self.new_class_created = False
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
