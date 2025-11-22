@@ -51,7 +51,7 @@ def refactor_file(refactoring_name: str, file_path: Path, **params) -> None:
                 raise ValueError(f"Method '{method_name}' not found in {file_path}")
 
             # Create rename refactoring
-            rename = Rename(project, resource, offset + 4)  # +4 to skip "def "
+            rename = Rename(project, resource, offset + len("def "))
             changes = rename.get_changes(new_name)
             project.do(changes)
         finally:
