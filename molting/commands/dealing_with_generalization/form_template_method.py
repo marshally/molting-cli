@@ -171,7 +171,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
                 has_pass = any(isinstance(item, cst.Pass) for item in stmt.body)
                 if has_pass:
                     continue
-            statements.append(stmt)
+            statements.append(stmt)  # type: ignore[arg-type]
         return statements
 
     def _transform_superclass(self, node: cst.ClassDef) -> cst.ClassDef:
