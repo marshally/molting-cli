@@ -1,5 +1,6 @@
 """Move Field refactoring command."""
 
+import re
 from typing import cast
 
 import libcst as cst
@@ -70,8 +71,6 @@ class MoveFieldTransformer(cst.CSTTransformer):
         self.field_name = field_name
         self.target_class = target_class
         # Convert camelCase/PascalCase to snake_case
-        import re
-
         self.target_class_lower = re.sub(r"(?<!^)(?=[A-Z])", "_", target_class).lower()
         self.field_value = None
 
