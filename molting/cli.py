@@ -13,6 +13,7 @@ import molting.commands.dealing_with_generalization.extract_superclass  # noqa: 
 import molting.commands.dealing_with_generalization.form_template_method  # noqa: F401
 import molting.commands.dealing_with_generalization.replace_delegation_with_inheritance  # noqa: F401
 import molting.commands.dealing_with_generalization.replace_inheritance_with_delegation  # noqa: F401
+import molting.commands.moving_features.inline_class  # noqa: F401
 import molting.commands.simplifying_method_calls.add_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.remove_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.rename_method  # noqa: F401
