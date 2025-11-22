@@ -251,9 +251,11 @@ cd molting-cli
 # Install dependencies with Poetry
 poetry install
 
-# Install pre-commit hook (optional but recommended)
+# Install git hooks (optional but recommended)
 cp hooks/pre-commit .git/hooks/pre-commit
+cp hooks/pre-push .git/hooks/pre-push
 chmod +x .git/hooks/pre-commit
+chmod +x .git/hooks/pre-push
 ```
 
 ### Running Linters
@@ -269,11 +271,11 @@ make test        # Run tests
 make all         # Format, typecheck, and test everything
 ```
 
-### Managing Commit Hooks
+### Managing Git Hooks
 
-#### Installing the Pre-commit Hook
+#### Pre-commit Hook (Staged Files Only)
 
-To automatically run code quality checks before each commit:
+Runs automatically before each commit on **staged Python files only**:
 
 ```bash
 # Install the pre-commit hook
@@ -281,40 +283,58 @@ cp hooks/pre-commit .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 ```
 
-The hook automatically runs:
-- **black** - Code formatting (auto-fixes)
-- **ruff** - Linting (auto-fixes where possible)
-- **mypy** - Type checking
+**What it does:**
+- Runs **black**, **ruff**, **mypy** on staged files
+- **If linters made changes**: Creates a separate commit with just the formatting fixes, then asks you to run `git commit` again
+- **If no changes**: Proceeds with your commit
+- Keeps linter auto-fixes separate from your code changes
 
-The hook will:
-1. Stash any unstaged changes
-2. Run linters on staged Python files
-3. **If linters made changes**: Create a separate commit with just the formatting fixes, then ask you to run `git commit` again for your actual changes
-4. **If no linter changes**: Run type checking and allow your commit to proceed
-5. Restore your stashed changes
+**Limitation:** Only checks staged files, not the entire codebase.
 
-This keeps linter auto-fixes separate from your code changes, making git history cleaner.
+#### Pre-push Hook (Entire Codebase)
 
-#### Bypassing the Hook
+Runs automatically before each push on the **entire codebase**:
 
-To skip the hook for a single commit (not recommended):
 ```bash
-git commit --no-verify
+# Install the pre-push hook
+cp hooks/pre-push .git/hooks/pre-push
+chmod +x .git/hooks/pre-push
 ```
 
-#### Uninstalling the Hook
+**What it does:**
+- Runs **black --check**, **ruff check**, **mypy** on entire codebase
+- Blocks the push if any checks fail
+- Catches issues that pre-commit hook might miss
 
-To remove the pre-commit hook:
+**Recommended:** Install both hooks. Pre-commit for fast feedback on staged files, pre-push as final check before pushing.
+
+#### Bypassing Hooks
+
+To skip hooks temporarily (not recommended):
+```bash
+# Skip pre-commit hook
+git commit --no-verify
+
+# Skip pre-push hook
+git push --no-verify
+```
+
+#### Uninstalling Hooks
+
+To remove the hooks:
 ```bash
 rm .git/hooks/pre-commit
+rm .git/hooks/pre-push
 ```
 
-#### Updating the Hook
+#### Updating Hooks
 
-If the hook is updated in the repository:
+If hooks are updated in the repository:
 ```bash
 cp hooks/pre-commit .git/hooks/pre-commit
+cp hooks/pre-push .git/hooks/pre-push
 chmod +x .git/hooks/pre-commit
+chmod +x .git/hooks/pre-push
 ```
 
 ### Running Tests

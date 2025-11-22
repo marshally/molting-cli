@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+# Pre-push hook that:
+# 1. Runs linters on entire codebase (not just staged files)
+# 2. Runs type checker
+# 3. Prevents push if checks fail
+#
+# This catches issues that pre-commit hooks miss since they only check staged files.
+#
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}========================================${NC}"
+echo -e "${BLUE}Running pre-push checks on entire codebase...${NC}"
+echo -e "${BLUE}========================================${NC}"
+echo ""
+
+# Check formatting with black
+echo -e "${YELLOW}→ Checking formatting with black...${NC}"
+if ! black --check . 2>&1; then
+    echo ""
+    echo -e "${RED}✗ Black formatting check failed!${NC}"
+    echo -e "${YELLOW}💡 Run 'make format' to fix formatting issues.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✓ Black formatting OK${NC}"
+echo ""
+
+# Lint with ruff
+echo -e "${YELLOW}→ Linting with ruff...${NC}"
+if ! ruff check . 2>&1; then
+    echo ""
+    echo -e "${RED}✗ Ruff linting failed!${NC}"
+    echo -e "${YELLOW}💡 Run 'make format' to fix linting issues.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✓ Ruff linting OK${NC}"
+echo ""
+
+# Type check with mypy
+echo -e "${YELLOW}→ Type checking with mypy...${NC}"
+# Exclude test fixtures and conftest to avoid "found twice" error
+if ! mypy molting/ $(find tests -name "*.py" ! -name "conftest.py" ! -path "tests/fixtures/*" 2>/dev/null) 2>&1; then
+    echo ""
+    echo -e "${RED}✗ Mypy type checking failed!${NC}"
+    echo -e "${YELLOW}💡 Fix type errors before pushing.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✓ Type checking OK${NC}"
+echo ""
+
+echo -e "${BLUE}========================================${NC}"
+echo -e "${GREEN}✅ All pre-push checks passed!${NC}"
+echo -e "${BLUE}========================================${NC}"
+exit 0
