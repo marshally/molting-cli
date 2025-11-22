@@ -44,6 +44,8 @@ def refactor_file(refactoring_name: str, file_path: Path, **params) -> None:
             # Find the method definition
             # Simple approach: find "def method_name"
             offset = source.find(f"def {method_name}")
+            if offset == -1:
+                raise ValueError(f"Method '{method_name}' not found in {file_path}")
 
             # Create rename refactoring
             rename = Rename(project, resource, offset + 4)  # +4 to skip "def "
