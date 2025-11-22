@@ -136,14 +136,14 @@ class MoveMethodTransformer(cst.CSTTransformer):
         new_body = tuple(list(node.body.body) + [method_with_spacing])
         return node.with_changes(body=node.body.with_changes(body=new_body))
 
-    def _find_target_class_field(self, node: cst.ClassDef) -> str:
+    def _find_target_class_field(self, node: cst.ClassDef) -> str | None:
         """Find the field that references the target class.
 
         Args:
             node: The source class definition
 
         Returns:
-            The field name that holds the target class instance
+            The field name that holds the target class instance, or None if not found
         """
         # Look for field assignment in __init__
         for item in node.body.body:
@@ -166,7 +166,7 @@ class MoveMethodTransformer(cst.CSTTransformer):
                                             # that's not a simple value
                                             if isinstance(line.value, cst.Name):
                                                 return field_name
-        return "target"  # Default fallback
+        return None
 
     def _create_delegation_method(self, original_method: cst.FunctionDef) -> cst.FunctionDef:
         """Create a delegation method that calls the moved method.
@@ -187,12 +187,18 @@ class MoveMethodTransformer(cst.CSTTransformer):
         ]
 
         # Create the delegation call
+        if self.target_class_field is None:
+            raise ValueError(
+                f"Could not find field referencing target class '{self.target_class}' "
+                f"in source class '{self.source_class}'"
+            )
+
         delegation_call = cst.Return(
             value=cst.Call(
                 func=cst.Attribute(
                     value=cst.Attribute(
                         value=cst.Name("self"),
-                        attr=cst.Name(self.target_class_field or "account_type"),
+                        attr=cst.Name(self.target_class_field),
                     ),
                     attr=cst.Name(self.method_name),
                 ),
