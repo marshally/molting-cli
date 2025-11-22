@@ -217,7 +217,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
                 new_init = self._clean_init_method(stmt)
                 new_body_stmts.append(new_init)
             else:
-                new_body_stmts.append(stmt)
+                new_body_stmts.append(stmt)  # type: ignore[arg-type]
 
         return node.with_changes(body=node.body.with_changes(body=tuple(new_body_stmts)))
 

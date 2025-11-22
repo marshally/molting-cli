@@ -85,7 +85,7 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
 
         # Find the position to insert the superclass (before first target class)
         first_target_index = None
-        new_body = []
+        new_body: list[cst.BaseStatement] = []
 
         for i, stmt in enumerate(updated_node.body):
             if isinstance(stmt, cst.ClassDef):
