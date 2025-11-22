@@ -232,6 +232,25 @@ def _apply_add_parameter(file_path: Path, **params: Any) -> None:
     file_path.write_text(modified_source)
 
 
+def _parameter_has_default(param_index: int, total_args: int, num_defaults: int) -> bool:
+    """Check if a parameter at given index has a default value.
+
+    In Python's AST, default values are stored separately from argument names.
+    Arguments without defaults come first, then arguments with defaults.
+    This function determines if a parameter at the given index has a default.
+
+    Args:
+        param_index: Index of the parameter in the argument list
+        total_args: Total number of arguments
+        num_defaults: Number of arguments with default values
+
+    Returns:
+        True if the parameter has a default value, False otherwise
+    """
+    num_args_without_defaults = total_args - num_defaults
+    return param_index >= num_args_without_defaults
+
+
 def _apply_remove_parameter(file_path: Path, **params: Any) -> None:
     """Apply remove-parameter refactoring using AST manipulation.
 
@@ -271,15 +290,14 @@ def _apply_remove_parameter(file_path: Path, **params: Any) -> None:
     # Check if the parameter has a default value before removing
     total_args = len(method_node.args.args)
     num_defaults = len(method_node.args.defaults)
-    num_args_without_defaults = total_args - num_defaults
-
-    has_default = param_index >= num_args_without_defaults
+    has_default = _parameter_has_default(param_index, total_args, num_defaults)
 
     # Remove the parameter from the argument list
     method_node.args.args.pop(param_index)
 
     # If the parameter had a default value, remove it from the defaults list
     if has_default:
+        num_args_without_defaults = total_args - num_defaults
         default_index = param_index - num_args_without_defaults
         method_node.args.defaults.pop(default_index)
 
