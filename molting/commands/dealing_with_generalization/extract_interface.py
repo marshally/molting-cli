@@ -173,7 +173,7 @@ class ExtractInterfaceCommand(BaseCommand):
 
             # Add blank line after each method (except the last one)
             if i < len(methods) - 1:
-                method_stubs.append(cst.EmptyLine())
+                method_stubs.append(cst.EmptyLine())  # type: ignore[arg-type]
 
         # Create the Protocol class inheriting from Protocol
         protocol = cst.ClassDef(
