@@ -6,6 +6,7 @@ from typing import Any
 import click
 
 # Import commands to register them
+import molting.commands.composing_methods.extract_method  # noqa: F401
 import molting.commands.simplifying_method_calls.add_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.remove_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.rename_method  # noqa: F401

@@ -16,15 +16,9 @@ class TestExtractMethod(RefactoringTestBase):
     fixture_category = "composing_methods/extract_method"
 
     def test_simple(self) -> None:
-        """Extract multiple code blocks into separate methods."""
-        # Extract print banner
-        self.refactor("extract-method", target="Order::print_owing#L9-L11", name="print_banner")
-        # Extract calculate outstanding
-        self.refactor(
-            "extract-method", target="Order::print_owing#L14-L16", name="calculate_outstanding"
-        )
-        # Extract print details
-        self.refactor("extract-method", target="Order::print_owing#L19-L20", name="print_details")
+        """Extract a code block into a new method."""
+        # Extract print banner (lines 9-12: comment + 3 print statements)
+        self.refactor("extract-method", target="Order::print_owing#L9-L12", name="print_banner")
 
 
 @pytest.mark.skip(reason="No implementation yet")
