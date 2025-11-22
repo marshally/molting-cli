@@ -193,18 +193,8 @@ class ExtractInterfaceCommand(BaseCommand):
         Returns:
             The modified module
         """
-        # Check if typing import already exists
-        has_typing_import = False
-        for stmt in module.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                for item in stmt.body:
-                    if isinstance(item, cst.ImportFrom):
-                        if isinstance(item.module, cst.Name):
-                            if item.module.value == "typing":
-                                has_typing_import = True
-                                break
-
-        if has_typing_import:
+        # Check if Protocol is already imported from typing
+        if self._protocol_already_imported(module):
             return module
 
         # Add the import at the beginning
@@ -221,6 +211,31 @@ class ExtractInterfaceCommand(BaseCommand):
         new_body = [import_stmt] + list(module.body)
 
         return module.with_changes(body=new_body)
+
+    def _protocol_already_imported(self, module: cst.Module) -> bool:
+        """Check if Protocol is already imported from typing.
+
+        Args:
+            module: The module to check
+
+        Returns:
+            True if Protocol is imported from typing, False otherwise
+        """
+        for stmt in module.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for item in stmt.body:
+                    if isinstance(item, cst.ImportFrom):
+                        if isinstance(item.module, cst.Name):
+                            if item.module.value == "typing":
+                                if isinstance(item.names, cst.ImportStar):
+                                    return True
+                                if isinstance(item.names, (list, tuple)):
+                                    for name in item.names:
+                                        if isinstance(name, cst.ImportAlias):
+                                            if isinstance(name.name, cst.Name):
+                                                if name.name.value == "Protocol":
+                                                    return True
+        return False
 
     def _insert_protocol(self, module: cst.Module, protocol: cst.ClassDef) -> cst.Module:
         """Insert the protocol class into the module.
