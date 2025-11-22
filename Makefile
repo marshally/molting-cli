@@ -32,7 +32,7 @@ lint:
 # Type checking
 typecheck:
 	@echo "→ Type checking with mypy..."
-	mypy molting/ $$(find tests -name "*.py" ! -name "conftest.py")
+	mypy molting/ $$(find tests -name "*.py" ! -name "conftest.py" ! -path "*/fixtures/*")
 	@echo "✅ Type checking passed"
 
 # Run tests
