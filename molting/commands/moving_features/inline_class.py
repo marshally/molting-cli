@@ -195,6 +195,20 @@ class InlineClassTransformer(cst.CSTTransformer):
             for field_name, assignment, _ in self._find_self_assignments(init_method.body):
                 self.source_fields[field_name] = assignment.value
 
+    def _compute_prefix_from_field(self, field_name: str) -> str:
+        """Compute the prefix from a delegation field name.
+
+        Args:
+            field_name: The delegation field name (e.g., "office_telephone")
+
+        Returns:
+            The prefix to use (e.g., "office_")
+        """
+        if "_" in field_name:
+            parts = field_name.rsplit("_", 1)
+            return parts[0] + "_"
+        return ""
+
     def _determine_field_prefix(self, target_class_def: cst.ClassDef) -> None:
         """Determine the prefix to use for inlined fields.
 
@@ -202,21 +216,18 @@ class InlineClassTransformer(cst.CSTTransformer):
             target_class_def: The target class definition
         """
         # Look for delegation field in target class __init__
-        # e.g., self.office_telephone = TelephoneNumber()
         for stmt in target_class_def.body.body:
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
-                if isinstance(stmt.body, cst.IndentedBlock):
-                    for field_name, assignment, _ in self._find_self_assignments(stmt.body):
-                        # Check if value is instantiation of source class
-                        if self._is_source_class_instantiation(assignment.value):
-                            # Extract prefix from field name
-                            # office_telephone -> office_
-                            # Take everything before last underscore
-                            if "_" in field_name:
-                                parts = field_name.rsplit("_", 1)
-                                self.field_prefix = parts[0] + "_"
-                            else:
-                                self.field_prefix = ""
+            if not isinstance(stmt, cst.FunctionDef):
+                continue
+            if stmt.name.value != INIT_METHOD_NAME:
+                continue
+            if not isinstance(stmt.body, cst.IndentedBlock):
+                continue
+
+            for field_name, assignment, _ in self._find_self_assignments(stmt.body):
+                if self._is_source_class_instantiation(assignment.value):
+                    self.field_prefix = self._compute_prefix_from_field(field_name)
+                    return
 
     def _transform_init_method(self, node: cst.FunctionDef) -> cst.FunctionDef:
         """Transform the __init__ method to inline source class fields.
