@@ -18,12 +18,10 @@ class ReplaceInheritanceWithDelegationCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        try:
-            _ = self.params["target"]
-        except KeyError as e:
+        if "target" not in self.params:
             raise ValueError(
-                f"Missing required parameter for replace-inheritance-with-delegation: {e}"
-            ) from e
+                "Missing required parameter for replace-inheritance-with-delegation: 'target'"
+            )
 
     def execute(self) -> None:
         """Apply replace-inheritance-with-delegation refactoring using libCST.
@@ -78,7 +76,10 @@ class ReplaceInheritanceTransformer(cst.CSTTransformer):
             return updated_node
 
         if not self.superclass_name:
-            return updated_node
+            raise ValueError(
+                f"Class '{self.class_name}' does not inherit from any superclass. "
+                "Replace Inheritance with Delegation requires a parent class."
+            )
 
         # Remove inheritance
         new_bases = []
@@ -147,7 +148,30 @@ class ReplaceInheritanceTransformer(cst.CSTTransformer):
 
 
 class DelegationTransformer(cst.CSTTransformer):
-    """Transform inherited method calls to delegation calls."""
+    """Transform inherited method calls to delegation calls.
+
+    Transforms method calls that rely on inherited behavior to use a delegate field:
+    - self.method() -> self._items.method() for inherited list methods
+    - super().method() -> self._items.method() for explicit super calls
+    - len(self) -> len(self._items) for len built-in
+    """
+
+    # List of inherited list methods that need delegation
+    DELEGATED_METHODS = frozenset(
+        [
+            "append",
+            "pop",
+            "extend",
+            "insert",
+            "remove",
+            "clear",
+            "copy",
+            "count",
+            "index",
+            "reverse",
+            "sort",
+        ]
+    )
 
     def leave_Call(  # noqa: N802
         self, original_node: cst.Call, updated_node: cst.Call
@@ -188,19 +212,7 @@ class DelegationTransformer(cst.CSTTransformer):
                 if isinstance(updated_node.func.value, cst.Name):
                     if updated_node.func.value.value == "self":
                         method_name = updated_node.func.attr.value
-                        if method_name in [
-                            "append",
-                            "pop",
-                            "extend",
-                            "insert",
-                            "remove",
-                            "clear",
-                            "copy",
-                            "count",
-                            "index",
-                            "reverse",
-                            "sort",
-                        ]:
+                        if method_name in self.DELEGATED_METHODS:
                             return cst.Call(
                                 func=cst.Attribute(
                                     value=cst.Attribute(
