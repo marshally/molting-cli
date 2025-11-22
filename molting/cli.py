@@ -36,7 +36,12 @@ def refactor_file(refactoring_name: str, file_path: Path, **params) -> None:
             raise ValueError(f"Missing required parameter for rename-method: {e}") from e
 
         # Parse target: "ClassName::method_name"
-        _, method_name = target.split("::")
+        parts = target.split("::")
+        if len(parts) != 2:
+            raise ValueError(
+                f"Invalid target format '{target}'. Expected 'ClassName::method_name'"
+            )
+        _, method_name = parts
 
         # Open rope project
         project = Project(str(file_path.parent))
