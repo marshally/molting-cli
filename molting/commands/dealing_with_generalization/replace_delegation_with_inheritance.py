@@ -104,7 +104,7 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
         new_bases = list(updated_node.bases) + [cst.Arg(value=cst.Name(self.delegate_type))]
 
         # Update __init__ method and remove delegation methods
-        new_body_stmts = []
+        new_body_stmts: list[cst.BaseStatement] = []
         for stmt in updated_node.body.body:
             if isinstance(stmt, cst.FunctionDef):
                 # Transform __init__ method
@@ -118,7 +118,7 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
                 new_body_stmts.append(stmt)
 
         return updated_node.with_changes(
-            bases=new_bases, body=updated_node.body.with_changes(body=new_body_stmts)
+            bases=new_bases, body=updated_node.body.with_changes(body=tuple(new_body_stmts))
         )
 
     def _is_delegation_method(self, method: cst.FunctionDef) -> bool:
