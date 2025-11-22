@@ -29,8 +29,11 @@ def refactor_file(refactoring_name: str, file_path: Path, **params) -> None:
         **params: Additional parameters for the refactoring
     """
     if refactoring_name == "rename-method":
-        target = params["target"]
-        new_name = params["new_name"]
+        try:
+            target = params["target"]
+            new_name = params["new_name"]
+        except KeyError as e:
+            raise ValueError(f"Missing required parameter for rename-method: {e}") from e
 
         # Parse target: "ClassName::method_name"
         class_name, method_name = target.split("::")
