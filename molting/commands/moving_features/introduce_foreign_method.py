@@ -1,6 +1,5 @@
 """Introduce Foreign Method refactoring command."""
 
-from collections.abc import Sequence
 from typing import Any
 
 import libcst as cst
@@ -98,37 +97,30 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
         self.target_line = target_line
         self.for_class = for_class
         self.new_method_name = new_method_name
-        self.should_add_import = False
         self.foreign_method: cst.FunctionDef | None = None
+        self.method_found = False
 
     def leave_ImportFrom(  # noqa: N802
         self, original_node: cst.ImportFrom, updated_node: cst.ImportFrom
     ) -> cst.ImportFrom:
         """Update imports to add timedelta if importing from datetime."""
-        if isinstance(updated_node.module, cst.Attribute):
-            return updated_node
-
         if isinstance(updated_node.module, cst.Name):
             if updated_node.module.value == "datetime":
                 # Check if timedelta is already imported
                 if isinstance(updated_node.names, cst.ImportStar):
                     return updated_node
 
-                if isinstance(updated_node.names, Sequence):
-                    names = list(updated_node.names)
-                else:
-                    names = [updated_node.names]
-
+                names_list = list(updated_node.names)
                 has_timedelta = any(
                     isinstance(name, cst.ImportAlias)
                     and isinstance(name.name, cst.Name)
                     and name.name.value == "timedelta"
-                    for name in names
+                    for name in names_list
                 )
 
                 if not has_timedelta:
                     # Add timedelta to imports
-                    new_names = list(names) + [cst.ImportAlias(name=cst.Name("timedelta"))]
+                    new_names = names_list + [cst.ImportAlias(name=cst.Name("timedelta"))]
                     return updated_node.with_changes(names=new_names)
 
         return updated_node
@@ -138,32 +130,29 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
     ) -> cst.ClassDef:
         """Process class to add foreign method."""
         if original_node.name.value == self.class_name:
-            return self._process_class(updated_node, original_node)
+            return self._process_class(updated_node)
         return updated_node
 
-    def _process_class(
-        self, updated_node: cst.ClassDef, original_node: cst.ClassDef
-    ) -> cst.ClassDef:
+    def _process_class(self, updated_node: cst.ClassDef) -> cst.ClassDef:
         """Process the class to find the target line and add the foreign method.
 
         Args:
             updated_node: The updated class definition
-            original_node: The original class definition
 
         Returns:
             Updated class definition with foreign method added
         """
-        # Find the method and analyze it
+        # Process each member
         updated_members: list[Any] = []
         for member in updated_node.body.body:
             if isinstance(member, cst.FunctionDef) and member.name.value == self.method_name:
-                # Process the method body
-                processed_method = self._process_method(member, original_node)
+                # Process the method body to replace the line
+                processed_method = self._process_method_body(member)
                 updated_members.append(processed_method)
             else:
                 updated_members.append(member)
 
-        # Add the foreign method if we found what we were looking for
+        # Add the foreign method if we found and processed the target method
         if self.foreign_method is not None:
             method_with_spacing = self.foreign_method.with_changes(
                 leading_lines=[cst.EmptyLine(indent=False, whitespace=cst.SimpleWhitespace(""))]
@@ -174,28 +163,50 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
             body=updated_node.body.with_changes(body=tuple(updated_members))
         )
 
-    def _process_method(self, method: cst.FunctionDef, class_node: cst.ClassDef) -> cst.FunctionDef:
-        """Process the method to replace the target line.
+    def _process_method_body(self, method: cst.FunctionDef) -> cst.FunctionDef:
+        """Process the method body to replace the target line.
 
         Args:
             method: The method to process
-            class_node: The containing class node
 
         Returns:
             Processed method with the replacement
         """
-        # Count lines to find the target
-        line_counter = LineCounter()
-        method.body.walk(line_counter)
+        new_body_stmts: list[Any] = []
+        line_count = 0
 
-        # Now replace the statement
-        replacer = TargetLineReplacer(self.target_line, self.new_method_name)
-        new_body = method.body.visit(replacer)
+        for stmt in method.body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                line_count += 1
+                if line_count == self.target_line + 1:
+                    # Replace the second line with the method call
+                    new_body_stmts.append(self._create_replacement_statement())
+                    # Create the foreign method
+                    self._create_foreign_method()
+                else:
+                    new_body_stmts.append(stmt)
+            else:
+                new_body_stmts.append(stmt)
 
-        # Create the foreign method
-        self._create_foreign_method()
-
+        new_body = method.body.with_changes(body=tuple(new_body_stmts))
         return method.with_changes(body=new_body)
+
+    def _create_replacement_statement(self) -> cst.SimpleStatementLine:
+        """Create the replacement statement with the method call.
+
+        Returns:
+            A statement that calls self.method_name(previous_end)
+        """
+        # Create: new_start = self.next_day(previous_end)
+        assignment = cst.Assign(
+            targets=[cst.AssignTarget(target=cst.Name("new_start"))],
+            value=cst.Call(
+                func=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.new_method_name)),
+                args=[cst.Arg(value=cst.Name("previous_end"))],
+            ),
+        )
+
+        return cst.SimpleStatementLine(body=[assignment])
 
     def _create_foreign_method(self) -> None:
         """Create the foreign method that wraps the external class operation."""
@@ -211,10 +222,9 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
             )
         )
 
-        # Create the method with a docstring comment
+        # Create the method body with comment
         body = cst.IndentedBlock(
             body=[
-                cst.EmptyLine(indent=True, whitespace=cst.SimpleWhitespace("    ")),
                 cst.SimpleStatementLine(
                     body=[
                         cst.Expr(value=cst.SimpleString(f"# Foreign method for {self.for_class}"))
@@ -237,109 +247,6 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
             params=params,
             body=body,
         )
-
-
-class LineCounter(cst.CSTVisitor):
-    """Counts statements to track line numbers."""
-
-    def __init__(self) -> None:
-        """Initialize the counter."""
-        self.line_count = 0
-
-
-class TargetLineReplacer(cst.CSTTransformer):
-    """Replaces the statement at the target line."""
-
-    def __init__(self, target_line: int, method_name: str) -> None:
-        """Initialize the replacer.
-
-        Args:
-            target_line: The line to replace
-            method_name: Name of the method to call
-        """
-        self.target_line = target_line
-        self.method_name = method_name
-        self.current_line = 0
-        self.seen_target_line = False
-
-    def visit_SimpleStatementLine(self, node: cst.SimpleStatementLine) -> bool:  # noqa: N802
-        """Track line numbers as we visit statements."""
-        self.current_line += 1
-        return True
-
-    def leave_Module(self, updated_node: cst.Module) -> cst.Module:  # noqa: N802
-        """Process the module to find and replace the target line."""
-        new_body: list[Any] = []
-        line_count = 0
-
-        for stmt in updated_node.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                line_count += 1
-                if line_count == self.target_line:
-                    # This is the first line in the range
-                    # Skip it and handle the next line replacement
-                    new_body.append(stmt)
-                elif line_count == self.target_line + 1:
-                    # This is the second line that needs to be replaced
-                    new_body.append(self._create_replacement_statement())
-                else:
-                    new_body.append(stmt)
-            elif isinstance(stmt, cst.FunctionDef):
-                # Process function body
-                new_body.append(self._process_function_body(stmt))
-            else:
-                new_body.append(stmt)
-
-        return updated_node.with_changes(body=new_body)
-
-    def _process_function_body(self, func: cst.FunctionDef) -> cst.FunctionDef:
-        """Process the function body to replace the target line.
-
-        Args:
-            func: The function definition
-
-        Returns:
-            Updated function definition
-        """
-        new_body_stmts: list[Any] = []
-        line_count = 0
-
-        for stmt in func.body.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                line_count += 1
-                if line_count == self.target_line:
-                    # Keep the first line as is
-                    new_body_stmts.append(stmt)
-                elif line_count == self.target_line + 1:
-                    # Replace the second line with the method call
-                    new_body_stmts.append(self._create_replacement_statement())
-                else:
-                    new_body_stmts.append(stmt)
-            else:
-                new_body_stmts.append(stmt)
-
-        new_body = func.body.with_changes(body=tuple(new_body_stmts))
-        return func.with_changes(body=new_body)
-
-    def _create_replacement_statement(self) -> cst.SimpleStatementLine:
-        """Create the replacement statement with the method call.
-
-        Returns:
-            A statement that calls self.method_name(previous_end)
-        """
-        # Create: new_start = self.next_day(previous_end)
-        assignment = cst.Assign(
-            targets=[cst.AssignTarget(target=cst.Name("new_start"))],
-            value=cst.Call(
-                func=cst.Attribute(
-                    value=cst.Name("self"),
-                    attr=cst.Name(self.method_name),
-                ),
-                args=[cst.Arg(value=cst.Name("previous_end"))],
-            ),
-        )
-
-        return cst.SimpleStatementLine(body=[assignment])
 
 
 # Register the command

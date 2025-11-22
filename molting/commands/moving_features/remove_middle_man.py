@@ -50,12 +50,10 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         self.target_class = target_class
         self.delegate_field: str | None = None
         self.delegation_methods: list[str] = []
-        self.in_target_class = False
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
-        """Visit class definitions."""
+        """Visit class definitions to identify delegate field and methods."""
         if node.name.value == self.target_class:
-            self.in_target_class = True
             self._identify_delegate_and_methods(node)
         return True
 
@@ -65,8 +63,6 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         """Process class definitions to remove middle man."""
         if original_node.name.value != self.target_class:
             return updated_node
-
-        self.in_target_class = False
 
         # Transform the class body
         new_body: list[Any] = []
@@ -79,7 +75,6 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
                 transformed_method = self._transform_method(item)
                 new_body.append(transformed_method)
             else:
-                # Handle other statements
                 new_body.append(item)
 
         return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
@@ -99,12 +94,46 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         new_stmts: list[Any] = []
         for stmt in method.body.body:
             if isinstance(stmt, cst.SimpleStatementLine):
-                new_stmt = self._transform_field_assignment_in_stmt(stmt)
+                new_stmt = self._transform_statement(stmt)
                 new_stmts.append(new_stmt)
             else:
                 new_stmts.append(stmt)
 
         return method.with_changes(body=cst.IndentedBlock(body=new_stmts))
+
+    def _transform_statement(self, stmt: cst.SimpleStatementLine) -> cst.SimpleStatementLine:
+        """Transform statements to rename delegate fields.
+
+        Args:
+            stmt: The statement to transform
+
+        Returns:
+            The transformed statement
+        """
+        if not self.delegate_field:
+            return stmt
+
+        new_body = []
+        for expr in stmt.body:
+            if isinstance(expr, cst.Assign):
+                # Transform self._field = value to self.field = value
+                target = expr.targets[0].target
+                if isinstance(target, cst.Attribute):
+                    if isinstance(target.value, cst.Name) and target.value.value == "self":
+                        field_name = target.attr.value
+                        if field_name == self.delegate_field:
+                            # Remove the leading underscore
+                            public_name = field_name.lstrip("_")
+                            new_target = target.with_changes(attr=cst.Name(public_name))
+                            new_assign = expr.with_changes(
+                                targets=[cst.AssignTarget(target=new_target)]
+                            )
+                            new_body.append(new_assign)
+                            continue
+
+            new_body.append(expr)
+
+        return stmt.with_changes(body=new_body) if new_body else stmt
 
     def _identify_delegate_and_methods(self, class_def: cst.ClassDef) -> None:
         """Identify the delegate field and delegation methods.
@@ -132,23 +161,24 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
 
         # Find delegation methods
         if self.delegate_field:
-            public_field_name = self.delegate_field.lstrip("_")
             for item in class_def.body.body:
                 if isinstance(item, cst.FunctionDef):
                     # Check if this is a getter method that delegates
-                    if self._is_delegation_method(item, public_field_name):
+                    if self._is_delegation_method(item):
                         self.delegation_methods.append(item.name.value)
 
-    def _is_delegation_method(self, method: cst.FunctionDef, delegate_field: str) -> bool:
+    def _is_delegation_method(self, method: cst.FunctionDef) -> bool:
         """Check if a method is a delegation method.
 
         Args:
             method: The method to check
-            delegate_field: The public field name (without underscore)
 
         Returns:
             True if the method is a delegation method
         """
+        if not self.delegate_field:
+            return False
+
         # Skip __init__ and magic methods
         if method.name.value.startswith("_"):
             return False
@@ -186,42 +216,6 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
                         return True
 
         return False
-
-    def _transform_field_assignment(
-        self, stmt: cst.SimpleStatementLine
-    ) -> cst.SimpleStatementLine | None:
-        """Transform field assignments to make private fields public.
-
-        Args:
-            stmt: The statement to transform
-
-        Returns:
-            The transformed statement or None if should be skipped
-        """
-        new_body = []
-        for expr in stmt.body:
-            if isinstance(expr, cst.Assign):
-                # Transform self._field = value to self.field = value
-                target = expr.targets[0].target
-                if isinstance(target, cst.Attribute):
-                    if isinstance(target.value, cst.Name) and target.value.value == "self":
-                        field_name = target.attr.value
-                        if field_name == self.delegate_field:
-                            # Remove the leading underscore
-                            public_name = field_name.lstrip("_")
-                            new_target = target.with_changes(attr=cst.Name(public_name))
-                            new_assign = expr.with_changes(
-                                targets=[cst.AssignTarget(target=new_target)]
-                            )
-                            new_body.append(new_assign)
-                            continue
-
-            new_body.append(expr)
-
-        if not new_body:
-            return None
-
-        return stmt.with_changes(body=new_body)
 
 
 # Register the command
