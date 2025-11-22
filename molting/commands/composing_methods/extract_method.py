@@ -158,7 +158,7 @@ class LineCollector(cst.CSTVisitor):
             return
 
         for i, stmt in enumerate(node.body.body):
-            stmt_lines = self._get_stmt_lines(stmt)
+            stmt_lines = self._get_stmt_lines(stmt)  # type: ignore[arg-type]
 
             if stmt_lines is None:
                 continue
@@ -173,9 +173,7 @@ class LineCollector(cst.CSTVisitor):
                 # End point is in range
                 self.extracted_stmt_indices.append(i)
 
-    def _get_stmt_lines(
-        self, stmt: cst.SimpleStatementLine | cst.BaseCompoundStatement
-    ) -> tuple[int, int] | None:
+    def _get_stmt_lines(self, stmt: cst.BaseStatement) -> tuple[int, int] | None:
         """Get the range of lines for a statement including leading lines.
 
         Args:
@@ -268,28 +266,28 @@ class ExtractMethodTransformer(cst.CSTTransformer):
             return updated_node
 
         # Collect extracted statements
-        extracted_stmts = []
-        new_body = []
+        extracted_stmts: list[cst.BaseStatement] = []
+        new_body: list[cst.BaseStatement] = []
 
         for i, stmt in enumerate(updated_node.body.body):
             if i in self.extracted_stmt_indices:
-                extracted_stmts.append(stmt)
+                extracted_stmts.append(stmt)  # type: ignore[arg-type]
                 # Insert method call at the first extracted statement position
                 if len(extracted_stmts) == 1:
                     method_call = self._create_method_call_statement()
                     new_body.append(method_call)
             else:
-                new_body.append(stmt)
+                new_body.append(stmt)  # type: ignore[arg-type]
 
         # Create the new extracted method with self parameter
-        new_method_body = cst.IndentedBlock(body=extracted_stmts)
+        new_method_body = cst.IndentedBlock(body=tuple(extracted_stmts))
         self.new_method = cst.FunctionDef(
             name=cst.Name(self.new_method_name),
             params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
             body=new_method_body,
         )
 
-        return updated_node.with_changes(body=updated_node.body.with_changes(body=new_body))
+        return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body)))
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -305,7 +303,7 @@ class ExtractMethodTransformer(cst.CSTTransformer):
             )
 
             # Add the new method to the class
-            new_body = list(updated_node.body.body) + [new_method_with_spacing]
+            new_body = tuple(list(updated_node.body.body) + [new_method_with_spacing])
             return updated_node.with_changes(body=updated_node.body.with_changes(body=new_body))
 
         return updated_node
