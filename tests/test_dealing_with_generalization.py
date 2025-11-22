@@ -133,7 +133,6 @@ class TestFormTemplateMethod(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceInheritanceWithDelegation(RefactoringTestBase):
     """Tests for Replace Inheritance with Delegation refactoring."""
 
