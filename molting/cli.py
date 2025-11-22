@@ -40,9 +40,7 @@ def _parse_target(target: str) -> Tuple[str, str]:
     return tuple(parts)  # type: ignore[return-value]
 
 
-def _find_method_in_tree(
-    tree: ast.AST, method_name: str
-) -> Optional[Tuple[ast.ClassDef, ast.FunctionDef]]:
+def _find_method_in_tree(tree: Any, method_name: str) -> Optional[Tuple[Any, Any]]:
     """Find a method in a class within the AST tree.
 
     Args:
@@ -128,7 +126,7 @@ def _create_formatted_attribute(attr_name: str) -> ast.FormattedValue:
     )
 
 
-def _create_contact_info_body(param_name: str) -> List[ast.stmt]:
+def _create_contact_info_body(param_name: str) -> List[Any]:
     """Create method body for get_contact_info with conditional email inclusion.
 
     Args:
