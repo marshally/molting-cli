@@ -1,1 +1,1 @@
-"""Moving Features refactorings."""
+"""Moving Features refactoring commands."""
