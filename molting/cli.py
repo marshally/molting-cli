@@ -2,7 +2,7 @@
 
 import ast
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional, Tuple
 
 import click
 from rope.base.project import Project  # type: ignore[import-untyped]
@@ -22,7 +22,7 @@ def main() -> None:
     pass
 
 
-def _parse_target(target: str) -> tuple[str, str]:
+def _parse_target(target: str) -> Tuple[str, str]:
     """Parse target in 'ClassName::method_name' format.
 
     Args:
@@ -42,7 +42,7 @@ def _parse_target(target: str) -> tuple[str, str]:
 
 def _find_method_in_tree(
     tree: ast.AST, method_name: str
-) -> Optional[tuple[ast.ClassDef, ast.FunctionDef]]:
+) -> Optional[Tuple[ast.ClassDef, ast.FunctionDef]]:
     """Find a method in a class within the AST tree.
 
     Args:
@@ -128,7 +128,7 @@ def _create_formatted_attribute(attr_name: str) -> ast.FormattedValue:
     )
 
 
-def _create_contact_info_body(param_name: str) -> list[ast.stmt]:
+def _create_contact_info_body(param_name: str) -> List[ast.stmt]:
     """Create method body for get_contact_info with conditional email inclusion.
 
     Args:
