@@ -10,7 +10,6 @@ import pytest
 from tests.conftest import RefactoringTestBase
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestExtractMethod(RefactoringTestBase):
     """Tests for Extract Method refactoring."""
 
