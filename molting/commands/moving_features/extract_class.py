@@ -1,5 +1,7 @@
 """Extract Class refactoring command."""
 
+from typing import cast
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -84,7 +86,7 @@ class ExtractClassTransformer(cst.CSTTransformer):
         if updated_node.name.value != self.source_class:
             return updated_node
 
-        new_body = []
+        new_body: list[cst.BaseStatement] = []
         delegate_field_name = self._calculate_delegate_field_name()
 
         for stmt in updated_node.body.body:
@@ -99,7 +101,7 @@ class ExtractClassTransformer(cst.CSTTransformer):
                 else:
                     new_body.append(stmt)
             else:
-                new_body.append(stmt)
+                new_body.append(cast(cst.BaseStatement, stmt))
 
         updated_class = updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
         new_class = self._create_new_class()
@@ -107,8 +109,8 @@ class ExtractClassTransformer(cst.CSTTransformer):
         return cst.FlattenSentinel(
             [
                 updated_class,
-                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                cast(cst.ClassDef, cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))),
+                cast(cst.ClassDef, cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))),
                 new_class,
             ]
         )
@@ -150,10 +152,10 @@ class ExtractClassTransformer(cst.CSTTransformer):
                 if param.name.value in self.fields:
                     extracted_param_names.append(param.name.value)
 
-        new_body_stmts = []
+        new_body_stmts: list[cst.BaseStatement] = []
         for stmt in init_method.body.body:
-            if not self._is_assignment_to_extracted_field(stmt):
-                new_body_stmts.append(stmt)
+            if not self._is_assignment_to_extracted_field(cast(cst.BaseStatement, stmt)):
+                new_body_stmts.append(cast(cst.BaseStatement, stmt))
 
         delegate_args = [
             cst.Arg(value=cst.Name(param_name)) for param_name in extracted_param_names
@@ -267,17 +269,22 @@ class ExtractClassTransformer(cst.CSTTransformer):
             body=cst.IndentedBlock(body=assignments),
         )
 
-        updated_methods = []
+        updated_methods: list[cst.FunctionDef] = []
         for method in self.extracted_methods:
             transformer = FieldRenameTransformer(param_mapping)
             updated_method = method.visit(transformer)
-            updated_methods.append(updated_method)
+            updated_methods.append(cast(cst.FunctionDef, updated_method))
 
-        class_body = [init_method, cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))]
+        class_body: list[cst.BaseStatement] = [
+            init_method,
+            cast(cst.BaseStatement, cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))),
+        ]
         for i, method in enumerate(updated_methods):
             class_body.append(method)
             if i < len(updated_methods) - 1:
-                class_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
+                class_body.append(
+                    cast(cst.BaseStatement, cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
+                )
 
         return cst.ClassDef(
             name=cst.Name(self.new_class_name),
