@@ -75,7 +75,7 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
         new_class = self._create_new_class()
         modified_statements: list[cst.BaseStatement] = [
             new_class,
-            cst.EmptyLine(),
+            cast(cst.BaseStatement, cst.EmptyLine()),
         ]
 
         for stmt in updated_node.body:

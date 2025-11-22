@@ -61,21 +61,48 @@ class IntroduceLocalExtensionCommand(BaseCommand):
         Returns:
             The complete generated code as a string
         """
-        code = f"""from datetime import date, timedelta
+        imports = self._generate_imports()
+        class_definition = self._generate_class_definition(target_class, new_class_name)
+        client_code = self._generate_client_code_template()
 
+        return f"{imports}{class_definition}{client_code}"
 
-class {new_class_name}({target_class}):
-    def next_day(self):
-        return self + timedelta(days=1)
+    def _generate_imports(self) -> str:
+        """Generate import statements.
 
-    def days_after(self, days):
-        return self + timedelta(days=days)
+        Returns:
+            Import statements as a string
+        """
+        return "from datetime import date, timedelta\n\n\n"
 
+    def _generate_class_definition(self, target_class: str, new_class_name: str) -> str:
+        """Generate the extension class definition.
 
-# Client code
-# new_start = previous_end.next_day()
-"""
-        return code
+        Args:
+            target_class: Name of the class to extend
+            new_class_name: Name of the new extension class
+
+        Returns:
+            Class definition as a string
+        """
+        return (
+            f"class {new_class_name}({target_class}):\n"
+            "    def next_day(self):\n"
+            "        return self + timedelta(days=1)\n"
+            "\n"
+            "    def days_after(self, days):\n"
+            "        return self + timedelta(days=days)\n"
+            "\n"
+            "\n"
+        )
+
+    def _generate_client_code_template(self) -> str:
+        """Generate client code comment template.
+
+        Returns:
+            Client code comments as a string
+        """
+        return "# Client code\n# new_start = previous_end.next_day()\n"
 
 
 # Register the command
