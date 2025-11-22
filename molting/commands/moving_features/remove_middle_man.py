@@ -118,7 +118,7 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         new_body = [self._transform_expression(expr) for expr in stmt.body]
         return stmt.with_changes(body=new_body) if new_body else stmt
 
-    def _transform_expression(self, expr: cst.BaseCompoundStatement) -> cst.BaseCompoundStatement:
+    def _transform_expression(self, expr: cst.BaseSmallStatement) -> cst.BaseSmallStatement:
         """Transform a single expression, renaming delegate field if applicable.
 
         Args:
@@ -137,7 +137,7 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
             return expr
 
         # Rename field from private to public
-        public_name = field_name.lstrip("_")
+        public_name = field_name.lstrip("_") if field_name else field_name
         new_target = target.with_changes(attr=cst.Name(public_name))
         return expr.with_changes(targets=[cst.AssignTarget(target=new_target)])
 
