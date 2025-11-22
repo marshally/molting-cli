@@ -15,11 +15,24 @@ class IntroduceLocalExtensionCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        required = ["target_class", "name", "type"]
+        self._validate_required_parameters(
+            ["target_class", "name", "type"], "introduce-local-extension"
+        )
+
+    def _validate_required_parameters(self, required: list[str], refactoring_name: str) -> None:
+        """Validate that all required parameters are present.
+
+        Args:
+            required: List of required parameter names
+            refactoring_name: Name of the refactoring for error messages
+
+        Raises:
+            ValueError: If any required parameters are missing
+        """
         missing = [param for param in required if param not in self.params]
         if missing:
             raise ValueError(
-                f"Missing required parameters for introduce-local-extension: {', '.join(missing)}"
+                f"Missing required parameters for {refactoring_name}: {', '.join(missing)}"
             )
 
     def execute(self) -> None:
