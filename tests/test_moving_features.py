@@ -49,7 +49,6 @@ class TestExtractClass(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestInlineClass(RefactoringTestBase):
     """Tests for Inline Class refactoring."""
 
