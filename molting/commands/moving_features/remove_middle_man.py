@@ -7,6 +7,8 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 
+INIT_METHOD_NAME = "__init__"
+
 
 class RemoveMiddleManCommand(BaseCommand):
     """Command to remove middle man delegation from a class."""
@@ -141,31 +143,76 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         Args:
             class_def: The class definition to analyze
         """
-        # Find private field assignments in __init__
-        for item in class_def.body.body:
-            if isinstance(item, cst.FunctionDef) and item.name.value == "__init__":
-                for stmt in item.body.body:
-                    if isinstance(stmt, cst.SimpleStatementLine):
-                        for expr in stmt.body:
-                            if isinstance(expr, cst.Assign):
-                                # Find self._field = value patterns
-                                target = expr.targets[0].target
-                                if isinstance(target, cst.Attribute):
-                                    if (
-                                        isinstance(target.value, cst.Name)
-                                        and target.value.value == "self"
-                                    ):
-                                        field_name = target.attr.value
-                                        if field_name.startswith("_"):
-                                            self.delegate_field = field_name
+        self._find_delegate_field(class_def)
+        self._find_delegation_methods(class_def)
 
-        # Find delegation methods
-        if self.delegate_field:
-            for item in class_def.body.body:
-                if isinstance(item, cst.FunctionDef):
-                    # Check if this is a getter method that delegates
-                    if self._is_delegation_method(item):
-                        self.delegation_methods.append(item.name.value)
+    def _find_delegate_field(self, class_def: cst.ClassDef) -> None:
+        """Find the private delegate field in __init__ method.
+
+        Args:
+            class_def: The class definition to analyze
+        """
+        for item in class_def.body.body:
+            if not isinstance(item, cst.FunctionDef):
+                continue
+            if item.name.value != INIT_METHOD_NAME:
+                continue
+
+            self.delegate_field = self._extract_private_field_from_method(item)
+            if self.delegate_field:
+                break
+
+    def _extract_private_field_from_method(self, method: cst.FunctionDef) -> str | None:
+        """Extract the first private field assignment from a method.
+
+        Args:
+            method: The method to analyze
+
+        Returns:
+            The private field name if found, None otherwise
+        """
+        for stmt in method.body.body:
+            if not isinstance(stmt, cst.SimpleStatementLine):
+                continue
+
+            for expr in stmt.body:
+                if not isinstance(expr, cst.Assign):
+                    continue
+
+                field_name = self._get_self_attribute_name(expr.targets[0].target)
+                if field_name and field_name.startswith("_"):
+                    return field_name
+
+        return None
+
+    def _get_self_attribute_name(self, target: cst.BaseAssignTargetExpression) -> str | None:
+        """Get the attribute name if target is self.field.
+
+        Args:
+            target: The assignment target
+
+        Returns:
+            The attribute name if it's a self attribute, None otherwise
+        """
+        if not isinstance(target, cst.Attribute):
+            return None
+        if not isinstance(target.value, cst.Name) or target.value.value != "self":
+            return None
+        return target.attr.value
+
+    def _find_delegation_methods(self, class_def: cst.ClassDef) -> None:
+        """Find delegation methods in the class.
+
+        Args:
+            class_def: The class definition to analyze
+        """
+        if not self.delegate_field:
+            return
+
+        for item in class_def.body.body:
+            if isinstance(item, cst.FunctionDef):
+                if self._is_delegation_method(item):
+                    self.delegation_methods.append(item.name.value)
 
     def _is_delegation_method(self, method: cst.FunctionDef) -> bool:
         """Check if a method is a delegation method.
