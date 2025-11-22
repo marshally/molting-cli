@@ -1,6 +1,5 @@
 """Rename Method refactoring command."""
 
-
 from rope.base.project import Project  # type: ignore[import-untyped]
 from rope.refactor.rename import Rename  # type: ignore[import-untyped]
 
