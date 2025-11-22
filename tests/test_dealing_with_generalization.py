@@ -144,7 +144,6 @@ class TestReplaceInheritanceWithDelegation(RefactoringTestBase):
         self.refactor("replace-inheritance-with-delegation", target="Stack")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceDelegationWithInheritance(RefactoringTestBase):
     """Tests for Replace Delegation with Inheritance refactoring."""
 
