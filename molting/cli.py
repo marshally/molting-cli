@@ -247,7 +247,7 @@ def _apply_remove_parameter(file_path: Path, **params: Any) -> None:
     except KeyError as e:
         raise ValueError(f"Missing required parameter for remove-parameter: {e}") from e
 
-    class_name, method_name, param_name = _parse_target(target, expected_parts=3)
+    _, method_name, param_name = _parse_target(target, expected_parts=3)
 
     source = file_path.read_text()
     tree = ast.parse(source)
@@ -256,7 +256,7 @@ def _apply_remove_parameter(file_path: Path, **params: Any) -> None:
     if result is None:
         raise ValueError(f"Method '{method_name}' not found in {file_path}")
 
-    class_node, method_node = result
+    _, method_node = result
 
     # Find and remove the parameter from the method's argument list
     param_index = None
