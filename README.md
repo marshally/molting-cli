@@ -252,7 +252,7 @@ cd molting-cli
 poetry install
 
 # Install pre-commit hook (optional but recommended)
-cp .git/hooks/pre-commit.sample .git/hooks/pre-commit
+cp hooks/pre-commit .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 ```
 
@@ -269,16 +269,50 @@ make test        # Run tests
 make all         # Format, typecheck, and test everything
 ```
 
-### Pre-commit Hook
+### Managing Commit Hooks
 
-The pre-commit hook automatically runs before each commit:
-- **black** - Code formatting
-- **ruff** - Linting and auto-fixes
+#### Installing the Pre-commit Hook
+
+To automatically run code quality checks before each commit:
+
+```bash
+# Install the pre-commit hook
+cp hooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+The hook automatically runs:
+- **black** - Code formatting (auto-fixes)
+- **ruff** - Linting (auto-fixes where possible)
 - **mypy** - Type checking
 
-To bypass the hook (not recommended):
+The hook will:
+1. Stash any unstaged changes
+2. Run linters on staged Python files
+3. Auto-add any fixed files
+4. Restore your stashed changes
+5. Block the commit if checks fail
+
+#### Bypassing the Hook
+
+To skip the hook for a single commit (not recommended):
 ```bash
 git commit --no-verify
+```
+
+#### Uninstalling the Hook
+
+To remove the pre-commit hook:
+```bash
+rm .git/hooks/pre-commit
+```
+
+#### Updating the Hook
+
+If the hook is updated in the repository:
+```bash
+cp hooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
 ```
 
 ### Running Tests
