@@ -2,11 +2,9 @@ from typing import Protocol
 
 
 class Billable(Protocol):
-    def get_rate(self) -> float:
-        ...
+    def get_rate(self) -> float: ...
 
-    def has_special_skill(self) -> bool:
-        ...
+    def has_special_skill(self) -> bool: ...
 
 
 class Employee:
