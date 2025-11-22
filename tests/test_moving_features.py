@@ -94,7 +94,6 @@ class TestIntroduceForeignMethod(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestIntroduceLocalExtension(RefactoringTestBase):
     """Tests for Introduce Local Extension refactoring."""
 
