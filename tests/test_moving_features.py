@@ -32,7 +32,6 @@ class TestMoveField(RefactoringTestBase):
         self.refactor("move-field", source="Account::interest_rate", to="AccountType")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestExtractClass(RefactoringTestBase):
     """Tests for Extract Class refactoring."""
 
