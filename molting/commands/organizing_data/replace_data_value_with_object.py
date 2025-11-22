@@ -107,7 +107,7 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
                     modified_method = self._modify_method_body(stmt)
                     new_body.append(modified_method)
             else:
-                new_body.append(stmt)
+                new_body.append(cast(cst.BaseStatement, stmt))
 
         return class_def.with_changes(body=cst.IndentedBlock(body=new_body))
 
@@ -175,7 +175,7 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
                 if not modified_stmt:
                     new_body_stmts.append(stmt)
             else:
-                new_body_stmts.append(stmt)
+                new_body_stmts.append(cast(cst.BaseStatement, stmt))
 
         return init_method.with_changes(body=cst.IndentedBlock(body=new_body_stmts))
 
