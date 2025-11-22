@@ -63,12 +63,10 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
         self.class_name = class_name
         self.delegate_field = delegate_field
         self.delegate_type: str | None = None
-        self.is_target_class = False
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
         """Visit class definition to find delegate type."""
         if node.name.value == self.class_name:
-            self.is_target_class = True
             # Find the delegate field assignment to get the delegate class
             # Look in __init__ method first
             for stmt in node.body.body:
@@ -113,7 +111,7 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
                 if stmt.name.value == "__init__":
                     stmt = self._transform_init_method(stmt)
                 # Remove delegation methods (get_X, set_X that delegate to _person)
-                elif self._is_delegation_method(original_node, stmt):
+                elif self._is_delegation_method(stmt):
                     continue
                 new_body_stmts.append(stmt)
             else:
@@ -123,11 +121,10 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
             bases=new_bases, body=updated_node.body.with_changes(body=new_body_stmts)
         )
 
-    def _is_delegation_method(self, class_node: cst.ClassDef, method: cst.FunctionDef) -> bool:
+    def _is_delegation_method(self, method: cst.FunctionDef) -> bool:
         """Check if a method is a delegation method that delegates to the delegate field.
 
         Args:
-            class_node: The class definition
             method: The method to check
 
         Returns:
@@ -139,46 +136,70 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
                 if isinstance(stmt, cst.SimpleStatementLine):
                     for item in stmt.body:
                         if isinstance(item, cst.Return):
-                            # Check if return delegates to self._field
-                            return_val = item.value
-                            if return_val is None:
-                                return False
-
-                            # Check for self._field.something patterns
-                            if isinstance(return_val, cst.Attribute):
-                                # Pattern: return self._field.attr
-                                if isinstance(return_val.value, cst.Attribute):
-                                    if (
-                                        isinstance(return_val.value.value, cst.Name)
-                                        and return_val.value.value.value == "self"
-                                        and return_val.value.attr.value == self.delegate_field
-                                    ):
-                                        return True
-                            elif isinstance(return_val, cst.Call):
-                                # Pattern: return self._field.method()
-                                if isinstance(return_val.func, cst.Attribute):
-                                    if isinstance(return_val.func.value, cst.Attribute):
-                                        if (
-                                            isinstance(return_val.func.value.value, cst.Name)
-                                            and return_val.func.value.value.value == "self"
-                                            and return_val.func.value.attr.value
-                                            == self.delegate_field
-                                        ):
-                                            return True
+                            if self._is_delegated_return(item.value):
+                                return True
                         elif isinstance(item, cst.Assign):
-                            # Pattern: self._field.attr = value
-                            if isinstance(item.value, cst.BaseExpression):
-                                for target in item.targets:
-                                    if isinstance(target.target, cst.Attribute):
-                                        if isinstance(target.target.value, cst.Attribute):
-                                            if (
-                                                isinstance(target.target.value.value, cst.Name)
-                                                and target.target.value.value.value == "self"
-                                                and target.target.value.attr.value
-                                                == self.delegate_field
-                                            ):
-                                                return True
+                            if self._is_delegated_assignment(item):
+                                return True
         return False
+
+    def _is_delegated_return(self, return_val: cst.BaseExpression | None) -> bool:
+        """Check if a return value delegates to the delegate field.
+
+        Args:
+            return_val: The return value expression
+
+        Returns:
+            True if the return value is a delegation to self._field
+        """
+        if return_val is None:
+            return False
+
+        # Pattern: return self._field.attr
+        if isinstance(return_val, cst.Attribute):
+            return self._is_delegate_attribute(return_val.value)
+
+        # Pattern: return self._field.method()
+        if isinstance(return_val, cst.Call):
+            if isinstance(return_val.func, cst.Attribute):
+                return self._is_delegate_attribute(return_val.func.value)
+
+        return False
+
+    def _is_delegated_assignment(self, assignment: cst.Assign) -> bool:
+        """Check if an assignment delegates to the delegate field.
+
+        Args:
+            assignment: The assignment statement
+
+        Returns:
+            True if the assignment delegates to self._field
+        """
+        if not isinstance(assignment.value, cst.BaseExpression):
+            return False
+
+        for target in assignment.targets:
+            if isinstance(target.target, cst.Attribute):
+                if self._is_delegate_attribute(target.target.value):
+                    return True
+
+        return False
+
+    def _is_delegate_attribute(self, node: cst.BaseExpression) -> bool:
+        """Check if an expression is an access to the delegate field (self._field).
+
+        Args:
+            node: The expression to check
+
+        Returns:
+            True if the expression is self._field
+        """
+        return (
+            isinstance(node, cst.Attribute)
+            and isinstance(node.value, cst.Name)
+            and node.value.value == "self"
+            and node.attr.value == self.delegate_field
+        )
 
     def _transform_init_method(self, node: cst.FunctionDef) -> cst.FunctionDef:
         """Transform the __init__ method to call super().__init__().
@@ -189,13 +210,9 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
         Returns:
             The transformed __init__ method
         """
-        # Extract parameters (skip 'self')
-        params = node.params
-        new_params = params
-
         # Create super().__init__() call with all parameters except self
         call_args = []
-        for param in params.params:
+        for param in node.params.params:
             if param.name.value != "self":
                 call_args.append(cst.Arg(value=cst.Name(param.name.value)))
 
@@ -213,7 +230,7 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
         # Create new body with only the super call
         new_body = cst.IndentedBlock(body=[super_call_stmt])
 
-        return node.with_changes(params=new_params, body=new_body)
+        return node.with_changes(body=new_body)
 
 
 # Register the command
