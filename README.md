@@ -333,9 +333,31 @@ pytest tests/test_composing_methods.py -v
 pytest tests/test_composing_methods.py::TestExtractMethod::test_simple -v
 ```
 
+## Continuous Integration
+
+Every push to a pull request automatically runs:
+
+### Lint Job
+- **Black** - Code formatting check
+- **Ruff** - Linting
+- **Mypy** - Type checking
+
+### Test Job
+- **Pytest** - Test suite with coverage
+- Runs on Python 3.8, 3.9, 3.10, 3.11, and 3.12
+
+All checks must pass before merging. You can run the same checks locally:
+```bash
+make lint        # Check formatting and linting
+make typecheck   # Run type checking
+make test        # Run tests
+```
+
 ## Contributing
 
 Contributions welcome! Please open an issue or PR.
+
+All pull requests must pass CI checks (linting and tests) before merging.
 
 ## License
 
