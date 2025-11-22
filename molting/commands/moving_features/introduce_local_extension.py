@@ -1,7 +1,5 @@
 """Introduce Local Extension refactoring command."""
 
-
-
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 

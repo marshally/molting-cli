@@ -115,27 +115,31 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         if not self.delegate_field:
             return stmt
 
-        new_body = []
-        for expr in stmt.body:
-            if isinstance(expr, cst.Assign):
-                # Transform self._field = value to self.field = value
-                target = expr.targets[0].target
-                if isinstance(target, cst.Attribute):
-                    if isinstance(target.value, cst.Name) and target.value.value == "self":
-                        field_name = target.attr.value
-                        if field_name == self.delegate_field:
-                            # Remove the leading underscore
-                            public_name = field_name.lstrip("_")
-                            new_target = target.with_changes(attr=cst.Name(public_name))
-                            new_assign = expr.with_changes(
-                                targets=[cst.AssignTarget(target=new_target)]
-                            )
-                            new_body.append(new_assign)
-                            continue
-
-            new_body.append(expr)
-
+        new_body = [self._transform_expression(expr) for expr in stmt.body]
         return stmt.with_changes(body=new_body) if new_body else stmt
+
+    def _transform_expression(self, expr: cst.BaseCompoundStatement) -> cst.BaseCompoundStatement:
+        """Transform a single expression, renaming delegate field if applicable.
+
+        Args:
+            expr: The expression to transform
+
+        Returns:
+            The transformed expression
+        """
+        if not isinstance(expr, cst.Assign):
+            return expr
+
+        target = expr.targets[0].target
+        field_name = self._get_self_attribute_name(target)
+
+        if field_name != self.delegate_field:
+            return expr
+
+        # Rename field from private to public
+        public_name = field_name.lstrip("_")
+        new_target = target.with_changes(attr=cst.Name(public_name))
+        return expr.with_changes(targets=[cst.AssignTarget(target=new_target)])
 
     def _identify_delegate_and_methods(self, class_def: cst.ClassDef) -> None:
         """Identify the delegate field and delegation methods.
@@ -226,43 +230,81 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         if not self.delegate_field:
             return False
 
-        # Skip __init__ and magic methods
-        if method.name.value.startswith("_"):
+        if self._is_magic_method(method):
             return False
 
-        # Check if method body is just returning self._field.something
-        if not isinstance(method.body, cst.IndentedBlock):
+        return_expr = self._extract_single_return_from_method(method)
+        if not return_expr:
             return False
+
+        return self._is_delegation_to_field(return_expr)
+
+    def _is_magic_method(self, method: cst.FunctionDef) -> bool:
+        """Check if method is a magic method.
+
+        Args:
+            method: The method to check
+
+        Returns:
+            True if the method name starts with underscore
+        """
+        return method.name.value.startswith("_")
+
+    def _extract_single_return_from_method(
+        self, method: cst.FunctionDef
+    ) -> cst.BaseExpression | None:
+        """Extract the return value from a method with a single return statement.
+
+        Args:
+            method: The method to analyze
+
+        Returns:
+            The return expression if it's a single return, None otherwise
+        """
+        if not isinstance(method.body, cst.IndentedBlock):
+            return None
 
         statements = method.body.body
         if len(statements) != 1:
-            return False
+            return None
 
         stmt = statements[0]
         if not isinstance(stmt, cst.SimpleStatementLine):
-            return False
+            return None
 
         if len(stmt.body) != 1:
-            return False
+            return None
 
         expr = stmt.body[0]
         if not isinstance(expr, cst.Return):
+            return None
+
+        return expr.value
+
+    def _is_delegation_to_field(self, expr: cst.BaseExpression | None) -> bool:
+        """Check if expression is accessing the delegate field.
+
+        Args:
+            expr: The expression to check
+
+        Returns:
+            True if accessing self._field.something
+        """
+        if not expr:
             return False
 
-        if not expr.value:
+        if not isinstance(expr, cst.Attribute):
             return False
 
-        # Check if return value is self._field.something
-        if isinstance(expr.value, cst.Attribute):
-            obj = expr.value.value
-            if isinstance(obj, cst.Attribute):
-                if isinstance(obj.value, cst.Name) and obj.value.value == "self":
-                    field_name = obj.attr.value
-                    # Check if accessing delegate field
-                    if field_name == self.delegate_field:
-                        return True
+        obj = expr.value
+        if not isinstance(obj, cst.Attribute):
+            return False
 
-        return False
+        if not isinstance(obj.value, cst.Name) or obj.value.value != "self":
+            return False
+
+        field_name = obj.attr.value
+        return field_name == self.delegate_field
 
 
 # Register the command
