@@ -82,7 +82,7 @@ class ReplaceInheritanceTransformer(cst.CSTTransformer):
             )
 
         # Remove inheritance
-        new_bases = []
+        new_bases: list[cst.Arg] = []
 
         # Create __init__ method with _items field
         init_method = self._create_init_method()
@@ -96,7 +96,7 @@ class ReplaceInheritanceTransformer(cst.CSTTransformer):
                     continue
                 # Transform methods to use delegation
                 stmt = self._transform_method(stmt)
-            new_body_stmts.append(stmt)
+            new_body_stmts.append(stmt)  # type: ignore[arg-type]
 
         return updated_node.with_changes(
             bases=new_bases, body=updated_node.body.with_changes(body=tuple(new_body_stmts))
@@ -144,7 +144,10 @@ class ReplaceInheritanceTransformer(cst.CSTTransformer):
         """
         # Transform super() calls and inherited method calls to use _items
         transformer = DelegationTransformer()
-        return method.visit(transformer)
+        transformed = method.visit(transformer)
+        if not isinstance(transformed, cst.FunctionDef):
+            return method  # Return original if transformation failed
+        return transformed
 
 
 class DelegationTransformer(cst.CSTTransformer):
