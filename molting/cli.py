@@ -68,13 +68,21 @@ def refactor_file(refactoring_name: str, file_path: Path, **params: Any) -> None
         refactoring_name: Name of the refactoring to apply
         file_path: Path to the file to refactor
         **params: Additional parameters for the refactoring
+
+    Raises:
+        ValueError: If refactoring_name is not recognized
     """
-    if refactoring_name == "rename-method":
-        _apply_rename_method(file_path, **params)
-    elif refactoring_name == "add-parameter":
-        _apply_add_parameter(file_path, **params)
-    elif refactoring_name == "remove-parameter":
-        _apply_remove_parameter(file_path, **params)
+    handlers: dict[str, Any] = {
+        "rename-method": _apply_rename_method,
+        "add-parameter": _apply_add_parameter,
+        "remove-parameter": _apply_remove_parameter,
+    }
+
+    handler = handlers.get(refactoring_name)
+    if handler is None:
+        raise ValueError(f"Unknown refactoring: {refactoring_name}")
+
+    handler(file_path, **params)
 
 
 def _apply_rename_method(file_path: Path, **params: Any) -> None:
