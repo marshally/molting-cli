@@ -79,7 +79,6 @@ class TestRemoveMiddleMan(RefactoringTestBase):
         self.refactor("remove-middle-man", target="Person")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestIntroduceForeignMethod(RefactoringTestBase):
     """Tests for Introduce Foreign Method refactoring."""
 
