@@ -117,7 +117,6 @@ class TestCollapseHierarchy(RefactoringTestBase):
         self.refactor("collapse-hierarchy", target="Salesman", into="Employee")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestFormTemplateMethod(RefactoringTestBase):
     """Tests for Form Template Method refactoring."""
 
