@@ -1,5 +1,7 @@
 """Extract Superclass refactoring command."""
 
+from typing import cast
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -115,7 +117,8 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
         # Update class body to remove common features and add super().__init__()
         new_body_stmts: list[cst.BaseStatement] = []
 
-        for stmt in updated_node.body.body:  # type: cst.BaseStatement
+        for stmt in updated_node.body.body:
+            stmt = cast(cst.BaseStatement, stmt)
             # Skip common methods
             if isinstance(stmt, cst.FunctionDef):
                 if stmt.name.value == "__init__":
