@@ -34,7 +34,6 @@ class MoveFieldCommand(BaseCommand):
         source = self.params["source"]
         target_class = self.params["to"]
 
-        # Parse source class and field
         parts = source.split("::")
         if len(parts) != 2:
             raise ValueError(
@@ -44,15 +43,12 @@ class MoveFieldCommand(BaseCommand):
         source_class = parts[0]
         field_name = parts[1]
 
-        # Read file
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
 
-        # Apply transformation
         transformer = MoveFieldTransformer(source_class, field_name, target_class)
         modified_tree = module.visit(transformer)
 
-        # Write back
         self.file_path.write_text(modified_tree.code)
 
 
@@ -91,11 +87,9 @@ class MoveFieldTransformer(cst.CSTTransformer):
         for stmt in node.body.body:
             stmt = cast(cst.BaseStatement, stmt)
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
-                # Transform __init__ method
                 new_init = self._transform_source_init(stmt)
                 new_body_stmts.append(new_init)
             elif isinstance(stmt, cst.FunctionDef):
-                # Update field references in other methods
                 new_method = self._update_field_references(stmt)
                 new_body_stmts.append(new_method)
             else:
@@ -127,10 +121,8 @@ class MoveFieldTransformer(cst.CSTTransformer):
         new_params = list(node.params.params)
         new_stmts: list[cst.BaseStatement] = []
 
-        # Add parameter for target class instance
         new_params.append(cst.Param(name=cst.Name(self.target_class_lower)))
 
-        # Update body
         if isinstance(node.body, cst.IndentedBlock):
             for stmt in node.body.body:
                 if isinstance(stmt, cst.SimpleStatementLine):
@@ -145,7 +137,6 @@ class MoveFieldTransformer(cst.CSTTransformer):
                 else:
                     new_stmts.append(stmt)
 
-            # Add assignment for target class reference
             target_assignment = cst.SimpleStatementLine(
                 body=[
                     cst.Assign(
@@ -201,7 +192,6 @@ class MoveFieldTransformer(cst.CSTTransformer):
 
     def _transform_target_class(self, node: cst.ClassDef) -> cst.ClassDef:
         """Transform the target class to add the field."""
-        # Check if __init__ exists
         has_init = False
         new_body_stmts: list[cst.BaseStatement] = []
 
@@ -209,7 +199,6 @@ class MoveFieldTransformer(cst.CSTTransformer):
             stmt = cast(cst.BaseStatement, stmt)
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
                 has_init = True
-                # Update existing __init__
                 new_init = self._add_field_to_init(stmt)
                 new_body_stmts.append(new_init)
             elif self._is_pass_statement(stmt):
@@ -219,7 +208,6 @@ class MoveFieldTransformer(cst.CSTTransformer):
                 new_body_stmts.append(stmt)
 
         if not has_init:
-            # Create new __init__
             new_init = self._create_init_with_field()
             new_body_stmts.insert(0, new_init)
 
@@ -262,13 +250,11 @@ class FieldReferenceUpdater(cst.CSTTransformer):
         self, original_node: cst.Attribute, updated_node: cst.Attribute
     ) -> cst.Attribute | cst.BaseExpression:
         """Update attribute access to moved field."""
-        # Check if this is self.field_name
         if (
             isinstance(updated_node.value, cst.Name)
             and updated_node.value.value == "self"
             and updated_node.attr.value == self.field_name
         ):
-            # Replace with self.target_class_lower.field_name
             return cst.Attribute(
                 value=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.target_class_lower)),
                 attr=cst.Name(self.field_name),
@@ -276,5 +262,4 @@ class FieldReferenceUpdater(cst.CSTTransformer):
         return updated_node
 
 
-# Register the command
 register_command(MoveFieldCommand)
