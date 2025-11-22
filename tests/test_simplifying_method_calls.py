@@ -22,7 +22,6 @@ class TestRenameMethod(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestAddParameter(RefactoringTestBase):
     """Tests for Add Parameter refactoring."""
 
