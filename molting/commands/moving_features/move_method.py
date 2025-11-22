@@ -35,18 +35,13 @@ class MoveMethodCommand(BaseCommand):
         source = self.params["source"]
         to_class = self.params["to"]
 
-        # Parse source format: "ClassName::method_name"
         source_class, method_name = parse_target(source, expected_parts=2)
-
-        # Read file
         source_code = self.file_path.read_text()
 
-        # Parse and transform
         tree = cst.parse_module(source_code)
         transformer = MoveMethodTransformer(source_class, method_name, to_class)
         modified_tree = tree.visit(transformer)
 
-        # Write back
         self.file_path.write_text(modified_tree.code)
 
 
@@ -71,11 +66,9 @@ class MoveMethodTransformer(cst.CSTTransformer):
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef:
         """Process class definitions to move the method."""
-        # Handle source class
         if original_node.name.value == self.source_class:
             return self._process_source_class(updated_node)
 
-        # Handle target class
         if original_node.name.value == self.target_class:
             return self._process_target_class(updated_node)
 
@@ -122,15 +115,11 @@ class MoveMethodTransformer(cst.CSTTransformer):
         if self.method_to_move is None:
             return node
 
-        # Transform the method body to accept parameters instead of using self
         transformed_method = self._transform_method_for_target()
-
-        # Add blank line before the new method
         method_with_spacing = transformed_method.with_changes(
             leading_lines=[cst.EmptyLine(indent=False, whitespace=cst.SimpleWhitespace(""))]
         )
 
-        # Add the method to the target class
         updated_members = tuple(list(node.body.body) + [method_with_spacing])
         return node.with_changes(body=node.body.with_changes(body=updated_members))
 
@@ -192,16 +181,12 @@ class MoveMethodTransformer(cst.CSTTransformer):
         Returns:
             A new method that delegates to the target class
         """
-        # Collect parameters needed (excluding self)
         params_to_pass = self._collect_self_references(original_method)
-
-        # Create arguments for the delegation call using self.field
         args = [
             cst.Arg(value=cst.Attribute(value=cst.Name("self"), attr=cst.Name(param)))
             for param in params_to_pass
         ]
 
-        # Create the delegation call
         if self.target_class_field is None:
             raise ValueError(
                 f"Could not find field referencing target class '{self.target_class}' "
@@ -221,9 +206,7 @@ class MoveMethodTransformer(cst.CSTTransformer):
             )
         )
 
-        # Create the new method body
         delegation_body = cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[delegation_call])])
-
         return original_method.with_changes(body=delegation_body)
 
     def _collect_self_references(self, method: cst.FunctionDef) -> list[str]:
@@ -248,15 +231,12 @@ class MoveMethodTransformer(cst.CSTTransformer):
         if self.method_to_move is None:
             raise ValueError("No method to move")
 
-        # Collect self references to convert to parameters
         params_needed = self._collect_self_references(self.method_to_move)
 
-        # Add new parameters to the method
         new_params = [cst.Param(name=cst.Name("self"))]
         for param_name in params_needed:
             new_params.append(cst.Param(name=cst.Name(param_name)))
 
-        # Transform method body to replace self.field with parameter
         body_transformer = SelfReferenceReplacer(params_needed, self.target_class_field)
         transformed_body = self.method_to_move.body.visit(body_transformer)
 
@@ -302,17 +282,14 @@ class SelfReferenceReplacer(cst.CSTTransformer):
         self, original_node: cst.Attribute, updated_node: cst.Attribute
     ) -> cst.Attribute | cst.Name:
         """Replace self.field with parameter name or self.target_field.x with self.x."""
-        # Handle self.target_field.method_name() -> self.method_name()
         if (
             isinstance(updated_node.value, cst.Attribute)
             and isinstance(updated_node.value.value, cst.Name)
             and updated_node.value.value.value == "self"
             and updated_node.value.attr.value == self.target_class_field
         ):
-            # self.account_type.is_premium() -> self.is_premium()
             return cst.Attribute(value=cst.Name("self"), attr=updated_node.attr)
 
-        # Handle direct self.field -> parameter
         if isinstance(updated_node.value, cst.Name) and updated_node.value.value == "self":
             field_name = updated_node.attr.value
             if field_name in self.fields_to_replace:
