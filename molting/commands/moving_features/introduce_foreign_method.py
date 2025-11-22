@@ -225,17 +225,18 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
             )
         )
 
-        # Create the method body with comment
-        body = cst.IndentedBlock(
-            body=[
+        # Create the method body with comment on the return statement
+        return_line = cst.SimpleStatementLine(
+            body=[return_stmt],
+            leading_lines=[
                 cst.EmptyLine(
                     indent=True,
                     whitespace=cst.SimpleWhitespace("    "),
                     comment=cst.Comment(f"# Foreign method for {self.for_class}"),
-                ),
-                cst.SimpleStatementLine(body=[return_stmt]),
-            ]
+                )
+            ],
         )
+        body = cst.IndentedBlock(body=[return_line])
 
         # Create the method signature
         params = cst.Parameters(
