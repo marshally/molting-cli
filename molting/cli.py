@@ -2,7 +2,7 @@
 
 import ast
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import click
 from rope.base.project import Project  # type: ignore[import-untyped]
@@ -37,12 +37,12 @@ def _parse_target(target: str) -> tuple[str, str]:
     parts = target.split("::")
     if len(parts) != 2:
         raise ValueError(f"Invalid target format '{target}'. Expected 'ClassName::method_name'")
-    return parts
+    return tuple(parts)  # type: ignore[return-value]
 
 
 def _find_method_in_tree(
     tree: ast.Module, method_name: str
-) -> tuple[ast.ClassDef, ast.FunctionDef] | None:
+) -> Optional[tuple[ast.ClassDef, ast.FunctionDef]]:
     """Find a method in a class within the AST tree.
 
     Args:
