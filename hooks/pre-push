@@ -24,7 +24,7 @@ echo ""
 
 # Check formatting with black
 echo -e "${YELLOW}→ Checking formatting with black...${NC}"
-if ! black --check --exclude 'tests/fixtures/' . 2>&1; then
+if ! black --check --exclude '/(\.venv|tests/fixtures)/' . 2>&1; then
     echo ""
     echo -e "${RED}✗ Black formatting check failed!${NC}"
     echo -e "${YELLOW}💡 Run 'make format' to fix formatting issues.${NC}"
@@ -35,7 +35,7 @@ echo ""
 
 # Lint with ruff
 echo -e "${YELLOW}→ Linting with ruff...${NC}"
-if ! ruff check --exclude 'tests/fixtures/' . 2>&1; then
+if ! ruff check --exclude '.venv' --exclude 'tests/fixtures' . 2>&1; then
     echo ""
     echo -e "${RED}✗ Ruff linting failed!${NC}"
     echo -e "${YELLOW}💡 Run 'make format' to fix linting issues.${NC}"
