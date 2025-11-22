@@ -68,7 +68,7 @@ class MoveFieldTransformer(cst.CSTTransformer):
         self.target_class = target_class
         # Convert camelCase/PascalCase to snake_case
         self.target_class_lower = re.sub(r"(?<!^)(?=[A-Z])", "_", target_class).lower()
-        self.field_value = None
+        self.field_value: cst.BaseExpression | None = None
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -161,7 +161,7 @@ class MoveFieldTransformer(cst.CSTTransformer):
     def _update_field_references(self, node: cst.FunctionDef) -> cst.FunctionDef:
         """Update references to the moved field in methods."""
         transformer = FieldReferenceUpdater(self.field_name, self.target_class_lower)
-        return node.visit(transformer)
+        return cast(cst.FunctionDef, node.visit(transformer))
 
     def _is_pass_statement(self, stmt: cst.BaseStatement) -> bool:
         """Check if a statement is a pass statement."""
