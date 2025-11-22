@@ -113,9 +113,7 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
                 # Remove delegation methods (get_X, set_X that delegate to _person)
                 elif self._is_delegation_method(stmt):
                     continue
-                new_body_stmts.append(stmt)
-            else:
-                new_body_stmts.append(stmt)
+            new_body_stmts.append(stmt)  # type: ignore[arg-type]
 
         return updated_node.with_changes(
             bases=new_bases, body=updated_node.body.with_changes(body=tuple(new_body_stmts))
