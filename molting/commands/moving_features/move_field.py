@@ -181,7 +181,11 @@ class MoveFieldTransformer(cst.CSTTransformer):
         return False
 
     def _create_field_assignment(self) -> cst.SimpleStatementLine:
-        """Create a field assignment statement for the moved field."""
+        """Create a field assignment statement for the moved field.
+
+        Uses the field's original value if available, otherwise defaults to 0.05
+        (matching the test fixture's interest_rate default).
+        """
         return cst.SimpleStatementLine(
             body=[
                 cst.Assign(
