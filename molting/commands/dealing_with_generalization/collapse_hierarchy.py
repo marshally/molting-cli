@@ -31,7 +31,7 @@ class CollapseHierarchyCommand(BaseCommand):
             ValueError: If transformation cannot be applied
         """
         target_class = self.params["target"]
-        into_class = self.params["into"]
+        _ = self.params["into"]  # Validated but not needed for simple collapse
 
         # Parse target to get class name
         class_name = parse_target(target_class, expected_parts=1)[0]
@@ -41,7 +41,7 @@ class CollapseHierarchyCommand(BaseCommand):
         module = cst.parse_module(source_code)
 
         # Apply transformation
-        transformer = CollapseHierarchyTransformer(class_name, into_class)
+        transformer = CollapseHierarchyTransformer(class_name)
         modified_tree = module.visit(transformer)
 
         # Write back
@@ -51,15 +51,13 @@ class CollapseHierarchyCommand(BaseCommand):
 class CollapseHierarchyTransformer(cst.CSTTransformer):
     """Transforms a module by removing an empty subclass."""
 
-    def __init__(self, target_class: str, into_class: str) -> None:
+    def __init__(self, target_class: str) -> None:
         """Initialize the transformer.
 
         Args:
             target_class: Name of the class to remove
-            into_class: Name of the superclass (not used for simple collapse, but kept for API)
         """
         self.target_class = target_class
-        self.into_class = into_class
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
