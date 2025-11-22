@@ -37,7 +37,6 @@ class TestAddParameter(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestRemoveParameter(RefactoringTestBase):
     """Tests for Remove Parameter refactoring."""
 
