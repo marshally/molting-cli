@@ -124,7 +124,11 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
 
     # Check status checks
     status_checks=$(echo "$pr" | jq -r '.statusCheckRollup // [] | map(.conclusion) | .[]')
-    failed_checks=$(echo "$status_checks" | grep -v "SUCCESS" | grep -v "SKIPPED" | wc -l | tr -d ' ')
+    if [ -z "$status_checks" ]; then
+        failed_checks=0
+    else
+        failed_checks=$(echo "$status_checks" | { grep -v "SUCCESS" || true; } | { grep -v "SKIPPED" || true; } | wc -l | tr -d ' ')
+    fi
 
     if [ "$failed_checks" -gt 0 ]; then
         warn "PR #$number has failing status checks. Skipping."
@@ -137,10 +141,15 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
     if [ "$mergeable" = "MERGEABLE" ]; then
         log "PR #$number is mergeable. Attempting rebase and merge..."
 
-        if gh pr merge "$number" --rebase --auto; then
-            log "Successfully merged PR #$number"
+        if gh pr merge "$number" --rebase --auto 2>&1; then
+            log "Successfully merged PR #$number with rebase"
         else
-            error "Failed to merge PR #$number"
+            warn "Rebase merge failed (branch may have merge commits). Trying squash merge..."
+            if gh pr merge "$number" --squash --auto; then
+                log "Successfully merged PR #$number with squash"
+            else
+                error "Failed to merge PR #$number with both rebase and squash"
+            fi
         fi
     elif [ "$mergeable" = "CONFLICTING" ]; then
         warn "PR #$number has merge conflicts. Attempting to resolve..."
