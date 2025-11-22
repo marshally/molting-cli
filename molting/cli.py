@@ -7,7 +7,6 @@ from typing import Any
 import click
 from rope.base.project import Project  # type: ignore[import-untyped]
 from rope.refactor.rename import Rename  # type: ignore[import-untyped]
-from rope.refactor.change_signature import ChangeSignature  # type: ignore[import-untyped]
 
 from molting import __version__
 
@@ -41,7 +40,9 @@ def _parse_target(target: str) -> tuple[str, str]:
     return parts
 
 
-def _find_method_in_tree(tree: ast.Module, method_name: str) -> tuple[ast.ClassDef, ast.FunctionDef] | None:
+def _find_method_in_tree(
+    tree: ast.Module, method_name: str
+) -> tuple[ast.ClassDef, ast.FunctionDef] | None:
     """Find a method in a class within the AST tree.
 
     Args:
