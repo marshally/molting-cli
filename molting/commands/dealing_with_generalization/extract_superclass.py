@@ -19,10 +19,7 @@ class ExtractSuperclassCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "targets" not in self.params:
-            raise ValueError("Missing required parameter for extract-superclass: 'targets'")
-        if "name" not in self.params:
-            raise ValueError("Missing required parameter for extract-superclass: 'name'")
+        self.validate_required_params("targets", "name")
 
     def execute(self) -> None:
         """Apply extract-superclass refactoring using libCST.

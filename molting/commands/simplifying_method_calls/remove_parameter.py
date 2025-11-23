@@ -22,10 +22,7 @@ class RemoveParameterCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        try:
-            _ = self.params["target"]
-        except KeyError as e:
-            raise ValueError(f"Missing required parameter for remove-parameter: {e}") from e
+        self.validate_required_params("target")
 
     def execute(self) -> None:
         """Apply remove-parameter refactoring using AST manipulation.

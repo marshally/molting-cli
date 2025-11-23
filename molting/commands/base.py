@@ -29,6 +29,19 @@ class BaseCommand(ABC):
         """
         pass
 
+    def validate_required_params(self, *param_names: str) -> None:
+        """Validate that required parameters are present.
+
+        Args:
+            *param_names: Names of required parameters
+
+        Raises:
+            ValueError: If any required parameters are missing
+        """
+        missing = [p for p in param_names if p not in self.params]
+        if missing:
+            raise ValueError(f"Missing required parameters for {self.name}: {', '.join(missing)}")
+
     @abstractmethod
     def validate(self) -> None:
         """Validate parameters before execution.

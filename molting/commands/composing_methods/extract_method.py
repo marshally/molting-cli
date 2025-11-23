@@ -24,11 +24,7 @@ class ExtractMethodCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        try:
-            _ = self.params["target"]
-            _ = self.params["name"]
-        except KeyError as e:
-            raise ValueError(f"Missing required parameter for extract-method: {e}") from e
+        self.validate_required_params("target", "name")
 
     def _parse_target_specification(self, target: str) -> tuple[str, str, str]:
         """Parse target format into class::method and line range components.
