@@ -115,42 +115,77 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
         new_body: list[cst.BaseStatement] = []
 
         for stmt in init_method.body.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                modified = False
-                for body_item in stmt.body:
-                    if isinstance(body_item, cst.Assign):
-                        for target in body_item.targets:
-                            if isinstance(target.target, cst.Attribute):
-                                if (
-                                    isinstance(target.target.value, cst.Name)
-                                    and target.target.value.value == "self"
-                                    and target.target.attr.value == self.field_name
-                                ):
-                                    # Change self.courses to self._courses
-                                    new_stmt = cst.SimpleStatementLine(
-                                        body=[
-                                            cst.Assign(
-                                                targets=[
-                                                    cst.AssignTarget(
-                                                        target=cst.Attribute(
-                                                            value=cst.Name("self"),
-                                                            attr=cst.Name(self.private_field_name),
-                                                        )
-                                                    )
-                                                ],
-                                                value=body_item.value,
-                                            )
-                                        ]
-                                    )
-                                    new_body.append(new_stmt)
-                                    modified = True
-                                    break
-                if not modified:
-                    new_body.append(stmt)
-            else:
-                new_body.append(stmt)
+            modified_stmt = self._try_modify_field_assignment(stmt)
+            new_body.append(modified_stmt if modified_stmt is not None else stmt)
 
         return init_method.with_changes(body=cst.IndentedBlock(body=new_body))
+
+    def _try_modify_field_assignment(self, stmt: cst.BaseStatement) -> cst.BaseStatement | None:
+        """Try to modify a statement that assigns to the target field.
+
+        Args:
+            stmt: Statement to potentially modify
+
+        Returns:
+            Modified statement if it assigns to target field, None otherwise
+        """
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return None
+
+        for body_item in stmt.body:
+            if not isinstance(body_item, cst.Assign):
+                continue
+
+            for target in body_item.targets:
+                if self._is_field_assignment(target.target):
+                    return self._create_private_field_assignment(body_item.value)
+
+        return None
+
+    def _is_field_assignment(self, target: cst.BaseExpression) -> bool:
+        """Check if target is an assignment to self.field_name.
+
+        Args:
+            target: Assignment target to check
+
+        Returns:
+            True if target is self.field_name
+        """
+        if not isinstance(target, cst.Attribute):
+            return False
+
+        return (
+            isinstance(target.value, cst.Name)
+            and target.value.value == "self"
+            and target.attr.value == self.field_name
+        )
+
+    def _create_private_field_assignment(
+        self, value: cst.BaseExpression
+    ) -> cst.SimpleStatementLine:
+        """Create assignment to private field.
+
+        Args:
+            value: Value to assign
+
+        Returns:
+            Assignment statement for private field
+        """
+        return cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[
+                        cst.AssignTarget(
+                            target=cst.Attribute(
+                                value=cst.Name("self"),
+                                attr=cst.Name(self.private_field_name),
+                            )
+                        )
+                    ],
+                    value=value,
+                )
+            ]
+        )
 
     def _modify_getter_method(self, getter_method: cst.FunctionDef) -> cst.FunctionDef:
         """Modify getter to return a read-only view.
