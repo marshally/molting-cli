@@ -268,10 +268,8 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
 
         # Analyze which non-feature params to include
         for param_name in non_feature_params:
-            # Skip unit_price if it's not needed (we'll pass 0)
-            # This is a heuristic: if there's an if/else checking a feature,
-            # and one branch uses a non-feature param, we might not need it in subclass
-            if param_name == "unit_price":
+            # Skip params that might have default values in subclass
+            if self._should_skip_param_in_subclass(param_name):
                 continue
             subclass_param_names.append(param_name)
             init_params.append(cst.Param(name=cst.Name(param_name)))
@@ -390,6 +388,19 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
             new_stmts.append(cst.SimpleStatementLine(body=[cst.Pass()]))
 
         return node.with_changes(body=cst.IndentedBlock(body=new_stmts))
+
+    def _should_skip_param_in_subclass(self, param_name: str) -> bool:
+        """Check if a param should be skipped in subclass (will have default value).
+
+        Args:
+            param_name: Name of the parameter
+
+        Returns:
+            True if param should be skipped
+        """
+        # Heuristic: skip params that might be replaced by feature-specific values
+        # Common patterns: *_price, *_value when features include actual values
+        return param_name.endswith("_price") or param_name.endswith("_value")
 
     def _method_uses_features(self, method: cst.FunctionDef) -> bool:
         """Check if a method uses any of the features being extracted.
