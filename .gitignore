@@ -27,3 +27,6 @@ venv/
 env/
 .env
 .venv/
+
+# AI planning documents (ephemeral)
+history/
