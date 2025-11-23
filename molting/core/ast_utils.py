@@ -203,3 +203,64 @@ def is_assignment_to_field(stmt: cst.BaseStatement, field_names: set[str]) -> bo
                                 if target.target.attr.value in field_names:
                                     return True
     return False
+
+
+def find_class_in_module(module: cst.Module, class_name: str) -> cst.ClassDef | None:
+    """Find a class definition by name in a module.
+
+    Args:
+        module: The module to search
+        class_name: Name of the class to find
+
+    Returns:
+        The class definition node, or None if not found
+    """
+    for stmt in module.body:
+        if isinstance(stmt, cst.ClassDef) and stmt.name.value == class_name:
+            return stmt
+    return None
+
+
+def find_method_in_class(class_def: cst.ClassDef, method_name: str) -> cst.FunctionDef | None:
+    """Find a method in a class definition.
+
+    Args:
+        class_def: The class definition to search
+        method_name: Name of the method to find
+
+    Returns:
+        The method definition node, or None if not found
+    """
+    if not isinstance(class_def.body, cst.IndentedBlock):
+        return None
+
+    for stmt in class_def.body.body:
+        if isinstance(stmt, cst.FunctionDef) and stmt.name.value == method_name:
+            return stmt
+    return None
+
+
+def extract_all_methods(
+    class_def: cst.ClassDef, exclude_init: bool = False
+) -> list[cst.FunctionDef]:
+    """Extract all method definitions from a class.
+
+    Args:
+        class_def: The class definition to extract methods from
+        exclude_init: If True, exclude __init__ method from results
+
+    Returns:
+        List of method definition nodes
+    """
+    methods: list[cst.FunctionDef] = []
+
+    if not isinstance(class_def.body, cst.IndentedBlock):
+        return methods
+
+    for stmt in class_def.body.body:
+        if isinstance(stmt, cst.FunctionDef):
+            if exclude_init and stmt.name.value == "__init__":
+                continue
+            methods.append(stmt)
+
+    return methods
