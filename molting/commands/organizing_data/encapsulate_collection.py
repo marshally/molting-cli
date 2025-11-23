@@ -100,7 +100,7 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
                 else:
                     new_body.append(stmt)
             else:
-                new_body.append(stmt)
+                new_body.append(cast(cst.BaseStatement, stmt))
 
         # Second pass: add add/remove methods
         new_body.append(self._create_add_method())
@@ -121,8 +121,10 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
         new_body: list[cst.BaseStatement] = []
 
         for stmt in init_method.body.body:
-            modified_stmt = self._try_modify_field_assignment(stmt)
-            new_body.append(modified_stmt if modified_stmt is not None else stmt)
+            modified_stmt = self._try_modify_field_assignment(cast(cst.BaseStatement, stmt))
+            new_body.append(
+                modified_stmt if modified_stmt is not None else cast(cst.BaseStatement, stmt)
+            )
 
         return init_method.with_changes(body=cst.IndentedBlock(body=new_body))
 
