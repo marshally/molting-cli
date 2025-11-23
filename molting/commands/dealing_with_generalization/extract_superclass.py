@@ -6,7 +6,11 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import extract_init_field_assignments, find_self_field_assignment
+from molting.core.ast_utils import (
+    extract_init_field_assignments,
+    find_method_in_class,
+    find_self_field_assignment,
+)
 
 
 class ExtractSuperclassCommand(BaseCommand):
@@ -236,9 +240,9 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
             The method definition if found, None otherwise
         """
         for class_def in self.class_defs.values():
-            for stmt in class_def.body.body:
-                if isinstance(stmt, cst.FunctionDef) and stmt.name.value == method_name:
-                    return stmt
+            method = find_method_in_class(class_def, method_name)
+            if method:
+                return method
         return None
 
     def _transform_init_method(self, node: cst.FunctionDef) -> cst.FunctionDef:
