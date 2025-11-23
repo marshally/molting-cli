@@ -15,6 +15,7 @@ import molting.commands.dealing_with_generalization.replace_delegation_with_inhe
 import molting.commands.dealing_with_generalization.replace_inheritance_with_delegation  # noqa: F401
 import molting.commands.moving_features.extract_class  # noqa: F401
 import molting.commands.moving_features.inline_class  # noqa: F401
+import molting.commands.moving_features.move_field  # noqa: F401
 import molting.commands.moving_features.introduce_foreign_method  # noqa: F401
 import molting.commands.moving_features.introduce_local_extension  # noqa: F401
 import molting.commands.moving_features.move_method  # noqa: F401
