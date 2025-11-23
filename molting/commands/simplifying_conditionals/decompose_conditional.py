@@ -191,59 +191,47 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
     def _create_helper_functions(self) -> None:
         """Create helper functions for condition, then, and else branches."""
         if self.condition_expr and self.condition_params:
-            # Create is_winter function
-            condition_func = cst.FunctionDef(
-                name=cst.Name("is_winter"),
-                params=cst.Parameters(
-                    params=[cst.Param(name=cst.Name(param)) for param in self.condition_params]
-                ),
-                body=cst.IndentedBlock(
-                    body=[
-                        cst.SimpleStatementLine(
-                            body=[cst.Return(value=self.condition_expr)],
-                        )
-                    ]
-                ),
+            condition_func = self._create_function(
+                "is_winter", self.condition_params, self.condition_expr
             )
             self.new_functions.append(condition_func)
 
         if self.then_body and self.then_params:
-            # Extract return value from then body
             then_value = self._extract_return_value(self.then_body)
             if then_value:
-                then_func = cst.FunctionDef(
-                    name=cst.Name("winter_charge"),
-                    params=cst.Parameters(
-                        params=[cst.Param(name=cst.Name(param)) for param in self.then_params]
-                    ),
-                    body=cst.IndentedBlock(
-                        body=[
-                            cst.SimpleStatementLine(
-                                body=[cst.Return(value=then_value)],
-                            )
-                        ]
-                    ),
-                )
+                then_func = self._create_function("winter_charge", self.then_params, then_value)
                 self.new_functions.append(then_func)
 
         if self.else_body and self.else_params:
-            # Extract return value from else body
             else_value = self._extract_return_value(self.else_body)
             if else_value:
-                else_func = cst.FunctionDef(
-                    name=cst.Name("summer_charge"),
-                    params=cst.Parameters(
-                        params=[cst.Param(name=cst.Name(param)) for param in self.else_params]
-                    ),
-                    body=cst.IndentedBlock(
-                        body=[
-                            cst.SimpleStatementLine(
-                                body=[cst.Return(value=else_value)],
-                            )
-                        ]
-                    ),
-                )
+                else_func = self._create_function("summer_charge", self.else_params, else_value)
                 self.new_functions.append(else_func)
+
+    def _create_function(
+        self, name: str, params: list[str], return_value: cst.BaseExpression
+    ) -> cst.FunctionDef:
+        """Create a function definition with given name, parameters, and return value.
+
+        Args:
+            name: Name of the function
+            params: List of parameter names
+            return_value: Expression to return
+
+        Returns:
+            Function definition node
+        """
+        return cst.FunctionDef(
+            name=cst.Name(name),
+            params=cst.Parameters(params=[cst.Param(name=cst.Name(param)) for param in params]),
+            body=cst.IndentedBlock(
+                body=[
+                    cst.SimpleStatementLine(
+                        body=[cst.Return(value=return_value)],
+                    )
+                ]
+            ),
+        )
 
     def _extract_return_value(self, stmt: cst.BaseStatement) -> cst.BaseExpression | None:
         """Extract the assigned value from an assignment statement."""
