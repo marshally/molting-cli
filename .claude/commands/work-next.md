@@ -43,10 +43,12 @@ Use beads MCP to update the issue status (call these tools directly, not via bas
   - status: "in_progress"
   - assignee: "Claude" (or appropriate assignee)
 
-Then commit the .beads changes in the main repository:
+Then sync the beads changes to the sync branch:
 ```bash
-cd /Users/marshallyount/code/marshally/molting-cli && git add .beads && git commit -m "Mark {issue_id} as in_progress" && git push
+cd /Users/marshallyount/code/marshally/molting-cli && bd sync -m "Mark {issue_id} as in_progress"
 ```
+
+This commits to beads-metadata branch, pulls latest changes, and pushes the update.
 
 ### Step 2: Set Up Worktree (if needed)
 
@@ -333,10 +335,12 @@ Then close the issue (call this tool directly, not via bash):
   - issue_id: "{issue_id}"
   - reason: "Completed with passing tests and CI"
 
-Then commit the .beads changes in the MAIN repository:
+Then sync the beads changes to the sync branch:
 ```bash
-cd /Users/marshallyount/code/marshally/molting-cli && git add .beads && git commit -m "Close issue {issue_id}" && git push
+cd /Users/marshallyount/code/marshally/molting-cli && bd sync -m "Close issue {issue_id}"
 ```
+
+This commits to beads-metadata branch, pulls latest changes, and pushes the close status.
 
 ### STEP 7: Final Report (REQUIRED)
 
