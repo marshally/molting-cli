@@ -14,6 +14,7 @@ from molting.core.ast_utils import (
     find_method_in_class,
     find_self_field_assignment,
     is_assignment_to_field,
+    parse_comma_separated_list,
 )
 
 
@@ -610,3 +611,61 @@ class Person:
 
         assert len(methods) == 1
         assert methods[0].name.value == "greet"
+
+
+class TestParseCommaSeparatedList:
+    """Tests for parse_comma_separated_list() function."""
+
+    def test_simple_list(self) -> None:
+        """Should parse simple comma-separated list."""
+        result = parse_comma_separated_list("name,age,email")
+
+        assert result == ["name", "age", "email"]
+
+    def test_list_with_spaces(self) -> None:
+        """Should trim spaces from items."""
+        result = parse_comma_separated_list("name, age, email")
+
+        assert result == ["name", "age", "email"]
+
+    def test_list_with_extra_spaces(self) -> None:
+        """Should handle extra spaces around items."""
+        result = parse_comma_separated_list("  name  ,  age  ,  email  ")
+
+        assert result == ["name", "age", "email"]
+
+    def test_single_item(self) -> None:
+        """Should handle single item without comma."""
+        result = parse_comma_separated_list("name")
+
+        assert result == ["name"]
+
+    def test_single_item_with_spaces(self) -> None:
+        """Should trim spaces from single item."""
+        result = parse_comma_separated_list("  name  ")
+
+        assert result == ["name"]
+
+    def test_empty_string(self) -> None:
+        """Should return list with empty string for empty input."""
+        result = parse_comma_separated_list("")
+
+        assert result == [""]
+
+    def test_two_items(self) -> None:
+        """Should handle two items."""
+        result = parse_comma_separated_list("first, second")
+
+        assert result == ["first", "second"]
+
+    def test_class_names_with_underscores(self) -> None:
+        """Should handle names with underscores."""
+        result = parse_comma_separated_list("My_Class, Your_Class, Their_Class")
+
+        assert result == ["My_Class", "Your_Class", "Their_Class"]
+
+    def test_mixed_spacing(self) -> None:
+        """Should handle inconsistent spacing."""
+        result = parse_comma_separated_list("first,second, third,  fourth")
+
+        assert result == ["first", "second", "third", "fourth"]
