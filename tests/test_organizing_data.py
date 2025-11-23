@@ -134,7 +134,6 @@ class TestEncapsulateField(RefactoringTestBase):
         self.refactor("encapsulate-field", target="Person::name")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestEncapsulateCollection(RefactoringTestBase):
     """Tests for Encapsulate Collection refactoring."""
 
