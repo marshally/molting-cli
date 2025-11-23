@@ -152,17 +152,30 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
             fi
         fi
     elif [ "$mergeable" = "CONFLICTING" ]; then
-        warn "PR #$number has merge conflicts. Attempting to resolve..."
+        warn "PR #$number has merge conflicts."
 
-        # Get repository info
-        repo_owner=$(echo "$pr" | jq -r '.headRepositoryOwner.login')
-        repo_name=$(echo "$pr" | jq -r '.headRepository.name')
+        # Check if running in interactive terminal
+        if [ -t 0 ]; then
+            log "Interactive terminal detected. Attempting to resolve conflicts..."
 
-        # Call the conflict resolution script
-        if [ -f "$SCRIPT_DIR/resolve-merge-conflicts.sh" ]; then
-            "$SCRIPT_DIR/resolve-merge-conflicts.sh" "$repo_owner" "$repo_name" "$number" "$head_ref"
+            # Get repository info
+            repo_owner=$(echo "$pr" | jq -r '.headRepositoryOwner.login')
+            repo_name=$(echo "$pr" | jq -r '.headRepository.name')
+
+            # Call the conflict resolution script
+            if [ -f "$SCRIPT_DIR/resolve-merge-conflicts.sh" ]; then
+                "$SCRIPT_DIR/resolve-merge-conflicts.sh" "$repo_owner" "$repo_name" "$number" "$head_ref"
+            else
+                error "Conflict resolution script not found: $SCRIPT_DIR/resolve-merge-conflicts.sh"
+            fi
         else
-            error "Conflict resolution script not found: $SCRIPT_DIR/resolve-merge-conflicts.sh"
+            warn "Running in non-interactive mode (cron/scheduled). Skipping automatic conflict resolution."
+            warn "PR #$number requires manual conflict resolution."
+
+            # Optionally add a comment to the PR
+            if command -v gh &> /dev/null; then
+                gh pr comment "$number" --body "⚠️ This PR has merge conflicts that require manual resolution. The auto-merge script cannot resolve conflicts when running in non-interactive mode (cron job)." 2>/dev/null || true
+            fi
         fi
     elif [ "$mergeable" = "UNKNOWN" ]; then
         warn "PR #$number mergeable status is still being calculated by GitHub. Will check again next run."
