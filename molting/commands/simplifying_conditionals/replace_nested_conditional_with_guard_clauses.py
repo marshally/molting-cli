@@ -95,11 +95,14 @@ class ReplaceNestedConditionalWithGuardClausesTransformer(cst.CSTTransformer):
         Returns:
             True if this is a return result statement
         """
-        if isinstance(stmt, cst.SimpleStatementLine):
-            for s in stmt.body:
-                if isinstance(s, cst.Return):
-                    if isinstance(s.value, cst.Name) and s.value.value == self.RESULT_VARIABLE_NAME:
-                        return True
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return False
+
+        for s in stmt.body:
+            if not isinstance(s, cst.Return):
+                continue
+            if isinstance(s.value, cst.Name) and s.value.value == self.RESULT_VARIABLE_NAME:
+                return True
         return False
 
     def _extract_guard_clauses(self, if_stmt: cst.If) -> list[cst.BaseStatement]:
