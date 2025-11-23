@@ -10,7 +10,6 @@ import pytest
 from tests.conftest import RefactoringTestBase
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestSelfEncapsulateField(RefactoringTestBase):
     """Tests for Self Encapsulate Field refactoring."""
 
