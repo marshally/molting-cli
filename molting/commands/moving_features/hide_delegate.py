@@ -60,7 +60,6 @@ class HideDelegateTransformer(cst.CSTTransformer):
         """
         self.class_name = class_name
         self.field_name = field_name
-        self.delegate_type: str | None = None
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -115,8 +114,6 @@ class HideDelegateTransformer(cst.CSTTransformer):
                     and target.target.value.value == "self"
                     and target.target.attr.value == self.field_name
                 ):
-                    if isinstance(assign.value, cst.Name):
-                        self.delegate_type = assign.value.value.capitalize()
                     new_target = cst.AssignTarget(
                         cst.Attribute(value=cst.Name("self"), attr=cst.Name(f"_{self.field_name}"))
                     )
