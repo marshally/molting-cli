@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_target
+from molting.core.ast_utils import find_self_field_assignment, parse_target
 
 
 class MoveMethodCommand(BaseCommand):
@@ -144,28 +144,12 @@ class MoveMethodTransformer(cst.CSTTransformer):
         """
         for stmt in init_method.body.body:
             if isinstance(stmt, cst.SimpleStatementLine):
-                for assignment in stmt.body:
-                    if isinstance(assignment, cst.Assign):
-                        field_name = self._get_self_field_assignment(assignment)
-                        if field_name:
-                            return field_name
-        return None
-
-    def _get_self_field_assignment(self, assignment: cst.Assign) -> str | None:
-        """Get the field name from a self.field = value assignment.
-
-        Args:
-            assignment: The assignment statement
-
-        Returns:
-            The field name if it's a self.field assignment, None otherwise
-        """
-        for target in assignment.targets:
-            if isinstance(target.target, cst.Attribute):
-                attr = target.target
-                if isinstance(attr.value, cst.Name) and attr.value.value == "self":
-                    if isinstance(assignment.value, cst.Name):
-                        return attr.attr.value
+                result = find_self_field_assignment(stmt)
+                if result:
+                    field_name, value = result
+                    # Only return fields that are assigned from a parameter (Name node)
+                    if isinstance(value, cst.Name):
+                        return field_name
         return None
 
     def _create_delegation_method(self, original_method: cst.FunctionDef) -> cst.FunctionDef:
