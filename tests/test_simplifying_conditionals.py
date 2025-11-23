@@ -90,7 +90,6 @@ class TestIntroduceNullObject(RefactoringTestBase):
         self.refactor("introduce-null-object", target_class="Customer")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestIntroduceAssertion(RefactoringTestBase):
     """Tests for Introduce Assertion refactoring."""
 
