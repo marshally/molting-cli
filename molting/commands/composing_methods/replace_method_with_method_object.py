@@ -122,6 +122,19 @@ class ReplaceMethodWithMethodObjectTransformer(cst.CSTTransformer):
         self.method_object_class: cst.ClassDef | None = None
         self.in_target_class = False
 
+    def _extract_non_self_params(self, method: cst.FunctionDef) -> list[cst.Param]:
+        """Extract all parameters except self from a method.
+
+        Args:
+            method: The method to extract parameters from
+
+        Returns:
+            List of parameters excluding self
+        """
+        if not method.params.params:
+            return []
+        return [p for p in method.params.params if p.name.value != "self"]
+
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Visit class definition."""
         if node.name.value == self.class_name:
@@ -164,9 +177,7 @@ class ReplaceMethodWithMethodObjectTransformer(cst.CSTTransformer):
         self.original_method = updated_node
 
         # Get method parameters (excluding self)
-        params = []
-        if updated_node.params.params:
-            params = [p for p in updated_node.params.params if p.name.value != "self"]
+        params = self._extract_non_self_params(updated_node)
 
         # Create the new method body that delegates to method object
         param_names = [p.name.value for p in params]
@@ -229,9 +240,7 @@ class ReplaceMethodWithMethodObjectTransformer(cst.CSTTransformer):
             return
 
         # Get method parameters (excluding self)
-        params = []
-        if self.original_method.params.params:
-            params = [p for p in self.original_method.params.params if p.name.value != "self"]
+        params = self._extract_non_self_params(self.original_method)
 
         # Create class name from method name (capitalize first letter)
         method_object_class_name = self.method_name.capitalize()
@@ -311,11 +320,8 @@ class ReplaceMethodWithMethodObjectTransformer(cst.CSTTransformer):
             return body
 
         # Get parameter names (excluding self)
-        param_names = []
-        if self.original_method.params.params:
-            param_names = [
-                p.name.value for p in self.original_method.params.params if p.name.value != "self"
-            ]
+        params = self._extract_non_self_params(self.original_method)
+        param_names = [p.name.value for p in params]
 
         # Transform body to replace parameter references with self.param
         # and self.method() with self.account.method() for non-helper methods
