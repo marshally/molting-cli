@@ -5,6 +5,8 @@ This module tests the core AST utility functions used across refactorings,
 including field extraction from __init__ methods.
 """
 
+from typing import cast
+
 import libcst as cst
 
 from molting.core.ast_utils import (
@@ -972,7 +974,7 @@ class Empty:
         module = cst.parse_module(code)
         class_def = module.body[0]
         assert isinstance(class_def, cst.ClassDef)
-        stmt = class_def.body.body[0]
+        stmt = cast(cst.BaseStatement, class_def.body.body[0])
 
         assert is_pass_statement(stmt) is True
 

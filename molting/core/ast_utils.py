@@ -1,7 +1,7 @@
 """Shared AST utility functions for refactorings."""
 
 import ast
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Sequence, Tuple
 
 import libcst as cst
 
@@ -467,7 +467,7 @@ def is_empty_class(class_def: cst.ClassDef) -> bool:
     return True
 
 
-def statements_contain_only_pass(stmts: list[cst.BaseStatement]) -> bool:
+def statements_contain_only_pass(stmts: Sequence[cst.BaseStatement]) -> bool:
     """Check if a list of statements contains only pass statements.
 
     Args:
