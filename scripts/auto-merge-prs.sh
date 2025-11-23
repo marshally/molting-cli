@@ -79,8 +79,8 @@ fi
 # Label that can override approval requirement
 AUTOMERGE_LABEL="${AUTOMERGE_LABEL:-automerge}"
 
-# Get list of open PRs from all repositories in JSON format
-log "Fetching open PRs from all repositories..."
+# Get list of open PRs in JSON format
+log "Fetching open PRs..."
 prs=$(gh pr list --json number,headRefName,title,author,isDraft,reviewDecision,statusCheckRollup,mergeable,mergeStateStatus,url,headRepository,headRepositoryOwner,labels)
 
 # Check if there are any PRs
