@@ -229,8 +229,7 @@ class ExtractFunctionTransformer(cst.CSTTransformer):
             return updated_node
 
         # Create the new function
-        # Get the parameter name from the original expression
-        param_name = "data"  # Default parameter name
+        param_name = "data"
 
         # Create return statement
         return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=self.extracted_expression)])
