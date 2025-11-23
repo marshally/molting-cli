@@ -34,7 +34,6 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
     """Tests for Consolidate Duplicate Conditional Fragments refactoring."""
 
@@ -45,7 +44,6 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
         self.refactor("consolidate-duplicate-conditional-fragments", target="process_order#L2-L7")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestRemoveControlFlag(RefactoringTestBase):
     """Tests for Remove Control Flag refactoring."""
 
