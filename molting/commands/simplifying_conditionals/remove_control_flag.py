@@ -166,11 +166,13 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         Returns:
             True if this is the guard clause
         """
-        if isinstance(test, cst.UnaryOperation):
-            if isinstance(test.operator, cst.Not):
-                if isinstance(test.expression, cst.Name):
-                    return test.expression.value == self.flag_variable
-        return False
+        if not isinstance(test, cst.UnaryOperation):
+            return False
+        if not isinstance(test.operator, cst.Not):
+            return False
+        if not isinstance(test.expression, cst.Name):
+            return False
+        return test.expression.value == self.flag_variable
 
     def _transform_guard_body(self, body: cst.IndentedBlock) -> list[cst.BaseStatement]:
         """Transform the body of the guard clause.
