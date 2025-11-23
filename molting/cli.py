@@ -31,6 +31,7 @@ import molting.commands.moving_features.remove_middle_man  # noqa: F401
 import molting.commands.organizing_data.replace_data_value_with_object  # noqa: F401
 import molting.commands.simplifying_conditionals.consolidate_duplicate_conditional_fragments  # noqa: F401
 import molting.commands.simplifying_conditionals.decompose_conditional  # noqa: F401
+import molting.commands.simplifying_conditionals.introduce_assertion  # noqa: F401
 import molting.commands.simplifying_conditionals.remove_control_flag  # noqa: F401
 import molting.commands.simplifying_method_calls.add_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.remove_parameter  # noqa: F401
