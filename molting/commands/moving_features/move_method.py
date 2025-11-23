@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import find_self_field_assignment, parse_target
+from molting.core.visitors import SelfFieldCollector
 
 
 class MoveMethodCommand(BaseCommand):
@@ -192,9 +193,10 @@ class MoveMethodTransformer(cst.CSTTransformer):
         Returns:
             List of field names that are referenced
         """
-        collector = SelfReferenceCollector(self.target_class_field)
+        exclude_fields = {self.target_class_field} if self.target_class_field else set()
+        collector = SelfFieldCollector(exclude_fields=exclude_fields)
         method.visit(collector)
-        return collector.self_references
+        return collector.collected_fields
 
     def _transform_method_for_target(self) -> cst.FunctionDef:
         """Transform the method to work in the target class.
@@ -217,26 +219,6 @@ class MoveMethodTransformer(cst.CSTTransformer):
         return self.method_to_move.with_changes(
             params=cst.Parameters(params=new_params), body=transformed_body
         )
-
-
-class SelfReferenceCollector(cst.CSTVisitor):
-    """Collects references to self.field_name that need to be passed as parameters."""
-
-    def __init__(self, target_class_field: str | None = None) -> None:
-        """Initialize the collector.
-
-        Args:
-            target_class_field: The field that holds the target class instance (should be excluded)
-        """
-        self.self_references: list[str] = []
-        self.target_class_field = target_class_field
-
-    def visit_Attribute(self, node: cst.Attribute) -> None:  # noqa: N802
-        """Visit attribute access to find self.field references."""
-        if isinstance(node.value, cst.Name) and node.value.value == "self":
-            field_name = node.attr.value
-            if field_name not in self.self_references and field_name != self.target_class_field:
-                self.self_references.append(field_name)
 
 
 class SelfReferenceReplacer(cst.CSTTransformer):
