@@ -29,9 +29,11 @@ class ReplaceNestedConditionalWithGuardClausesCommand(BaseCommand):
         """
         target = self.params["target"]
 
-        # Parse target as function_name#L2-L11
+        # Parse target as function_name#L<start>-L<end>
         if "#" not in target:
-            raise ValueError(f"Invalid target format: {target}. Expected: function_name#L2-L11")
+            raise ValueError(
+                f"Invalid target format: {target}. Expected: function_name#L<start>-L<end>"
+            )
 
         function_name, _ = target.split("#", 1)
 
