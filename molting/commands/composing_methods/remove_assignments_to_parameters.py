@@ -96,14 +96,11 @@ class RemoveAssignmentsToParametersTransformer(cst.CSTTransformer):
             Set of parameter names that are assigned to
         """
         param_names = {param.name.value for param in node.params.params}
-        assigned_params = set()
 
-        # Visit function body to find assignments
         collector = AssignmentCollector(param_names)
         node.visit(collector)
-        assigned_params = collector.assigned_params
 
-        return assigned_params
+        return collector.assigned_params
 
 
 class ParameterReplacer(cst.CSTTransformer):
