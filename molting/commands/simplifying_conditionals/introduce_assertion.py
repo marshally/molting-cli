@@ -20,17 +20,18 @@ class IntroduceAssertionCommand(BaseCommand):
         """
         self.validate_required_params("target", "condition")
 
-    def execute(self) -> None:
-        """Apply introduce-assertion refactoring using libCST.
+    def _parse_target(self, target: str) -> tuple[str, int]:
+        """Parse target parameter into function name and line number.
+
+        Args:
+            target: Target string in format function_name#L<line_number>
+
+        Returns:
+            Tuple of (function_name, target_line)
 
         Raises:
             ValueError: If target format is invalid
         """
-        target = self.params["target"]
-        condition = self.params["condition"]
-        message = self.params.get("message", "Project must have expense limit or primary project")
-
-        # Parse target as function_name#L<line_number>
         if "#L" not in target:
             raise ValueError(
                 f"Invalid target format: {target}. Expected: function_name#L<line_number>"
@@ -43,6 +44,20 @@ class IntroduceAssertionCommand(BaseCommand):
             raise ValueError(
                 f"Invalid line number in target: {target}. Expected: function_name#L<line_number>"
             )
+
+        return function_name, target_line
+
+    def execute(self) -> None:
+        """Apply introduce-assertion refactoring using libCST.
+
+        Raises:
+            ValueError: If target format is invalid
+        """
+        target = self.params["target"]
+        condition = self.params["condition"]
+        message = self.params.get("message", "Project must have expense limit or primary project")
+
+        function_name, target_line = self._parse_target(target)
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
