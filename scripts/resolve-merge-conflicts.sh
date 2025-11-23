@@ -58,13 +58,13 @@ HEAD_REPOSITORY=$(echo "$PR_DATA" | jq -r '.headRepository.nameWithOwner')
 
 log "PR #$PR_NUMBER: $HEAD_REF -> $BASE_REF"
 
-# Shallow clone the repository
+# Clone the repository with sufficient depth for merge
 REPO_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}.git"
-log "Shallow cloning repository: $REPO_URL"
+log "Cloning repository: $REPO_URL"
 
 cd "$TEMP_DIR"
 
-if ! git clone --depth 1 --branch "$HEAD_REF" "$REPO_URL" repo; then
+if ! git clone --depth 100 --branch "$HEAD_REF" "$REPO_URL" repo; then
     error "Failed to clone repository"
     exit 1
 fi
@@ -77,23 +77,23 @@ git config user.email "auto-merge-bot@example.com"
 
 # Fetch the base branch with depth
 log "Fetching base branch: $BASE_REF"
-git fetch origin "$BASE_REF:$BASE_REF" --depth 1
+git fetch origin "$BASE_REF:$BASE_REF" --depth 100
 
-# Attempt to rebase onto base branch
-log "Attempting to rebase $HEAD_REF onto $BASE_REF"
-if git rebase "$BASE_REF"; then
-    log "Rebase succeeded without conflicts!"
+# Attempt to merge base branch
+log "Attempting to merge $BASE_REF into $HEAD_REF"
+if git merge "$BASE_REF" --no-edit; then
+    log "Merge succeeded without conflicts!"
 
     # Push the changes
-    log "Pushing rebased changes to $HEAD_REF"
-    if git push origin "$HEAD_REF" --force-with-lease; then
-        log "Successfully pushed rebased changes for PR #$PR_NUMBER"
+    log "Pushing merged changes to $HEAD_REF"
+    if git push origin "$HEAD_REF"; then
+        log "Successfully pushed merged changes for PR #$PR_NUMBER"
     else
-        error "Failed to push rebased changes"
+        error "Failed to push merged changes"
         exit 1
     fi
 else
-    warn "Rebase encountered conflicts. Using Claude to resolve..."
+    warn "Merge encountered conflicts. Using Claude to resolve..."
 
     # Get list of conflicted files
     CONFLICTED_FILES=$(git diff --name-only --diff-filter=U)
@@ -141,27 +141,27 @@ Please output ONLY the resolved file content with all conflicts resolved and con
             log "Resolved and staged: $file"
         else
             error "Failed to resolve conflicts in: $file"
-            git rebase --abort
+            git merge --abort
             exit 1
         fi
     done
 
-    # Continue the rebase
-    log "Continuing rebase..."
-    if git rebase --continue; then
-        log "Rebase completed successfully"
+    # Complete the merge
+    log "Completing merge..."
+    if git commit --no-edit; then
+        log "Merge completed successfully"
 
         # Push the changes
         log "Pushing conflict-resolved changes to $HEAD_REF"
-        if git push origin "$HEAD_REF" --force-with-lease; then
+        if git push origin "$HEAD_REF"; then
             log "Successfully pushed conflict-resolved changes for PR #$PR_NUMBER"
         else
             error "Failed to push conflict-resolved changes"
             exit 1
         fi
     else
-        error "Failed to continue rebase after resolving conflicts"
-        git rebase --abort
+        error "Failed to complete merge after resolving conflicts"
+        git merge --abort
         exit 1
     fi
 fi
