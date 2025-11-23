@@ -116,7 +116,7 @@ class ReplaceNestedConditionalWithGuardClausesTransformer(cst.CSTTransformer):
         Returns:
             List of guard clauses and final return statement
         """
-        result: list[cst.BaseStatement] = []
+        guard_clauses: list[cst.BaseStatement] = []
 
         # Process the first condition
         if_body = cast(cst.IndentedBlock, if_stmt.body)
@@ -124,7 +124,7 @@ class ReplaceNestedConditionalWithGuardClausesTransformer(cst.CSTTransformer):
 
         if return_value is not None:
             # Create guard clause: if condition: return value
-            result.append(
+            guard_clauses.append(
                 if_stmt.with_changes(
                     body=cst.IndentedBlock(
                         body=[cst.SimpleStatementLine(body=[cst.Return(value=return_value)])]
@@ -139,14 +139,16 @@ class ReplaceNestedConditionalWithGuardClausesTransformer(cst.CSTTransformer):
             # Check if else body contains another if statement
             if len(else_body.body) == 1 and isinstance(else_body.body[0], cst.If):
                 nested_if = else_body.body[0]
-                result.extend(self._extract_guard_clauses(nested_if))
+                guard_clauses.extend(self._extract_guard_clauses(nested_if))
             else:
                 # Else body is the final return
                 final_return = self._get_return_value_from_assignment(else_body)
                 if final_return is not None:
-                    result.append(cst.SimpleStatementLine(body=[cst.Return(value=final_return)]))
+                    guard_clauses.append(
+                        cst.SimpleStatementLine(body=[cst.Return(value=final_return)])
+                    )
 
-        return result
+        return guard_clauses
 
     def _get_return_value_from_assignment(
         self, body: cst.IndentedBlock
