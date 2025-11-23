@@ -1,8 +1,11 @@
 """Base class for all refactoring commands."""
 
+import ast
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+
+import libcst as cst
 
 
 class BaseCommand(ABC):
@@ -40,9 +43,7 @@ class BaseCommand(ABC):
         """
         missing = [p for p in param_names if p not in self.params]
         if missing:
-            raise ValueError(
-                f"Missing required parameters for {self.name}: {', '.join(missing)}"
-            )
+            raise ValueError(f"Missing required parameters for {self.name}: {', '.join(missing)}")
 
     @abstractmethod
     def validate(self) -> None:
@@ -52,3 +53,32 @@ class BaseCommand(ABC):
             ValueError: If parameters are invalid
         """
         pass
+
+    def apply_libcst_transform(
+        self, transformer_class: type[cst.CSTTransformer], *args: Any, **kwargs: Any
+    ) -> None:
+        """Apply a libCST transformer to the file.
+
+        Args:
+            transformer_class: The transformer class to instantiate
+            *args: Positional arguments for transformer
+            **kwargs: Keyword arguments for transformer
+        """
+        source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+        transformer = transformer_class(*args, **kwargs)
+        modified_tree = module.visit(transformer)
+        self.file_path.write_text(modified_tree.code)
+
+    def apply_ast_transform(self, transform_func: Callable[[ast.Module], ast.Module]) -> None:
+        """Apply an AST transformation function to the file.
+
+        Args:
+            transform_func: Function that takes and returns an ast.Module
+        """
+        source_code = self.file_path.read_text()
+        tree = ast.parse(source_code)
+        modified_tree = transform_func(tree)
+        ast.fix_missing_locations(modified_tree)
+        modified_source = ast.unparse(modified_tree)
+        self.file_path.write_text(modified_source)

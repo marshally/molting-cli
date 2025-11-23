@@ -183,9 +183,7 @@ def find_self_field_assignment(
     return None
 
 
-def is_assignment_to_field(
-    stmt: cst.BaseStatement, field_names: set[str]
-) -> bool:
+def is_assignment_to_field(stmt: cst.BaseStatement, field_names: set[str]) -> bool:
     """Check if statement assigns to any of the specified fields.
 
     Args:
