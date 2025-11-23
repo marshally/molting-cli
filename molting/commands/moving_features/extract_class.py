@@ -36,13 +36,7 @@ class ExtractClassCommand(BaseCommand):
         fields = [f.strip() for f in fields_str.split(",")]
         methods = [m.strip() for m in methods_str.split(",")]
 
-        source_code = self.file_path.read_text()
-        module = cst.parse_module(source_code)
-
-        transformer = ExtractClassTransformer(source_class, fields, methods, new_class_name)
-        new_module = module.visit(transformer)
-
-        self.file_path.write_text(new_module.code)
+        self.apply_libcst_transform(ExtractClassTransformer, source_class, fields, methods, new_class_name)
 
 
 class ExtractClassTransformer(cst.CSTTransformer):
