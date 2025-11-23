@@ -162,13 +162,18 @@ class ReplaceNestedConditionalWithGuardClausesTransformer(cst.CSTTransformer):
             The value being assigned to result, or None if not found
         """
         for stmt in body.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                for s in stmt.body:
-                    if isinstance(s, cst.Assign):
-                        for target in s.targets:
-                            if isinstance(target.target, cst.Name):
-                                if target.target.value == self.RESULT_VARIABLE_NAME:
-                                    return s.value
+            if not isinstance(stmt, cst.SimpleStatementLine):
+                continue
+
+            for s in stmt.body:
+                if not isinstance(s, cst.Assign):
+                    continue
+
+                for target in s.targets:
+                    if not isinstance(target.target, cst.Name):
+                        continue
+                    if target.target.value == self.RESULT_VARIABLE_NAME:
+                        return s.value
         return None
 
 
