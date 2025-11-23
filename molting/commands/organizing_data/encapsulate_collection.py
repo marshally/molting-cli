@@ -8,6 +8,12 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
 
+SELF = "self"
+INIT_METHOD = "__init__"
+APPEND_METHOD = "append"
+REMOVE_METHOD = "remove"
+TUPLE_FUNCTION = "tuple"
+
 
 class EncapsulateCollectionCommand(BaseCommand):
     """Command to encapsulate a collection field with proper accessor methods."""
@@ -87,7 +93,7 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
         # First pass: modify existing methods
         for stmt in updated_node.body.body:
             if isinstance(stmt, cst.FunctionDef):
-                if stmt.name.value == "__init__":
+                if stmt.name.value == INIT_METHOD:
                     new_body.append(self._modify_init_method(stmt))
                 elif stmt.name.value == f"get_{self.field_name}":
                     new_body.append(self._modify_getter_method(stmt))
@@ -156,7 +162,7 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
 
         return (
             isinstance(target.value, cst.Name)
-            and target.value.value == "self"
+            and target.value.value == SELF
             and target.attr.value == self.field_name
         )
 
@@ -177,7 +183,7 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
                     targets=[
                         cst.AssignTarget(
                             target=cst.Attribute(
-                                value=cst.Name("self"),
+                                value=cst.Name(SELF),
                                 attr=cst.Name(self.private_field_name),
                             )
                         )
@@ -196,16 +202,15 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
         Returns:
             Modified getter method
         """
-        # Create new return statement: return tuple(self._courses)
         new_return = cst.SimpleStatementLine(
             body=[
                 cst.Return(
                     value=cst.Call(
-                        func=cst.Name("tuple"),
+                        func=cst.Name(TUPLE_FUNCTION),
                         args=[
                             cst.Arg(
                                 value=cst.Attribute(
-                                    value=cst.Name("self"), attr=cst.Name(self.private_field_name)
+                                    value=cst.Name(SELF), attr=cst.Name(self.private_field_name)
                                 )
                             )
                         ],
@@ -226,7 +231,7 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
             name=cst.Name(f"add_{self.singular_name}"),
             params=cst.Parameters(
                 params=[
-                    cst.Param(name=cst.Name("self")),
+                    cst.Param(name=cst.Name(SELF)),
                     cst.Param(name=cst.Name(self.singular_name)),
                 ]
             ),
@@ -238,10 +243,10 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
                                 value=cst.Call(
                                     func=cst.Attribute(
                                         value=cst.Attribute(
-                                            value=cst.Name("self"),
+                                            value=cst.Name(SELF),
                                             attr=cst.Name(self.private_field_name),
                                         ),
-                                        attr=cst.Name("append"),
+                                        attr=cst.Name(APPEND_METHOD),
                                     ),
                                     args=[cst.Arg(value=cst.Name(self.singular_name))],
                                 )
@@ -262,7 +267,7 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
             name=cst.Name(f"remove_{self.singular_name}"),
             params=cst.Parameters(
                 params=[
-                    cst.Param(name=cst.Name("self")),
+                    cst.Param(name=cst.Name(SELF)),
                     cst.Param(name=cst.Name(self.singular_name)),
                 ]
             ),
@@ -274,10 +279,10 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
                                 value=cst.Call(
                                     func=cst.Attribute(
                                         value=cst.Attribute(
-                                            value=cst.Name("self"),
+                                            value=cst.Name(SELF),
                                             attr=cst.Name(self.private_field_name),
                                         ),
-                                        attr=cst.Name("remove"),
+                                        attr=cst.Name(REMOVE_METHOD),
                                     ),
                                     args=[cst.Arg(value=cst.Name(self.singular_name))],
                                 )
