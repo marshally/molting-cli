@@ -11,11 +11,11 @@ This document outlines a step-by-step plan to refactor common patterns in the mo
 
 ## High Priority Refactorings
 
-### 1. Parameter Validation Helper
+### 1. Parameter Validation Helper ✅ COMPLETED
 **Impact**: Eliminates ~50 lines of duplicate validation code across 12+ commands
 
 **Steps**:
-- [ ] 1.1. Add `validate_required_params()` method to `BaseCommand` in `molting/commands/base.py`
+- [x] 1.1. Add `validate_required_params()` method to `BaseCommand` in `molting/commands/base.py`
   ```python
   def validate_required_params(self, *param_names: str) -> None:
       """Validate that required parameters are present.
@@ -33,31 +33,31 @@ This document outlines a step-by-step plan to refactor common patterns in the mo
           )
   ```
 
-- [ ] 1.2. Write unit tests for `validate_required_params()` in a new test file `tests/test_base_command.py`
+- [x] 1.2. Write unit tests for `validate_required_params()` in a new test file `tests/test_base_command.py`
 
-- [ ] 1.3. Migrate all commands to use the new helper (in order):
-  - [ ] `molting/commands/composing_methods/extract_method.py` (lines 21-31)
-  - [ ] `molting/commands/moving_features/move_method.py` (lines 17-27)
-  - [ ] `molting/commands/moving_features/extract_class.py` (lines 16-25)
-  - [ ] `molting/commands/simplifying_method_calls/rename_method.py` (lines 16-26)
-  - [ ] `molting/commands/simplifying_method_calls/add_parameter.py` (lines 19-29)
-  - [ ] `molting/commands/simplifying_method_calls/remove_parameter.py` (lines 19-28)
-  - [ ] `molting/commands/dealing_with_generalization/extract_superclass.py` (lines 16-25)
-  - [ ] `molting/commands/dealing_with_generalization/extract_interface.py` (lines 16-27)
-  - [ ] `molting/commands/moving_features/inline_class.py` (lines 18-27)
-  - [ ] `molting/commands/dealing_with_generalization/collapse_hierarchy.py` (lines 15-31)
+- [x] 1.3. Migrate all commands to use the new helper (in order):
+  - [x] `molting/commands/composing_methods/extract_method.py` (lines 21-31)
+  - [x] `molting/commands/moving_features/move_method.py` (lines 17-27)
+  - [x] `molting/commands/moving_features/extract_class.py` (lines 16-25)
+  - [x] `molting/commands/simplifying_method_calls/rename_method.py` (lines 16-26)
+  - [x] `molting/commands/simplifying_method_calls/add_parameter.py` (lines 19-29)
+  - [x] `molting/commands/simplifying_method_calls/remove_parameter.py` (lines 19-28)
+  - [x] `molting/commands/dealing_with_generalization/extract_superclass.py` (lines 16-25)
+  - [x] `molting/commands/dealing_with_generalization/extract_interface.py` (lines 16-27)
+  - [x] `molting/commands/moving_features/inline_class.py` (lines 18-27)
+  - [x] `molting/commands/dealing_with_generalization/collapse_hierarchy.py` (lines 15-31)
 
-- [ ] 1.4. Run all tests to verify no regressions: `make test`
+- [x] 1.4. Run all tests to verify no regressions: `make test`
 
-- [ ] 1.5. Search for any remaining try/except KeyError patterns: `grep -r "except KeyError" molting/commands/`
+- [x] 1.5. Search for any remaining try/except KeyError patterns: `grep -r "except KeyError" molting/commands/`
 
 ---
 
-### 2. Field Extraction from __init__ Utilities
+### 2. Field Extraction from __init__ Utilities ✅ COMPLETED
 **Impact**: Eliminates 100+ lines of duplicate field extraction logic across 4 commands
 
 **Steps**:
-- [ ] 2.1. Add field extraction utilities to `molting/core/ast_utils.py`:
+- [x] 2.1. Add field extraction utilities to `molting/core/ast_utils.py`:
   ```python
   def extract_init_field_assignments(
       init_method: cst.FunctionDef
@@ -98,39 +98,39 @@ This document outlines a step-by-step plan to refactor common patterns in the mo
       """
   ```
 
-- [ ] 2.2. Write comprehensive unit tests for new utilities in `tests/test_ast_utils.py`
+- [x] 2.2. Write comprehensive unit tests for new utilities in `tests/test_ast_utils.py`
 
-- [ ] 2.3. Migrate ExtractClassCommand to use new utilities:
-  - [ ] Replace `_is_assignment_to_extracted_field()` at line 184
-  - [ ] Update `_modify_init()` to use `find_self_field_assignment()`
-  - [ ] Remove old helper methods
+- [x] 2.3. Migrate ExtractClassCommand to use new utilities:
+  - [x] Replace `_is_assignment_to_extracted_field()` at line 184
+  - [x] Update `_modify_init()` to use `find_self_field_assignment()`
+  - [x] Remove old helper methods
 
-- [ ] 2.4. Migrate ExtractSuperclassCommand to use new utilities:
-  - [ ] Replace `_extract_init_fields()` at line 178
-  - [ ] Replace `_get_self_field_assignment()` at line 198
-  - [ ] Update all callers
+- [x] 2.4. Migrate ExtractSuperclassCommand to use new utilities:
+  - [x] Replace `_extract_init_fields()` at line 178
+  - [x] Replace `_get_self_field_assignment()` at line 198
+  - [x] Update all callers
 
-- [ ] 2.5. Migrate InlineClassCommand to use new utilities:
-  - [ ] Replace `_find_self_assignments()` at line 166
-  - [ ] Replace `_extract_fields_from_init()` at line 204
-  - [ ] Update all callers
+- [x] 2.5. Migrate InlineClassCommand to use new utilities:
+  - [x] Replace `_find_self_assignments()` at line 166
+  - [x] Replace `_extract_fields_from_init()` at line 204
+  - [x] Update all callers
 
-- [ ] 2.6. Migrate MoveMethodCommand to use new utilities:
-  - [ ] Replace `_extract_field_from_init()` at line 140
-  - [ ] Replace `_get_self_field_assignment()` at line 158
-  - [ ] Update all callers
+- [x] 2.6. Migrate MoveMethodCommand to use new utilities:
+  - [x] Replace `_extract_field_from_init()` at line 140
+  - [x] Replace `_get_self_field_assignment()` at line 158
+  - [x] Update all callers
 
-- [ ] 2.7. Run tests after each migration: `make test`
+- [x] 2.7. Run tests after each migration: `make test`
 
-- [ ] 2.8. Verify no duplicate field extraction logic remains: `grep -r "_field_assignment\|_extract.*field" molting/commands/`
+- [x] 2.8. Verify no duplicate field extraction logic remains: `grep -r "_field_assignment\|_extract.*field" molting/commands/`
 
 ---
 
-### 3. File I/O Boilerplate Wrapper
+### 3. File I/O Boilerplate Wrapper ✅ COMPLETED
 **Impact**: Eliminates 5-10 lines per command, improves consistency
 
 **Steps**:
-- [ ] 3.1. Add helper methods to `BaseCommand` in `molting/commands/base.py`:
+- [x] 3.1. Add helper methods to `BaseCommand` in `molting/commands/base.py`:
   ```python
   def apply_libcst_transform(
       self,
@@ -168,24 +168,24 @@ This document outlines a step-by-step plan to refactor common patterns in the mo
       self.file_path.write_text(modified_source)
   ```
 
-- [ ] 3.2. Write unit tests for the new methods
+- [x] 3.2. Write unit tests for the new methods
 
-- [ ] 3.3. Migrate libcst-based commands (in order):
-  - [ ] `molting/commands/moving_features/move_method.py` (lines 39-45)
-  - [ ] `molting/commands/moving_features/extract_class.py` (lines 41-47)
-  - [ ] `molting/commands/dealing_with_generalization/extract_superclass.py` (lines 40-48)
-  - [ ] `molting/commands/moving_features/inline_class.py` (lines 38-44)
-  - [ ] `molting/commands/dealing_with_generalization/collapse_hierarchy.py` (lines 46-54)
+- [x] 3.3. Migrate libcst-based commands (in order):
+  - [x] `molting/commands/moving_features/move_method.py` (lines 39-45)
+  - [x] `molting/commands/moving_features/extract_class.py` (lines 41-47)
+  - [x] `molting/commands/dealing_with_generalization/extract_superclass.py` (lines 40-48)
+  - [x] `molting/commands/moving_features/inline_class.py` (lines 38-44)
+  - [x] `molting/commands/dealing_with_generalization/collapse_hierarchy.py` (lines 46-54)
 
-- [ ] 3.4. Migrate ast-based commands:
-  - [ ] `molting/commands/simplifying_method_calls/add_parameter.py` (lines 43-69)
-  - [ ] `molting/commands/simplifying_method_calls/remove_parameter.py` (lines 40-76)
+- [x] 3.4. Migrate ast-based commands:
+  - [x] `molting/commands/simplifying_method_calls/add_parameter.py` (lines 43-69)
+  - [x] `molting/commands/simplifying_method_calls/remove_parameter.py` (lines 40-76)
 
-- [ ] 3.5. Note: ExtractMethodCommand and ExtractInterfaceCommand may need special handling due to metadata/multi-pass logic
+- [x] 3.5. Note: ExtractMethodCommand and ExtractInterfaceCommand may need special handling due to metadata/multi-pass logic
 
-- [ ] 3.6. Run tests: `make test`
+- [x] 3.6. Run tests: `make test`
 
-- [ ] 3.7. Search for remaining file I/O patterns: `grep -r "read_text\|write_text" molting/commands/`
+- [x] 3.7. Search for remaining file I/O patterns: `grep -r "read_text\|write_text" molting/commands/`
 
 ---
 
