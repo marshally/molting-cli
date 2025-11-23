@@ -1,5 +1,7 @@
 """Encapsulate Field refactoring command."""
 
+from typing import cast
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -72,7 +74,7 @@ class EncapsulateFieldTransformer(cst.CSTTransformer):
                 else:
                     new_body.append(stmt)
             else:
-                new_body.append(stmt)
+                new_body.append(cast(cst.BaseStatement, stmt))
 
         # Add property getter
         new_body.append(self._create_property_getter())
@@ -148,7 +150,7 @@ class EncapsulateFieldTransformer(cst.CSTTransformer):
                         new_stmt_body.append(body_item)
                 new_body.append(stmt.with_changes(body=new_stmt_body))
             else:
-                new_body.append(stmt)
+                new_body.append(cast(cst.BaseStatement, stmt))
 
         return init_method.with_changes(body=cst.IndentedBlock(body=new_body))
 
