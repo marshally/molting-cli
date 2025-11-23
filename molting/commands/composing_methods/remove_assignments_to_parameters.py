@@ -1,5 +1,7 @@
 """Remove Assignments to Parameters refactoring command."""
 
+from typing import cast
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -73,10 +75,12 @@ class RemoveAssignmentsToParametersTransformer(cst.CSTTransformer):
         )
 
         body_transformer = ParameterReplacer(self.parameters_to_replace)
-        body_with_replaced_params = updated_node.body.visit(body_transformer)
+        body_with_replaced_params = cast(
+            cst.IndentedBlock, updated_node.body.visit(body_transformer)
+        )
 
         body_with_initialization = body_with_replaced_params.with_changes(
-            body=(result_assignment,) + body_with_replaced_params.body
+            body=(result_assignment,) + tuple(body_with_replaced_params.body)
         )
 
         return updated_node.with_changes(body=body_with_initialization)
