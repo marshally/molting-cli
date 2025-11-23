@@ -72,23 +72,40 @@ class SelfEncapsulateFieldTransformer(cst.CSTTransformer):
         if updated_node.name.value != self.class_name:
             return updated_node
 
-        # First pass: rename field assignments in __init__ and check if property exists
+        new_body, property_exists, last_property_index, init_index = self._process_class_body(
+            updated_node.body.body
+        )
+
+        if property_exists:
+            return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
+
+        insert_index = last_property_index + 1 if last_property_index >= 0 else init_index + 1
+        final_body = self._insert_properties_at_index(new_body, insert_index)
+        return updated_node.with_changes(body=cst.IndentedBlock(body=final_body))
+
+    def _process_class_body(self, body: tuple[Any, ...]) -> tuple[list[Any], bool, int, int]:
+        """Process class body to transform init and track property locations.
+
+        Args:
+            body: Class body statements
+
+        Returns:
+            Tuple of (new_body, property_exists, last_property_index, init_index)
+        """
         new_body: list[Any] = []
         property_exists = False
         last_property_index = -1
         init_index = -1
 
-        for i, stmt in enumerate(updated_node.body.body):
+        for stmt in body:
             if isinstance(stmt, cst.FunctionDef):
                 if stmt.name.value == "__init__":
                     new_body.append(self._transform_init_method(stmt))
                     init_index = len(new_body) - 1
                 elif stmt.name.value == self.field_name:
-                    # Property with our field name already exists, skip adding new one
                     property_exists = True
                     new_body.append(stmt)
                 elif self._is_property_method(stmt):
-                    # Track the last property method we see
                     new_body.append(stmt)
                     last_property_index = len(new_body) - 1
                 else:
@@ -96,26 +113,27 @@ class SelfEncapsulateFieldTransformer(cst.CSTTransformer):
             else:
                 new_body.append(stmt)
 
-        # If property doesn't exist, add it after last property or after __init__
-        if not property_exists:
-            insert_index = last_property_index + 1 if last_property_index >= 0 else init_index + 1
+        return new_body, property_exists, last_property_index, init_index
 
-            # Build final body with properties inserted at the right position
-            final_body: list[Any] = []
-            for i, stmt in enumerate(new_body):
-                final_body.append(stmt)
-                if i == insert_index - 1:
-                    # Add blank line before property
-                    final_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
-                    # Add property getter
-                    final_body.append(self._create_property_getter())
-                    # Add blank line before setter
-                    final_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
-                    # Add property setter
-                    final_body.append(self._create_property_setter())
-            return updated_node.with_changes(body=cst.IndentedBlock(body=final_body))
-        else:
-            return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
+    def _insert_properties_at_index(self, body: list[Any], insert_index: int) -> list[Any]:
+        """Insert property getter and setter at specified index.
+
+        Args:
+            body: Class body statements
+            insert_index: Index after which to insert properties
+
+        Returns:
+            New body with properties inserted
+        """
+        final_body: list[Any] = []
+        for i, stmt in enumerate(body):
+            final_body.append(stmt)
+            if i == insert_index - 1:
+                final_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
+                final_body.append(self._create_property_getter())
+                final_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
+                final_body.append(self._create_property_setter())
+        return final_body
 
     def _is_property_method(self, node: cst.FunctionDef) -> bool:
         """Check if a function is a property getter or setter.
