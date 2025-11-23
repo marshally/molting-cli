@@ -140,10 +140,27 @@ class SubstituteAlgorithmTransformer(cst.CSTTransformer):
 
         candidates, loop_var, param_name = loop_info
 
-        # Create new function body
-        # candidates = ["Don", "John", "Kent"]
+        candidates_assign = self._create_candidates_assignment(candidates)
+        for_loop = self._create_cleaner_for_loop(loop_var, param_name)
+        final_return = self._create_empty_return()
+
+        new_body = cst.IndentedBlock(body=[candidates_assign, for_loop, final_return])
+
+        return node.with_changes(body=new_body)
+
+    def _create_candidates_assignment(
+        self, candidates: list[cst.SimpleString]
+    ) -> cst.SimpleStatementLine:
+        """Create the candidates list assignment statement.
+
+        Args:
+            candidates: List of candidate string values
+
+        Returns:
+            CST node for candidates assignment
+        """
         candidates_list = cst.List(elements=[cst.Element(value=c) for c in candidates])
-        candidates_assign = cst.SimpleStatementLine(
+        return cst.SimpleStatementLine(
             body=[
                 cst.Assign(
                     targets=[cst.AssignTarget(target=cst.Name(value="candidates"))],
@@ -152,9 +169,16 @@ class SubstituteAlgorithmTransformer(cst.CSTTransformer):
             ]
         )
 
-        # for person in people:
-        #     if person in candidates:
-        #         return person
+    def _create_cleaner_for_loop(self, loop_var: str, param_name: str) -> cst.For:
+        """Create the cleaner for loop with 'in' check.
+
+        Args:
+            loop_var: Name of the loop variable
+            param_name: Name of the iterable parameter
+
+        Returns:
+            CST node for the for loop
+        """
         for_body = [
             cst.If(
                 test=cst.Comparison(
@@ -173,21 +197,19 @@ class SubstituteAlgorithmTransformer(cst.CSTTransformer):
             )
         ]
 
-        for_loop = cst.For(
+        return cst.For(
             target=cst.Name(value=loop_var),
             iter=cst.Name(value=param_name),
             body=cst.IndentedBlock(body=for_body),
         )
 
-        # return ""
-        final_return = cst.SimpleStatementLine(
-            body=[cst.Return(value=cst.SimpleString(value='""'))]
-        )
+    def _create_empty_return(self) -> cst.SimpleStatementLine:
+        """Create the final return statement with empty string.
 
-        # Combine into new body
-        new_body = cst.IndentedBlock(body=[candidates_assign, for_loop, final_return])
-
-        return node.with_changes(body=new_body)
+        Returns:
+            CST node for return statement
+        """
+        return cst.SimpleStatementLine(body=[cst.Return(value=cst.SimpleString(value='""'))])
 
 
 # Register the command
