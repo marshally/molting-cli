@@ -121,6 +121,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         self.new_functions: list[cst.FunctionDef] = []
         self.current_function: str | None = None
         self.function_params: list[str] = []
+        self.assignment_target: str = ""
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
         """Track current function being visited."""
@@ -169,6 +170,9 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             then_visitor = ParameterCollector(self.function_params)
             self.then_body.visit(then_visitor)
             self.then_params = then_visitor.params
+            # Extract assignment target name
+            if not self.assignment_target:
+                self.assignment_target = self._extract_assignment_target(self.then_body)
 
         # Extract else body
         if original_node.orelse and isinstance(original_node.orelse, cst.Else):
@@ -249,6 +253,16 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
                 return first_stmt.value
         return None
 
+    def _extract_assignment_target(self, stmt: cst.BaseStatement) -> str:
+        """Extract the target variable name from an assignment statement."""
+        if isinstance(stmt, cst.SimpleStatementLine) and len(stmt.body) > 0:
+            first_stmt = stmt.body[0]
+            if isinstance(first_stmt, cst.Assign) and len(first_stmt.targets) > 0:
+                target = first_stmt.targets[0].target
+                if isinstance(target, cst.Name):
+                    return target.value
+        return ""
+
     def _create_replacement_if(self) -> cst.If:
         """Create replacement if statement using the new functions."""
         # Create call to is_winter(date)
@@ -265,7 +279,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         then_assign = cst.SimpleStatementLine(
             body=[
                 cst.Assign(
-                    targets=[cst.AssignTarget(target=cst.Name("charge"))],
+                    targets=[cst.AssignTarget(target=cst.Name(self.assignment_target))],
                     value=then_call,
                 )
             ]
@@ -279,7 +293,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         else_assign = cst.SimpleStatementLine(
             body=[
                 cst.Assign(
-                    targets=[cst.AssignTarget(target=cst.Name("charge"))],
+                    targets=[cst.AssignTarget(target=cst.Name(self.assignment_target))],
                     value=else_call,
                 )
             ]
