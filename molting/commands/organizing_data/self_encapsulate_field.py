@@ -1,0 +1,249 @@
+"""Self Encapsulate Field refactoring command."""
+
+from typing import Any
+
+import libcst as cst
+
+from molting.commands.base import BaseCommand
+from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_target
+
+
+class SelfEncapsulateFieldCommand(BaseCommand):
+    """Command to encapsulate direct field access with getter and setter properties."""
+
+    name = "self-encapsulate-field"
+
+    def validate(self) -> None:
+        """Validate that required parameters are present.
+
+        Raises:
+            ValueError: If required parameters are missing
+        """
+        if "target" not in self.params:
+            raise ValueError("Missing required parameter for self-encapsulate-field: 'target'")
+
+    def execute(self) -> None:
+        """Apply self-encapsulate-field refactoring using libCST.
+
+        Raises:
+            ValueError: If transformation cannot be applied
+        """
+        target = self.params["target"]
+
+        # Parse the target to get class and field names
+        class_name, field_name = parse_target(target)
+
+        source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+
+        transformer = SelfEncapsulateFieldTransformer(class_name, field_name)
+        modified_tree = module.visit(transformer)
+
+        self.file_path.write_text(modified_tree.code)
+
+
+class SelfEncapsulateFieldTransformer(cst.CSTTransformer):
+    """Transforms direct field access to use properties."""
+
+    def __init__(self, class_name: str, field_name: str) -> None:
+        """Initialize the transformer.
+
+        Args:
+            class_name: Name of the class containing the field
+            field_name: Name of the field to encapsulate
+        """
+        self.class_name = class_name
+        self.field_name = field_name
+        self.private_field_name = f"_{field_name}"
+
+    def leave_ClassDef(  # noqa: N802
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
+        """Transform the target class to use properties.
+
+        Args:
+            original_node: The original class definition
+            updated_node: The updated class definition
+
+        Returns:
+            Transformed class definition with properties
+        """
+        if updated_node.name.value != self.class_name:
+            return updated_node
+
+        # First pass: rename field assignments in __init__ and check if property exists
+        new_body: list[Any] = []
+        property_exists = False
+        last_property_index = -1
+        init_index = -1
+
+        for i, stmt in enumerate(updated_node.body.body):
+            if isinstance(stmt, cst.FunctionDef):
+                if stmt.name.value == "__init__":
+                    new_body.append(self._transform_init_method(stmt))
+                    init_index = len(new_body) - 1
+                elif stmt.name.value == self.field_name:
+                    # Property with our field name already exists, skip adding new one
+                    property_exists = True
+                    new_body.append(stmt)
+                elif self._is_property_method(stmt):
+                    # Track the last property method we see
+                    new_body.append(stmt)
+                    last_property_index = len(new_body) - 1
+                else:
+                    new_body.append(stmt)
+            else:
+                new_body.append(stmt)
+
+        # If property doesn't exist, add it after last property or after __init__
+        if not property_exists:
+            insert_index = last_property_index + 1 if last_property_index >= 0 else init_index + 1
+
+            # Build final body with properties inserted at the right position
+            final_body: list[Any] = []
+            for i, stmt in enumerate(new_body):
+                final_body.append(stmt)
+                if i == insert_index - 1:
+                    # Add blank line before property
+                    final_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
+                    # Add property getter
+                    final_body.append(self._create_property_getter())
+                    # Add blank line before setter
+                    final_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
+                    # Add property setter
+                    final_body.append(self._create_property_setter())
+            return updated_node.with_changes(body=cst.IndentedBlock(body=final_body))
+        else:
+            return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
+
+    def _is_property_method(self, node: cst.FunctionDef) -> bool:
+        """Check if a function is a property getter or setter.
+
+        Args:
+            node: Function definition to check
+
+        Returns:
+            True if function has @property or @<name>.setter decorator
+        """
+        for decorator in node.decorators:
+            if isinstance(decorator.decorator, cst.Name):
+                if decorator.decorator.value == "property":
+                    return True
+            elif isinstance(decorator.decorator, cst.Attribute):
+                if decorator.decorator.attr.value == "setter":
+                    return True
+        return False
+
+    def _transform_init_method(self, init_method: cst.FunctionDef) -> cst.FunctionDef:
+        """Transform __init__ to use private field name.
+
+        Args:
+            init_method: The __init__ method
+
+        Returns:
+            Modified __init__ method
+        """
+        new_body: list[Any] = []
+
+        for stmt in init_method.body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                modified = False
+                for body_item in stmt.body:
+                    if isinstance(body_item, cst.Assign):
+                        for target in body_item.targets:
+                            if isinstance(target.target, cst.Attribute):
+                                if (
+                                    isinstance(target.target.value, cst.Name)
+                                    and target.target.value.value == "self"
+                                    and target.target.attr.value == self.field_name
+                                ):
+                                    # Replace with private field name
+                                    new_target = cst.AssignTarget(
+                                        target=cst.Attribute(
+                                            value=cst.Name("self"),
+                                            attr=cst.Name(self.private_field_name),
+                                        )
+                                    )
+                                    new_assign = body_item.with_changes(targets=[new_target])
+                                    new_body.append(stmt.with_changes(body=[new_assign]))
+                                    modified = True
+                                    break
+                if not modified:
+                    new_body.append(stmt)
+            else:
+                new_body.append(stmt)
+
+        return init_method.with_changes(body=cst.IndentedBlock(body=new_body))
+
+    def _create_property_getter(self) -> cst.FunctionDef:
+        """Create property getter method.
+
+        Returns:
+            Property getter function definition
+        """
+        return cst.FunctionDef(
+            name=cst.Name(self.field_name),
+            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
+            body=cst.IndentedBlock(
+                body=[
+                    cst.SimpleStatementLine(
+                        body=[
+                            cst.Return(
+                                value=cst.Attribute(
+                                    value=cst.Name("self"),
+                                    attr=cst.Name(self.private_field_name),
+                                )
+                            )
+                        ]
+                    )
+                ]
+            ),
+            decorators=[cst.Decorator(decorator=cst.Name("property"))],
+        )
+
+    def _create_property_setter(self) -> cst.FunctionDef:
+        """Create property setter method.
+
+        Returns:
+            Property setter function definition
+        """
+        return cst.FunctionDef(
+            name=cst.Name(self.field_name),
+            params=cst.Parameters(
+                params=[
+                    cst.Param(name=cst.Name("self")),
+                    cst.Param(name=cst.Name("value")),
+                ]
+            ),
+            body=cst.IndentedBlock(
+                body=[
+                    cst.SimpleStatementLine(
+                        body=[
+                            cst.Assign(
+                                targets=[
+                                    cst.AssignTarget(
+                                        target=cst.Attribute(
+                                            value=cst.Name("self"),
+                                            attr=cst.Name(self.private_field_name),
+                                        )
+                                    )
+                                ],
+                                value=cst.Name("value"),
+                            )
+                        ]
+                    )
+                ]
+            ),
+            decorators=[
+                cst.Decorator(
+                    decorator=cst.Attribute(
+                        value=cst.Name(self.field_name), attr=cst.Name("setter")
+                    )
+                )
+            ],
+        )
+
+
+# Register the command
+register_command(SelfEncapsulateFieldCommand)
