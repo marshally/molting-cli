@@ -56,7 +56,6 @@ class TestPushDownMethod(RefactoringTestBase):
         self.refactor("push-down-method", target="Employee::get_quota", to="Salesman")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestPushDownField(RefactoringTestBase):
     """Tests for Push Down Field refactoring."""
 
