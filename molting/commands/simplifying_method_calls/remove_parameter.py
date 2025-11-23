@@ -31,46 +31,53 @@ class RemoveParameterCommand(BaseCommand):
             ValueError: If method or parameter not found
         """
         target = self.params["target"]
-
         _, method_name, param_name = parse_target(target, expected_parts=3)
 
-        source = self.file_path.read_text()
-        tree = ast.parse(source)
+        def transform(tree: ast.Module) -> ast.Module:
+            """Transform the AST to remove a parameter from the method.
 
-        result = find_method_in_tree(tree, method_name)
-        if result is None:
-            raise ValueError(f"Method '{method_name}' not found in {self.file_path}")
+            Args:
+                tree: The AST module to transform
 
-        _, method_node = result
+            Returns:
+                The modified AST module
 
-        # Find and remove the parameter from the method's argument list
-        param_index = None
-        for i, arg in enumerate(method_node.args.args):
-            if arg.arg == param_name:
-                param_index = i
-                break
+            Raises:
+                ValueError: If method or parameter not found
+            """
+            result = find_method_in_tree(tree, method_name)
+            if result is None:
+                raise ValueError(f"Method '{method_name}' not found in {self.file_path}")
 
-        if param_index is None:
-            raise ValueError(f"Parameter '{param_name}' not found in method '{method_name}'")
+            _, method_node = result
 
-        # Check if the parameter has a default value before removing
-        total_args = len(method_node.args.args)
-        num_defaults = len(method_node.args.defaults)
-        has_default = parameter_has_default(param_index, total_args, num_defaults)
+            # Find and remove the parameter from the method's argument list
+            param_index = None
+            for i, arg in enumerate(method_node.args.args):
+                if arg.arg == param_name:
+                    param_index = i
+                    break
 
-        # Remove the parameter from the argument list
-        method_node.args.args.pop(param_index)
+            if param_index is None:
+                raise ValueError(f"Parameter '{param_name}' not found in method '{method_name}'")
 
-        # If the parameter had a default value, remove it from the defaults list
-        if has_default:
-            num_args_without_defaults = total_args - num_defaults
-            default_index = param_index - num_args_without_defaults
-            method_node.args.defaults.pop(default_index)
+            # Check if the parameter has a default value before removing
+            total_args = len(method_node.args.args)
+            num_defaults = len(method_node.args.defaults)
+            has_default = parameter_has_default(param_index, total_args, num_defaults)
 
-        ast.fix_missing_locations(tree)
+            # Remove the parameter from the argument list
+            method_node.args.args.pop(param_index)
 
-        modified_source = ast.unparse(tree)
-        self.file_path.write_text(modified_source)
+            # If the parameter had a default value, remove it from the defaults list
+            if has_default:
+                num_args_without_defaults = total_args - num_defaults
+                default_index = param_index - num_args_without_defaults
+                method_node.args.defaults.pop(default_index)
+
+            return tree
+
+        self.apply_ast_transform(transform)
 
 
 # Register the command

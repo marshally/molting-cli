@@ -33,36 +33,43 @@ class AddParameterCommand(BaseCommand):
         target = self.params["target"]
         name = self.params["name"]
         default = self.params.get("default")
-
         _, method_name = parse_target(target)
 
-        source = self.file_path.read_text()
-        tree = ast.parse(source)
+        def transform(tree: ast.Module) -> ast.Module:
+            """Transform the AST to add a parameter to the method.
 
-        result = find_method_in_tree(tree, method_name)
-        if result is None:
-            raise ValueError(f"Method '{method_name}' not found in {self.file_path}")
+            Args:
+                tree: The AST module to transform
 
-        class_node, method_node = result
+            Returns:
+                The modified AST module
 
-        if not method_node.args.args or method_node.args.args[0].arg != "self":
-            raise ValueError(f"Method '{method_name}' is not an instance method")
+            Raises:
+                ValueError: If method not found or is not an instance method
+            """
+            result = find_method_in_tree(tree, method_name)
+            if result is None:
+                raise ValueError(f"Method '{method_name}' not found in {self.file_path}")
 
-        new_arg = ast.arg(arg=name, annotation=None)
-        method_node.args.args.insert(1, new_arg)
+            class_node, method_node = result
 
-        if default:
-            default_val = ast.parse(default, mode="eval").body
-            method_node.args.defaults.append(default_val)
+            if not method_node.args.args or method_node.args.args[0].arg != "self":
+                raise ValueError(f"Method '{method_name}' is not an instance method")
 
-        # Update method body for specific known cases
-        if name == "include_email" and method_name == "get_contact_info":
-            method_node.body = create_contact_info_body(name)
+            new_arg = ast.arg(arg=name, annotation=None)
+            method_node.args.args.insert(1, new_arg)
 
-        ast.fix_missing_locations(tree)
+            if default:
+                default_val = ast.parse(default, mode="eval").body
+                method_node.args.defaults.append(default_val)
 
-        modified_source = ast.unparse(tree)
-        self.file_path.write_text(modified_source)
+            # Update method body for specific known cases
+            if name == "include_email" and method_name == "get_contact_info":
+                method_node.body = create_contact_info_body(name)
+
+            return tree
+
+        self.apply_ast_transform(transform)
 
 
 # Register the command
