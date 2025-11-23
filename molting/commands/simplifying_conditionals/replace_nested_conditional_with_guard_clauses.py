@@ -45,6 +45,8 @@ class ReplaceNestedConditionalWithGuardClausesCommand(BaseCommand):
 class ReplaceNestedConditionalWithGuardClausesTransformer(cst.CSTTransformer):
     """Transforms nested conditionals into guard clauses."""
 
+    RESULT_VARIABLE_NAME = "result"
+
     def __init__(self, function_name: str) -> None:
         """Initialize the transformer.
 
@@ -96,7 +98,7 @@ class ReplaceNestedConditionalWithGuardClausesTransformer(cst.CSTTransformer):
         if isinstance(stmt, cst.SimpleStatementLine):
             for s in stmt.body:
                 if isinstance(s, cst.Return):
-                    if isinstance(s.value, cst.Name) and s.value.value == "result":
+                    if isinstance(s.value, cst.Name) and s.value.value == self.RESULT_VARIABLE_NAME:
                         return True
         return False
 
@@ -162,7 +164,7 @@ class ReplaceNestedConditionalWithGuardClausesTransformer(cst.CSTTransformer):
                     if isinstance(s, cst.Assign):
                         for target in s.targets:
                             if isinstance(target.target, cst.Name):
-                                if target.target.value == "result":
+                                if target.target.value == self.RESULT_VARIABLE_NAME:
                                     return s.value
         return None
 
