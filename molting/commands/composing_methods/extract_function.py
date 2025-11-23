@@ -129,7 +129,6 @@ class ExpressionCollector(cst.CSTVisitor):
             method_name: Name of the method to extract code from
             line_number: Line number of expression to extract (1-indexed)
         """
-        self.class_name = class_name
         self.method_name = method_name
         self.line_number = line_number
         self.extracted_expression: cst.BaseExpression | None = None
