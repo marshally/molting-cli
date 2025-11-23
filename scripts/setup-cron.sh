@@ -5,6 +5,30 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUTO_MERGE_SCRIPT="$SCRIPT_DIR/auto-merge-prs.sh"
 
+# Get repository directory (use current directory by default, or first argument)
+REPO_DIR="${1:-$(pwd)}"
+
+# Verify it's a git repository
+if [ ! -d "$REPO_DIR/.git" ]; then
+    echo "ERROR: $REPO_DIR is not a git repository"
+    echo ""
+    echo "Usage: $0 [repository_directory]"
+    echo ""
+    echo "Example:"
+    echo "  cd /path/to/your/repo"
+    echo "  $0"
+    echo ""
+    echo "Or:"
+    echo "  $0 /path/to/your/repo"
+    exit 1
+fi
+
+# Get absolute path
+REPO_DIR="$(cd "$REPO_DIR" && pwd)"
+
+echo "Setting up auto-merge for repository: $REPO_DIR"
+echo ""
+
 # Detect OS
 if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "Detected macOS. Using launchd for scheduling..."
@@ -27,6 +51,8 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     <array>
         <string>${AUTO_MERGE_SCRIPT}</string>
     </array>
+    <key>WorkingDirectory</key>
+    <string>${REPO_DIR}</string>
     <key>StartInterval</key>
     <integer>60</integer>
     <key>RunAtLoad</key>
@@ -66,7 +92,7 @@ EOF
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     echo "Detected Linux. Using cron for scheduling..."
 
-    CRON_ENTRY="* * * * * $AUTO_MERGE_SCRIPT >> $HOME/auto-merge-prs.log 2>&1"
+    CRON_ENTRY="* * * * * cd $REPO_DIR && $AUTO_MERGE_SCRIPT >> $HOME/auto-merge-prs.log 2>&1"
 
     # Check if entry already exists
     if crontab -l 2>/dev/null | grep -q "$AUTO_MERGE_SCRIPT"; then
