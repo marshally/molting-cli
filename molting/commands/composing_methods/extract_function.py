@@ -188,6 +188,24 @@ class ExtractFunctionTransformer(cst.CSTTransformer):
         self.extracted_expression = extracted_expression
         self.in_target_method = False
 
+    def _get_first_non_self_parameter(self, function_def: cst.FunctionDef) -> str:
+        """Extract the first non-self parameter name from a method.
+
+        Args:
+            function_def: The function definition to extract from
+
+        Returns:
+            The name of the first non-self parameter, or "data" as default
+        """
+        if not function_def.params.params:
+            return "data"
+
+        for param in function_def.params.params:
+            if param.name.value != "self":
+                return param.name.value
+
+        return "data"
+
     def visit_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
         """Visit function definition to find target method."""
         if node.name.value == self.method_name:
@@ -200,14 +218,7 @@ class ExtractFunctionTransformer(cst.CSTTransformer):
         if original_node.name.value == self.method_name:
             self.in_target_method = False
 
-            # Find the parameter name from the method signature (skip 'self')
-            param_name = "data"
-            if updated_node.params.params:
-                # Skip 'self' parameter - get the first non-self parameter
-                for param in updated_node.params.params:
-                    if param.name.value != "self":
-                        param_name = param.name.value
-                        break
+            param_name = self._get_first_non_self_parameter(updated_node)
 
             # Create a return statement with the function call
             function_call = cst.Call(
