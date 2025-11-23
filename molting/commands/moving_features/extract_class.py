@@ -19,10 +19,7 @@ class ExtractClassCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        required = ["source", "fields", "methods", "name"]
-        missing = [param for param in required if param not in self.params]
-        if missing:
-            raise ValueError(f"Missing required parameters for extract-class: {', '.join(missing)}")
+        self.validate_required_params("source", "fields", "methods", "name")
 
     def execute(self) -> None:
         """Apply extract-class refactoring using libCST.

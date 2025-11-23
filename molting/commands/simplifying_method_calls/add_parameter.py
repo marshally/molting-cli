@@ -22,11 +22,7 @@ class AddParameterCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        try:
-            _ = self.params["target"]
-            _ = self.params["name"]
-        except KeyError as e:
-            raise ValueError(f"Missing required parameter for add-parameter: {e}") from e
+        self.validate_required_params("target", "name")
 
     def execute(self) -> None:
         """Apply add-parameter refactoring using AST manipulation.
