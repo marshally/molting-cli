@@ -139,16 +139,28 @@ class PushDownFieldTransformer(cst.CSTTransformer):
             True if statement assigns to the field
         """
         for body_stmt in stmt.body:
-            if isinstance(body_stmt, cst.Assign):
-                for target in body_stmt.targets:
-                    if isinstance(target.target, cst.Attribute):
-                        if isinstance(target.target.value, cst.Name):
-                            if (
-                                target.target.value.value == "self"
-                                and target.target.attr.value == self.field_name
-                            ):
-                                return True
+            if not isinstance(body_stmt, cst.Assign):
+                continue
+
+            for target in body_stmt.targets:
+                if self._is_self_field_attribute(target.target):
+                    return True
         return False
+
+    def _is_self_field_attribute(self, node: cst.BaseExpression) -> bool:
+        """Check if node is self.field_name attribute.
+
+        Args:
+            node: Expression to check
+
+        Returns:
+            True if node is self.field_name
+        """
+        if not isinstance(node, cst.Attribute):
+            return False
+        if not isinstance(node.value, cst.Name):
+            return False
+        return node.value.value == "self" and node.attr.value == self.field_name
 
     def _capture_field_value(self, stmt: cst.SimpleStatementLine) -> None:
         """Capture the value assigned to the field.
