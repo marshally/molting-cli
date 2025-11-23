@@ -240,11 +240,11 @@ This document outlines a step-by-step plan to refactor common patterns in the mo
 
 ## Medium Priority Refactorings
 
-### 5. Class/Method Finding Utilities
+### 5. Class/Method Finding Utilities ✅ COMPLETED
 **Impact**: Consolidates search logic, makes code more readable
 
 **Steps**:
-- [ ] 5.1. Add utilities to `molting/core/ast_utils.py`:
+- [x] 5.1. Add utilities to `molting/core/ast_utils.py`:
   ```python
   def find_class_in_module(
       module: cst.Module,
@@ -265,16 +265,16 @@ This document outlines a step-by-step plan to refactor common patterns in the mo
       """Extract all method definitions from a class."""
   ```
 
-- [ ] 5.2. Write unit tests
+- [x] 5.2. Write unit tests
 
-- [ ] 5.3. Audit all commands for class/method finding patterns:
-  - [ ] ExtractSuperclassCommand: `_find_method_in_classes()`
-  - [ ] InlineClassCommand: method searching in `visit_Module()`
-  - [ ] Other commands with similar patterns
+- [x] 5.3. Audit all commands for class/method finding patterns:
+  - [x] ExtractSuperclassCommand: `_find_method_in_classes()`
+  - [x] InlineClassCommand: method searching in `visit_Module()` (not needed)
+  - [x] Other commands with similar patterns (none found)
 
-- [ ] 5.4. Migrate to use new utilities
+- [x] 5.4. Migrate to use new utilities
 
-- [ ] 5.5. Run tests: `make test`
+- [x] 5.5. Run tests: `make test`
 
 ---
 
@@ -334,11 +334,11 @@ This document outlines a step-by-step plan to refactor common patterns in the mo
 
 ---
 
-### 7. Comma-Separated List Parsing
+### 7. Comma-Separated List Parsing ✅ COMPLETED
 **Impact**: Small but consistent improvement
 
 **Steps**:
-- [ ] 7.1. Add utility to `molting/core/ast_utils.py`:
+- [x] 7.1. Add utility to `molting/core/ast_utils.py`:
   ```python
   def parse_comma_separated_list(value: str) -> list[str]:
       """Parse comma-separated string into list of trimmed values.
@@ -352,16 +352,17 @@ This document outlines a step-by-step plan to refactor common patterns in the mo
       return [item.strip() for item in value.split(",")]
   ```
 
-- [ ] 7.2. Write unit tests
+- [x] 7.2. Write unit tests
 
-- [ ] 7.3. Migrate commands:
-  - [ ] `molting/commands/moving_features/extract_class.py` (lines 38-39)
-  - [ ] `molting/commands/dealing_with_generalization/extract_superclass.py` (line 37)
-  - [ ] `molting/commands/dealing_with_generalization/extract_interface.py` (line 39)
+- [x] 7.3. Migrate commands:
+  - [x] `molting/commands/moving_features/extract_class.py` (2 usages)
+  - [x] `molting/commands/dealing_with_generalization/extract_superclass.py`
+  - [x] `molting/commands/dealing_with_generalization/extract_interface.py`
+  - [x] `molting/commands/dealing_with_generalization/form_template_method.py`
 
-- [ ] 7.4. Run tests: `make test`
+- [x] 7.4. Run tests: `make test`
 
-- [ ] 7.5. Search for remaining split patterns: `grep -r "split(\",\")" molting/commands/`
+- [x] 7.5. Search for remaining split patterns: `grep -r "split(\",\")" molting/commands/`
 
 ---
 
