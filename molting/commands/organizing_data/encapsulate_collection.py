@@ -54,6 +54,18 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
         self.class_name = class_name
         self.field_name = field_name
         self.private_field_name = f"_{field_name}"
+        self.singular_name = self._derive_singular_name(field_name)
+
+    def _derive_singular_name(self, field_name: str) -> str:
+        """Derive singular name from plural field name.
+
+        Args:
+            field_name: The plural field name
+
+        Returns:
+            Singular form of the field name
+        """
+        return field_name.rstrip("s")
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -175,12 +187,13 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
         Returns:
             New add method
         """
-        singular_name = self.field_name.rstrip("s")  # courses -> course
-
         return cst.FunctionDef(
-            name=cst.Name(f"add_{singular_name}"),
+            name=cst.Name(f"add_{self.singular_name}"),
             params=cst.Parameters(
-                params=[cst.Param(name=cst.Name("self")), cst.Param(name=cst.Name(singular_name))]
+                params=[
+                    cst.Param(name=cst.Name("self")),
+                    cst.Param(name=cst.Name(self.singular_name)),
+                ]
             ),
             body=cst.IndentedBlock(
                 body=[
@@ -195,7 +208,7 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
                                         ),
                                         attr=cst.Name("append"),
                                     ),
-                                    args=[cst.Arg(value=cst.Name(singular_name))],
+                                    args=[cst.Arg(value=cst.Name(self.singular_name))],
                                 )
                             )
                         ]
@@ -210,12 +223,13 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
         Returns:
             New remove method
         """
-        singular_name = self.field_name.rstrip("s")  # courses -> course
-
         return cst.FunctionDef(
-            name=cst.Name(f"remove_{singular_name}"),
+            name=cst.Name(f"remove_{self.singular_name}"),
             params=cst.Parameters(
-                params=[cst.Param(name=cst.Name("self")), cst.Param(name=cst.Name(singular_name))]
+                params=[
+                    cst.Param(name=cst.Name("self")),
+                    cst.Param(name=cst.Name(self.singular_name)),
+                ]
             ),
             body=cst.IndentedBlock(
                 body=[
@@ -230,7 +244,7 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
                                         ),
                                         attr=cst.Name("remove"),
                                     ),
-                                    args=[cst.Arg(value=cst.Name(singular_name))],
+                                    args=[cst.Arg(value=cst.Name(self.singular_name))],
                                 )
                             )
                         ]
