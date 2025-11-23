@@ -105,13 +105,28 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         Returns:
             True if this is the flag initialization statement
         """
-        if isinstance(stmt, cst.SimpleStatementLine):
-            for s in stmt.body:
-                if isinstance(s, cst.Assign):
-                    for target in s.targets:
-                        if isinstance(target.target, cst.Name):
-                            if target.target.value == self.flag_variable:
-                                return True
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return False
+
+        for s in stmt.body:
+            if isinstance(s, cst.Assign):
+                if self._assigns_to_flag_variable(s):
+                    return True
+        return False
+
+    def _assigns_to_flag_variable(self, assign: cst.Assign) -> bool:
+        """Check if assignment assigns to the flag variable.
+
+        Args:
+            assign: Assignment node to check
+
+        Returns:
+            True if this assignment targets the flag variable
+        """
+        for target in assign.targets:
+            if isinstance(target.target, cst.Name):
+                if target.target.value == self.flag_variable:
+                    return True
         return False
 
     def _transform_for_loop(self, for_loop: cst.For) -> cst.For:
