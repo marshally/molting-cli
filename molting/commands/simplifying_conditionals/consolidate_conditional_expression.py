@@ -270,10 +270,14 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         for stmt in updated_node.body:
             new_body.append(stmt)
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == self.function_name:
-                # Add empty lines and helper function
-                new_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
-                new_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
-                new_body.append(self.helper_function)
+                # Add helper function with proper spacing
+                helper_with_leading_lines = self.helper_function.with_changes(
+                    leading_lines=[
+                        cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                        cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                    ]
+                )
+                new_body.append(helper_with_leading_lines)
 
         return updated_node.with_changes(body=new_body)
 
