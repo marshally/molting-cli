@@ -9,7 +9,6 @@ import pytest
 from tests.conftest import RefactoringTestBase
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestDecomposeConditional(RefactoringTestBase):
     """Tests for Decompose Conditional refactoring."""
 
