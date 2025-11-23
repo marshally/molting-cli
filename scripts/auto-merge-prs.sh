@@ -160,12 +160,52 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
 
         # Call the conflict resolution script
         if [ -f "$SCRIPT_DIR/resolve-merge-conflicts.sh" ]; then
-            if "$SCRIPT_DIR/resolve-merge-conflicts.sh" "$repo_owner" "$repo_name" "$number" "$head_ref"; then
+            # Capture output to a temporary file
+            ERROR_LOG=$(mktemp)
+            if "$SCRIPT_DIR/resolve-merge-conflicts.sh" "$repo_owner" "$repo_name" "$number" "$head_ref" 2>&1 | tee "$ERROR_LOG"; then
                 log "Successfully resolved conflicts for PR #$number"
+                rm -f "$ERROR_LOG"
             else
                 error "Failed to resolve conflicts for PR #$number"
-                # Add a comment to the PR about the failure
-                gh pr comment "$number" --body "⚠️ Automatic conflict resolution failed. Please resolve conflicts manually." 2>/dev/null || true
+
+                # Extract the last error and command from the log
+                ERROR_SUMMARY=$(grep -E "ERROR:|fatal:|error:" "$ERROR_LOG" | tail -5 || echo "Unknown error occurred")
+                LAST_COMMAND=$(grep -B 2 -E "ERROR:|fatal:|error:" "$ERROR_LOG" | grep -v "ERROR:" | grep -v "fatal:" | grep -v "error:" | tail -1 || echo "Command not captured")
+
+                # Change label from automerge to automerge-error
+                if [ "$has_automerge_label" = "true" ]; then
+                    log "Changing label from '$AUTOMERGE_LABEL' to 'automerge-error'"
+                    gh pr edit "$number" --remove-label "$AUTOMERGE_LABEL" --add-label "automerge-error" 2>/dev/null || true
+                fi
+
+                # Add a detailed comment to the PR
+                COMMENT_BODY="## ⚠️ Automatic Conflict Resolution Failed
+
+**Summary:** The auto-merge script attempted to resolve merge conflicts but encountered an error.
+
+**Error Details:**
+\`\`\`
+$ERROR_SUMMARY
+\`\`\`
+
+**Last Command:**
+\`\`\`
+$LAST_COMMAND
+\`\`\`
+
+**Full Log:**
+<details>
+<summary>Click to expand full error log</summary>
+
+\`\`\`
+$(cat "$ERROR_LOG")
+\`\`\`
+</details>
+
+Please resolve the conflicts manually or investigate the error above."
+
+                gh pr comment "$number" --body "$COMMENT_BODY" 2>/dev/null || true
+                rm -f "$ERROR_LOG"
             fi
         else
             error "Conflict resolution script not found: $SCRIPT_DIR/resolve-merge-conflicts.sh"
