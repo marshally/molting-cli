@@ -7,6 +7,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import is_pass_statement
 
 
 class MoveFieldCommand(BaseCommand):
@@ -163,14 +164,6 @@ class MoveFieldTransformer(cst.CSTTransformer):
         transformer = FieldReferenceUpdater(self.field_name, self.target_class_lower)
         return cast(cst.FunctionDef, node.visit(transformer))
 
-    def _is_pass_statement(self, stmt: cst.BaseStatement) -> bool:
-        """Check if a statement is a pass statement."""
-        if isinstance(stmt, cst.SimpleStatementLine):
-            for item in stmt.body:
-                if isinstance(item, cst.Pass):
-                    return True
-        return False
-
     def _create_field_assignment(self) -> cst.SimpleStatementLine:
         """Create a field assignment statement for the moved field.
 
@@ -201,7 +194,7 @@ class MoveFieldTransformer(cst.CSTTransformer):
                 has_init = True
                 new_init = self._add_field_to_init(stmt)
                 new_body_stmts.append(new_init)
-            elif self._is_pass_statement(stmt):
+            elif is_pass_statement(stmt):
                 # Skip pass statements - they're placeholders for empty classes
                 continue
             else:
