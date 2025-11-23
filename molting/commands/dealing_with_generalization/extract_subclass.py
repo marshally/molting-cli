@@ -198,7 +198,10 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
                         # Keep only the else clause
                         if stmt.orelse:
                             if isinstance(stmt.orelse, cst.Else):
-                                new_stmts.extend(stmt.orelse.body.body)
+                                else_stmts = cast(
+                                    tuple[cst.BaseStatement, ...], stmt.orelse.body.body
+                                )
+                                new_stmts.extend(else_stmts)
                         continue
                 new_stmts.append(stmt)
 
