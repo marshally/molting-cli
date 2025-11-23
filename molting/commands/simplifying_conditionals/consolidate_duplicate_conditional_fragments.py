@@ -149,8 +149,8 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
 
         # Remove duplicates from both branches
         num_duplicates = len(duplicates)
-        new_if_body = if_body[:-num_duplicates] if num_duplicates > 0 else if_body
-        new_else_body = else_body[:-num_duplicates] if num_duplicates > 0 else else_body
+        new_if_body = if_body[:-num_duplicates]
+        new_else_body = else_body[:-num_duplicates]
 
         # Build new if statement
         new_if = if_stmt.with_changes(
