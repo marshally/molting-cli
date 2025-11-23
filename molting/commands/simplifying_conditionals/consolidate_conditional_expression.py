@@ -140,7 +140,9 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         Returns:
             True if values are equal
         """
-        # Simple comparison - just check if they're both integers with same value
+        # Currently only supports integer comparison for the simple case
+        # This is sufficient for the most common scenario where multiple
+        # conditions return the same constant (e.g., return 0)
         if isinstance(val1, cst.Integer) and isinstance(val2, cst.Integer):
             return val1.value == val2.value
         return False
