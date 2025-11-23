@@ -172,23 +172,6 @@ class PushDownFieldTransformer(cst.CSTTransformer):
             if isinstance(body_stmt, cst.Assign):
                 self.field_value = body_stmt.value
 
-    def _is_only_pass(self, stmts: list[cst.BaseStatement]) -> bool:
-        """Check if statements list contains only pass.
-
-        Args:
-            stmts: List of statements
-
-        Returns:
-            True if only contains pass
-        """
-        if len(stmts) != 1:
-            return False
-        stmt = stmts[0]
-        if isinstance(stmt, cst.SimpleStatementLine):
-            if len(stmt.body) == 1 and isinstance(stmt.body[0], cst.Pass):
-                return True
-        return False
-
     def _is_pass_statement(self, stmt: cst.BaseStatement) -> bool:
         """Check if a statement is a pass statement.
 
@@ -202,6 +185,17 @@ class PushDownFieldTransformer(cst.CSTTransformer):
             if len(stmt.body) == 1 and isinstance(stmt.body[0], cst.Pass):
                 return True
         return False
+
+    def _is_only_pass(self, stmts: list[cst.BaseStatement]) -> bool:
+        """Check if statements list contains only pass.
+
+        Args:
+            stmts: List of statements
+
+        Returns:
+            True if only contains pass
+        """
+        return len(stmts) == 1 and self._is_pass_statement(stmts[0])
 
     def _add_field_to_class(self, class_node: cst.ClassDef) -> cst.ClassDef:
         """Add field to target class __init__.
