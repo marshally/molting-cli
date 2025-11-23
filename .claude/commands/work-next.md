@@ -13,14 +13,19 @@ Fetch the next ready issue from beads, set up the appropriate worktree/branch, s
 First, set the beads context (call this tool directly, not via bash):
 - Use the `mcp__plugin_beads_beads__set_context` tool with workspace_root: `/Users/marshallyount/code/marshally/molting-cli`
 
-Then get the next ready issue (call this tool directly, not via bash):
-- Use the `mcp__plugin_beads_beads__ready` tool with limit: 1
+Then get ready issues (call this tool directly, not via bash):
+- Use the `mcp__plugin_beads_beads__ready` tool with limit: 20
 
-**IMPORTANT**: Filter out any issues that are full epics (issues without a dot and sub-number). Only select issues with a format like "molting-cli-abc.2", NOT "molting-cli-abc".
+**IMPORTANT**: Filter and sort the results:
+1. Filter out any issues that are full epics (issues without a dot and sub-number). Only select issues with a format like "molting-cli-abc.2", NOT "molting-cli-abc".
+2. Sort filtered issues by priority (ascending - priority 1 is highest, priority 5 is lowest)
+3. Select the FIRST issue after sorting (highest priority ready task)
 
-If no ready issues, try open issues:
-- Use the `mcp__plugin_beads_beads__list` tool with status: "open", limit: 10
-- Apply the same filtering to exclude full epics
+If no ready issues after filtering, try open issues:
+- Use the `mcp__plugin_beads_beads__list` tool with status: "open", limit: 20
+- Apply the same filtering (exclude full epics)
+- Sort by priority (ascending)
+- Select the FIRST issue after sorting
 
 Parse the output to extract:
 - issue_id - The full issue ID (e.g., "molting-cli-abc.2")
