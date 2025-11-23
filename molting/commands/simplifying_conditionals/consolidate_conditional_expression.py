@@ -186,6 +186,28 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
             body=cst.IndentedBlock(body=[return_stmt]),
         )
 
+    def _build_consolidated_if_statement(self, func_def: cst.FunctionDef) -> cst.If | None:
+        """Build the consolidated if statement that calls the helper function.
+
+        Args:
+            func_def: The function definition being transformed
+
+        Returns:
+            The consolidated if statement, or None if it cannot be built
+        """
+        param = self._get_first_parameter(func_def)
+        if param is None or self.return_value is None:
+            return None
+
+        # Create call to helper function
+        helper_call = cst.Call(func=cst.Name(self.helper_name), args=[cst.Arg(value=param.name)])
+
+        # Create return statement with the consolidated return value
+        return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=self.return_value)])
+
+        # Create the if statement
+        return cst.If(test=helper_call, body=cst.IndentedBlock(body=[return_stmt]))
+
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
@@ -211,27 +233,9 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
 
                     # Only replace on the first matching if
                     if if_count == 1:
-                        # Create consolidated if statement
-                        # Get parameter name for the function call
-                        param_name = None
-                        if isinstance(updated_node.params, cst.Parameters):
-                            if len(updated_node.params.params) > 0:
-                                param_name = updated_node.params.params[0].name
-
-                        if param_name and self.return_value:
-                            # Create call to helper function
-                            helper_call = cst.Call(
-                                func=cst.Name(self.helper_name), args=[cst.Arg(value=param_name)]
-                            )
-
-                            # Create new if statement
-                            return_stmt = cst.SimpleStatementLine(
-                                body=[cst.Return(value=self.return_value)]
-                            )
-                            new_if = cst.If(
-                                test=helper_call, body=cst.IndentedBlock(body=[return_stmt])
-                            )
-                            new_body.append(new_if)
+                        consolidated_if = self._build_consolidated_if_statement(updated_node)
+                        if consolidated_if:
+                            new_body.append(consolidated_if)
 
                     # Skip all ifs that should be replaced
                     if if_count <= self.num_ifs_to_replace:
