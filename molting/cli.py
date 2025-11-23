@@ -28,6 +28,7 @@ import molting.commands.moving_features.move_field  # noqa: F401
 import molting.commands.moving_features.move_method  # noqa: F401
 import molting.commands.moving_features.remove_middle_man  # noqa: F401
 import molting.commands.organizing_data.replace_data_value_with_object  # noqa: F401
+import molting.commands.simplifying_conditionals.consolidate_conditional_expression  # noqa: F401
 import molting.commands.simplifying_method_calls.add_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.remove_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.rename_method  # noqa: F401
