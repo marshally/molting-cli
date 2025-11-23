@@ -68,8 +68,6 @@ class HideDelegateTransformer(cst.CSTTransformer):
         """Leave class definition and update as needed."""
         if original_node.name.value == self.class_name:
             return self._transform_class(updated_node)
-        elif original_node.name.value == self.delegate_type:
-            pass
         return updated_node
 
     def _transform_class(self, node: cst.ClassDef) -> cst.ClassDef:
