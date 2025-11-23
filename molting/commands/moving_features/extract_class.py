@@ -36,7 +36,9 @@ class ExtractClassCommand(BaseCommand):
         fields = [f.strip() for f in fields_str.split(",")]
         methods = [m.strip() for m in methods_str.split(",")]
 
-        self.apply_libcst_transform(ExtractClassTransformer, source_class, fields, methods, new_class_name)
+        self.apply_libcst_transform(
+            ExtractClassTransformer, source_class, fields, methods, new_class_name
+        )
 
 
 class ExtractClassTransformer(cst.CSTTransformer):
