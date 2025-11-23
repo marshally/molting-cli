@@ -224,20 +224,15 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         new_statements = []
 
         for stmt in body.body:
-            # Replace flag = True with return
             if isinstance(stmt, cst.SimpleStatementLine):
                 replaced = False
                 for s in stmt.body:
-                    if isinstance(s, cst.Assign):
-                        for target in s.targets:
-                            if isinstance(target.target, cst.Name):
-                                if target.target.value == self.flag_variable:
-                                    # Replace with return statement
-                                    new_statements.append(
-                                        cst.SimpleStatementLine(body=[cst.Return(value=None)])
-                                    )
-                                    replaced = True
-                                    break
+                    if isinstance(s, cst.Assign) and self._assigns_to_flag_variable(s):
+                        new_statements.append(
+                            cst.SimpleStatementLine(body=[cst.Return(value=None)])
+                        )
+                        replaced = True
+                        break
                 if not replaced:
                     new_statements.append(stmt)
             else:
