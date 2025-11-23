@@ -54,7 +54,6 @@ class TestRemoveControlFlag(RefactoringTestBase):
         self.refactor("remove-control-flag", target="check_security::found")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
     """Tests for Replace Nested Conditional with Guard Clauses refactoring."""
 
