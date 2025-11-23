@@ -85,14 +85,11 @@ class IntroduceAssertionTransformer(cst.CSTTransformer):
         self.target_line = target_line
         self.condition = condition
         self.message = message
-        self.current_function: str | None = None
         self.target_index: int | None = None
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
-        """Track which function we're currently in and find target statement index."""
+        """Find target statement index in the target function."""
         if node.name.value == self.function_name:
-            self.current_function = node.name.value
-
             # Find the index of the statement at or after target_line
             if isinstance(node.body, cst.IndentedBlock):
                 for idx, stmt in enumerate(node.body.body):
@@ -129,7 +126,6 @@ class IntroduceAssertionTransformer(cst.CSTTransformer):
                     body=cst.IndentedBlock(body=new_statements)
                 )
 
-        self.current_function = None
         self.target_index = None
         return updated_node
 
