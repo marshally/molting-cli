@@ -5,20 +5,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUTO_MERGE_SCRIPT="$SCRIPT_DIR/auto-merge-prs.sh"
 
-# Check if AUTOMERGE_REPO is set
-if [ -z "${AUTOMERGE_REPO:-}" ]; then
-    echo "ERROR: AUTOMERGE_REPO environment variable is not set."
-    echo "Please set it to your repository in the format: owner/repo"
-    echo ""
-    echo "Example:"
-    echo "  export AUTOMERGE_REPO=\"marshally/molting-cli\""
-    echo "  $0"
-    exit 1
-fi
-
-echo "Setting up auto-merge for repository: $AUTOMERGE_REPO"
-echo ""
-
 # Detect OS
 if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "Detected macOS. Using launchd for scheduling..."
@@ -53,8 +39,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     <dict>
         <key>PATH</key>
         <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
-        <key>AUTOMERGE_REPO</key>
-        <string>${AUTOMERGE_REPO}</string>
     </dict>
 </dict>
 </plist>
@@ -82,7 +66,7 @@ EOF
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     echo "Detected Linux. Using cron for scheduling..."
 
-    CRON_ENTRY="* * * * * AUTOMERGE_REPO=\"$AUTOMERGE_REPO\" $AUTO_MERGE_SCRIPT >> $HOME/auto-merge-prs.log 2>&1"
+    CRON_ENTRY="* * * * * $AUTO_MERGE_SCRIPT >> $HOME/auto-merge-prs.log 2>&1"
 
     # Check if entry already exists
     if crontab -l 2>/dev/null | grep -q "$AUTO_MERGE_SCRIPT"; then

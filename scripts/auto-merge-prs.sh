@@ -79,20 +79,9 @@ fi
 # Label that can override approval requirement
 AUTOMERGE_LABEL="${AUTOMERGE_LABEL:-automerge}"
 
-# Repository to monitor (format: owner/repo)
-# Must be set via environment variable, e.g.: export AUTOMERGE_REPO="owner/repo"
-if [ -z "${AUTOMERGE_REPO:-}" ]; then
-    error "AUTOMERGE_REPO environment variable is not set."
-    error "Please set it to your repository in the format: owner/repo"
-    error "Example: export AUTOMERGE_REPO=\"marshally/molting-cli\""
-    exit 1
-fi
-
-log "Monitoring repository: $AUTOMERGE_REPO"
-
-# Get list of open PRs in JSON format
-log "Fetching open PRs..."
-prs=$(gh pr list --repo "$AUTOMERGE_REPO" --json number,headRefName,title,author,isDraft,reviewDecision,statusCheckRollup,mergeable,mergeStateStatus,url,headRepository,headRepositoryOwner,labels)
+# Get list of open PRs from all repositories in JSON format
+log "Fetching open PRs from all repositories..."
+prs=$(gh pr list --json number,headRefName,title,author,isDraft,reviewDecision,statusCheckRollup,mergeable,mergeStateStatus,url,headRepository,headRepositoryOwner,labels,baseRepository)
 
 # Check if there are any PRs
 if [ "$(echo "$prs" | jq '. | length')" -eq 0 ]; then
@@ -112,7 +101,10 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
     url=$(echo "$pr" | jq -r '.url')
     head_ref=$(echo "$pr" | jq -r '.headRefName')
 
-    log "Processing PR #$number: $title"
+    # Extract repository information for this PR
+    pr_repo=$(echo "$pr" | jq -r '.baseRepository.nameWithOwner')
+
+    log "Processing PR #$number in $pr_repo: $title"
 
     # Skip draft PRs
     if [ "$is_draft" = "true" ]; then
@@ -152,11 +144,11 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
     if [ "$mergeable" = "MERGEABLE" ]; then
         log "PR #$number is mergeable. Attempting rebase and merge..."
 
-        if gh pr merge "$number" --repo "$AUTOMERGE_REPO" --rebase --auto 2>&1; then
+        if gh pr merge "$number" --repo "$pr_repo" --rebase --auto 2>&1; then
             log "Successfully merged PR #$number with rebase"
         else
             warn "Rebase merge failed (branch may have merge commits). Trying squash merge..."
-            if gh pr merge "$number" --repo "$AUTOMERGE_REPO" --squash --auto; then
+            if gh pr merge "$number" --repo "$pr_repo" --squash --auto; then
                 log "Successfully merged PR #$number with squash"
             else
                 error "Failed to merge PR #$number with both rebase and squash"
@@ -186,7 +178,7 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
                 # Change label from automerge to automerge-error
                 if [ "$has_automerge_label" = "true" ]; then
                     log "Changing label from '$AUTOMERGE_LABEL' to 'automerge-error'"
-                    gh pr edit "$number" --repo "$AUTOMERGE_REPO" --remove-label "$AUTOMERGE_LABEL" --add-label "automerge-error" 2>/dev/null || true
+                    gh pr edit "$number" --repo "$pr_repo" --remove-label "$AUTOMERGE_LABEL" --add-label "automerge-error" 2>/dev/null || true
                 fi
 
                 # Add a detailed comment to the PR
@@ -215,7 +207,7 @@ $(cat "$ERROR_LOG")
 
 Please resolve the conflicts manually or investigate the error above."
 
-                gh pr comment "$number" --repo "$AUTOMERGE_REPO" --body "$COMMENT_BODY" 2>/dev/null || true
+                gh pr comment "$number" --repo "$pr_repo" --body "$COMMENT_BODY" 2>/dev/null || true
                 rm -f "$ERROR_LOG"
             fi
         else
