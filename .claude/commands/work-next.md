@@ -31,6 +31,23 @@ From the title, extract:
 - test_class - Convert to PascalCase with "Test" prefix (e.g., "TestSomeRefactoring")
 - refactoring_dir - Convert to snake_case (e.g., "some_refactoring")
 
+### Step 1.5: Mark Issue as In Progress in Main Repository
+
+**CRITICAL**: Update the issue status in the MAIN repository BEFORE creating the worktree.
+This ensures subsequent `/work-next` calls won't select the same issue.
+
+Use beads MCP to update the issue status (call these tools directly, not via bash):
+- Context is already set to main repo from Step 1
+- Use the `mcp__plugin_beads_beads__update` tool with:
+  - issue_id: "{issue_id}"
+  - status: "in_progress"
+  - assignee: "Claude" (or appropriate assignee)
+
+Then commit the .beads changes in the main repository:
+```bash
+cd /Users/marshallyount/code/marshally/molting-cli && git add .beads && git commit -m "Mark {issue_id} as in_progress" && git push
+```
+
 ### Step 2: Set Up Worktree (if needed)
 
 Check if a worktree exists for this **full issue ID**:
@@ -141,22 +158,10 @@ pytest
 
    If any tests fail: STOP and report
 
-### STEP 2: Update Issue Status
+### STEP 2: Verify Preflight Complete
 
-Use beads MCP to update the issue status:
-
-First, set the context (call this tool directly, not via bash):
-- Use the `mcp__plugin_beads_beads__set_context` tool with workspace_root: `/Users/marshallyount/code/worktrees/molting-cli/{issue_id}`
-
-Then update the issue (call this tool directly, not via bash):
-- Use the `mcp__plugin_beads_beads__update` tool with:
-  - issue_id: "{issue_id}"
-  - status: "in_progress"
-
-**IMPORTANT**: After updating the issue status, commit ONLY the .beads directory changes separately:
-```bash
-git add .beads && git commit -m "Update issue {issue_id} status to in_progress" && git push
-```
+The issue has already been marked as "in_progress" in the main repository by the /work-next command.
+You can now proceed with the TDD cycle.
 
 ### STEP 3: RED Stage 🔴
 
@@ -316,19 +321,21 @@ sleep 5 && gh pr checks
 ```
    - Repeat until all checks pass
 
-e. Once all CI checks are passing, update the beads issue status to closed.
+e. Once all CI checks are passing, update the beads issue status to closed IN THE MAIN REPOSITORY.
 
-First, set the context (call this tool directly, not via bash):
-- Use the `mcp__plugin_beads_beads__set_context` tool with workspace_root: `/Users/marshallyount/code/worktrees/molting-cli/{issue_id}`
+**CRITICAL**: Close the issue in the MAIN repository (not the worktree) so /work-next can see the status change.
+
+First, set the context to the MAIN repository (call this tool directly, not via bash):
+- Use the `mcp__plugin_beads_beads__set_context` tool with workspace_root: `/Users/marshallyount/code/marshally/molting-cli`
 
 Then close the issue (call this tool directly, not via bash):
 - Use the `mcp__plugin_beads_beads__close` tool with:
   - issue_id: "{issue_id}"
   - reason: "Completed with passing tests and CI"
 
-**IMPORTANT**: After closing the issue, commit ONLY the .beads directory changes separately:
+Then commit the .beads changes in the MAIN repository:
 ```bash
-git add .beads && git commit -m "Close issue {issue_id}" && git push
+cd /Users/marshallyount/code/marshally/molting-cli && git add .beads && git commit -m "Close issue {issue_id}" && git push
 ```
 
 ### STEP 7: Final Report (REQUIRED)
@@ -370,8 +377,8 @@ IMPORTANT NOTES:
 - DO NOT STOP after the code review - continue through STEP 6 and STEP 7
 - Your task is NOT complete until you provide the STEP 7 final report
 - If you encounter complex issues, report them - don't get stuck
+- **CRITICAL: All beads status changes (in_progress, closed) must be done in the MAIN repository (/Users/marshallyount/code/marshally/molting-cli), NOT in the worktree. Set context to main repo before calling beads update/close tools.**
 - **CRITICAL: All beads MCP tools must be called directly as tool invocations, NOT as bash commands. Always call `mcp__plugin_beads_beads__set_context` first before any other beads operations.**
-- **CRITICAL: Always commit .beads directory changes separately from code changes. NEVER mix .beads files with code in the same commit.**
 
 ---
 
