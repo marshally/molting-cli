@@ -81,12 +81,28 @@ class MethodBodyCollector(cst.CSTVisitor):
     def visit_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
         """Visit function definition to capture the method body."""
         if self.in_target_class and node.name.value == self.method_name:
-            # Extract the method body - should be a return statement
-            if len(node.body.body) == 1:
-                stmt = node.body.body[0]
-                if isinstance(stmt, cst.SimpleStatementLine) and len(stmt.body) == 1:
-                    if isinstance(stmt.body[0], cst.Return) and stmt.body[0].value:
-                        self.method_body = stmt.body[0].value
+            self.method_body = self._extract_return_expression(node)
+
+    def _extract_return_expression(self, node: cst.FunctionDef) -> cst.BaseExpression | None:
+        """Extract the return expression from a simple method.
+
+        Args:
+            node: The function definition node
+
+        Returns:
+            The return expression if the method has a single return statement, None otherwise
+        """
+        if len(node.body.body) != 1:
+            return None
+
+        stmt = node.body.body[0]
+        if not isinstance(stmt, cst.SimpleStatementLine) or len(stmt.body) != 1:
+            return None
+
+        if isinstance(stmt.body[0], cst.Return) and stmt.body[0].value:
+            return stmt.body[0].value
+
+        return None
 
 
 class InlineMethodTransformer(cst.CSTTransformer):
