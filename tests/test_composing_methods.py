@@ -104,7 +104,6 @@ class TestRemoveAssignmentsToParameters(RefactoringTestBase):
         self.refactor("remove-assignments-to-parameters", target="discount")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceMethodWithMethodObject(RefactoringTestBase):
     """Tests for Replace Method with Method Object refactoring."""
 
