@@ -123,7 +123,6 @@ class TestReplaceMagicNumberWithSymbolicConstant(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestEncapsulateField(RefactoringTestBase):
     """Tests for Encapsulate Field refactoring."""
 
