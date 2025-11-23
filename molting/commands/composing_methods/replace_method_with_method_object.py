@@ -153,12 +153,12 @@ class ReplaceMethodWithMethodObjectTransformer(cst.CSTTransformer):
             return updated_node
 
         # Remove helper methods that were moved to the method object
-        new_body = []
+        new_body: list[cst.BaseStatement] = []
         for stmt in updated_node.body.body:
             if isinstance(stmt, cst.FunctionDef):
                 if stmt.name.value not in self.helper_methods:
                     new_body.append(stmt)
-            else:
+            elif isinstance(stmt, cst.BaseStatement):
                 new_body.append(stmt)
 
         return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body)))
@@ -314,6 +314,9 @@ class ReplaceMethodWithMethodObjectTransformer(cst.CSTTransformer):
         if self.original_method is None:
             raise ValueError("Original method is None")
 
+        if not isinstance(self.original_method.body, cst.IndentedBlock):
+            raise ValueError("Method body is not an IndentedBlock")
+
         compute_body = self._transform_method_body(self.original_method.body)
         return cst.FunctionDef(
             name=cst.Name("compute"),
@@ -348,7 +351,10 @@ class ReplaceMethodWithMethodObjectTransformer(cst.CSTTransformer):
         # Transform body to replace parameter references with self.param
         # and self.method() with self.account.method() for non-helper methods
         transformer = BodyTransformer(param_names, list(self.helper_methods.keys()))
-        return body.visit(transformer)
+        result = body.visit(transformer)
+        if not isinstance(result, cst.IndentedBlock):
+            raise ValueError("Transformation did not return an IndentedBlock")
+        return result
 
 
 class BodyTransformer(cst.CSTTransformer):
