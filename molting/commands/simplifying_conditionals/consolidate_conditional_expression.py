@@ -210,6 +210,21 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         # Create the if statement
         return cst.If(test=helper_call, body=cst.IndentedBlock(body=[return_stmt]))
 
+    def _should_replace_if_statement(self, if_stmt: cst.If) -> bool:
+        """Check if an if statement should be replaced as part of consolidation.
+
+        Args:
+            if_stmt: The if statement to check
+
+        Returns:
+            True if this if statement matches the consolidation criteria
+        """
+        if self.return_value is None:
+            return False
+
+        return_val = self._get_return_value(if_stmt)
+        return return_val is not None and self._are_equal_values(return_val, self.return_value)
+
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
@@ -226,22 +241,18 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
 
         for stmt in updated_node.body.body:
             # Count consecutive if statements at the start
-            if isinstance(stmt, cst.If):
-                return_val = self._get_return_value(stmt)
-                if return_val is not None and self._are_equal_values(
-                    return_val, self.return_value  # type: ignore[arg-type]
-                ):
-                    if_count += 1
+            if isinstance(stmt, cst.If) and self._should_replace_if_statement(stmt):
+                if_count += 1
 
-                    # Only replace on the first matching if
-                    if if_count == 1:
-                        consolidated_if = self._build_consolidated_if_statement(updated_node)
-                        if consolidated_if:
-                            new_body.append(consolidated_if)
+                # Only replace on the first matching if
+                if if_count == 1:
+                    consolidated_if = self._build_consolidated_if_statement(updated_node)
+                    if consolidated_if:
+                        new_body.append(consolidated_if)
 
-                    # Skip all ifs that should be replaced
-                    if if_count <= self.num_ifs_to_replace:
-                        continue
+                # Skip all ifs that should be replaced
+                if if_count <= self.num_ifs_to_replace:
+                    continue
 
             new_body.append(stmt)
 
