@@ -1,5 +1,7 @@
 """Push Down Field refactoring command."""
 
+from typing import cast
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -82,6 +84,7 @@ class PushDownFieldTransformer(cst.CSTTransformer):
         new_body_stmts: list[cst.BaseStatement] = []
 
         for stmt in class_node.body.body:
+            stmt = cast(cst.BaseStatement, stmt)
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
                 # Transform __init__ to remove field assignment
                 modified_init = self._remove_field_from_init(stmt)
@@ -215,6 +218,7 @@ class PushDownFieldTransformer(cst.CSTTransformer):
         new_body_stmts: list[cst.BaseStatement] = []
 
         for stmt in class_node.body.body:
+            stmt = cast(cst.BaseStatement, stmt)
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
                 # Add field assignment to existing __init__
                 modified_init = self._add_field_to_init(stmt)
