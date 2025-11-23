@@ -5,6 +5,11 @@ from typing import Any, List, Optional, Tuple
 
 import libcst as cst
 
+# Target format constants for line number parsing
+TARGET_SEPARATOR = "#"
+LINE_PREFIX = "L"
+LINE_RANGE_SEPARATOR = "-"
+
 
 def parse_target(target: str, expected_parts: int = 2) -> Tuple[str, ...]:
     """Parse target in 'ClassName::method_name' or 'ClassName::method_name::param' format.
@@ -25,6 +30,139 @@ def parse_target(target: str, expected_parts: int = 2) -> Tuple[str, ...]:
             f"Invalid target format '{target}'. Expected {expected_parts} parts separated by '::'"
         )
     return tuple(parts)  # type: ignore[return-value]
+
+
+def parse_line_number(line_spec: str) -> int:
+    """Parse line number from 'L4' format.
+
+    Args:
+        line_spec: Line specification in format 'L4'
+
+    Returns:
+        Line number as integer
+
+    Raises:
+        ValueError: If line specification format is invalid
+    """
+    if not line_spec.startswith(LINE_PREFIX):
+        raise ValueError(f"Invalid line format '{line_spec}'. Expected 'L' prefix")
+
+    try:
+        line_number = int(line_spec[len(LINE_PREFIX) :])
+    except ValueError as e:
+        raise ValueError(f"Invalid line number in '{line_spec}': {e}") from e
+
+    if line_number < 0:
+        raise ValueError(f"Invalid line number in '{line_spec}': line numbers cannot be negative")
+
+    return line_number
+
+
+def parse_line_range(line_range: str) -> Tuple[int, int]:
+    """Parse line range from 'L9-L11' format.
+
+    Args:
+        line_range: Line range in format 'L9-L11'
+
+    Returns:
+        Tuple of (start_line, end_line)
+
+    Raises:
+        ValueError: If line range format is invalid
+    """
+    if not line_range.startswith(LINE_PREFIX):
+        raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L<start>-L<end>'")
+
+    if LINE_RANGE_SEPARATOR not in line_range:
+        raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L<start>-L<end>'")
+
+    parts = line_range.split(LINE_RANGE_SEPARATOR)
+    if len(parts) != 2:
+        raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L<start>-L<end>'")
+
+    try:
+        start_line = parse_line_number(parts[0])
+        end_line = parse_line_number(parts[1])
+    except ValueError as e:
+        raise ValueError(f"Invalid line numbers in '{line_range}': {e}") from e
+
+    return (start_line, end_line)
+
+
+def parse_target_with_line(target: str) -> Tuple[str, str, str]:
+    """Parse target with line number from 'ClassName::method#L4' format.
+
+    Args:
+        target: Target string in format 'ClassName::method#L4' or 'function#L4'
+
+    Returns:
+        Tuple of (class_or_function_name, method_name, line_spec)
+        For function-level targets, method_name will be empty string
+
+    Raises:
+        ValueError: If target format is invalid
+    """
+    parts = target.split(TARGET_SEPARATOR)
+    if len(parts) != 2:
+        raise ValueError(
+            f"Invalid target format '{target}'. "
+            f"Expected 'ClassName::method#L<line>' or 'function#L<line>'"
+        )
+
+    class_method = parts[0]
+    line_spec = parts[1]
+
+    # Validate line specification
+    parse_line_number(line_spec)
+
+    # Parse class and method name (if present)
+    if "::" in class_method:
+        class_parts = class_method.split("::")
+        if len(class_parts) == 2:
+            return (class_parts[0], class_parts[1], line_spec)
+        else:
+            raise ValueError(f"Invalid class::method format in '{class_method}'")
+    else:
+        # Function-level target
+        return (class_method, "", line_spec)
+
+
+def parse_target_with_range(target: str) -> Tuple[str, str, int, int]:
+    """Parse target with line range from 'ClassName::method#L9-L11' format.
+
+    Args:
+        target: Target string in format 'ClassName::method#L9-L11' or 'function#L9-L11'
+
+    Returns:
+        Tuple of (class_or_function_name, method_name, start_line, end_line)
+        For function-level targets, method_name will be empty string
+
+    Raises:
+        ValueError: If target format is invalid
+    """
+    parts = target.split(TARGET_SEPARATOR)
+    if len(parts) != 2:
+        raise ValueError(
+            f"Invalid target format '{target}'. "
+            f"Expected 'ClassName::method#L<start>-L<end>' or 'function#L<start>-L<end>'"
+        )
+
+    class_method = parts[0]
+    line_range_spec = parts[1]
+
+    # Parse line range
+    start_line, end_line = parse_line_range(line_range_spec)
+
+    # Parse class and method name (if present)
+    if "::" in class_method:
+        class_parts = class_method.split("::")
+        if len(class_parts) == 2:
+            return (class_parts[0], class_parts[1], start_line, end_line)
+        else:
+            raise ValueError(f"Invalid class::method format in '{class_method}'")
+    else:
+        # Function-level target
+        return (class_method, "", start_line, end_line)
 
 
 def find_method_in_tree(tree: Any, method_name: str) -> Optional[Tuple[Any, Any]]:
