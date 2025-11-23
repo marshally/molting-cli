@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import extract_init_field_assignments, find_self_field_assignment
 
 
 class ExtractSuperclassCommand(BaseCommand):
@@ -159,8 +160,8 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
         Returns:
             Tuple of (fields, methods)
         """
-        fields = []
-        methods = []
+        fields: list[str] = []
+        methods: list[str] = []
 
         # Look for __init__ method to find fields
         for stmt in class_def.body.body:
@@ -168,49 +169,10 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
                 methods.append(stmt.name.value)
                 if stmt.name.value == "__init__":
                     # Extract fields from __init__
-                    fields.extend(self._extract_init_fields(stmt))
+                    field_assignments = extract_init_field_assignments(stmt)
+                    fields.extend(field_assignments.keys())
 
         return fields, methods
-
-    def _extract_init_fields(self, init_method: cst.FunctionDef) -> list[str]:
-        """Extract field assignments from __init__ method.
-
-        Args:
-            init_method: The __init__ method
-
-        Returns:
-            List of field names
-        """
-        fields = []
-
-        if isinstance(init_method.body, cst.IndentedBlock):
-            for stmt in init_method.body.body:
-                if isinstance(stmt, cst.SimpleStatementLine):
-                    field_name = self._get_self_field_assignment(stmt)
-                    if field_name:
-                        fields.append(field_name)
-
-        return fields
-
-    def _get_self_field_assignment(self, stmt: cst.SimpleStatementLine) -> str | None:
-        """Extract field name if statement is a self.field assignment.
-
-        Args:
-            stmt: The statement to check
-
-        Returns:
-            Field name if this is a self.field assignment, None otherwise
-        """
-        for item in stmt.body:
-            if isinstance(item, cst.Assign):
-                for target in item.targets:
-                    if isinstance(target.target, cst.Attribute):
-                        if (
-                            isinstance(target.target.value, cst.Name)
-                            and target.target.value.value == "self"
-                        ):
-                            return target.target.attr.value
-        return None
 
     def _create_superclass(self) -> cst.ClassDef:
         """Create the superclass with common features.
@@ -319,22 +281,14 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
             for stmt in node.body.body:
                 # Keep non-common field assignments and other statements
                 if isinstance(stmt, cst.SimpleStatementLine):
-                    should_keep = False
-                    for item in stmt.body:
-                        if isinstance(item, cst.Assign):
-                            # Check if this assignment is for a non-common field
-                            for target in item.targets:
-                                if isinstance(target.target, cst.Attribute):
-                                    if (
-                                        isinstance(target.target.value, cst.Name)
-                                        and target.target.value.value == "self"
-                                    ):
-                                        field_name = target.target.attr.value
-                                        if field_name not in self.common_fields:
-                                            should_keep = True
-                                        break
-
-                    if should_keep:
+                    result = find_self_field_assignment(stmt)
+                    if result:
+                        field_name, _ = result
+                        # Keep only non-common field assignments
+                        if field_name not in self.common_fields:
+                            new_stmts.append(stmt)
+                    else:
+                        # Not a self.field assignment, keep it
                         new_stmts.append(stmt)
                 else:
                     new_stmts.append(stmt)
