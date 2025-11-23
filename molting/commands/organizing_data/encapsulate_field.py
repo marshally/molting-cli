@@ -97,6 +97,27 @@ class EncapsulateFieldTransformer(cst.CSTTransformer):
             return False
         return target.target.value.value == "self" and target.target.attr.value == self.field_name
 
+    def _create_private_field_assignment(self, value: cst.BaseExpression) -> cst.Assign:
+        """Create an assignment to the private field.
+
+        Args:
+            value: The value to assign
+
+        Returns:
+            Assignment statement for self._field_name = value
+        """
+        return cst.Assign(
+            targets=[
+                cst.AssignTarget(
+                    target=cst.Attribute(
+                        value=cst.Name("self"),
+                        attr=cst.Name(self.private_field_name),
+                    )
+                )
+            ],
+            value=value,
+        )
+
     def _transform_init_method(self, init_method: cst.FunctionDef) -> cst.FunctionDef:
         """Transform __init__ to use private field name.
 
@@ -117,17 +138,7 @@ class EncapsulateFieldTransformer(cst.CSTTransformer):
                         for target in body_item.targets:
                             if self._is_field_assignment(target):
                                 # Change self.name to self._name
-                                new_assign = cst.Assign(
-                                    targets=[
-                                        cst.AssignTarget(
-                                            target=cst.Attribute(
-                                                value=cst.Name("self"),
-                                                attr=cst.Name(self.private_field_name),
-                                            )
-                                        )
-                                    ],
-                                    value=body_item.value,
-                                )
+                                new_assign = self._create_private_field_assignment(body_item.value)
                                 new_stmt_body.append(new_assign)
                                 modified = True
                                 break
