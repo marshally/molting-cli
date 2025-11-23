@@ -1,6 +1,5 @@
 """Introduce Assertion refactoring command."""
 
-
 import libcst as cst
 from libcst import metadata
 
@@ -29,6 +28,7 @@ class IntroduceAssertionCommand(BaseCommand):
         """
         target = self.params["target"]
         condition = self.params["condition"]
+        message = self.params.get("message", "Project must have expense limit or primary project")
 
         # Parse target as function_name#L<line_number>
         if "#L" not in target:
@@ -47,7 +47,7 @@ class IntroduceAssertionCommand(BaseCommand):
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
         wrapper = metadata.MetadataWrapper(module)
-        transformer = IntroduceAssertionTransformer(function_name, target_line, condition)
+        transformer = IntroduceAssertionTransformer(function_name, target_line, condition, message)
         modified_tree = wrapper.visit(transformer)
         self.file_path.write_text(modified_tree.code)
 
@@ -57,17 +57,19 @@ class IntroduceAssertionTransformer(cst.CSTTransformer):
 
     METADATA_DEPENDENCIES = (metadata.PositionProvider,)
 
-    def __init__(self, function_name: str, target_line: int, condition: str) -> None:
+    def __init__(self, function_name: str, target_line: int, condition: str, message: str) -> None:
         """Initialize the transformer.
 
         Args:
             function_name: Name of the function to transform
             target_line: Line number where assertion should be inserted
             condition: The assertion condition as a string
+            message: The assertion error message
         """
         self.function_name = function_name
         self.target_line = target_line
         self.condition = condition
+        self.message = message
         self.current_function: str | None = None
         self.target_index: int | None = None
 
@@ -99,9 +101,7 @@ class IntroduceAssertionTransformer(cst.CSTTransformer):
                 body=[
                     cst.Assert(
                         test=condition_expr,
-                        msg=cst.SimpleString(
-                            '"Project must have expense limit or primary project"'
-                        ),
+                        msg=cst.SimpleString(f'"{self.message}"'),
                     )
                 ]
             )
