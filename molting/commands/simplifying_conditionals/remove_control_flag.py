@@ -1,5 +1,7 @@
 """Remove Control Flag refactoring command."""
 
+from typing import cast
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -62,8 +64,8 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         if original_node.name.value != self.function_name:
             return updated_node
 
-        # Transform the function body to remove control flag
-        new_body = self._transform_body(updated_node.body)
+        body = cast(cst.IndentedBlock, updated_node.body)
+        new_body = self._transform_body(body)
         return updated_node.with_changes(body=new_body)
 
     def _transform_body(self, body: cst.IndentedBlock) -> cst.IndentedBlock:
@@ -75,14 +77,12 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         Returns:
             Transformed function body
         """
-        new_statements = []
+        new_statements: list[cst.BaseStatement] = []
 
         for stmt in body.body:
-            # Skip the flag initialization statement (e.g., found = False)
             if self._is_flag_initialization(stmt):
                 continue
 
-            # Transform for loops to remove the guard clause
             if isinstance(stmt, cst.For):
                 new_for = self._transform_for_loop(stmt)
                 new_statements.append(new_for)
@@ -133,13 +133,12 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         Returns:
             Transformed for loop
         """
-        new_body_statements = []
+        new_body_statements: list[cst.BaseStatement] = []
+        loop_body = cast(cst.IndentedBlock, for_loop.body)
 
-        for stmt in for_loop.body.body:
-            # Transform if statements that guard with the control flag
+        for stmt in loop_body.body:
             if isinstance(stmt, cst.If):
                 transformed = self._transform_if_statement(stmt)
-                # transformed can be a list of statements or a single statement or None
                 if isinstance(transformed, list):
                     new_body_statements.extend(transformed)
                 elif transformed is not None:
@@ -158,13 +157,12 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         Returns:
             Transformed if statement, list of statements, or None if it should be removed
         """
-        # Check if this is the guard clause (e.g., if not found:)
         if self._is_guard_clause(if_stmt.test):
-            # Extract the body of the guard clause and transform it
-            return self._transform_guard_body(if_stmt.body)
+            guard_body = cast(cst.IndentedBlock, if_stmt.body)
+            return self._transform_guard_body(guard_body)
 
-        # Otherwise, transform the body to replace flag assignments with return
-        new_body = self._replace_flag_assignments_with_return(if_stmt.body)
+        if_body = cast(cst.IndentedBlock, if_stmt.body)
+        new_body = self._replace_flag_assignments_with_return(if_body)
         return if_stmt.with_changes(body=new_body)
 
     def _is_guard_clause(self, test: cst.BaseExpression) -> bool:
@@ -193,16 +191,14 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         Returns:
             List of transformed statements from the guard body
         """
-        # The guard body contains if statements that we need to extract and transform
-        transformed_statements = []
+        transformed_statements: list[cst.BaseStatement] = []
 
         for stmt in body.body:
             if isinstance(stmt, cst.If):
-                # Transform this if statement and add it to the list (no guard wrapper)
-                new_body = self._replace_flag_assignments_with_return(stmt.body)
+                if_body = cast(cst.IndentedBlock, stmt.body)
+                new_body = self._replace_flag_assignments_with_return(if_body)
                 transformed_statements.append(stmt.with_changes(body=new_body))
             else:
-                # Keep other statements as-is
                 transformed_statements.append(stmt)
 
         return transformed_statements
@@ -216,7 +212,7 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         Returns:
             Transformed body
         """
-        new_statements = []
+        new_statements: list[cst.BaseStatement] = []
 
         for stmt in body.body:
             if isinstance(stmt, cst.SimpleStatementLine):
