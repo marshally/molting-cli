@@ -92,7 +92,7 @@ class HideDelegateTransformer(cst.CSTTransformer):
         if isinstance(node.body, cst.IndentedBlock):
             for stmt in node.body.body:
                 if isinstance(stmt, cst.SimpleStatementLine):
-                    new_body_items = []
+                    new_body_items: list[cst.BaseSmallStatement] = []
                     for item in stmt.body:
                         if isinstance(item, cst.Assign):
                             new_item = self._transform_assignment(item)
