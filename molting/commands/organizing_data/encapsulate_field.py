@@ -82,6 +82,21 @@ class EncapsulateFieldTransformer(cst.CSTTransformer):
 
         return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
 
+    def _is_field_assignment(self, target: cst.AssignTarget) -> bool:
+        """Check if an assignment target is assigning to the target field.
+
+        Args:
+            target: The assignment target to check
+
+        Returns:
+            True if this is an assignment to self.field_name
+        """
+        if not isinstance(target.target, cst.Attribute):
+            return False
+        if not isinstance(target.target.value, cst.Name):
+            return False
+        return target.target.value.value == "self" and target.target.attr.value == self.field_name
+
     def _transform_init_method(self, init_method: cst.FunctionDef) -> cst.FunctionDef:
         """Transform __init__ to use private field name.
 
@@ -100,27 +115,22 @@ class EncapsulateFieldTransformer(cst.CSTTransformer):
                     if isinstance(body_item, cst.Assign):
                         modified = False
                         for target in body_item.targets:
-                            if isinstance(target.target, cst.Attribute):
-                                if (
-                                    isinstance(target.target.value, cst.Name)
-                                    and target.target.value.value == "self"
-                                    and target.target.attr.value == self.field_name
-                                ):
-                                    # Change self.name to self._name
-                                    new_assign = cst.Assign(
-                                        targets=[
-                                            cst.AssignTarget(
-                                                target=cst.Attribute(
-                                                    value=cst.Name("self"),
-                                                    attr=cst.Name(self.private_field_name),
-                                                )
+                            if self._is_field_assignment(target):
+                                # Change self.name to self._name
+                                new_assign = cst.Assign(
+                                    targets=[
+                                        cst.AssignTarget(
+                                            target=cst.Attribute(
+                                                value=cst.Name("self"),
+                                                attr=cst.Name(self.private_field_name),
                                             )
-                                        ],
-                                        value=body_item.value,
-                                    )
-                                    new_stmt_body.append(new_assign)
-                                    modified = True
-                                    break
+                                        )
+                                    ],
+                                    value=body_item.value,
+                                )
+                                new_stmt_body.append(new_assign)
+                                modified = True
+                                break
                         if not modified:
                             new_stmt_body.append(body_item)
                     else:
