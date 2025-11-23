@@ -93,7 +93,6 @@ class TestSplitTemporaryVariable(RefactoringTestBase):
         self.refactor("split-temporary-variable", target="calculate_distance::temp")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestRemoveAssignmentsToParameters(RefactoringTestBase):
     """Tests for Remove Assignments to Parameters refactoring."""
 
