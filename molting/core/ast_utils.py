@@ -424,3 +424,59 @@ def parse_comma_separated_list(value: str) -> list[str]:
         List of trimmed string values
     """
     return [item.strip() for item in value.split(",")]
+
+
+def is_pass_statement(stmt: cst.BaseStatement) -> bool:
+    """Check if a statement is a pass statement.
+
+    Args:
+        stmt: The statement to check
+
+    Returns:
+        True if the statement is a pass statement
+    """
+    if isinstance(stmt, cst.SimpleStatementLine):
+        if len(stmt.body) == 1 and isinstance(stmt.body[0], cst.Pass):
+            return True
+    return False
+
+
+def is_empty_class(class_def: cst.ClassDef) -> bool:
+    """Check if a class is empty (contains only pass or no statements).
+
+    Args:
+        class_def: The class definition to check
+
+    Returns:
+        True if the class contains only pass statements or is empty
+    """
+    if isinstance(class_def.body, cst.IndentedBlock):
+        # Check if body contains only pass or empty statements
+        for stmt in class_def.body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                # Check if this line only contains 'pass'
+                if len(stmt.body) == 1 and isinstance(stmt.body[0], cst.Pass):
+                    continue
+            else:
+                # Any other statement means it's not empty
+                return False
+        return True
+    return True
+
+
+def statements_contain_only_pass(stmts: list[cst.BaseStatement]) -> bool:
+    """Check if a list of statements contains only pass statements.
+
+    Args:
+        stmts: List of statements to check
+
+    Returns:
+        True if all statements are pass statements or list is empty
+    """
+    if not stmts:
+        return True
+
+    for stmt in stmts:
+        if not is_pass_statement(stmt):
+            return False
+    return True
