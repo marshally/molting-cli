@@ -20,11 +20,7 @@ class MoveMethodCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        try:
-            _ = self.params["source"]
-            _ = self.params["to"]
-        except KeyError as e:
-            raise ValueError(f"Missing required parameter for move-method: {e}") from e
+        self.validate_required_params("source", "to")
 
     def execute(self) -> None:
         """Apply move-method refactoring using libCST.

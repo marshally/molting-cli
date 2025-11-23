@@ -21,10 +21,7 @@ class InlineClassCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "source_class" not in self.params:
-            raise ValueError("Missing required parameter for inline-class: 'source_class'")
-        if "into" not in self.params:
-            raise ValueError("Missing required parameter for inline-class: 'into'")
+        self.validate_required_params("source_class", "into")
 
     def execute(self) -> None:
         """Apply inline-class refactoring using libCST.

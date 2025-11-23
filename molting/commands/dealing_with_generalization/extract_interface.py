@@ -19,12 +19,7 @@ class ExtractInterfaceCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        required = ["target", "methods", "name"]
-        missing = [param for param in required if param not in self.params]
-        if missing:
-            raise ValueError(
-                f"Missing required parameters for extract-interface: {', '.join(missing)}"
-            )
+        self.validate_required_params("target", "methods", "name")
 
     def execute(self) -> None:
         """Apply extract-interface refactoring using libCST.
