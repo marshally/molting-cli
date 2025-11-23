@@ -165,17 +165,7 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
             for stmt in node.body.body:
                 if isinstance(stmt, cst.SimpleStatementLine):
                     # Check if this is a self.feature assignment
-                    should_keep = True
-                    for body_stmt in stmt.body:
-                        if isinstance(body_stmt, cst.Assign):
-                            for target in body_stmt.targets:
-                                if isinstance(target.target, cst.Attribute):
-                                    if isinstance(target.target.value, cst.Name):
-                                        if target.target.value.value == "self":
-                                            field_name = target.target.attr.value
-                                            if field_name in self.features:
-                                                should_keep = False
-                    if should_keep:
+                    if not self._is_feature_assignment(stmt):
                         new_stmts.append(stmt)
                 else:
                     new_stmts.append(stmt)
@@ -388,6 +378,26 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
             new_stmts.append(cst.SimpleStatementLine(body=[cst.Pass()]))
 
         return node.with_changes(body=cst.IndentedBlock(body=new_stmts))
+
+    def _is_feature_assignment(self, stmt: cst.SimpleStatementLine) -> bool:
+        """Check if a statement assigns to a feature field.
+
+        Args:
+            stmt: The statement to check
+
+        Returns:
+            True if statement assigns to a feature field
+        """
+        for body_stmt in stmt.body:
+            if isinstance(body_stmt, cst.Assign):
+                for target in body_stmt.targets:
+                    if isinstance(target.target, cst.Attribute):
+                        if isinstance(target.target.value, cst.Name):
+                            if target.target.value.value == "self":
+                                field_name = target.target.attr.value
+                                if field_name in self.features:
+                                    return True
+        return False
 
     def _is_boolean_flag(self, param_name: str) -> bool:
         """Check if a parameter name indicates a boolean flag.
