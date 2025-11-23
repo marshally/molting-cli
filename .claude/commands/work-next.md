@@ -10,7 +10,14 @@ Fetch the next ready issue from beads, set up the appropriate worktree/branch, s
 
 ### Step 1: Fetch Next Ready Issue
 
-First, set the beads context (call this tool directly, not via bash):
+First, ensure we have the latest beads data to avoid race conditions:
+```bash
+cd /Users/marshallyount/code/marshally/molting-cli && bd sync --import-only
+```
+
+This imports the latest issue statuses from the beads-metadata branch.
+
+Then set the beads context (call this tool directly, not via bash):
 - Use the `mcp__plugin_beads_beads__set_context` tool with workspace_root: `/Users/marshallyount/code/marshally/molting-cli`
 
 Then get ready issues (call this tool directly, not via bash):
@@ -36,24 +43,34 @@ From the title, extract:
 - test_class - Convert to PascalCase with "Test" prefix (e.g., "TestSomeRefactoring")
 - refactoring_dir - Convert to snake_case (e.g., "some_refactoring")
 
-### Step 1.5: Mark Issue as In Progress in Main Repository
+### Step 1.5: Atomically Claim Issue (Prevent Race Conditions)
 
-**CRITICAL**: Update the issue status in the MAIN repository BEFORE creating the worktree.
-This ensures subsequent `/work-next` calls won't select the same issue.
+**CRITICAL**: This step prevents race conditions where multiple agents select the same issue.
+We use git push as an atomic lock mechanism - only one agent can successfully push first.
 
 Use beads MCP to update the issue status (call these tools directly, not via bash):
 - Context is already set to main repo from Step 1
 - Use the `mcp__plugin_beads_beads__update` tool with:
   - issue_id: "{issue_id}"
   - status: "in_progress"
-  - assignee: "Claude" (or appropriate assignee)
+  - assignee: "Claude" (or appropriate unique agent identifier)
 
-Then sync the beads changes to the sync branch:
+Then atomically sync and verify claim succeeded:
 ```bash
 cd /Users/marshallyount/code/marshally/molting-cli && bd sync -m "Mark {issue_id} as in_progress"
 ```
 
-This commits to beads-metadata branch, pulls latest changes, and pushes the update.
+**Race Condition Handling**:
+If `bd sync` fails with a push/merge conflict:
+1. Another agent claimed the issue first (they won the race)
+2. Import their changes: `cd /Users/marshallyount/code/marshally/molting-cli && bd sync --import-only`
+3. RESTART from Step 1: Fetch ready issues again and select the next available one
+4. Attempt to claim the new issue with this step again
+
+If `bd sync` succeeds:
+1. You have atomically claimed the issue
+2. The beads-metadata branch now shows you as the owner
+3. Proceed to Step 2 to create the worktree
 
 ### Step 2: Set Up Worktree (if needed)
 
