@@ -124,6 +124,19 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
 
         return transformed_stmt
 
+    def _get_block_body(self, block: cst.BaseSuite) -> list[cst.BaseStatement]:
+        """Extract statements from a code block.
+
+        Args:
+            block: The code block to extract statements from
+
+        Returns:
+            List of statements in the block
+        """
+        if isinstance(block, cst.IndentedBlock):
+            return list(block.body)
+        return []
+
     def _consolidate_if_statement(self, if_stmt: cst.If) -> tuple[cst.If, list[cst.BaseStatement]]:
         """Consolidate duplicate statements from if/else branches.
 
@@ -134,16 +147,11 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
             Tuple of (transformed if statement, list of duplicate statements to add after)
         """
         # Get the if and else bodies
-        if_body = if_stmt.body.body if isinstance(if_stmt.body, cst.IndentedBlock) else []
+        if_body = self._get_block_body(if_stmt.body)
         else_body = []
 
-        if if_stmt.orelse:
-            if isinstance(if_stmt.orelse, cst.Else):
-                else_body = (
-                    if_stmt.orelse.body.body
-                    if isinstance(if_stmt.orelse.body, cst.IndentedBlock)
-                    else []
-                )
+        if if_stmt.orelse and isinstance(if_stmt.orelse, cst.Else):
+            else_body = self._get_block_body(if_stmt.orelse.body)
 
         # Find duplicate statements at the end of both branches
         duplicates = []
