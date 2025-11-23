@@ -134,21 +134,17 @@ class ReplaceNestedConditionalWithGuardClausesTransformer(cst.CSTTransformer):
             )
 
         # Process else branch
-        if if_stmt.orelse:
-            else_clause = if_stmt.orelse
-            if isinstance(else_clause, cst.Else):
-                else_body = cast(cst.IndentedBlock, else_clause.body)
-                # Check if else body contains another if statement
-                if len(else_body.body) == 1 and isinstance(else_body.body[0], cst.If):
-                    nested_if = else_body.body[0]
-                    result.extend(self._extract_guard_clauses(nested_if))
-                else:
-                    # Else body is the final return
-                    final_return = self._get_return_value_from_assignment(else_body)
-                    if final_return is not None:
-                        result.append(
-                            cst.SimpleStatementLine(body=[cst.Return(value=final_return)])
-                        )
+        if if_stmt.orelse and isinstance(if_stmt.orelse, cst.Else):
+            else_body = cast(cst.IndentedBlock, if_stmt.orelse.body)
+            # Check if else body contains another if statement
+            if len(else_body.body) == 1 and isinstance(else_body.body[0], cst.If):
+                nested_if = else_body.body[0]
+                result.extend(self._extract_guard_clauses(nested_if))
+            else:
+                # Else body is the final return
+                final_return = self._get_return_value_from_assignment(else_body)
+                if final_return is not None:
+                    result.append(cst.SimpleStatementLine(body=[cst.Return(value=final_return)]))
 
         return result
 
