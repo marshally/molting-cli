@@ -145,18 +145,27 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
             return val1.value == val2.value
         return False
 
+    def _get_first_parameter(self, func_def: cst.FunctionDef) -> cst.Param | None:
+        """Get the first parameter from a function definition.
+
+        Args:
+            func_def: The function definition
+
+        Returns:
+            The first parameter, or None if no parameters
+        """
+        if isinstance(func_def.params, cst.Parameters):
+            if len(func_def.params.params) > 0:
+                return func_def.params.params[0]
+        return None
+
     def _create_helper_function(self, func_def: cst.FunctionDef) -> None:
         """Create the helper function with consolidated conditions.
 
         Args:
             func_def: The original function definition
         """
-        # Get the parameter from the original function
-        param = None
-        if isinstance(func_def.params, cst.Parameters):
-            if len(func_def.params.params) > 0:
-                param = func_def.params.params[0]
-
+        param = self._get_first_parameter(func_def)
         if param is None:
             return
 
