@@ -81,7 +81,7 @@ AUTOMERGE_LABEL="${AUTOMERGE_LABEL:-automerge}"
 
 # Get list of open PRs from all repositories in JSON format
 log "Fetching open PRs from all repositories..."
-prs=$(gh pr list --json number,headRefName,title,author,isDraft,reviewDecision,statusCheckRollup,mergeable,mergeStateStatus,url,headRepository,headRepositoryOwner,labels,baseRepository)
+prs=$(gh pr list --json number,headRefName,title,author,isDraft,reviewDecision,statusCheckRollup,mergeable,mergeStateStatus,url,headRepository,headRepositoryOwner,labels)
 
 # Check if there are any PRs
 if [ "$(echo "$prs" | jq '. | length')" -eq 0 ]; then
@@ -101,8 +101,8 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
     url=$(echo "$pr" | jq -r '.url')
     head_ref=$(echo "$pr" | jq -r '.headRefName')
 
-    # Extract repository information for this PR
-    pr_repo=$(echo "$pr" | jq -r '.baseRepository.nameWithOwner')
+    # Extract repository information from URL (format: https://github.com/owner/repo/pull/number)
+    pr_repo=$(echo "$url" | sed -E 's|https://github.com/([^/]+/[^/]+)/pull/.*|\1|')
 
     log "Processing PR #$number in $pr_repo: $title"
 
