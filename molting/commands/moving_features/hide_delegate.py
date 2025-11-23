@@ -108,16 +108,20 @@ class HideDelegateTransformer(cst.CSTTransformer):
     def _transform_assignment(self, assign: cst.Assign) -> cst.Assign:
         """Transform assignment to make field private if it matches."""
         for target in assign.targets:
-            if isinstance(target.target, cst.Attribute):
-                if (
-                    isinstance(target.target.value, cst.Name)
-                    and target.target.value.value == "self"
-                    and target.target.attr.value == self.field_name
-                ):
-                    new_target = cst.AssignTarget(
-                        cst.Attribute(value=cst.Name("self"), attr=cst.Name(f"_{self.field_name}"))
-                    )
-                    return assign.with_changes(targets=[new_target])
+            if not isinstance(target.target, cst.Attribute):
+                continue
+
+            if not (
+                isinstance(target.target.value, cst.Name)
+                and target.target.value.value == "self"
+                and target.target.attr.value == self.field_name
+            ):
+                continue
+
+            new_target = cst.AssignTarget(
+                cst.Attribute(value=cst.Name("self"), attr=cst.Name(f"_{self.field_name}"))
+            )
+            return assign.with_changes(targets=[new_target])
         return assign
 
     def _create_delegating_method(self) -> cst.FunctionDef:
