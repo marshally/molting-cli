@@ -5,7 +5,6 @@ This module tests refactorings that move functionality between classes
 and create new classes.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -56,7 +55,6 @@ class TestInlineClass(RefactoringTestBase):
         self.refactor("inline-class", source_class="TelephoneNumber", into="Person")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestHideDelegate(RefactoringTestBase):
     """Tests for Hide Delegate refactoring."""
 
