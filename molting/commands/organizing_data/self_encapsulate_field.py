@@ -83,7 +83,7 @@ class SelfEncapsulateFieldTransformer(cst.CSTTransformer):
         final_body = self._insert_properties_at_index(new_body, insert_index)
         return updated_node.with_changes(body=cst.IndentedBlock(body=final_body))
 
-    def _process_class_body(self, body: tuple[Any, ...]) -> tuple[list[Any], bool, int, int]:
+    def _process_class_body(self, body: Any) -> tuple[list[Any], bool, int, int]:
         """Process class body to transform init and track property locations.
 
         Args:
