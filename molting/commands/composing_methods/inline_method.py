@@ -1,6 +1,5 @@
 """Inline Method refactoring command."""
 
-
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -39,6 +38,12 @@ class InlineMethodCommand(BaseCommand):
         module = cst.parse_module(source_code)
         collector = MethodBodyCollector(class_name, method_name)
         module.visit(collector)
+
+        if collector.method_body is None:
+            raise ValueError(
+                f"Method '{method_name}' not found in class '{class_name}' "
+                "or does not have a simple return statement"
+            )
 
         # Second pass: inline the method
         transformer = InlineMethodTransformer(class_name, method_name, collector.method_body)
