@@ -183,12 +183,9 @@ class ExtractFunctionTransformer(cst.CSTTransformer):
             line_number: Line number of expression to extract (1-indexed)
             extracted_expression: The expression to extract
         """
-        self.class_name = class_name
         self.method_name = method_name
         self.new_function_name = new_function_name
-        self.line_number = line_number
         self.extracted_expression = extracted_expression
-        self.new_function: cst.FunctionDef | None = None
         self.in_target_method = False
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
