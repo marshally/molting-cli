@@ -10,6 +10,7 @@ from molting.core.ast_utils import (
     extract_init_field_assignments,
     find_method_in_class,
     find_self_field_assignment,
+    parse_comma_separated_list,
 )
 
 
@@ -36,7 +37,7 @@ class ExtractSuperclassCommand(BaseCommand):
         superclass_name = self.params["name"]
 
         # Parse target classes
-        target_classes = [t.strip() for t in targets_str.split(",")]
+        target_classes = parse_comma_separated_list(targets_str)
 
         # Apply transformation
         self.apply_libcst_transform(ExtractSuperclassTransformer, target_classes, superclass_name)

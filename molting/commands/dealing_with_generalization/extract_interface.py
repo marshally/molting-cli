@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_comma_separated_list
 
 
 class ExtractInterfaceCommand(BaseCommand):
@@ -31,7 +32,7 @@ class ExtractInterfaceCommand(BaseCommand):
         interface_name = self.params["name"]
 
         # Parse the methods string (comma-separated list)
-        methods = [m.strip() for m in methods_str.split(",")]
+        methods = parse_comma_separated_list(methods_str)
 
         # Read file
         source_code = self.file_path.read_text()
