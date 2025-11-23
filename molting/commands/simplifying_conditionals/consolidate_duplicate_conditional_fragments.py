@@ -20,14 +20,18 @@ class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
         """
         self.validate_required_params("target")
 
-    def execute(self) -> None:
-        """Apply consolidate-duplicate-conditional-fragments refactoring using libCST.
+    def _parse_target(self, target: str) -> tuple[str, int, int]:
+        """Parse target specification into function name and line range.
+
+        Args:
+            target: Target string in format "function_name#L2-L7"
+
+        Returns:
+            Tuple of (function_name, start_line, end_line)
 
         Raises:
-            ValueError: If function not found or target format is invalid
+            ValueError: If target format is invalid
         """
-        target = self.params["target"]
-
         # Parse target format: "function_name#L2-L7"
         parts = target.split("#")
         if len(parts) != 2:
@@ -49,6 +53,17 @@ class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
             end_line = int(range_parts[1][1:])
         except ValueError as e:
             raise ValueError(f"Invalid line numbers in '{line_range}': {e}") from e
+
+        return function_name, start_line, end_line
+
+    def execute(self) -> None:
+        """Apply consolidate-duplicate-conditional-fragments refactoring using libCST.
+
+        Raises:
+            ValueError: If function not found or target format is invalid
+        """
+        target = self.params["target"]
+        function_name, start_line, end_line = self._parse_target(target)
 
         # Read file
         source_code = self.file_path.read_text()
