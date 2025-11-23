@@ -142,17 +142,28 @@ class InlineMethodTransformer(cst.CSTTransformer):
         self, original_node: cst.Call, updated_node: cst.Call
     ) -> cst.BaseExpression:
         """Leave call expression and replace method calls with the method body."""
-        # Check if this is a call to self.method_name()
-        if isinstance(updated_node.func, cst.Attribute):
-            if (
-                isinstance(updated_node.func.value, cst.Name)
-                and updated_node.func.value.value == "self"
-                and updated_node.func.attr.value == self.method_name
-            ):
-                # Replace the call with the method body
-                if self.method_body:
-                    return self.method_body
+        if self._is_target_method_call(updated_node):
+            if self.method_body:
+                return self.method_body
         return updated_node
+
+    def _is_target_method_call(self, node: cst.Call) -> bool:
+        """Check if a call node is a call to self.method_name().
+
+        Args:
+            node: The call node to check
+
+        Returns:
+            True if this is a call to the target method, False otherwise
+        """
+        if not isinstance(node.func, cst.Attribute):
+            return False
+
+        return (
+            isinstance(node.func.value, cst.Name)
+            and node.func.value.value == "self"
+            and node.func.attr.value == self.method_name
+        )
 
 
 # Register the command
