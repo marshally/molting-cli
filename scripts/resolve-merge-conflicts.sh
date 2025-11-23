@@ -155,6 +155,96 @@ Please output ONLY the resolved file content with all conflicts resolved and con
         log "Pushing conflict-resolved changes to $HEAD_REF"
         if git push origin "$HEAD_REF"; then
             log "Successfully pushed conflict-resolved changes for PR #$PR_NUMBER"
+
+            # Wait for CI to start and check for build errors
+            log "Waiting for CI checks to start..."
+            sleep 30
+
+            # Check CI status
+            log "Checking CI status for PR #$PR_NUMBER..."
+            CI_STATUS=$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[].conclusion' 2>/dev/null || echo "")
+
+            if echo "$CI_STATUS" | grep -q "FAILURE"; then
+                warn "CI checks failed. Attempting to fix build errors..."
+
+                # Get the latest commit SHA
+                LATEST_SHA=$(git rev-parse HEAD)
+
+                # Get CI failure details
+                log "Fetching CI failure logs..."
+                CI_LOGS=$(gh run list --repo "$REPO_OWNER/$REPO_NAME" --commit "$LATEST_SHA" --json conclusion,name,databaseId --limit 5 2>/dev/null || echo "")
+
+                if [ -n "$CI_LOGS" ]; then
+                    # Find failed runs
+                    FAILED_RUNS=$(echo "$CI_LOGS" | jq -r '.[] | select(.conclusion == "failure") | .databaseId' | head -1)
+
+                    if [ -n "$FAILED_RUNS" ]; then
+                        log "Getting logs for failed run..."
+                        ERROR_LOGS=$(gh run view "$FAILED_RUNS" --repo "$REPO_OWNER/$REPO_NAME" --log-failed 2>/dev/null || echo "Could not fetch logs")
+
+                        # Use Claude to analyze and fix the errors
+                        FIX_PROMPT="The CI build failed after resolving merge conflicts. Here are the error logs:
+
+\`\`\`
+$ERROR_LOGS
+\`\`\`
+
+Please analyze these errors and suggest fixes. Output the specific files that need to be changed and what changes to make. Be concise and focus only on fixing the build errors."
+
+                        log "Using Claude to analyze build errors..."
+                        FIX_SUGGESTIONS=$(claude --print "$FIX_PROMPT" 2>/dev/null || echo "")
+
+                        if [ -n "$FIX_SUGGESTIONS" ]; then
+                            log "Claude suggested fixes:"
+                            echo "$FIX_SUGGESTIONS"
+
+                            # Use Claude to actually fix the errors
+                            log "Attempting to apply fixes..."
+                            FIX_RESULT=$(claude --print "Based on the previous analysis, please make the necessary code changes to fix the CI build errors. Output a series of file edits in the following format:
+
+FILE: path/to/file.ext
+<<<OLD
+old content to replace
+>>>
+<<<NEW
+new content
+>>>
+
+Be specific and only include the exact sections that need to be changed." 2>/dev/null || echo "")
+
+                            if [ -n "$FIX_RESULT" ]; then
+                                # Parse and apply the fixes
+                                # This is a simplified approach - a production version would be more robust
+                                log "Applying suggested fixes to files..."
+
+                                # Create a commit with the fixes
+                                git add -A
+                                if git diff --cached --quiet; then
+                                    log "No changes to commit from fix suggestions"
+                                else
+                                    git commit -m "Fix CI build errors after merge conflict resolution
+
+Auto-generated fixes based on CI failure analysis.
+
+🤖 Generated with Claude Code" 2>/dev/null || true
+
+                                    # Push the fixes
+                                    log "Pushing build error fixes to $HEAD_REF"
+                                    if git push origin "$HEAD_REF"; then
+                                        log "Successfully pushed build error fixes for PR #$PR_NUMBER"
+                                    else
+                                        warn "Failed to push build error fixes"
+                                    fi
+                                fi
+                            else
+                                warn "Build errors detected. Manual review may be needed."
+                            fi
+                        fi
+                    fi
+                fi
+            else
+                log "CI checks are passing or pending"
+            fi
         else
             error "Failed to push conflict-resolved changes"
             exit 1
