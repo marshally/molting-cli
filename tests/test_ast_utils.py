@@ -14,11 +14,14 @@ from molting.core.ast_utils import (
     find_method_in_class,
     find_self_field_assignment,
     is_assignment_to_field,
+    is_empty_class,
+    is_pass_statement,
     parse_comma_separated_list,
     parse_line_number,
     parse_line_range,
     parse_target_with_line,
     parse_target_with_range,
+    statements_contain_only_pass,
 )
 
 
@@ -920,3 +923,194 @@ class TestParseTargetWithRange:
         result = parse_target_with_range("ClassName::method#L5-L5")
 
         assert result == ("ClassName", "method", 5, 5)
+
+
+class TestIsPassStatement:
+    """Tests for is_pass_statement() function."""
+
+    def test_simple_pass_statement(self) -> None:
+        """Should return True for a simple pass statement."""
+        code = "pass"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+
+        assert is_pass_statement(stmt) is True
+
+    def test_assignment_statement(self) -> None:
+        """Should return False for an assignment statement."""
+        code = "x = 5"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+
+        assert is_pass_statement(stmt) is False
+
+    def test_function_def_statement(self) -> None:
+        """Should return False for a function definition."""
+        code = """
+def foo():
+    pass
+"""
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+
+        assert is_pass_statement(stmt) is False
+
+    def test_multiple_statements_on_line(self) -> None:
+        """Should return False for multiple statements on same line."""
+        code = "pass; x = 5"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+
+        assert is_pass_statement(stmt) is False
+
+    def test_pass_inside_class(self) -> None:
+        """Should correctly identify pass statement inside a class."""
+        code = """
+class Empty:
+    pass
+"""
+        module = cst.parse_module(code)
+        class_def = module.body[0]
+        assert isinstance(class_def, cst.ClassDef)
+        stmt = class_def.body.body[0]
+
+        assert is_pass_statement(stmt) is True
+
+
+class TestIsEmptyClass:
+    """Tests for is_empty_class() function."""
+
+    def test_empty_class_with_pass(self) -> None:
+        """Should return True for class with only pass statement."""
+        code = """
+class Empty:
+    pass
+"""
+        module = cst.parse_module(code)
+        class_def = module.body[0]
+        assert isinstance(class_def, cst.ClassDef)
+
+        assert is_empty_class(class_def) is True
+
+    def test_class_with_method(self) -> None:
+        """Should return False for class with methods."""
+        code = """
+class NotEmpty:
+    def foo(self):
+        pass
+"""
+        module = cst.parse_module(code)
+        class_def = module.body[0]
+        assert isinstance(class_def, cst.ClassDef)
+
+        assert is_empty_class(class_def) is False
+
+    def test_class_with_field_assignment(self) -> None:
+        """Should return False for class with field assignments."""
+        code = """
+class NotEmpty:
+    x = 5
+"""
+        module = cst.parse_module(code)
+        class_def = module.body[0]
+        assert isinstance(class_def, cst.ClassDef)
+
+        assert is_empty_class(class_def) is False
+
+    def test_class_with_init(self) -> None:
+        """Should return False for class with __init__ method."""
+        code = """
+class NotEmpty:
+    def __init__(self):
+        self.x = 5
+"""
+        module = cst.parse_module(code)
+        class_def = module.body[0]
+        assert isinstance(class_def, cst.ClassDef)
+
+        assert is_empty_class(class_def) is False
+
+    def test_class_with_multiple_pass_statements(self) -> None:
+        """Should return True for class with multiple pass statements."""
+        code = """
+class Empty:
+    pass
+    pass
+"""
+        module = cst.parse_module(code)
+        class_def = module.body[0]
+        assert isinstance(class_def, cst.ClassDef)
+
+        assert is_empty_class(class_def) is True
+
+    def test_class_with_docstring_only(self) -> None:
+        """Should return False for class with docstring."""
+        code = """
+class WithDoc:
+    '''This is a docstring'''
+"""
+        module = cst.parse_module(code)
+        class_def = module.body[0]
+        assert isinstance(class_def, cst.ClassDef)
+
+        # Docstrings are expression statements, not pass statements
+        assert is_empty_class(class_def) is False
+
+
+class TestStatementsContainOnlyPass:
+    """Tests for statements_contain_only_pass() function."""
+
+    def test_empty_list(self) -> None:
+        """Should return True for empty list."""
+        assert statements_contain_only_pass([]) is True
+
+    def test_single_pass_statement(self) -> None:
+        """Should return True for list with single pass statement."""
+        code = "pass"
+        module = cst.parse_module(code)
+        stmts = list(module.body)
+
+        assert statements_contain_only_pass(stmts) is True
+
+    def test_multiple_pass_statements(self) -> None:
+        """Should return True for list with multiple pass statements."""
+        code = """
+pass
+pass
+pass
+"""
+        module = cst.parse_module(code)
+        stmts = list(module.body)
+
+        assert statements_contain_only_pass(stmts) is True
+
+    def test_mixed_statements(self) -> None:
+        """Should return False for list with pass and non-pass statements."""
+        code = """
+pass
+x = 5
+pass
+"""
+        module = cst.parse_module(code)
+        stmts = list(module.body)
+
+        assert statements_contain_only_pass(stmts) is False
+
+    def test_single_non_pass_statement(self) -> None:
+        """Should return False for list with single non-pass statement."""
+        code = "x = 5"
+        module = cst.parse_module(code)
+        stmts = list(module.body)
+
+        assert statements_contain_only_pass(stmts) is False
+
+    def test_function_def_statement(self) -> None:
+        """Should return False for list with function definition."""
+        code = """
+def foo():
+    pass
+"""
+        module = cst.parse_module(code)
+        stmts = list(module.body)
+
+        assert statements_contain_only_pass(stmts) is False

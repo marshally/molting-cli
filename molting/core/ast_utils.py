@@ -457,6 +457,9 @@ def is_empty_class(class_def: cst.ClassDef) -> bool:
                 # Check if this line only contains 'pass'
                 if len(stmt.body) == 1 and isinstance(stmt.body[0], cst.Pass):
                     continue
+                else:
+                    # SimpleStatementLine with non-pass content means not empty
+                    return False
             else:
                 # Any other statement means it's not empty
                 return False
