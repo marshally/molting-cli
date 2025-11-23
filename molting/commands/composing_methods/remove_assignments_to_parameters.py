@@ -27,15 +27,10 @@ class RemoveAssignmentsToParametersCommand(BaseCommand):
         """
         target = self.params["target"]
 
-        # Read file
         source_code = self.file_path.read_text()
-
-        # Parse and transform
         module = cst.parse_module(source_code)
         transformer = RemoveAssignmentsToParametersTransformer(target)
         modified_tree = module.visit(transformer)
-
-        # Write back
         self.file_path.write_text(modified_tree.code)
 
 
