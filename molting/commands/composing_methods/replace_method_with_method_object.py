@@ -239,13 +239,29 @@ class ReplaceMethodWithMethodObjectTransformer(cst.CSTTransformer):
         if self.original_method is None:
             return
 
-        # Get method parameters (excluding self)
         params = self._extract_non_self_params(self.original_method)
-
-        # Create class name from method name (capitalize first letter)
         method_object_class_name = self.method_name.capitalize()
 
-        # Create __init__ method
+        init_method = self._create_init_method(params)
+        compute_method = self._create_compute_method()
+        transformed_helpers = self._transform_helper_methods()
+
+        class_body = [init_method, compute_method] + transformed_helpers
+
+        self.method_object_class = cst.ClassDef(
+            name=cst.Name(method_object_class_name),
+            body=cst.IndentedBlock(body=tuple(class_body)),
+        )
+
+    def _create_init_method(self, params: list[cst.Param]) -> cst.FunctionDef:
+        """Create the __init__ method for the method object class.
+
+        Args:
+            params: List of parameters (excluding self) from the original method
+
+        Returns:
+            A FunctionDef for the __init__ method
+        """
         init_params = [cst.Param(name=cst.Name("self")), cst.Param(name=cst.Name("account"))] + [
             cst.Param(name=p.name) for p in params
         ]
@@ -283,36 +299,42 @@ class ReplaceMethodWithMethodObjectTransformer(cst.CSTTransformer):
                 )
             )
 
-        init_method = cst.FunctionDef(
+        return cst.FunctionDef(
             name=cst.Name("__init__"),
             params=cst.Parameters(params=init_params),
             body=cst.IndentedBlock(body=tuple(init_body)),
         )
 
-        # Create compute method - transform the original method body
+    def _create_compute_method(self) -> cst.FunctionDef:
+        """Create the compute method for the method object class.
+
+        Returns:
+            A FunctionDef for the compute method
+        """
+        if self.original_method is None:
+            raise ValueError("Original method is None")
+
         compute_body = self._transform_method_body(self.original_method.body)
-        compute_method = cst.FunctionDef(
+        return cst.FunctionDef(
             name=cst.Name("compute"),
             params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
             body=compute_body,
             leading_lines=[cst.EmptyLine(indent=False, whitespace=cst.SimpleWhitespace(""))],
         )
 
-        # Transform helper methods
+    def _transform_helper_methods(self) -> list[cst.FunctionDef]:
+        """Transform helper methods to add spacing.
+
+        Returns:
+            List of transformed helper methods
+        """
         transformed_helpers = []
         for helper_name, helper_method in self.helper_methods.items():
             transformed_helper = helper_method.with_changes(
                 leading_lines=[cst.EmptyLine(indent=False, whitespace=cst.SimpleWhitespace(""))]
             )
             transformed_helpers.append(transformed_helper)
-
-        # Create class body
-        class_body = [init_method, compute_method] + transformed_helpers
-
-        self.method_object_class = cst.ClassDef(
-            name=cst.Name(method_object_class_name),
-            body=cst.IndentedBlock(body=tuple(class_body)),
-        )
+        return transformed_helpers
 
     def _transform_method_body(self, body: cst.IndentedBlock) -> cst.IndentedBlock:
         """Transform the method body to use self attributes."""
