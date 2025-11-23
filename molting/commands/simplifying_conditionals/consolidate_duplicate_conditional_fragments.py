@@ -154,7 +154,7 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
             else_body = self._get_block_body(if_stmt.orelse.body)
 
         # Find duplicate statements at the end of both branches
-        duplicates = []
+        duplicates: list[cst.BaseStatement] = []
         i = 1
         while i <= len(if_body) and i <= len(else_body):
             if_stmt_at_end = if_body[-i]
