@@ -4,7 +4,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_target
+from molting.core.ast_utils import parse_comma_separated_list, parse_target
 
 
 class FormTemplateMethodCommand(BaseCommand):
@@ -33,11 +33,11 @@ class FormTemplateMethodCommand(BaseCommand):
         template_method_name = self.params["name"]
 
         # Parse targets: "Class1::method,Class2::method"
-        target_specs = targets_str.split(",")
+        target_specs = parse_comma_separated_list(targets_str)
         method_info = []
 
         for spec in target_specs:
-            class_name, method_name = parse_target(spec.strip(), expected_parts=2)
+            class_name, method_name = parse_target(spec, expected_parts=2)
             method_info.append((class_name, method_name))
 
         # Read file

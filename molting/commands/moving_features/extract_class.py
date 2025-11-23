@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import is_assignment_to_field
+from molting.core.ast_utils import is_assignment_to_field, parse_comma_separated_list
 
 
 class ExtractClassCommand(BaseCommand):
@@ -33,8 +33,8 @@ class ExtractClassCommand(BaseCommand):
         methods_str = self.params["methods"]
         new_class_name = self.params["name"]
 
-        fields = [f.strip() for f in fields_str.split(",")]
-        methods = [m.strip() for m in methods_str.split(",")]
+        fields = parse_comma_separated_list(fields_str)
+        methods = parse_comma_separated_list(methods_str)
 
         self.apply_libcst_transform(
             ExtractClassTransformer, source_class, fields, methods, new_class_name
