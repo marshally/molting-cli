@@ -189,11 +189,11 @@ This document outlines a step-by-step plan to refactor common patterns in the mo
 
 ---
 
-### 4. Self-Reference Collection Visitor
+### 4. Self-Reference Collection Visitor ✅ COMPLETED
 **Impact**: Eliminates duplicate visitor classes across commands
 
 **Steps**:
-- [ ] 4.1. Create new file `molting/core/visitors.py` with reusable visitors:
+- [x] 4.1. Create new file `molting/core/visitors.py` with reusable visitors:
   ```python
   """Reusable CST visitor classes."""
 
@@ -225,16 +225,16 @@ This document outlines a step-by-step plan to refactor common patterns in the mo
                   self.collected_fields.append(field_name)
   ```
 
-- [ ] 4.2. Write unit tests in `tests/test_visitors.py`
+- [x] 4.2. Write unit tests in `tests/test_visitors.py`
 
-- [ ] 4.3. Migrate MoveMethodCommand:
-  - [ ] Replace `SelfReferenceCollector` class (lines 248-266)
-  - [ ] Update `_collect_self_references()` to use new visitor
-  - [ ] Remove old class
+- [x] 4.3. Migrate MoveMethodCommand:
+  - [x] Replace `SelfReferenceCollector` class (lines 222-239)
+  - [x] Update `_collect_self_references()` to use new visitor
+  - [x] Remove old class
 
-- [ ] 4.4. Check other commands for similar visitor patterns and migrate
+- [x] 4.4. Check other commands for similar visitor patterns and migrate
 
-- [ ] 4.5. Run tests: `make test`
+- [x] 4.5. Run tests: `make test`
 
 ---
 
