@@ -166,21 +166,25 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
         # Extract then body
         if original_node.body and original_node.body.body:
-            self.then_body = original_node.body.body[0]
-            then_visitor = ParameterCollector(self.function_params)
-            self.then_body.visit(then_visitor)
-            self.then_params = then_visitor.params
-            # Extract assignment target name
-            if not self.assignment_target:
-                self.assignment_target = self._extract_assignment_target(self.then_body)
+            then_stmt = original_node.body.body[0]
+            if isinstance(then_stmt, cst.BaseStatement):
+                self.then_body = then_stmt
+                then_visitor = ParameterCollector(self.function_params)
+                self.then_body.visit(then_visitor)
+                self.then_params = then_visitor.params
+                # Extract assignment target name
+                if not self.assignment_target:
+                    self.assignment_target = self._extract_assignment_target(self.then_body)
 
         # Extract else body
         if original_node.orelse and isinstance(original_node.orelse, cst.Else):
             if original_node.orelse.body and original_node.orelse.body.body:
-                self.else_body = original_node.orelse.body.body[0]
-                else_visitor = ParameterCollector(self.function_params)
-                self.else_body.visit(else_visitor)
-                self.else_params = else_visitor.params
+                else_stmt = original_node.orelse.body.body[0]
+                if isinstance(else_stmt, cst.BaseStatement):
+                    self.else_body = else_stmt
+                    else_visitor = ParameterCollector(self.function_params)
+                    self.else_body.visit(else_visitor)
+                    self.else_params = else_visitor.params
 
         # Create new functions
         self._create_helper_functions()
