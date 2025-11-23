@@ -28,7 +28,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
         <string>${AUTO_MERGE_SCRIPT}</string>
     </array>
     <key>StartInterval</key>
-    <integer>300</integer>
+    <integer>60</integer>
     <key>RunAtLoad</key>
     <true/>
     <key>StandardOutPath</key>
@@ -53,7 +53,7 @@ EOF
     echo ""
     echo "Auto-merge PR job installed successfully!"
     echo ""
-    echo "The script will run every 5 minutes."
+    echo "The script will run every minute."
     echo ""
     echo "Logs are available at:"
     echo "  - Standard output: ~/Library/Logs/auto-merge-prs.log"
@@ -66,7 +66,7 @@ EOF
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     echo "Detected Linux. Using cron for scheduling..."
 
-    CRON_ENTRY="*/5 * * * * $AUTO_MERGE_SCRIPT >> $HOME/auto-merge-prs.log 2>&1"
+    CRON_ENTRY="* * * * * $AUTO_MERGE_SCRIPT >> $HOME/auto-merge-prs.log 2>&1"
 
     # Check if entry already exists
     if crontab -l 2>/dev/null | grep -q "$AUTO_MERGE_SCRIPT"; then
@@ -74,7 +74,7 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     else
         # Add to crontab
         (crontab -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -
-        echo "Added cron job to run every 5 minutes"
+        echo "Added cron job to run every minute"
         echo ""
         echo "Logs are available at: ~/auto-merge-prs.log"
         echo ""
