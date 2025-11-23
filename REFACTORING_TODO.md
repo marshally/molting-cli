@@ -278,11 +278,11 @@ This document outlines a step-by-step plan to refactor common patterns in the mo
 
 ---
 
-### 6. Import Management Utilities
+### 6. Import Management Utilities ✅ COMPLETED
 **Impact**: Makes import handling consistent across commands
 
 **Steps**:
-- [ ] 6.1. Create new file `molting/core/import_utils.py`:
+- [x] 6.1. Create new file `molting/core/import_utils.py`:
   ```python
   """Utilities for managing imports in CST modules."""
 
@@ -321,16 +321,16 @@ This document outlines a step-by-step plan to refactor common patterns in the mo
       """
   ```
 
-- [ ] 6.2. Write unit tests in `tests/test_import_utils.py`
+- [x] 6.2. Write unit tests in `tests/test_import_utils.py` (16 tests)
 
-- [ ] 6.3. Migrate ExtractInterfaceCommand:
-  - [ ] Replace `_protocol_already_imported()` (line 215)
-  - [ ] Replace `_add_typing_import()` (line 187)
-  - [ ] Remove old methods
+- [x] 6.3. Migrate ExtractInterfaceCommand:
+  - [x] Replace `_protocol_already_imported()`
+  - [x] Replace `_add_typing_import()`
+  - [x] Remove old methods (eliminated 52 lines)
 
-- [ ] 6.4. Check other commands for import management logic
+- [x] 6.4. Check other commands for import management logic (no other similar patterns found)
 
-- [ ] 6.5. Run tests: `make test`
+- [x] 6.5. Run tests: `make test`
 
 ---
 
