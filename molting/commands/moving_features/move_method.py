@@ -32,13 +32,7 @@ class MoveMethodCommand(BaseCommand):
         to_class = self.params["to"]
 
         source_class, method_name = parse_target(source, expected_parts=2)
-        source_code = self.file_path.read_text()
-
-        tree = cst.parse_module(source_code)
-        transformer = MoveMethodTransformer(source_class, method_name, to_class)
-        modified_tree = tree.visit(transformer)
-
-        self.file_path.write_text(modified_tree.code)
+        self.apply_libcst_transform(MoveMethodTransformer, source_class, method_name, to_class)
 
 
 class MoveMethodTransformer(cst.CSTTransformer):

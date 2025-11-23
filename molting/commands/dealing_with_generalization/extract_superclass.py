@@ -34,16 +34,8 @@ class ExtractSuperclassCommand(BaseCommand):
         # Parse target classes
         target_classes = [t.strip() for t in targets_str.split(",")]
 
-        # Read file
-        source_code = self.file_path.read_text()
-        module = cst.parse_module(source_code)
-
         # Apply transformation
-        transformer = ExtractSuperclassTransformer(target_classes, superclass_name)
-        modified_tree = module.visit(transformer)
-
-        # Write back
-        self.file_path.write_text(modified_tree.code)
+        self.apply_libcst_transform(ExtractSuperclassTransformer, target_classes, superclass_name)
 
 
 class ExtractSuperclassTransformer(cst.CSTTransformer):
