@@ -264,3 +264,15 @@ def extract_all_methods(
             methods.append(stmt)
 
     return methods
+
+
+def parse_comma_separated_list(value: str) -> list[str]:
+    """Parse comma-separated string into list of trimmed values.
+
+    Args:
+        value: Comma-separated string
+
+    Returns:
+        List of trimmed string values
+    """
+    return [item.strip() for item in value.split(",")]
