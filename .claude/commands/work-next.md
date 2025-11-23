@@ -153,6 +153,11 @@ Then update the issue (call this tool directly, not via bash):
   - issue_id: "{issue_id}"
   - status: "in_progress"
 
+**IMPORTANT**: After updating the issue status, commit ONLY the .beads directory changes separately:
+```bash
+git add .beads && git commit -m "Update issue {issue_id} status to in_progress" && git push
+```
+
 ### STEP 3: RED Stage 🔴
 
 a. Read the test file to find the test for this refactoring:
@@ -321,6 +326,11 @@ Then close the issue (call this tool directly, not via bash):
   - issue_id: "{issue_id}"
   - reason: "Completed with passing tests and CI"
 
+**IMPORTANT**: After closing the issue, commit ONLY the .beads directory changes separately:
+```bash
+git add .beads && git commit -m "Close issue {issue_id}" && git push
+```
+
 ### STEP 7: Final Report (REQUIRED)
 
 YOU MUST PROVIDE THIS FINAL REPORT - THIS IS YOUR DELIVERABLE:
@@ -361,6 +371,7 @@ IMPORTANT NOTES:
 - Your task is NOT complete until you provide the STEP 7 final report
 - If you encounter complex issues, report them - don't get stuck
 - **CRITICAL: All beads MCP tools must be called directly as tool invocations, NOT as bash commands. Always call `mcp__plugin_beads_beads__set_context` first before any other beads operations.**
+- **CRITICAL: Always commit .beads directory changes separately from code changes. NEVER mix .beads files with code in the same commit.**
 
 ---
 
