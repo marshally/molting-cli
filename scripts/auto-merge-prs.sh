@@ -152,30 +152,23 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
             fi
         fi
     elif [ "$mergeable" = "CONFLICTING" ]; then
-        warn "PR #$number has merge conflicts."
+        warn "PR #$number has merge conflicts. Attempting to resolve..."
 
-        # Check if running in interactive terminal
-        if [ -t 0 ]; then
-            log "Interactive terminal detected. Attempting to resolve conflicts..."
+        # Get repository info
+        repo_owner=$(echo "$pr" | jq -r '.headRepositoryOwner.login')
+        repo_name=$(echo "$pr" | jq -r '.headRepository.name')
 
-            # Get repository info
-            repo_owner=$(echo "$pr" | jq -r '.headRepositoryOwner.login')
-            repo_name=$(echo "$pr" | jq -r '.headRepository.name')
-
-            # Call the conflict resolution script
-            if [ -f "$SCRIPT_DIR/resolve-merge-conflicts.sh" ]; then
-                "$SCRIPT_DIR/resolve-merge-conflicts.sh" "$repo_owner" "$repo_name" "$number" "$head_ref"
+        # Call the conflict resolution script
+        if [ -f "$SCRIPT_DIR/resolve-merge-conflicts.sh" ]; then
+            if "$SCRIPT_DIR/resolve-merge-conflicts.sh" "$repo_owner" "$repo_name" "$number" "$head_ref"; then
+                log "Successfully resolved conflicts for PR #$number"
             else
-                error "Conflict resolution script not found: $SCRIPT_DIR/resolve-merge-conflicts.sh"
+                error "Failed to resolve conflicts for PR #$number"
+                # Add a comment to the PR about the failure
+                gh pr comment "$number" --body "⚠️ Automatic conflict resolution failed. Please resolve conflicts manually." 2>/dev/null || true
             fi
         else
-            warn "Running in non-interactive mode (cron/scheduled). Skipping automatic conflict resolution."
-            warn "PR #$number requires manual conflict resolution."
-
-            # Optionally add a comment to the PR
-            if command -v gh &> /dev/null; then
-                gh pr comment "$number" --body "⚠️ This PR has merge conflicts that require manual resolution. The auto-merge script cannot resolve conflicts when running in non-interactive mode (cron job)." 2>/dev/null || true
-            fi
+            error "Conflict resolution script not found: $SCRIPT_DIR/resolve-merge-conflicts.sh"
         fi
     elif [ "$mergeable" = "UNKNOWN" ]; then
         warn "PR #$number mergeable status is still being calculated by GitHub. Will check again next run."
