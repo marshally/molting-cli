@@ -8,8 +8,8 @@ AUTO_MERGE_SCRIPT="$SCRIPT_DIR/auto-merge-prs.sh"
 # Get repository directory (use current directory by default, or first argument)
 REPO_DIR="${1:-$(pwd)}"
 
-# Verify it's a git repository
-if [ ! -d "$REPO_DIR/.git" ]; then
+# Verify it's a git repository (check for .git directory or file for worktrees)
+if [ ! -e "$REPO_DIR/.git" ]; then
     echo "ERROR: $REPO_DIR is not a git repository"
     echo ""
     echo "Usage: $0 [repository_directory]"
