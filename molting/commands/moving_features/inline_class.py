@@ -33,13 +33,7 @@ class InlineClassCommand(BaseCommand):
         source_class = self.params["source_class"]
         target_class = self.params["into"]
 
-        source_code = self.file_path.read_text()
-        module = cst.parse_module(source_code)
-
-        transformer = InlineClassTransformer(source_class, target_class)
-        modified_tree = module.visit(transformer)
-
-        self.file_path.write_text(modified_tree.code)
+        self.apply_libcst_transform(InlineClassTransformer, source_class, target_class)
 
 
 class InlineClassTransformer(cst.CSTTransformer):
