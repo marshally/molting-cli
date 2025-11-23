@@ -72,14 +72,14 @@ class RemoveAssignmentsToParametersTransformer(cst.CSTTransformer):
             ]
         )
 
-        # Transform the function body to replace parameter with result
         body_transformer = ParameterReplacer(self.parameters_to_replace)
-        new_body = updated_node.body.visit(body_transformer)
+        body_with_replaced_params = updated_node.body.visit(body_transformer)
 
-        # Add the result assignment at the beginning
-        final_body = new_body.with_changes(body=(result_assignment,) + new_body.body)
+        body_with_initialization = body_with_replaced_params.with_changes(
+            body=(result_assignment,) + body_with_replaced_params.body
+        )
 
-        return updated_node.with_changes(body=final_body)
+        return updated_node.with_changes(body=body_with_initialization)
 
     def _find_assigned_parameters(self, node: cst.FunctionDef) -> set[str]:
         """Find parameters that are assigned to in the function body.
