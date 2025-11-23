@@ -148,33 +148,60 @@ class SelfEncapsulateFieldTransformer(cst.CSTTransformer):
 
         for stmt in init_method.body.body:
             if isinstance(stmt, cst.SimpleStatementLine):
-                modified = False
-                for body_item in stmt.body:
-                    if isinstance(body_item, cst.Assign):
-                        for target in body_item.targets:
-                            if isinstance(target.target, cst.Attribute):
-                                if (
-                                    isinstance(target.target.value, cst.Name)
-                                    and target.target.value.value == "self"
-                                    and target.target.attr.value == self.field_name
-                                ):
-                                    # Replace with private field name
-                                    new_target = cst.AssignTarget(
-                                        target=cst.Attribute(
-                                            value=cst.Name("self"),
-                                            attr=cst.Name(self.private_field_name),
-                                        )
-                                    )
-                                    new_assign = body_item.with_changes(targets=[new_target])
-                                    new_body.append(stmt.with_changes(body=[new_assign]))
-                                    modified = True
-                                    break
-                if not modified:
-                    new_body.append(stmt)
+                modified_stmt = self._try_rename_field_assignment(stmt)
+                new_body.append(modified_stmt if modified_stmt else stmt)
             else:
                 new_body.append(stmt)
 
         return init_method.with_changes(body=cst.IndentedBlock(body=new_body))
+
+    def _try_rename_field_assignment(
+        self, stmt: cst.SimpleStatementLine
+    ) -> cst.SimpleStatementLine | None:
+        """Try to rename field assignment to use private name.
+
+        Args:
+            stmt: Statement line to check
+
+        Returns:
+            Modified statement if it assigns to target field, None otherwise
+        """
+        for body_item in stmt.body:
+            if isinstance(body_item, cst.Assign):
+                for target in body_item.targets:
+                    if self._is_assignment_to_field(target.target):
+                        new_target = self._create_private_field_target()
+                        new_assign = body_item.with_changes(targets=[new_target])
+                        return stmt.with_changes(body=[new_assign])
+        return None
+
+    def _is_assignment_to_field(self, target: cst.BaseExpression) -> bool:
+        """Check if target is assignment to self.field_name.
+
+        Args:
+            target: Assignment target to check
+
+        Returns:
+            True if target is self.field_name
+        """
+        if not isinstance(target, cst.Attribute):
+            return False
+        if not isinstance(target.value, cst.Name):
+            return False
+        return target.value.value == "self" and target.attr.value == self.field_name
+
+    def _create_private_field_target(self) -> cst.AssignTarget:
+        """Create assignment target for private field.
+
+        Returns:
+            Assignment target for self._field_name
+        """
+        return cst.AssignTarget(
+            target=cst.Attribute(
+                value=cst.Name("self"),
+                attr=cst.Name(self.private_field_name),
+            )
+        )
 
     def _create_property_getter(self) -> cst.FunctionDef:
         """Create property getter method.
