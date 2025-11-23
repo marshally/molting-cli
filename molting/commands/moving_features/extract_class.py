@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import is_assignment_to_field
 
 
 class ExtractClassCommand(BaseCommand):
@@ -150,8 +151,9 @@ class ExtractClassTransformer(cst.CSTTransformer):
                     extracted_param_names.append(param.name.value)
 
         new_body_stmts: list[cst.BaseStatement] = []
+        field_names_set = set(self.fields)
         for stmt in init_method.body.body:
-            if not self._is_assignment_to_extracted_field(cast(cst.BaseStatement, stmt)):
+            if not is_assignment_to_field(cast(cst.BaseStatement, stmt), field_names_set):
                 new_body_stmts.append(cast(cst.BaseStatement, stmt))
 
         delegate_args = [
@@ -177,26 +179,6 @@ class ExtractClassTransformer(cst.CSTTransformer):
         return init_method.with_changes(
             body=cst.IndentedBlock(body=new_body_stmts),
         )
-
-    def _is_assignment_to_extracted_field(self, stmt: cst.BaseStatement) -> bool:
-        """Check if statement is an assignment to a field being extracted.
-
-        Args:
-            stmt: The statement to check
-
-        Returns:
-            True if statement assigns to an extracted field
-        """
-        if isinstance(stmt, cst.SimpleStatementLine):
-            for body_item in stmt.body:
-                if isinstance(body_item, cst.Assign):
-                    for target in body_item.targets:
-                        if isinstance(target.target, cst.Attribute):
-                            if isinstance(target.target.value, cst.Name):
-                                if target.target.value.value == "self":
-                                    if target.target.attr.value in self.fields:
-                                        return True
-        return False
 
     def _create_delegate_method(
         self, method: cst.FunctionDef, delegate_field_name: str
