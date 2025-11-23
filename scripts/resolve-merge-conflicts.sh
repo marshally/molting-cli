@@ -106,40 +106,50 @@ else
     log "Conflicted files:"
     echo "$CONFLICTED_FILES"
 
-    # Create a prompt for Claude
-    CONFLICT_INFO=$(mktemp)
-    cat > "$CONFLICT_INFO" <<EOF
-I need help resolving merge conflicts for PR #${PR_NUMBER}.
+    # Use Claude to resolve each conflicted file
+    log "Using Claude to resolve conflicts..."
 
-The following files have merge conflicts:
-$(echo "$CONFLICTED_FILES" | sed 's/^/  - /')
+    echo "$CONFLICTED_FILES" | while read -r file; do
+        if [ -z "$file" ]; then
+            continue
+        fi
 
-Please resolve these conflicts by:
-1. Reading each conflicted file
-2. Understanding the changes from both branches
-3. Resolving the conflicts appropriately
-4. Staging the resolved files with 'git add'
+        log "Resolving conflicts in: $file"
 
-After resolving all conflicts:
-- Run: git rebase --continue
-- Then commit the resolution
+        # Read the conflicted file
+        CONFLICTED_CONTENT=$(cat "$file")
 
-When you're done, confirm that all conflicts are resolved.
-EOF
+        # Create prompt for Claude
+        PROMPT="This file has git merge conflicts. Please resolve them by choosing the correct code and removing all conflict markers (<<<<<<, ======, >>>>>>).
 
-    log "Invoking Claude to resolve conflicts..."
+File: $file
 
-    # Use Claude in the repo directory
-    # Note: This will open an interactive session
-    if claude "$(cat "$CONFLICT_INFO")"; then
-        log "Claude session completed."
+Conflicted content:
+\`\`\`
+$CONFLICTED_CONTENT
+\`\`\`
 
-        # Check if rebase is still in progress
-        if [ -d ".git/rebase-merge" ] || [ -d ".git/rebase-apply" ]; then
-            error "Rebase is still in progress. Conflicts may not be fully resolved."
+Please output ONLY the resolved file content with all conflicts resolved and conflict markers removed. Do not include any explanations, markdown formatting, or code fences in your response - just the raw resolved file content."
+
+        # Use Claude in non-interactive mode to get resolution
+        RESOLVED_CONTENT=$(claude --print "$PROMPT" 2>/dev/null)
+
+        if [ $? -eq 0 ] && [ -n "$RESOLVED_CONTENT" ]; then
+            # Write resolved content back to file
+            echo "$RESOLVED_CONTENT" > "$file"
+            git add "$file"
+            log "Resolved and staged: $file"
+        else
+            error "Failed to resolve conflicts in: $file"
             git rebase --abort
             exit 1
         fi
+    done
+
+    # Continue the rebase
+    log "Continuing rebase..."
+    if git rebase --continue; then
+        log "Rebase completed successfully"
 
         # Push the changes
         log "Pushing conflict-resolved changes to $HEAD_REF"
@@ -150,12 +160,10 @@ EOF
             exit 1
         fi
     else
-        error "Claude session failed or was cancelled"
+        error "Failed to continue rebase after resolving conflicts"
         git rebase --abort
         exit 1
     fi
-
-    rm -f "$CONFLICT_INFO"
 fi
 
 log "Merge conflict resolution completed for PR #$PR_NUMBER"
