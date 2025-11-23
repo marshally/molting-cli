@@ -20,7 +20,6 @@ class TestMoveMethod(RefactoringTestBase):
         self.refactor("move-method", source="Account::overdraft_charge", to="AccountType")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestMoveField(RefactoringTestBase):
     """Tests for Move Field refactoring."""
 
@@ -68,7 +67,6 @@ class TestHideDelegate(RefactoringTestBase):
         self.refactor("hide-delegate", target="Person::department")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestRemoveMiddleMan(RefactoringTestBase):
     """Tests for Remove Middle Man refactoring."""
 
@@ -79,7 +77,6 @@ class TestRemoveMiddleMan(RefactoringTestBase):
         self.refactor("remove-middle-man", target="Person")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestIntroduceForeignMethod(RefactoringTestBase):
     """Tests for Introduce Foreign Method refactoring."""
 
@@ -95,7 +92,6 @@ class TestIntroduceForeignMethod(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestIntroduceLocalExtension(RefactoringTestBase):
     """Tests for Introduce Local Extension refactoring."""
 

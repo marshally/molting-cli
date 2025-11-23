@@ -18,15 +18,11 @@ class CollapseHierarchyCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing or invalid
         """
-        try:
-            target = self.params["target"]
-            _ = self.params["into"]
-        except KeyError as e:
-            raise ValueError(f"Missing required parameter for collapse-hierarchy: {e}") from e
+        self.validate_required_params("target", "into")
 
         # Validate target class name format
         try:
-            parse_target(target, expected_parts=1)
+            parse_target(self.params["target"], expected_parts=1)
         except ValueError as e:
             raise ValueError(f"Invalid target format for collapse-hierarchy: {e}") from e
 
@@ -42,16 +38,8 @@ class CollapseHierarchyCommand(BaseCommand):
         # Parse target to get class name
         class_name = parse_target(target_class, expected_parts=1)[0]
 
-        # Read file
-        source_code = self.file_path.read_text()
-        module = cst.parse_module(source_code)
-
         # Apply transformation
-        transformer = CollapseHierarchyTransformer(class_name)
-        modified_tree = module.visit(transformer)
-
-        # Write back
-        self.file_path.write_text(modified_tree.code)
+        self.apply_libcst_transform(CollapseHierarchyTransformer, class_name)
 
 
 class CollapseHierarchyTransformer(cst.CSTTransformer):

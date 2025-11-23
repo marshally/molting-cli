@@ -19,11 +19,7 @@ class RenameMethodCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        try:
-            _ = self.params["target"]
-            _ = self.params["new_name"]
-        except KeyError as e:
-            raise ValueError(f"Missing required parameter for rename-method: {e}") from e
+        self.validate_required_params("target", "new_name")
 
     def execute(self) -> None:
         """Apply rename-method refactoring using rope library.

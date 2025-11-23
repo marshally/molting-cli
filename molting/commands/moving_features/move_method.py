@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_target
+from molting.core.ast_utils import find_self_field_assignment, parse_target
 
 
 class MoveMethodCommand(BaseCommand):
@@ -20,11 +20,7 @@ class MoveMethodCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        try:
-            _ = self.params["source"]
-            _ = self.params["to"]
-        except KeyError as e:
-            raise ValueError(f"Missing required parameter for move-method: {e}") from e
+        self.validate_required_params("source", "to")
 
     def execute(self) -> None:
         """Apply move-method refactoring using libCST.
@@ -36,13 +32,7 @@ class MoveMethodCommand(BaseCommand):
         to_class = self.params["to"]
 
         source_class, method_name = parse_target(source, expected_parts=2)
-        source_code = self.file_path.read_text()
-
-        tree = cst.parse_module(source_code)
-        transformer = MoveMethodTransformer(source_class, method_name, to_class)
-        modified_tree = tree.visit(transformer)
-
-        self.file_path.write_text(modified_tree.code)
+        self.apply_libcst_transform(MoveMethodTransformer, source_class, method_name, to_class)
 
 
 class MoveMethodTransformer(cst.CSTTransformer):
@@ -148,28 +138,12 @@ class MoveMethodTransformer(cst.CSTTransformer):
         """
         for stmt in init_method.body.body:
             if isinstance(stmt, cst.SimpleStatementLine):
-                for assignment in stmt.body:
-                    if isinstance(assignment, cst.Assign):
-                        field_name = self._get_self_field_assignment(assignment)
-                        if field_name:
-                            return field_name
-        return None
-
-    def _get_self_field_assignment(self, assignment: cst.Assign) -> str | None:
-        """Get the field name from a self.field = value assignment.
-
-        Args:
-            assignment: The assignment statement
-
-        Returns:
-            The field name if it's a self.field assignment, None otherwise
-        """
-        for target in assignment.targets:
-            if isinstance(target.target, cst.Attribute):
-                attr = target.target
-                if isinstance(attr.value, cst.Name) and attr.value.value == "self":
-                    if isinstance(assignment.value, cst.Name):
-                        return attr.attr.value
+                result = find_self_field_assignment(stmt)
+                if result:
+                    field_name, value = result
+                    # Only return fields that are assigned from a parameter (Name node)
+                    if isinstance(value, cst.Name):
+                        return field_name
         return None
 
     def _create_delegation_method(self, original_method: cst.FunctionDef) -> cst.FunctionDef:

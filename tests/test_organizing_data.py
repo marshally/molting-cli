@@ -22,7 +22,6 @@ class TestSelfEncapsulateField(RefactoringTestBase):
         self.refactor("self-encapsulate-field", target="Range::high")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceDataValueWithObject(RefactoringTestBase):
     """Tests for Replace Data Value with Object refactoring."""
 

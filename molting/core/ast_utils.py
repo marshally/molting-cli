@@ -3,6 +3,8 @@
 import ast
 from typing import Any, List, Optional, Tuple
 
+import libcst as cst
+
 
 def parse_target(target: str, expected_parts: int = 2) -> Tuple[str, ...]:
     """Parse target in 'ClassName::method_name' or 'ClassName::method_name::param' format.
@@ -125,3 +127,79 @@ def create_contact_info_body(param_name: str) -> List[Any]:
     return_stmt = ast.Return(value=ast.Name(id="result", ctx=ast.Load()))
 
     return [result_assign, if_stmt, return_stmt]
+
+
+def extract_init_field_assignments(
+    init_method: cst.FunctionDef,
+) -> dict[str, cst.BaseExpression]:
+    """Extract self.field = value assignments from __init__ method.
+
+    Args:
+        init_method: The __init__ method to analyze
+
+    Returns:
+        Dictionary mapping field names to their assigned values
+    """
+    field_assignments: dict[str, cst.BaseExpression] = {}
+
+    if not isinstance(init_method.body, cst.IndentedBlock):
+        return field_assignments
+
+    for stmt in init_method.body.body:
+        if isinstance(stmt, cst.SimpleStatementLine):
+            result = find_self_field_assignment(stmt)
+            if result:
+                field_name, value = result
+                field_assignments[field_name] = value
+
+    return field_assignments
+
+
+def find_self_field_assignment(
+    stmt: cst.SimpleStatementLine,
+) -> tuple[str, cst.BaseExpression] | None:
+    """Extract (field_name, value) if statement is self.field = value.
+
+    Args:
+        stmt: The statement to check
+
+    Returns:
+        Tuple of (field_name, value) or None if not a self.field assignment
+    """
+    if not isinstance(stmt, cst.SimpleStatementLine):
+        return None
+
+    for item in stmt.body:
+        if isinstance(item, cst.Assign):
+            for target in item.targets:
+                if isinstance(target.target, cst.Attribute):
+                    if (
+                        isinstance(target.target.value, cst.Name)
+                        and target.target.value.value == "self"
+                    ):
+                        field_name = target.target.attr.value
+                        return (field_name, item.value)
+
+    return None
+
+
+def is_assignment_to_field(stmt: cst.BaseStatement, field_names: set[str]) -> bool:
+    """Check if statement assigns to any of the specified fields.
+
+    Args:
+        stmt: The statement to check
+        field_names: Set of field names to check for
+
+    Returns:
+        True if statement assigns to one of the fields
+    """
+    if isinstance(stmt, cst.SimpleStatementLine):
+        for item in stmt.body:
+            if isinstance(item, cst.Assign):
+                for target in item.targets:
+                    if isinstance(target.target, cst.Attribute):
+                        if isinstance(target.target.value, cst.Name):
+                            if target.target.value.value == "self":
+                                if target.target.attr.value in field_names:
+                                    return True
+    return False

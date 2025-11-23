@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import extract_init_field_assignments, find_self_field_assignment
 
 INIT_METHOD_NAME = "__init__"
 
@@ -21,10 +22,7 @@ class InlineClassCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "source_class" not in self.params:
-            raise ValueError("Missing required parameter for inline-class: 'source_class'")
-        if "into" not in self.params:
-            raise ValueError("Missing required parameter for inline-class: 'into'")
+        self.validate_required_params("source_class", "into")
 
     def execute(self) -> None:
         """Apply inline-class refactoring using libCST.
@@ -35,13 +33,7 @@ class InlineClassCommand(BaseCommand):
         source_class = self.params["source_class"]
         target_class = self.params["into"]
 
-        source_code = self.file_path.read_text()
-        module = cst.parse_module(source_code)
-
-        transformer = InlineClassTransformer(source_class, target_class)
-        modified_tree = module.visit(transformer)
-
-        self.file_path.write_text(modified_tree.code)
+        self.apply_libcst_transform(InlineClassTransformer, source_class, target_class)
 
 
 class InlineClassTransformer(cst.CSTTransformer):
@@ -163,32 +155,6 @@ class InlineClassTransformer(cst.CSTTransformer):
                 return value.func.value == self.source_class
         return False
 
-    def _find_self_assignments(
-        self, func_body: cst.IndentedBlock
-    ) -> list[tuple[str, cst.Assign, cst.SimpleStatementLine]]:
-        """Find all self.field assignments in a function body.
-
-        Args:
-            func_body: The function body to search
-
-        Returns:
-            List of tuples (field_name, assignment_node, statement_line)
-        """
-        results: list[tuple[str, cst.Assign, cst.SimpleStatementLine]] = []
-        for stmt in func_body.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                for item in stmt.body:
-                    if isinstance(item, cst.Assign):
-                        for target in item.targets:
-                            if isinstance(target.target, cst.Attribute):
-                                if (
-                                    isinstance(target.target.value, cst.Name)
-                                    and target.target.value.value == "self"
-                                ):
-                                    field_name = target.target.attr.value
-                                    results.append((field_name, item, stmt))
-        return results
-
     def _extract_source_features(self, class_def: cst.ClassDef) -> None:
         """Extract fields and methods from source class.
 
@@ -199,17 +165,7 @@ class InlineClassTransformer(cst.CSTTransformer):
             if isinstance(stmt, cst.FunctionDef):
                 self.source_methods.append(stmt)
                 if stmt.name.value == INIT_METHOD_NAME:
-                    self._extract_fields_from_init(stmt)
-
-    def _extract_fields_from_init(self, init_method: cst.FunctionDef) -> None:
-        """Extract field assignments from __init__ method.
-
-        Args:
-            init_method: The __init__ method
-        """
-        if isinstance(init_method.body, cst.IndentedBlock):
-            for field_name, assignment, _ in self._find_self_assignments(init_method.body):
-                self.source_fields[field_name] = assignment.value
+                    self.source_fields = extract_init_field_assignments(stmt)
 
     def _compute_prefix_from_field(self, field_name: str) -> str:
         """Compute the prefix from a delegation field name.
@@ -239,10 +195,14 @@ class InlineClassTransformer(cst.CSTTransformer):
             if not isinstance(stmt.body, cst.IndentedBlock):
                 continue
 
-            for field_name, assignment, _ in self._find_self_assignments(stmt.body):
-                if self._is_source_class_instantiation(assignment.value):
-                    self.field_prefix = self._compute_prefix_from_field(field_name)
-                    return
+            for body_stmt in stmt.body.body:
+                if isinstance(body_stmt, cst.SimpleStatementLine):
+                    result = find_self_field_assignment(body_stmt)
+                    if result:
+                        field_name, value = result
+                        if self._is_source_class_instantiation(value):
+                            self.field_prefix = self._compute_prefix_from_field(field_name)
+                            return
 
     def _transform_init_method(self, node: cst.FunctionDef) -> cst.FunctionDef:
         """Transform the __init__ method to inline source class fields.
@@ -256,34 +216,32 @@ class InlineClassTransformer(cst.CSTTransformer):
         new_stmts: list[cst.BaseStatement] = []
 
         if isinstance(node.body, cst.IndentedBlock):
-            self_assignments = {
-                stmt: (field_name, assignment)
-                for field_name, assignment, stmt in self._find_self_assignments(node.body)
-            }
-
             for stmt in node.body.body:
-                stmt_line = cast(cst.SimpleStatementLine, stmt)
-                if stmt_line in self_assignments:
-                    _, assignment = self_assignments[stmt_line]
-                    if self._is_source_class_instantiation(assignment.value):
-                        for field_name, field_value in self.source_fields.items():
-                            new_field_name = self.field_prefix + field_name
-                            new_assignment = cst.SimpleStatementLine(
-                                body=[
-                                    cst.Assign(
-                                        targets=[
-                                            cst.AssignTarget(
-                                                cst.Attribute(
-                                                    value=cst.Name("self"),
-                                                    attr=cst.Name(new_field_name),
+                if isinstance(stmt, cst.SimpleStatementLine):
+                    result = find_self_field_assignment(stmt)
+                    if result:
+                        field_name, value = result
+                        if self._is_source_class_instantiation(value):
+                            for field_name, field_value in self.source_fields.items():
+                                new_field_name = self.field_prefix + field_name
+                                new_assignment = cst.SimpleStatementLine(
+                                    body=[
+                                        cst.Assign(
+                                            targets=[
+                                                cst.AssignTarget(
+                                                    cst.Attribute(
+                                                        value=cst.Name("self"),
+                                                        attr=cst.Name(new_field_name),
+                                                    )
                                                 )
-                                            )
-                                        ],
-                                        value=field_value,
-                                    )
-                                ]
-                            )
-                            new_stmts.append(new_assignment)
+                                            ],
+                                            value=field_value,
+                                        )
+                                    ]
+                                )
+                                new_stmts.append(new_assignment)
+                        else:
+                            new_stmts.append(stmt)
                     else:
                         new_stmts.append(stmt)
                 else:
