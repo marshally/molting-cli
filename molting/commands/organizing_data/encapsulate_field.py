@@ -1,11 +1,12 @@
 """Encapsulate Field refactoring command."""
 
-
 import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
+
+INIT_METHOD_NAME = "__init__"
 
 
 class EncapsulateFieldCommand(BaseCommand):
@@ -66,7 +67,7 @@ class EncapsulateFieldTransformer(cst.CSTTransformer):
         # First pass: transform the __init__ method and other methods
         for stmt in updated_node.body.body:
             if isinstance(stmt, cst.FunctionDef):
-                if stmt.name.value == "__init__":
+                if stmt.name.value == INIT_METHOD_NAME:
                     new_body.append(self._transform_init_method(stmt))
                 else:
                     new_body.append(stmt)
