@@ -279,7 +279,7 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
         # employee is an actual field, so we include it
         for param_name in feature_params:
             # Skip boolean flags like is_labor
-            if "is_" in param_name or param_name.startswith("has_"):
+            if self._is_boolean_flag(param_name):
                 continue
             subclass_param_names.append(param_name)
             init_params.append(cst.Param(name=cst.Name(param_name)))
@@ -310,7 +310,7 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
         init_stmts: list[cst.BaseStatement] = [super_call_stmt]
         for param_name in feature_params:
             # Skip boolean flags
-            if "is_" in param_name or param_name.startswith("has_"):
+            if self._is_boolean_flag(param_name):
                 continue
             assignment = cst.SimpleStatementLine(
                 body=[
@@ -388,6 +388,17 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
             new_stmts.append(cst.SimpleStatementLine(body=[cst.Pass()]))
 
         return node.with_changes(body=cst.IndentedBlock(body=new_stmts))
+
+    def _is_boolean_flag(self, param_name: str) -> bool:
+        """Check if a parameter name indicates a boolean flag.
+
+        Args:
+            param_name: Name of the parameter
+
+        Returns:
+            True if parameter is likely a boolean flag
+        """
+        return "is_" in param_name or param_name.startswith("has_")
 
     def _should_skip_param_in_subclass(self, param_name: str) -> bool:
         """Check if a param should be skipped in subclass (will have default value).
