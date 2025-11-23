@@ -80,6 +80,51 @@ class SubstituteAlgorithmTransformer(cst.CSTTransformer):
                     return True
         return False
 
+    def _extract_loop_information(
+        self, node: cst.FunctionDef
+    ) -> tuple[list[cst.SimpleString], str, str] | None:
+        """Extract loop variable, iterable, and candidates from function.
+
+        Args:
+            node: The function definition node
+
+        Returns:
+            Tuple of (candidates, loop_var, param_name) or None if pattern not found
+        """
+        for stmt in node.body.body:
+            if isinstance(stmt, cst.For):
+                loop_var = stmt.target.value if isinstance(stmt.target, cst.Name) else None
+                param_name = stmt.iter.value if isinstance(stmt.iter, cst.Name) else None
+
+                if not loop_var or not param_name:
+                    continue
+
+                candidates = self._extract_candidates(stmt)
+                if candidates:
+                    return candidates, loop_var, param_name
+
+        return None
+
+    def _extract_candidates(self, for_loop: cst.For) -> list[cst.SimpleString]:
+        """Extract candidate values from if statements in a for loop.
+
+        Args:
+            for_loop: The for loop node
+
+        Returns:
+            List of candidate string values
+        """
+        candidates = []
+        for inner_stmt in for_loop.body.body:
+            if isinstance(inner_stmt, cst.If):
+                if isinstance(inner_stmt.test, cst.Comparison):
+                    comp = inner_stmt.test
+                    if len(comp.comparisons) == 1:
+                        target = comp.comparisons[0].comparator
+                        if isinstance(target, cst.SimpleString):
+                            candidates.append(target)
+        return candidates
+
     def _transform_to_cleaner_algorithm(self, node: cst.FunctionDef) -> cst.FunctionDef:
         """Transform the function to use a cleaner algorithm.
 
@@ -89,33 +134,11 @@ class SubstituteAlgorithmTransformer(cst.CSTTransformer):
         Returns:
             Transformed function definition
         """
-        # Find the for loop and extract candidates from it
-        candidates = []
-        loop_var = "person"
-        param_name = "people"
-
-        for stmt in node.body.body:
-            if isinstance(stmt, cst.For):
-                # Get the loop variable name
-                if isinstance(stmt.target, cst.Name):
-                    loop_var = stmt.target.value
-                # Get the iterable name
-                if isinstance(stmt.iter, cst.Name):
-                    param_name = stmt.iter.value
-                # Extract candidates from if statements inside the loop
-                for inner_stmt in stmt.body.body:
-                    if isinstance(inner_stmt, cst.If):
-                        # Extract the candidate value from if person == "Don"
-                        if isinstance(inner_stmt.test, cst.Comparison):
-                            comp = inner_stmt.test
-                            if len(comp.comparisons) == 1:
-                                target = comp.comparisons[0].comparator
-                                if isinstance(target, cst.SimpleString):
-                                    candidates.append(target)
-                break
-
-        if not candidates:
+        loop_info = self._extract_loop_information(node)
+        if not loop_info:
             return node
+
+        candidates, loop_var, param_name = loop_info
 
         # Create new function body
         # candidates = ["Don", "John", "Kent"]
