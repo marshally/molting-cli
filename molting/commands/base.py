@@ -40,7 +40,9 @@ class BaseCommand(ABC):
         """
         missing = [p for p in param_names if p not in self.params]
         if missing:
-            raise ValueError(f"Missing required parameters for {self.name}: {', '.join(missing)}")
+            raise ValueError(
+                f"Missing required parameters for {self.name}: {', '.join(missing)}"
+            )
 
     @abstractmethod
     def validate(self) -> None:

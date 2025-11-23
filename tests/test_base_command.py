@@ -31,7 +31,9 @@ class TestValidateRequiredParams:
 
     def test_all_required_params_present(self) -> None:
         """Should not raise when all required params are present."""
-        cmd = ConcreteCommand(Path("test.py"), foo="value1", bar="value2", baz="value3")
+        cmd = ConcreteCommand(
+            Path("test.py"), foo="value1", bar="value2", baz="value3"
+        )
 
         # Should not raise
         cmd.validate_required_params("foo", "bar")
