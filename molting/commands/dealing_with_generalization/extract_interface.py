@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_comma_separated_list
+from molting.core.import_utils import ensure_import
 
 
 class ExtractInterfaceCommand(BaseCommand):
@@ -56,7 +57,7 @@ class ExtractInterfaceCommand(BaseCommand):
         protocol_class = self._create_protocol_interface(interface_name, methods, method_types)
 
         # Add typing import if not present
-        module = self._add_typing_import(module)
+        module = ensure_import(module, "typing", ["Protocol"])
 
         # Add the protocol at the beginning (after imports)
         new_module = self._insert_protocol(module, protocol_class)
@@ -179,59 +180,6 @@ class ExtractInterfaceCommand(BaseCommand):
         )
 
         return protocol
-
-    def _add_typing_import(self, module: cst.Module) -> cst.Module:
-        """Add 'from typing import Protocol' if not already present.
-
-        Args:
-            module: The module to modify
-
-        Returns:
-            The modified module
-        """
-        # Check if Protocol is already imported from typing
-        if self._protocol_already_imported(module):
-            return module
-
-        # Add the import at the beginning
-        import_stmt = cst.SimpleStatementLine(
-            body=[
-                cst.ImportFrom(
-                    module=cst.Name("typing"),
-                    names=[cst.ImportAlias(name=cst.Name("Protocol"))],
-                )
-            ]
-        )
-
-        # Insert after any existing imports at the top
-        new_body = [import_stmt] + list(module.body)
-
-        return module.with_changes(body=new_body)
-
-    def _protocol_already_imported(self, module: cst.Module) -> bool:
-        """Check if Protocol is already imported from typing.
-
-        Args:
-            module: The module to check
-
-        Returns:
-            True if Protocol is imported from typing, False otherwise
-        """
-        for stmt in module.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                for item in stmt.body:
-                    if isinstance(item, cst.ImportFrom):
-                        if isinstance(item.module, cst.Name):
-                            if item.module.value == "typing":
-                                if isinstance(item.names, cst.ImportStar):
-                                    return True
-                                if isinstance(item.names, (list, tuple)):
-                                    for name in item.names:
-                                        if isinstance(name, cst.ImportAlias):
-                                            if isinstance(name.name, cst.Name):
-                                                if name.name.value == "Protocol":
-                                                    return True
-        return False
 
     def _insert_protocol(self, module: cst.Module, protocol: cst.ClassDef) -> cst.Module:
         """Insert the protocol class into the module.
