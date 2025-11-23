@@ -6,6 +6,7 @@ from typing import Any
 import click
 
 # Import commands to register them
+import molting.commands.composing_methods.extract_function  # noqa: F401
 import molting.commands.composing_methods.extract_method  # noqa: F401
 import molting.commands.dealing_with_generalization.collapse_hierarchy  # noqa: F401
 import molting.commands.dealing_with_generalization.extract_interface  # noqa: F401
