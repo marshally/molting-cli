@@ -15,6 +15,10 @@ from molting.core.ast_utils import (
     find_self_field_assignment,
     is_assignment_to_field,
     parse_comma_separated_list,
+    parse_line_number,
+    parse_line_range,
+    parse_target_with_line,
+    parse_target_with_range,
 )
 
 
@@ -669,3 +673,250 @@ class TestParseCommaSeparatedList:
         result = parse_comma_separated_list("first,second, third,  fourth")
 
         assert result == ["first", "second", "third", "fourth"]
+
+
+class TestParseLineNumber:
+    """Tests for parse_line_number() function."""
+
+    def test_simple_line_number(self) -> None:
+        """Should parse simple line number like L4."""
+        result = parse_line_number("L4")
+
+        assert result == 4
+
+    def test_large_line_number(self) -> None:
+        """Should handle large line numbers."""
+        result = parse_line_number("L100")
+
+        assert result == 100
+
+    def test_line_number_one(self) -> None:
+        """Should handle line number 1."""
+        result = parse_line_number("L1")
+
+        assert result == 1
+
+    def test_missing_prefix(self) -> None:
+        """Should raise ValueError when L prefix is missing."""
+        try:
+            parse_line_number("4")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line format" in str(e)
+            assert "Expected 'L'" in str(e)
+
+    def test_non_numeric(self) -> None:
+        """Should raise ValueError when line number is not numeric."""
+        try:
+            parse_line_number("Labc")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line number" in str(e)
+
+    def test_negative_number(self) -> None:
+        """Should raise ValueError for negative line numbers."""
+        try:
+            parse_line_number("L-5")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line number" in str(e)
+
+    def test_zero_line_number(self) -> None:
+        """Should parse zero (though semantically invalid)."""
+        result = parse_line_number("L0")
+
+        assert result == 0
+
+    def test_lowercase_prefix(self) -> None:
+        """Should raise ValueError for lowercase prefix."""
+        try:
+            parse_line_number("l4")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line format" in str(e)
+
+    def test_empty_string(self) -> None:
+        """Should raise ValueError for empty string."""
+        try:
+            parse_line_number("")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line format" in str(e)
+
+
+class TestParseLineRange:
+    """Tests for parse_line_range() function."""
+
+    def test_simple_line_range(self) -> None:
+        """Should parse simple line range like L9-L11."""
+        result = parse_line_range("L9-L11")
+
+        assert result == (9, 11)
+
+    def test_large_line_range(self) -> None:
+        """Should handle large line ranges."""
+        result = parse_line_range("L1-L100")
+
+        assert result == (1, 100)
+
+    def test_same_line_range(self) -> None:
+        """Should handle range where start equals end."""
+        result = parse_line_range("L5-L5")
+
+        assert result == (5, 5)
+
+    def test_missing_prefix_start(self) -> None:
+        """Should raise ValueError when start line is missing L prefix."""
+        try:
+            parse_line_range("9-L11")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line range format" in str(e)
+
+    def test_missing_separator(self) -> None:
+        """Should raise ValueError when separator is missing."""
+        try:
+            parse_line_range("L9L11")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line range format" in str(e)
+
+    def test_non_numeric_start(self) -> None:
+        """Should raise ValueError when start is not numeric."""
+        try:
+            parse_line_range("Labc-L11")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line numbers" in str(e)
+
+    def test_non_numeric_end(self) -> None:
+        """Should raise ValueError when end is not numeric."""
+        try:
+            parse_line_range("L9-Lxyz")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line numbers" in str(e)
+
+    def test_missing_end_prefix(self) -> None:
+        """Should raise ValueError when end line is missing L prefix."""
+        try:
+            parse_line_range("L9-11")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line range format" in str(e)
+
+    def test_reversed_range(self) -> None:
+        """Should parse reversed range (validation is caller's responsibility)."""
+        result = parse_line_range("L11-L9")
+
+        assert result == (11, 9)
+
+    def test_empty_string(self) -> None:
+        """Should raise ValueError for empty string."""
+        try:
+            parse_line_range("")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line range format" in str(e)
+
+
+class TestParseTargetWithLine:
+    """Tests for parse_target_with_line() function."""
+
+    def test_class_method_with_line(self) -> None:
+        """Should parse ClassName::method#L4 format."""
+        result = parse_target_with_line("ClassName::method_name#L4")
+
+        assert result == ("ClassName", "method_name", "L4")
+
+    def test_function_with_line(self) -> None:
+        """Should parse function_name#L10 format."""
+        result = parse_target_with_line("function_name#L10")
+
+        assert result == ("function_name", "", "L10")
+
+    def test_private_method_with_line(self) -> None:
+        """Should handle private method names."""
+        result = parse_target_with_line("ClassName::_private_method#L5")
+
+        assert result == ("ClassName", "_private_method", "L5")
+
+    def test_missing_separator(self) -> None:
+        """Should raise ValueError when # separator is missing."""
+        try:
+            parse_target_with_line("ClassName::method_nameL4")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid target format" in str(e)
+
+    def test_invalid_line_spec(self) -> None:
+        """Should raise ValueError for invalid line specification."""
+        try:
+            parse_target_with_line("ClassName::method#4")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line format" in str(e)
+
+    def test_empty_method_name(self) -> None:
+        """Should handle empty method name (function-level target)."""
+        result = parse_target_with_line("ClassName#L5")
+
+        assert result == ("ClassName", "", "L5")
+
+    def test_multiple_separators(self) -> None:
+        """Should raise ValueError for multiple # separators."""
+        try:
+            parse_target_with_line("ClassName::method#L4#extra")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid target format" in str(e)
+
+
+class TestParseTargetWithRange:
+    """Tests for parse_target_with_range() function."""
+
+    def test_class_method_with_range(self) -> None:
+        """Should parse ClassName::method#L9-L11 format."""
+        result = parse_target_with_range("ClassName::method_name#L9-L11")
+
+        assert result == ("ClassName", "method_name", 9, 11)
+
+    def test_function_with_range(self) -> None:
+        """Should parse function_name#L1-L100 format."""
+        result = parse_target_with_range("function_name#L1-L100")
+
+        assert result == ("function_name", "", 1, 100)
+
+    def test_private_method_with_range(self) -> None:
+        """Should handle private method names."""
+        result = parse_target_with_range("ClassName::_private#L5-L10")
+
+        assert result == ("ClassName", "_private", 5, 10)
+
+    def test_missing_separator(self) -> None:
+        """Should raise ValueError when # separator is missing."""
+        try:
+            parse_target_with_range("ClassName::methodL9-L11")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid target format" in str(e)
+
+    def test_invalid_line_range(self) -> None:
+        """Should raise ValueError for invalid line range format."""
+        try:
+            parse_target_with_range("ClassName::method#L9")
+            assert False, "Expected ValueError"
+        except ValueError as e:
+            assert "Invalid line range format" in str(e)
+
+    def test_empty_method_name(self) -> None:
+        """Should handle empty method name (function-level target)."""
+        result = parse_target_with_range("ClassName#L1-L5")
+
+        assert result == ("ClassName", "", 1, 5)
+
+    def test_same_line_range(self) -> None:
+        """Should handle range where start equals end."""
+        result = parse_target_with_range("ClassName::method#L5-L5")
+
+        assert result == ("ClassName", "method", 5, 5)
