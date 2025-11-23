@@ -228,6 +228,26 @@ class PushDownFieldTransformer(cst.CSTTransformer):
             body=class_node.body.with_changes(body=tuple(new_body_stmts))
         )
 
+    def _create_field_assignment_statement(self) -> cst.SimpleStatementLine:
+        """Create a field assignment statement.
+
+        Returns:
+            Field assignment statement
+        """
+        field_value = self.field_value if self.field_value else cst.Integer("0")
+        return cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[
+                        cst.AssignTarget(
+                            cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.field_name))
+                        )
+                    ],
+                    value=field_value,
+                )
+            ]
+        )
+
     def _create_init_with_field(self) -> cst.FunctionDef:
         """Create new __init__ method with super call and field assignment.
 
@@ -249,20 +269,7 @@ class PushDownFieldTransformer(cst.CSTTransformer):
             ]
         )
 
-        # Create field assignment
-        field_value = self.field_value if self.field_value else cst.Integer("0")
-        field_assignment = cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[
-                        cst.AssignTarget(
-                            cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.field_name))
-                        )
-                    ],
-                    value=field_value,
-                )
-            ]
-        )
+        field_assignment = self._create_field_assignment_statement()
 
         return cst.FunctionDef(
             name=cst.Name("__init__"),
@@ -282,21 +289,7 @@ class PushDownFieldTransformer(cst.CSTTransformer):
         if not isinstance(init_node.body, cst.IndentedBlock):
             return init_node
 
-        # Add field assignment at the end
-        field_value = self.field_value if self.field_value else cst.Integer("0")
-        field_assignment = cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[
-                        cst.AssignTarget(
-                            cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.field_name))
-                        )
-                    ],
-                    value=field_value,
-                )
-            ]
-        )
-
+        field_assignment = self._create_field_assignment_statement()
         new_stmts = list(init_node.body.body) + [field_assignment]
 
         return init_node.with_changes(body=cst.IndentedBlock(body=new_stmts))
