@@ -11,6 +11,7 @@ import molting.commands.composing_methods.extract_method  # noqa: F401
 import molting.commands.composing_methods.inline_method  # noqa: F401
 import molting.commands.composing_methods.remove_assignments_to_parameters  # noqa: F401
 import molting.commands.composing_methods.replace_method_with_method_object  # noqa: F401
+import molting.commands.composing_methods.substitute_algorithm  # noqa: F401
 import molting.commands.dealing_with_generalization.collapse_hierarchy  # noqa: F401
 import molting.commands.dealing_with_generalization.extract_interface  # noqa: F401
 import molting.commands.dealing_with_generalization.extract_subclass  # noqa: F401
@@ -29,6 +30,7 @@ import molting.commands.moving_features.move_method  # noqa: F401
 import molting.commands.moving_features.remove_middle_man  # noqa: F401
 import molting.commands.organizing_data.replace_data_value_with_object  # noqa: F401
 import molting.commands.simplifying_conditionals.consolidate_duplicate_conditional_fragments  # noqa: F401
+import molting.commands.simplifying_conditionals.remove_control_flag  # noqa: F401
 import molting.commands.simplifying_method_calls.add_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.remove_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.rename_method  # noqa: F401
