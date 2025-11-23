@@ -21,7 +21,6 @@ class TestExtractMethod(RefactoringTestBase):
         self.refactor("extract-method", target="Order::print_owing#L9-L12", name="print_banner")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestExtractFunction(RefactoringTestBase):
     """Tests for Extract Function refactoring."""
 
