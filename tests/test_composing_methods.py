@@ -114,7 +114,6 @@ class TestReplaceMethodWithMethodObject(RefactoringTestBase):
         self.refactor("replace-method-with-method-object", target="Account::gamma")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestSubstituteAlgorithm(RefactoringTestBase):
     """Tests for Substitute Algorithm refactoring."""
 
