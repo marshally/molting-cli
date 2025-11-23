@@ -127,14 +127,13 @@ class InlineMethodTransformer(cst.CSTTransformer):
     ) -> cst.ClassDef:
         """Leave class definition and remove the inlined method."""
         if original_node.name.value == self.class_name:
-            # Remove the method from the class
-            new_body = [
+            statements_without_inlined_method = [
                 stmt
                 for stmt in updated_node.body.body
                 if not (isinstance(stmt, cst.FunctionDef) and stmt.name.value == self.method_name)
             ]
             return updated_node.with_changes(
-                body=updated_node.body.with_changes(body=tuple(new_body))
+                body=updated_node.body.with_changes(body=tuple(statements_without_inlined_method))
             )
         return updated_node
 
