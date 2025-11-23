@@ -89,6 +89,30 @@ def parse_line_range(line_range: str) -> Tuple[int, int]:
     return (start_line, end_line)
 
 
+def _parse_class_method_part(class_method: str) -> Tuple[str, str]:
+    """Parse the class::method portion of a target specification.
+
+    Args:
+        class_method: String in format 'ClassName::method' or 'function'
+
+    Returns:
+        Tuple of (class_or_function_name, method_name)
+        For function-level targets, method_name will be empty string
+
+    Raises:
+        ValueError: If class::method format is invalid
+    """
+    if "::" in class_method:
+        class_parts = class_method.split("::")
+        if len(class_parts) == 2:
+            return (class_parts[0], class_parts[1])
+        else:
+            raise ValueError(f"Invalid class::method format in '{class_method}'")
+    else:
+        # Function-level target
+        return (class_method, "")
+
+
 def parse_target_with_line(target: str) -> Tuple[str, str, str]:
     """Parse target with line number from 'ClassName::method#L4' format.
 
@@ -115,16 +139,9 @@ def parse_target_with_line(target: str) -> Tuple[str, str, str]:
     # Validate line specification
     parse_line_number(line_spec)
 
-    # Parse class and method name (if present)
-    if "::" in class_method:
-        class_parts = class_method.split("::")
-        if len(class_parts) == 2:
-            return (class_parts[0], class_parts[1], line_spec)
-        else:
-            raise ValueError(f"Invalid class::method format in '{class_method}'")
-    else:
-        # Function-level target
-        return (class_method, "", line_spec)
+    # Parse class and method name
+    class_name, method_name = _parse_class_method_part(class_method)
+    return (class_name, method_name, line_spec)
 
 
 def parse_target_with_range(target: str) -> Tuple[str, str, int, int]:
@@ -153,16 +170,9 @@ def parse_target_with_range(target: str) -> Tuple[str, str, int, int]:
     # Parse line range
     start_line, end_line = parse_line_range(line_range_spec)
 
-    # Parse class and method name (if present)
-    if "::" in class_method:
-        class_parts = class_method.split("::")
-        if len(class_parts) == 2:
-            return (class_parts[0], class_parts[1], start_line, end_line)
-        else:
-            raise ValueError(f"Invalid class::method format in '{class_method}'")
-    else:
-        # Function-level target
-        return (class_method, "", start_line, end_line)
+    # Parse class and method name
+    class_name, method_name = _parse_class_method_part(class_method)
+    return (class_name, method_name, start_line, end_line)
 
 
 def find_method_in_tree(tree: Any, method_name: str) -> Optional[Tuple[Any, Any]]:
