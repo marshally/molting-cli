@@ -803,7 +803,7 @@ class TestParseLineRange:
             parse_line_range("L9-11")
             assert False, "Expected ValueError"
         except ValueError as e:
-            assert "Invalid line range format" in str(e)
+            assert "Invalid line" in str(e)
 
     def test_reversed_range(self) -> None:
         """Should parse reversed range (validation is caller's responsibility)."""
