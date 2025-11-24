@@ -304,12 +304,29 @@ NOW CONTINUE TO STEP 6 - DO NOT STOP HERE
 
 ### STEP 6: Create PR and Wait for CI
 
-a. Verify branch is pushed (should already be pushed from previous steps):
+a. Rebase on latest main to ensure branch is up-to-date:
+```bash
+git fetch origin
+git rebase origin/main
+```
+
+If there are merge conflicts:
+- Resolve them carefully
+- Run tests to ensure conflicts were resolved correctly: `pytest`
+- Continue rebase: `git rebase --continue`
+- If conflicts cannot be resolved: STOP and report
+
+After successful rebase, force push:
+```bash
+git push --force-with-lease
+```
+
+b. Verify branch is pushed:
 ```bash
 git push -u origin {issue_id}
 ```
 
-b. Create pull request:
+c. Create pull request:
 ```bash
 gh pr create --title "Implement {refactoring_name} ({issue_id})" --body "$(cat <<'EOF'
 ## Summary
@@ -340,12 +357,12 @@ EOF
 )" --base main
 ```
 
-c. Wait for CI to start, then check status:
+d. Wait for CI to start, then check status:
 ```bash
 sleep 5 && gh pr checks
 ```
 
-d. If any CI checks fail:
+e. If any CI checks fail:
    - Investigate the failure
    - Fix the issue
    - Format, commit, and push the fix:
@@ -358,24 +375,17 @@ sleep 5 && gh pr checks
 ```
    - Repeat until all checks pass
 
-e. Once all CI checks are passing, update the beads issue status to closed IN THE MAIN REPOSITORY.
+f. Once all CI checks are passing, close the issue.
 
-**CRITICAL**: Close the issue in the MAIN repository (not the worktree) so /work-next can see the status change.
-
-First, set the context to the MAIN repository (call this tool directly, not via bash):
-- Use the `mcp__plugin_beads_beads__set_context` tool with workspace_root: `/Users/marshallyount/code/marshally/molting-cli`
-
-Then close the issue (call this tool directly, not via bash):
+Close the issue (call this tool directly, not via bash):
 - Use the `mcp__plugin_beads_beads__close` tool with:
   - issue_id: "{issue_id}"
   - reason: "Completed with passing tests and CI"
 
-Then sync the beads changes to the sync branch:
+Then sync the beads changes:
 ```bash
-cd /Users/marshallyount/code/marshally/molting-cli && bd sync -m "Close issue {issue_id}"
+bd sync -m "Close issue {issue_id}"
 ```
-
-This commits to beads-metadata branch, pulls latest changes, and pushes the close status.
 
 ### STEP 7: Final Report (REQUIRED)
 
@@ -531,12 +541,29 @@ Review the acceptance criteria from the issue description and verify each one is
 
 ### STEP 5: Create PR and Wait for CI
 
-a. Verify branch is pushed (should already be pushed from previous steps):
+a. Rebase on latest main to ensure branch is up-to-date:
+```bash
+git fetch origin
+git rebase origin/main
+```
+
+If there are merge conflicts:
+- Resolve them carefully
+- Run tests to ensure conflicts were resolved correctly: `pytest`
+- Continue rebase: `git rebase --continue`
+- If conflicts cannot be resolved: STOP and report
+
+After successful rebase, force push:
+```bash
+git push --force-with-lease
+```
+
+b. Verify branch is pushed:
 ```bash
 git push -u origin {issue_id}
 ```
 
-b. Create pull request with a clear summary:
+c. Create pull request with a clear summary:
 ```bash
 gh pr create --title "{title} ({issue_id})" --body "$(cat <<'EOF'
 ## Summary
@@ -559,12 +586,12 @@ EOF
 )" --base main
 ```
 
-c. Wait for CI to start, then check status:
+d. Wait for CI to start, then check status:
 ```bash
 sleep 5 && gh pr checks
 ```
 
-d. If any CI checks fail:
+e. If any CI checks fail:
 - Investigate the failure
 - Fix the issue
 - Format, commit, and push the fix:
@@ -577,7 +604,7 @@ sleep 5 && gh pr checks
 ```
 - Repeat until all checks pass
 
-e. Once all CI checks are passing, close the issue.
+f. Once all CI checks are passing, close the issue.
 
 Close the issue (call this tool directly, not via bash):
 - Use the `mcp__plugin_beads_beads__close` tool with:
