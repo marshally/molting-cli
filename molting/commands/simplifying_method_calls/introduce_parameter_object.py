@@ -1,5 +1,7 @@
 """Introduce Parameter Object refactoring command."""
 
+import re
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -276,8 +278,6 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
             The class name in snake_case
         """
         # Insert underscores before uppercase letters (except the first one)
-        import re
-
         snake_case = re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).lower()
         return snake_case
 
