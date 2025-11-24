@@ -282,7 +282,7 @@ class TestMainLoop:
             ["git", "rebase", "origin/main"], check=True, capture_output=False
         )
         assert mock_subprocess.call_args_list[1] == call(
-            ["claude", "--print", "/sync-main"], check=True
+            ["claude", "--dangerously-skip-permissions", "--print", "/sync-main"], check=True
         )
         assert mock_subprocess.call_args_list[2] == call(
             ["git", "rev-parse", "--git-path", "rebase-merge"],
