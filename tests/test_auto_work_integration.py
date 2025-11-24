@@ -129,7 +129,7 @@ echo "0"
 
                 ready, _, _ = select.select([process.stdout], [], [], 0.1)
                 if ready:
-                    line = process.stdout.readline()
+                    line = process.stdout.readline()  # type: ignore[union-attr]
                     all_output.append(line)
                     print(f"Output: {line.rstrip()}")
                     if "START" in line:
@@ -226,7 +226,7 @@ echo "0"
 
                 ready, _, _ = select.select([process.stdout], [], [], 0.1)
                 if ready:
-                    line = process.stdout.readline()
+                    line = process.stdout.readline()  # type: ignore[union-attr]
                     all_output.append(line)
                     print(f"Output: {line.rstrip()}")
                     if "START" in line:

@@ -18,7 +18,7 @@ SLEEP_MINUTES = 5
 running = True
 
 
-def cleanup(signum, frame):
+def cleanup(signum: int, frame: object) -> None:
     """Signal handler for graceful shutdown"""
     global running
     print()
@@ -60,7 +60,7 @@ def get_pr_count() -> int:
         sys.exit(1)
 
 
-def main():
+def main() -> None:
     """Main loop for auto-work script"""
     global running
 
