@@ -123,41 +123,55 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
     def _generate_method_names(self, original_name: str) -> tuple[str, str]:
         """Generate names for the query and modifier methods.
 
+        Supports patterns like "get_and_remove_X" -> ("get_X", "remove_X").
+
         Args:
             original_name: The original method name
 
         Returns:
             Tuple of (query_name, modifier_name)
         """
-        # Parse the original name to extract meaningful parts
-        # For "get_and_remove_intruder" -> "get_intruder", "remove_intruder"
+        # Try to parse "verb1_and_verb2_noun" pattern
         parts = original_name.split("_and_")
         if len(parts) == 2:
-            # "get_and_remove_intruder" splits to ["get", "remove_intruder"]
-            # We want "get_intruder" not just "get"
-            # Extract the noun from the second part
-            modifier_part = parts[1]
-            # Find the noun (everything after the verb)
-            modifier_words = modifier_part.split("_")
-            if len(modifier_words) > 1:
-                # "remove_intruder" -> ["remove", "intruder"]
-                noun = "_".join(modifier_words[1:])
-                query_name = f"{parts[0]}_{noun}"
-                modifier_name = modifier_part
-            else:
-                query_name = parts[0]
-                modifier_name = modifier_part
-        else:
-            # Fallback: use simple pattern
-            if original_name.startswith("get_"):
-                base_name = original_name[4:]
-                query_name = original_name
-                modifier_name = f"modify_{base_name}"
-            else:
-                query_name = f"get_{original_name}"
-                modifier_name = f"modify_{original_name}"
+            return self._extract_names_from_and_pattern(parts[0], parts[1])
 
-        return query_name, modifier_name
+        # Fallback patterns for non-standard names
+        return self._generate_fallback_names(original_name)
+
+    def _extract_names_from_and_pattern(
+        self, query_part: str, modifier_part: str
+    ) -> tuple[str, str]:
+        """Extract method names from 'verb1_and_verb2_noun' pattern.
+
+        Args:
+            query_part: The query verb part (e.g., "get")
+            modifier_part: The modifier part (e.g., "remove_intruder")
+
+        Returns:
+            Tuple of (query_name, modifier_name)
+        """
+        modifier_words = modifier_part.split("_")
+        if len(modifier_words) > 1:
+            noun = "_".join(modifier_words[1:])
+            return f"{query_part}_{noun}", modifier_part
+
+        return query_part, modifier_part
+
+    def _generate_fallback_names(self, original_name: str) -> tuple[str, str]:
+        """Generate fallback names when standard pattern is not found.
+
+        Args:
+            original_name: The original method name
+
+        Returns:
+            Tuple of (query_name, modifier_name)
+        """
+        if original_name.startswith("get_"):
+            base_name = original_name[4:]
+            return original_name, f"modify_{base_name}"
+
+        return f"get_{original_name}", f"modify_{original_name}"
 
     def _create_query_body(self, method: cst.FunctionDef) -> list[cst.BaseStatement]:
         """Create the query method body by removing modifier operations.
