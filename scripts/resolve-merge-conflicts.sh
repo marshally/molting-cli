@@ -76,6 +76,15 @@ cd repo
 git config user.name "Auto-merge Bot"
 git config user.email "auto-merge-bot@example.com"
 
+# Configure beads merge driver for JSONL files
+if command -v bd &> /dev/null; then
+    git config merge.beads.name "bd JSONL merge driver"
+    git config merge.beads.driver "bd merge %A %O %A %B"
+    log "Configured beads merge driver for automatic JSONL conflict resolution"
+else
+    warn "bd CLI not found - beads JSONL conflicts will not be auto-resolved"
+fi
+
 # Fetch the base branch with depth
 log "Fetching base branch: $BASE_REF"
 git fetch origin "$BASE_REF:$BASE_REF" --depth 100
