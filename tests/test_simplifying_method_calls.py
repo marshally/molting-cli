@@ -83,7 +83,6 @@ class TestReplaceParameterWithExplicitMethods(RefactoringTestBase):
         self.refactor("replace-parameter-with-explicit-methods", target="Employee::set_value::name")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestPreserveWholeObject(RefactoringTestBase):
     """Tests for Preserve Whole Object refactoring."""
 
@@ -94,7 +93,6 @@ class TestPreserveWholeObject(RefactoringTestBase):
         self.refactor("preserve-whole-object", target="within_plan")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceParameterWithMethodCall(RefactoringTestBase):
     """Tests for Replace Parameter with Method Call refactoring."""
 

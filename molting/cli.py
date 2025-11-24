@@ -42,6 +42,7 @@ import molting.commands.simplifying_conditionals.replace_nested_conditional_with
 import molting.commands.simplifying_method_calls.add_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.hide_method  # noqa: F401
 import molting.commands.simplifying_method_calls.parameterize_method  # noqa: F401
+import molting.commands.simplifying_method_calls.preserve_whole_object  # noqa: F401
 import molting.commands.simplifying_method_calls.remove_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.remove_setting_method  # noqa: F401
 import molting.commands.simplifying_method_calls.rename_method  # noqa: F401
@@ -49,6 +50,7 @@ import molting.commands.simplifying_method_calls.replace_constructor_with_factor
 import molting.commands.simplifying_method_calls.replace_error_code_with_exception  # noqa: F401
 import molting.commands.simplifying_method_calls.replace_exception_with_test  # noqa: F401
 import molting.commands.simplifying_method_calls.replace_parameter_with_explicit_methods  # noqa: F401
+import molting.commands.simplifying_method_calls.replace_parameter_with_method_call  # noqa: F401
 from molting import __version__
 from molting.commands.registry import apply_refactoring
 
