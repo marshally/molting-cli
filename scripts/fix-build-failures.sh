@@ -76,21 +76,42 @@ cd repo
 git config user.name "Auto-merge Bot"
 git config user.email "auto-merge-bot@example.com"
 
-# Check if poetry is available and install dependencies
-if ! command -v poetry &> /dev/null; then
-    error "Poetry not found. Cannot install dependencies."
-    exit 1
+# Find poetry executable
+POETRY=""
+if command -v poetry &> /dev/null; then
+    POETRY="poetry"
+elif [ -f "$HOME/.local/bin/poetry" ]; then
+    POETRY="$HOME/.local/bin/poetry"
+elif [ -f "/usr/local/bin/poetry" ]; then
+    POETRY="/usr/local/bin/poetry"
+else
+    warn "Poetry not found. Attempting to install poetry..."
+    # Install poetry using the official installer
+    if curl -sSL https://install.python-poetry.org | python3 - 2>&1; then
+        POETRY="$HOME/.local/bin/poetry"
+        if [ ! -f "$POETRY" ]; then
+            error "Poetry installation failed or poetry not found at expected location"
+            exit 1
+        fi
+        log "Poetry installed successfully at $POETRY"
+    else
+        error "Failed to install poetry"
+        exit 1
+    fi
 fi
 
-log "Installing dependencies with poetry..."
-if ! poetry install --no-interaction 2>&1; then
-    error "Failed to install dependencies with poetry"
+log "Using poetry at: $POETRY"
+
+# Install dependencies using poetry
+log "Installing dependencies..."
+if ! $POETRY install --no-interaction 2>&1; then
+    error "Failed to install dependencies"
     exit 1
 fi
 
 # Run format first to fix auto-fixable issues
 log "Running formatting to auto-fix formatting issues..."
-FORMAT_OUTPUT=$(poetry run black . 2>&1 && poetry run ruff check --fix . 2>&1 || true)
+FORMAT_OUTPUT=$($POETRY run black . 2>&1 && $POETRY run ruff check --fix . 2>&1 || true)
 echo "$FORMAT_OUTPUT"
 
 # Check if any files were modified
@@ -109,7 +130,7 @@ fi
 
 # Run typecheck to see if there are type errors
 log "Running type checking..."
-TYPECHECK_OUTPUT=$(poetry run mypy molting/ $(find tests -name "*.py" ! -name "conftest.py" ! -path "*/fixtures/*") 2>&1 || true)
+TYPECHECK_OUTPUT=$($POETRY run mypy molting/ $(find tests -name "*.py" ! -name "conftest.py" ! -path "*/fixtures/*") 2>&1 || true)
 TYPECHECK_EXIT=$?
 
 if [ $TYPECHECK_EXIT -ne 0 ]; then
@@ -153,7 +174,7 @@ fi
 
 # Run tests
 log "Running tests..."
-TEST_OUTPUT=$(poetry run pytest tests/ 2>&1 || true)
+TEST_OUTPUT=$($POETRY run pytest tests/ 2>&1 || true)
 TEST_EXIT=$?
 
 if [ $TEST_EXIT -ne 0 ]; then
