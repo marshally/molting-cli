@@ -38,6 +38,7 @@ import molting.commands.simplifying_conditionals.remove_control_flag  # noqa: F4
 import molting.commands.simplifying_conditionals.replace_nested_conditional_with_guard_clauses  # noqa: F401
 import molting.commands.simplifying_method_calls.add_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.remove_parameter  # noqa: F401
+import molting.commands.simplifying_method_calls.remove_setting_method  # noqa: F401
 import molting.commands.simplifying_method_calls.rename_method  # noqa: F401
 from molting import __version__
 from molting.commands.registry import apply_refactoring
