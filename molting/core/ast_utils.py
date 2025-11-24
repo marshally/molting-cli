@@ -545,3 +545,74 @@ def is_self_field_assignment(
             return True
 
     return False
+
+
+def find_insert_position_after_imports(module: cst.Module) -> int:
+    """
+    Find the index position after all import statements in a module.
+
+    Args:
+        module: The CST module to analyze
+
+    Returns:
+        Index position after the last import statement (0 if no imports)
+    """
+    insert_pos = 0
+
+    for i, stmt in enumerate(module.body):
+        # Check if this is an import statement
+        if isinstance(stmt, cst.SimpleStatementLine):
+            # Check if any item in the statement is an import
+            has_import = False
+            for item in stmt.body:
+                if isinstance(item, (cst.Import, cst.ImportFrom)):
+                    has_import = True
+                    break
+
+            if has_import:
+                insert_pos = i + 1
+        elif isinstance(stmt, cst.EmptyLine):
+            # Skip empty lines, they don't affect position
+            continue
+        else:
+            # Hit a non-import statement, stop looking
+            break
+
+    return insert_pos
+
+
+def insert_class_after_imports(
+    module: cst.Module,
+    class_def: cst.ClassDef,
+    blank_lines_before: int = 2,
+    blank_lines_after: int = 1,
+) -> cst.Module:
+    """
+    Insert a class definition after all import statements in a module.
+
+    Args:
+        module: The module to insert into
+        class_def: The class definition to insert
+        blank_lines_before: Number of blank lines before the class (default: 2)
+        blank_lines_after: Number of blank lines after the class (default: 1)
+
+    Returns:
+        Modified module with the class inserted
+    """
+    # Find insertion position
+    insert_pos = find_insert_position_after_imports(module)
+
+    # Create blank lines
+    blank_lines = [cst.EmptyLine() for _ in range(blank_lines_before)]
+    blank_lines_after_list = [cst.EmptyLine() for _ in range(blank_lines_after)]
+
+    # Insert the class with blank lines
+    new_body = (
+        list(module.body[:insert_pos])
+        + blank_lines
+        + [class_def]
+        + blank_lines_after_list
+        + list(module.body[insert_pos:])
+    )
+
+    return module.with_changes(body=new_body)
