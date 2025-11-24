@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_target
+from molting.core.ast_utils import find_class_in_module, parse_target
 
 INIT_METHOD_NAME = "__init__"
 
@@ -78,8 +78,9 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
             cast(cst.BaseStatement, cst.EmptyLine()),
         ]
 
+        target_class = find_class_in_module(updated_node, self.class_name)
         for stmt in updated_node.body:
-            if isinstance(stmt, cst.ClassDef) and stmt.name.value == self.class_name:
+            if stmt is target_class and isinstance(stmt, cst.ClassDef):
                 modified_statements.append(self._modify_class(stmt))
             else:
                 modified_statements.append(stmt)
