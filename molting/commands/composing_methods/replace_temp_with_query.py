@@ -56,7 +56,28 @@ class ReplaceTempWithQueryTransformer(cst.CSTTransformer):
         self.method_name = method_name
         self.variable_name = variable_name
         self.temp_expression: cst.BaseExpression | None = None
-        self.new_method: cst.FunctionDef | None = None
+
+    def _is_target_variable_assignment(self, stmt: cst.BaseStatement) -> bool:
+        """Check if statement assigns to the target variable.
+
+        Args:
+            stmt: Statement to check
+
+        Returns:
+            True if statement assigns to the target variable
+        """
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return False
+
+        for inner_stmt in stmt.body:
+            if isinstance(inner_stmt, cst.Assign):
+                for target in inner_stmt.targets:
+                    if (
+                        isinstance(target.target, cst.Name)
+                        and target.target.value == self.variable_name
+                    ):
+                        return True
+        return False
 
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
@@ -67,16 +88,12 @@ class ReplaceTempWithQueryTransformer(cst.CSTTransformer):
 
         # First pass: find the temp variable assignment and extract its expression
         for stmt in updated_node.body.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                for inner_stmt in stmt.body:
+            if self._is_target_variable_assignment(stmt):
+                # Extract the expression from the assignment
+                for inner_stmt in stmt.body:  # type: ignore[attr-defined]
                     if isinstance(inner_stmt, cst.Assign):
-                        for target in inner_stmt.targets:
-                            if (
-                                isinstance(target.target, cst.Name)
-                                and target.target.value == self.variable_name
-                            ):
-                                self.temp_expression = inner_stmt.value
-                                break
+                        self.temp_expression = inner_stmt.value
+                        break
 
         if self.temp_expression is None:
             return updated_node
@@ -84,21 +101,8 @@ class ReplaceTempWithQueryTransformer(cst.CSTTransformer):
         # Second pass: remove the assignment and replace variable usage
         new_body: list[cst.BaseStatement] = []
         for stmt in updated_node.body.body:
-            # Check if this statement is the temp variable assignment
-            is_assignment = False
-            if isinstance(stmt, cst.SimpleStatementLine):
-                for inner_stmt in stmt.body:
-                    if isinstance(inner_stmt, cst.Assign):
-                        for target in inner_stmt.targets:
-                            if (
-                                isinstance(target.target, cst.Name)
-                                and target.target.value == self.variable_name
-                            ):
-                                is_assignment = True
-                                break
-
             # Skip the assignment statement
-            if is_assignment:
+            if self._is_target_variable_assignment(stmt):
                 continue
 
             # Replace variable references with method calls
