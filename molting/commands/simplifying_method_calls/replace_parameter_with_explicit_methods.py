@@ -147,7 +147,11 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
         ):
             return None
 
-        return condition.comparators[0].value
+        value = condition.comparators[0].value
+        if not isinstance(value, str):
+            return None
+
+        return value
 
     def _create_explicit_method(
         self,
