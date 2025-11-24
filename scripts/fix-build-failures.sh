@@ -116,7 +116,7 @@ if [ $INSTALL_EXIT -ne 0 ] || echo "$INSTALL_OUTPUT" | grep -q "poetry.lock.*las
     if echo "$INSTALL_OUTPUT" | grep -q "poetry.lock.*last generated\|changed significantly\|not consistent"; then
         warn "poetry.lock is out of sync with pyproject.toml. Regenerating lock file..."
 
-        if ! $POETRY lock --no-interaction --no-update 2>&1; then
+        if ! $POETRY lock --no-interaction 2>&1; then
             error "Failed to regenerate poetry.lock"
             exit 1
         fi
