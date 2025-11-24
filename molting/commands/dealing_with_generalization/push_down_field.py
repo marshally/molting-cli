@@ -12,6 +12,7 @@ from molting.core.ast_utils import (
     parse_target,
     statements_contain_only_pass,
 )
+from molting.core.code_generation_utils import create_parameter
 
 
 class PushDownFieldCommand(BaseCommand):
@@ -265,7 +266,7 @@ class PushDownFieldTransformer(cst.CSTTransformer):
 
         return cst.FunctionDef(
             name=cst.Name("__init__"),
-            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
+            params=cst.Parameters(params=[create_parameter("self")]),
             body=cst.IndentedBlock(body=[super_call, field_assignment]),
         )
 
