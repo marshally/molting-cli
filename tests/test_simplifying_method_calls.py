@@ -164,7 +164,6 @@ class TestReplaceErrorCodeWithException(RefactoringTestBase):
         self.refactor("replace-error-code-with-exception", target="withdraw")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceExceptionWithTest(RefactoringTestBase):
     """Tests for Replace Exception with Test refactoring."""
 
