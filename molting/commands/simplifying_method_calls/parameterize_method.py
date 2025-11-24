@@ -125,6 +125,10 @@ class ParameterizeMethodCommand(BaseCommand):
 
         # Convert 1.05 to 5, 1.10 to 10
         multiplier = stmt.value.value
+        if not isinstance(multiplier, (int, float)):
+            raise ValueError(
+                f"Method '{method_node.name}' has non-numeric multiplier: {type(multiplier)}"
+            )
         percentage = int((multiplier - 1) * 100)
         return percentage
 
