@@ -42,6 +42,27 @@ class RemoveSettingMethodCommand(BaseCommand):
                 return node
         raise ValueError(f"Class '{class_name}' not found in {self.file_path}")
 
+    def _find_setter_method_index(
+        self, class_node: ast.ClassDef, setter_name: str, class_name: str
+    ) -> int:
+        """Find the index of a setter method in a class.
+
+        Args:
+            class_node: The class definition node
+            setter_name: The name of the setter method
+            class_name: The name of the class (for error messages)
+
+        Returns:
+            The index of the setter method in the class body
+
+        Raises:
+            ValueError: If setter method is not found
+        """
+        for i, item in enumerate(class_node.body):
+            if isinstance(item, ast.FunctionDef) and item.name == setter_name:
+                return i
+        raise ValueError(f"Setter method '{setter_name}' not found in class '{class_name}'")
+
     def validate(self) -> None:
         """Validate that required parameters are present.
 
@@ -73,18 +94,7 @@ class RemoveSettingMethodCommand(BaseCommand):
                 ValueError: If class or setter method not found
             """
             class_node = self._find_class_in_tree(tree, class_name)
-
-            # Find and remove the setter method
-            method_index = None
-            for i, item in enumerate(class_node.body):
-                if isinstance(item, ast.FunctionDef) and item.name == setter_name:
-                    method_index = i
-                    break
-
-            if method_index is None:
-                raise ValueError(f"Setter method '{setter_name}' not found in class '{class_name}'")
-
-            # Remove the setter method
+            method_index = self._find_setter_method_index(class_node, setter_name, class_name)
             class_node.body.pop(method_index)
 
             return tree
