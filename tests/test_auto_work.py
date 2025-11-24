@@ -26,15 +26,25 @@ class TestCleanup:
     def test_cleanup_sets_running_to_false(self) -> None:
         """cleanup() should set running flag to False"""
         auto_work.running = True  # type: ignore[attr-defined]
+        auto_work.shutdown_requested = False  # type: ignore[attr-defined]
         auto_work.cleanup(signal.SIGINT, None)
         assert auto_work.running is False  # type: ignore[attr-defined]
 
     def test_cleanup_prints_shutdown_message(self, capsys: Any) -> None:
         """cleanup() should print shutdown message"""
         auto_work.running = True  # type: ignore[attr-defined]
+        auto_work.shutdown_requested = False  # type: ignore[attr-defined]
         auto_work.cleanup(signal.SIGINT, None)
         captured = capsys.readouterr()
         assert "🛑 Received shutdown signal, stopping gracefully..." in captured.out
+
+    def test_cleanup_force_quits_on_second_signal(self) -> None:
+        """cleanup() should force quit on second ^C"""
+        auto_work.running = False  # type: ignore[attr-defined]
+        auto_work.shutdown_requested = True  # type: ignore[attr-defined]
+        with pytest.raises(SystemExit) as exc_info:
+            auto_work.cleanup(signal.SIGINT, None)
+        assert exc_info.value.code == 130
 
 
 class TestRunCommand:
