@@ -37,7 +37,7 @@ class RemoveSettingMethodCommand(BaseCommand):
         Raises:
             ValueError: If class is not found
         """
-        for node in ast.walk(tree):
+        for node in tree.body:
             if isinstance(node, ast.ClassDef) and node.name == class_name:
                 return node
         raise ValueError(f"Class '{class_name}' not found in {self.file_path}")
