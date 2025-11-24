@@ -8,7 +8,11 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import is_pass_statement
-from molting.core.code_generation_utils import create_parameter
+from molting.core.code_generation_utils import (
+    create_field_assignment,
+    create_init_method,
+    create_parameter,
+)
 
 
 class MoveFieldCommand(BaseCommand):
@@ -171,18 +175,8 @@ class MoveFieldTransformer(cst.CSTTransformer):
         Uses the field's original value if available, otherwise defaults to 0.05
         (matching the test fixture's interest_rate default).
         """
-        return cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[
-                        cst.AssignTarget(
-                            cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.field_name))
-                        )
-                    ],
-                    value=self.field_value if self.field_value else cst.Float("0.05"),
-                )
-            ]
-        )
+        field_value = self.field_value if self.field_value else cst.Float("0.05")
+        return create_field_assignment(self.field_name, field_value)
 
     def _transform_target_class(self, node: cst.ClassDef) -> cst.ClassDef:
         """Transform the target class to add the field."""
@@ -220,10 +214,10 @@ class MoveFieldTransformer(cst.CSTTransformer):
 
     def _create_init_with_field(self) -> cst.FunctionDef:
         """Create a new __init__ method with the field."""
-        return cst.FunctionDef(
-            name=cst.Name("__init__"),
-            params=cst.Parameters(params=[create_parameter("self")]),
-            body=cst.IndentedBlock(body=[self._create_field_assignment()]),
+        field_value = self.field_value if self.field_value else cst.Float("0.05")
+        return create_init_method(
+            params=[],
+            field_assignments={self.field_name: field_value},
         )
 
 
