@@ -76,19 +76,21 @@ cd repo
 git config user.name "Auto-merge Bot"
 git config user.email "auto-merge-bot@example.com"
 
-# Check if poetry is available
-if command -v poetry &> /dev/null; then
-    log "Installing dependencies with poetry..."
-    if ! poetry install --no-interaction 2>&1 | tee /tmp/install.log; then
-        warn "Poetry install had warnings, continuing..."
-    fi
-else
-    warn "Poetry not found, skipping dependency installation"
+# Check if poetry is available and install dependencies
+if ! command -v poetry &> /dev/null; then
+    error "Poetry not found. Cannot install dependencies."
+    exit 1
+fi
+
+log "Installing dependencies with poetry..."
+if ! poetry install --no-interaction 2>&1; then
+    error "Failed to install dependencies with poetry"
+    exit 1
 fi
 
 # Run format first to fix auto-fixable issues
-log "Running make format to auto-fix formatting issues..."
-FORMAT_OUTPUT=$(make format 2>&1 || true)
+log "Running formatting to auto-fix formatting issues..."
+FORMAT_OUTPUT=$(poetry run black . 2>&1 && poetry run ruff check --fix . 2>&1 || true)
 echo "$FORMAT_OUTPUT"
 
 # Check if any files were modified
@@ -106,8 +108,8 @@ else
 fi
 
 # Run typecheck to see if there are type errors
-log "Running make typecheck to check for type errors..."
-TYPECHECK_OUTPUT=$(make typecheck 2>&1 || true)
+log "Running type checking..."
+TYPECHECK_OUTPUT=$(poetry run mypy molting/ $(find tests -name "*.py" ! -name "conftest.py" ! -path "*/fixtures/*") 2>&1 || true)
 TYPECHECK_EXIT=$?
 
 if [ $TYPECHECK_EXIT -ne 0 ]; then
@@ -129,7 +131,7 @@ Please fix all type checking errors. Use the Read tool to read the files that ha
 3. Import necessary types from typing module
 4. Ensure all fixes are minimal and focused
 
-After making all fixes, run 'make typecheck' to verify the errors are resolved."
+After making all fixes, run 'poetry run mypy molting/' to verify the errors are resolved."
 
     log "Invoking Claude to fix type errors..."
     if "$CLAUDE_CLI" --print "$PROMPT" > /dev/null 2>&1; then
@@ -150,8 +152,8 @@ Automatically fixed by auto-merge bot with Claude assistance" || true
 fi
 
 # Run tests
-log "Running make test to check for test failures..."
-TEST_OUTPUT=$(make test 2>&1 || true)
+log "Running tests..."
+TEST_OUTPUT=$(poetry run pytest tests/ 2>&1 || true)
 TEST_EXIT=$?
 
 if [ $TEST_EXIT -ne 0 ]; then
@@ -173,7 +175,7 @@ Please fix all test failures. Use the Read tool to read the test files and imple
 3. Ensure all fixes are minimal and focused
 4. Don't skip tests - fix the underlying issues
 
-After making all fixes, run 'make test' to verify the tests pass."
+After making all fixes, run 'poetry run pytest tests/' to verify the tests pass."
 
     log "Invoking Claude to fix test failures..."
     if "$CLAUDE_CLI" --print "$PROMPT" > /dev/null 2>&1; then
