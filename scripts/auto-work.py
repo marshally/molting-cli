@@ -16,13 +16,24 @@ SLEEP_MINUTES = 5
 
 # Flag for graceful shutdown
 running = True
+shutdown_requested = False
 
 
 def cleanup(signum: int, frame: object) -> None:
-    """Signal handler for graceful shutdown"""
-    global running
+    """Signal handler for graceful shutdown on first ^C, force quit on second"""
+    global running, shutdown_requested
+
+    if shutdown_requested:
+        # Second ^C - force quit immediately
+        print()
+        print("🚨 Second interrupt received, forcing immediate exit...")
+        sys.exit(130)  # Standard exit code for SIGINT
+
+    # First ^C - graceful shutdown
     print()
     print("🛑 Received shutdown signal, stopping gracefully...")
+    print("   Press Ctrl+C again to force quit immediately")
+    shutdown_requested = True
     running = False
 
 
