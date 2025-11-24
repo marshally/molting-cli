@@ -85,6 +85,27 @@ class ParameterizeMethodCommand(BaseCommand):
 
         self.apply_ast_transform(transform)
 
+    def _get_augmented_assignment(self, method_node: ast.FunctionDef) -> ast.AugAssign:
+        """Get the augmented assignment statement from a method.
+
+        Args:
+            method_node: The method node
+
+        Returns:
+            The augmented assignment statement
+
+        Raises:
+            ValueError: If the method doesn't have the expected structure
+        """
+        if not method_node.body or len(method_node.body) != 1:
+            raise ValueError(f"Method '{method_node.name}' has unexpected structure")
+
+        stmt = method_node.body[0]
+        if not isinstance(stmt, ast.AugAssign):
+            raise ValueError(f"Method '{method_node.name}' doesn't have expected assignment")
+
+        return stmt
+
     def _extract_percentage(self, method_node: ast.FunctionDef) -> int:
         """Extract the percentage value from a method like five_percent_raise.
 
@@ -97,12 +118,7 @@ class ParameterizeMethodCommand(BaseCommand):
         Raises:
             ValueError: If the method doesn't have the expected structure
         """
-        if not method_node.body or len(method_node.body) != 1:
-            raise ValueError(f"Method '{method_node.name}' has unexpected structure")
-
-        stmt = method_node.body[0]
-        if not isinstance(stmt, ast.AugAssign):
-            raise ValueError(f"Method '{method_node.name}' doesn't have expected assignment")
+        stmt = self._get_augmented_assignment(method_node)
 
         if not isinstance(stmt.value, ast.Constant):
             raise ValueError(f"Method '{method_node.name}' doesn't have expected constant")
@@ -124,12 +140,7 @@ class ParameterizeMethodCommand(BaseCommand):
         Raises:
             ValueError: If the method doesn't have the expected structure
         """
-        if not method_node.body or len(method_node.body) != 1:
-            raise ValueError(f"Method '{method_node.name}' has unexpected structure")
-
-        stmt = method_node.body[0]
-        if not isinstance(stmt, ast.AugAssign):
-            raise ValueError(f"Method '{method_node.name}' doesn't have expected assignment")
+        stmt = self._get_augmented_assignment(method_node)
 
         if not isinstance(stmt.target, ast.Attribute):
             raise ValueError(f"Method '{method_node.name}' doesn't modify an attribute")
