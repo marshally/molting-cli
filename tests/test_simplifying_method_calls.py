@@ -104,7 +104,6 @@ class TestReplaceParameterWithMethodCall(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestIntroduceParameterObject(RefactoringTestBase):
     """Tests for Introduce Parameter Object refactoring."""
 
