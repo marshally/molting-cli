@@ -135,7 +135,6 @@ class TestRemoveSettingMethod(RefactoringTestBase):
         self.refactor("remove-setting-method", target="Account::_id")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestHideMethod(RefactoringTestBase):
     """Tests for Hide Method refactoring."""
 
@@ -156,7 +155,6 @@ class TestReplaceConstructorWithFactoryFunction(RefactoringTestBase):
         self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceErrorCodeWithException(RefactoringTestBase):
     """Tests for Replace Error Code with Exception refactoring."""
 
