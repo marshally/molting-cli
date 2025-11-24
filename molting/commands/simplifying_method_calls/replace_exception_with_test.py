@@ -26,8 +26,7 @@ class ReplaceExceptionWithTestCommand(BaseCommand):
         Raises:
             ValueError: If function not found
         """
-        target = self.params["target"]
-        function_name = target
+        function_name = self.params["target"]
 
         # Read file
         source_code = self.file_path.read_text()
