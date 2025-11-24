@@ -7,7 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_comma_separated_list
-from molting.core.code_generation_utils import create_parameter
+from molting.core.code_generation_utils import create_init_method, create_parameter
 from molting.core.visitors import SelfFieldChecker
 
 
@@ -242,7 +242,6 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
         # The subclass needs:
         # 1. Non-feature params that will be passed to super (except those with defaults)
         # 2. Feature params that are actual fields (not boolean flags)
-        init_params = [create_parameter("self")]
 
         # Determine which params the subclass should take
         # We need to figure out which non-feature params to include and which to give defaults
@@ -254,17 +253,19 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
             if self._should_skip_param_in_subclass(param_name):
                 continue
             subclass_param_names.append(param_name)
-            init_params.append(create_parameter(param_name))
 
         # Add only non-boolean feature parameters (actual fields, not flags)
         # is_labor is a boolean flag indicating type, so we skip it
         # employee is an actual field, so we include it
+        feature_field_names = []
         for param_name in feature_params:
             # Skip boolean flags like is_labor
             if self._is_boolean_flag(param_name):
                 continue
-            subclass_param_names.append(param_name)
-            init_params.append(create_parameter(param_name))
+            feature_field_names.append(param_name)
+
+        # All params for the subclass __init__
+        all_param_names = subclass_param_names + feature_field_names
 
         # Create super().__init__() call with non-feature params
         super_args = []
@@ -275,43 +276,14 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
                 # Provide default value
                 super_args.append(cst.Arg(value=cst.Integer("0")))
 
-        super_call_stmt = cst.SimpleStatementLine(
-            body=[
-                cst.Expr(
-                    value=cst.Call(
-                        func=cst.Attribute(
-                            value=cst.Call(func=cst.Name("super")), attr=cst.Name("__init__")
-                        ),
-                        args=super_args,
-                    )
-                )
-            ]
-        )
+        # Create field assignments dict for feature fields
+        # (create_init_method will auto-create self.param = param for each param)
+        field_assignments = {field: cst.Name(field) for field in feature_field_names}
 
-        # Create feature assignments (only for non-boolean features)
-        init_stmts: list[cst.BaseStatement] = [super_call_stmt]
-        for param_name in feature_params:
-            # Skip boolean flags
-            if self._is_boolean_flag(param_name):
-                continue
-            assignment = cst.SimpleStatementLine(
-                body=[
-                    cst.Assign(
-                        targets=[
-                            cst.AssignTarget(
-                                cst.Attribute(value=cst.Name("self"), attr=cst.Name(param_name))
-                            )
-                        ],
-                        value=cst.Name(param_name),
-                    )
-                ]
-            )
-            init_stmts.append(assignment)
-
-        init_method = cst.FunctionDef(
-            name=cst.Name("__init__"),
-            params=cst.Parameters(params=init_params),
-            body=cst.IndentedBlock(body=init_stmts),
+        init_method = create_init_method(
+            params=all_param_names,
+            field_assignments=field_assignments,
+            super_call_args=super_args,
         )
 
         # Create methods for subclass - override methods that use features
