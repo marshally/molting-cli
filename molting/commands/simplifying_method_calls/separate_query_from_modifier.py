@@ -65,7 +65,7 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
             query_method, modifier_method = self._create_separated_methods(self.target_method)
 
             # Replace the original method with both new methods
-            new_body = []
+            new_body: list[cst.BaseStatement | cst.BaseSmallStatement] = []
             for stmt in updated_node.body.body:
                 if isinstance(stmt, cst.FunctionDef) and stmt.name.value == self.method_name:
                     new_body.append(query_method)
@@ -313,7 +313,7 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         if not isinstance(block, cst.IndentedBlock):
             return []
 
-        result = []
+        result: list[cst.BaseStatement] = []
         for stmt in block.body:
             # Skip pure modifiers
             if self._is_pure_modifier(stmt):
@@ -367,7 +367,7 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         if not isinstance(block, cst.IndentedBlock):
             return []
 
-        result = []
+        result: list[cst.BaseStatement] = []
         for stmt in block.body:
             if self._is_pure_modifier(stmt):
                 result.append(stmt)
