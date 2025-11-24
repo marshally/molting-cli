@@ -104,23 +104,31 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
 
         for stmt in method_node.body:
             if isinstance(stmt, ast.If):
-                # Check the condition
-                value = self._extract_value_from_condition(stmt.test, param_name)
-                if value:
-                    values.append(value)
-
-                # Check elif branches
-                current = stmt
-                while current.orelse:
-                    if len(current.orelse) == 1 and isinstance(current.orelse[0], ast.If):
-                        current = current.orelse[0]
-                        value = self._extract_value_from_condition(current.test, param_name)
-                        if value:
-                            values.append(value)
-                    else:
-                        break
+                for if_node in self._iterate_if_chain(stmt):
+                    value = self._extract_value_from_condition(if_node.test, param_name)
+                    if value:
+                        values.append(value)
 
         return values
+
+    def _iterate_if_chain(self, if_stmt: ast.If) -> list[ast.If]:
+        """Iterate through an if-elif chain.
+
+        Args:
+            if_stmt: The initial if statement
+
+        Returns:
+            List of all if nodes in the chain (including elif branches)
+        """
+        nodes = [if_stmt]
+        current = if_stmt
+        while current.orelse:
+            if len(current.orelse) == 1 and isinstance(current.orelse[0], ast.If):
+                current = current.orelse[0]
+                nodes.append(current)
+            else:
+                break
+        return nodes
 
     def _extract_value_from_condition(self, condition: ast.expr, param_name: str) -> str | None:
         """Extract the value from a condition like 'name == "height"'.
@@ -203,19 +211,9 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
         """
         for stmt in method_node.body:
             if isinstance(stmt, ast.If):
-                # Check if this is the branch for our value
-                if self._extract_value_from_condition(stmt.test, param_name) == value:
-                    return stmt.body
-
-                # Check elif branches
-                current = stmt
-                while current.orelse:
-                    if len(current.orelse) == 1 and isinstance(current.orelse[0], ast.If):
-                        current = current.orelse[0]
-                        if self._extract_value_from_condition(current.test, param_name) == value:
-                            return current.body
-                    else:
-                        break
+                for if_node in self._iterate_if_chain(stmt):
+                    if self._extract_value_from_condition(if_node.test, param_name) == value:
+                        return if_node.body
 
         return []
 
