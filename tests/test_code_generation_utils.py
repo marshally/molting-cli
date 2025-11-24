@@ -45,7 +45,7 @@ class TestCreateSuperInitCall:
         args = [cst.Arg(keyword=cst.Name("name"), value=cst.Name("value"))]
         stmt = create_super_init_call(args)
         code = cst.Module(body=[stmt]).code
-        assert code.strip() == "super().__init__(name=value)"
+        assert code.strip() == "super().__init__(name = value)"
 
     def test_returns_simple_statement_line(self) -> None:
         """Should return a SimpleStatementLine instance."""
@@ -157,7 +157,7 @@ class TestCreateInitMethod:
     def test_init_with_super_call_and_custom_fields(self) -> None:
         """Should create __init__ with super() call and custom field assignments."""
         super_args = [cst.Arg(value=cst.Name("base_val"))]
-        field_assignments = {"local": cst.Integer("42")}
+        field_assignments: dict[str, cst.BaseExpression] = {"local": cst.Integer("42")}
         method = create_init_method(
             ["base_val"], field_assignments=field_assignments, super_call_args=super_args
         )
@@ -215,7 +215,7 @@ class TestCreateParameter:
             body=cst.SimpleStatementSuite(body=[cst.Pass()]),
         )
         code = cst.Module(body=[func]).code
-        assert "def test(count=0):" in code
+        assert "def test(count = 0):" in code
 
     def test_parameter_with_annotation_and_default(self) -> None:
         """Should create parameter with both annotation and default value."""
@@ -256,7 +256,7 @@ class TestCreateParameter:
             body=cst.SimpleStatementSuite(body=[cst.Pass()]),
         )
         code = cst.Module(body=[func]).code
-        assert "def test(value=None):" in code
+        assert "def test(value = None):" in code
 
     def test_returns_param(self) -> None:
         """Should return a Param instance."""
