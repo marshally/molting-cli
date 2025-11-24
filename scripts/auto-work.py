@@ -89,46 +89,6 @@ def main() -> None:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{timestamp}] Starting iteration...")
 
-        # Fetch from origin
-        print("  📡 Fetching from origin...")
-        if not run_command(["git", "fetch", "origin"], "Failed to fetch from origin, stopping..."):
-            sys.exit(1)
-
-        # Rebase on origin/main
-        print("  🔄 Rebasing on origin/main...")
-        try:
-            subprocess.run(["git", "rebase", "origin/main"], check=True, capture_output=False)
-        except subprocess.CalledProcessError:
-            print("  ⚠️  Rebase failed, spawning Claude to resolve conflicts...")
-            # Spawn a new Claude session to run /sync-main
-            try:
-                subprocess.run(
-                    ["claude", "--dangerously-skip-permissions", "--print", "/sync-main"],
-                    check=True,
-                )
-                print("  ✅ Claude finished processing")
-
-                # Check if rebase is still in progress (stuck)
-                rebase_dir_result = subprocess.run(
-                    ["git", "rev-parse", "--git-path", "rebase-merge"],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                rebase_in_progress = os.path.exists(rebase_dir_result.stdout.strip())
-
-                if rebase_in_progress:
-                    print("  ❌ Rebase is still stuck, aborting...")
-                    subprocess.run(["git", "rebase", "--abort"], check=False)
-                    sys.exit(1)
-                else:
-                    print("  ✅ Rebase completed successfully")
-
-            except subprocess.CalledProcessError:
-                print("  ❌ Failed to resolve conflicts, aborting rebase...")
-                subprocess.run(["git", "rebase", "--abort"], check=False)
-                sys.exit(1)
-
         # Count open PRs
         pr_count = get_pr_count()
         print(f"  📊 Open PRs: {pr_count}")
