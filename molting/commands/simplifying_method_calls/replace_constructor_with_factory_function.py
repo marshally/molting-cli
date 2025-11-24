@@ -163,6 +163,33 @@ class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
                 )
         return if_chain
 
+    def _create_factory_function(
+        self, factory_name: str, param_name: str, if_chain: cst.If | None
+    ) -> cst.FunctionDef:
+        """Create factory function definition.
+
+        Args:
+            factory_name: Name of the factory function
+            param_name: Name of the parameter
+            if_chain: The if-elif chain for the body
+
+        Returns:
+            A function definition node
+        """
+        return cst.FunctionDef(
+            name=cst.Name(factory_name),
+            params=cst.Parameters(params=[cst.Param(name=cst.Name(param_name))]),
+            body=(
+                cst.IndentedBlock(body=[if_chain])
+                if if_chain
+                else cst.SimpleStatementSuite(body=[cst.Pass()])
+            ),
+            leading_lines=[
+                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+            ],
+        )
+
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
     ) -> cst.Module:
@@ -181,29 +208,12 @@ class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
         if not self.class_constants:
             return updated_node
 
-        # Create factory function name
         factory_name = f"create_{self.class_name.lower()}"
         param_name = "employee_type"
 
-        # Build if-elif chain
         if_chain = self._build_if_chain(param_name)
+        factory_func = self._create_factory_function(factory_name, param_name, if_chain)
 
-        # Create factory function
-        factory_func = cst.FunctionDef(
-            name=cst.Name(factory_name),
-            params=cst.Parameters(params=[cst.Param(name=cst.Name("employee_type"))]),
-            body=(
-                cst.IndentedBlock(body=[if_chain])
-                if if_chain
-                else cst.SimpleStatementSuite(body=[cst.Pass()])
-            ),
-            leading_lines=[
-                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-            ],
-        )
-
-        # Add factory function to module
         new_body = list(updated_node.body) + [factory_func]
         return updated_node.with_changes(body=new_body)
 
