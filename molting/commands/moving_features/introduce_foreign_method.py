@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.code_generation_utils import create_parameter
 
 
 class IntroduceForeignMethodCommand(BaseCommand):
@@ -241,8 +242,8 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
         # Create the method signature
         params = cst.Parameters(
             params=[
-                cst.Param(name=cst.Name("self")),
-                cst.Param(name=cst.Name("arg")),
+                create_parameter("self"),
+                create_parameter("arg"),
             ]
         )
 
