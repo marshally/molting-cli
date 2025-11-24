@@ -180,7 +180,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
             body=cst.IndentedBlock(
                 body=[
                     init_method,
-                    cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                    cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),  # type: ignore[list-item]
                     includes_method,
                 ]
             ),
