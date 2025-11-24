@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_comma_separated_list
+from molting.core.code_generation_utils import create_parameter
 from molting.core.visitors import SelfFieldChecker
 
 
@@ -153,7 +154,7 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
             The transformed __init__ method
         """
         # Filter out feature parameters
-        new_params = [cst.Param(name=cst.Name("self"))]
+        new_params = [create_parameter("self")]
         if isinstance(node.params, cst.Parameters):
             for param in node.params.params:
                 if param.name.value != "self" and param.name.value not in self.features:
@@ -241,7 +242,7 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
         # The subclass needs:
         # 1. Non-feature params that will be passed to super (except those with defaults)
         # 2. Feature params that are actual fields (not boolean flags)
-        init_params = [cst.Param(name=cst.Name("self"))]
+        init_params = [create_parameter("self")]
 
         # Determine which params the subclass should take
         # We need to figure out which non-feature params to include and which to give defaults
@@ -253,7 +254,7 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
             if self._should_skip_param_in_subclass(param_name):
                 continue
             subclass_param_names.append(param_name)
-            init_params.append(cst.Param(name=cst.Name(param_name)))
+            init_params.append(create_parameter(param_name))
 
         # Add only non-boolean feature parameters (actual fields, not flags)
         # is_labor is a boolean flag indicating type, so we skip it
@@ -263,7 +264,7 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
             if self._is_boolean_flag(param_name):
                 continue
             subclass_param_names.append(param_name)
-            init_params.append(cst.Param(name=cst.Name(param_name)))
+            init_params.append(create_parameter(param_name))
 
         # Create super().__init__() call with non-feature params
         super_args = []
