@@ -95,8 +95,8 @@ class SplitTemporaryVariableTransformer(cst.CSTTransformer):
                     new_name = f"{self.variable_name}_{assignment_count}"
 
                 # Replace only the assignment target
-                replacer = AssignmentTargetReplacer(self.variable_name, new_name)
-                new_stmt = stmt.visit(replacer)
+                assignment_replacer = AssignmentTargetReplacer(self.variable_name, new_name)
+                new_stmt = stmt.visit(assignment_replacer)
                 new_statements.append(new_stmt)
             else:
                 # Replace uses of the variable with the most recent assigned name
@@ -108,8 +108,8 @@ class SplitTemporaryVariableTransformer(cst.CSTTransformer):
                     else:
                         current_name = f"{self.variable_name}_{assignment_count}"
 
-                    replacer = NameReplacer(self.variable_name, current_name)
-                    new_stmt = stmt.visit(replacer)
+                    name_replacer = NameReplacer(self.variable_name, current_name)
+                    new_stmt = stmt.visit(name_replacer)
                     new_statements.append(new_stmt)
                 else:
                     new_statements.append(stmt)
