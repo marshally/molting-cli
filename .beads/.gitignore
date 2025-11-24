@@ -23,7 +23,7 @@ beads.left.meta.json
 beads.right.jsonl
 beads.right.meta.json
 
-# Keep JSONL exports and config (source of truth for git)
-!issues.jsonl
+# When using beads-metadata branch, issues.jsonl should only be tracked there
+# Keep metadata and config files in main branch
 !metadata.json
 !config.json
