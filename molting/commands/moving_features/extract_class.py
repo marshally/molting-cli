@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import is_assignment_to_field, parse_comma_separated_list
+from molting.core.code_generation_utils import create_parameter
 
 
 class ExtractClassCommand(BaseCommand):
@@ -215,8 +216,8 @@ class ExtractClassTransformer(cst.CSTTransformer):
             else:
                 param_mapping[field] = field
 
-        params = [cst.Param(name=cst.Name("self"))] + [
-            cst.Param(name=cst.Name(param_mapping[field])) for field in self.fields
+        params = [create_parameter("self")] + [
+            create_parameter(param_mapping[field]) for field in self.fields
         ]
 
         assignments = [
