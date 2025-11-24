@@ -8,6 +8,7 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 
 
+@register_command
 class RemoveAssignmentsToParametersCommand(BaseCommand):
     """Command to replace parameter reassignments with temp variables."""
 
@@ -142,7 +143,3 @@ class AssignmentCollector(cst.CSTVisitor):
         for target in node.targets:
             if isinstance(target.target, cst.Name) and target.target.value in self.param_names:
                 self.assigned_params.add(target.target.value)
-
-
-# Register the command
-register_command(RemoveAssignmentsToParametersCommand)

@@ -9,7 +9,6 @@ import pytest
 from tests.conftest import RefactoringTestBase
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestDecomposeConditional(RefactoringTestBase):
     """Tests for Decompose Conditional refactoring."""
 
@@ -34,7 +33,6 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
     """Tests for Consolidate Duplicate Conditional Fragments refactoring."""
 
@@ -55,7 +53,6 @@ class TestRemoveControlFlag(RefactoringTestBase):
         self.refactor("remove-control-flag", target="check_security::found")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
     """Tests for Replace Nested Conditional with Guard Clauses refactoring."""
 
@@ -92,7 +89,6 @@ class TestIntroduceNullObject(RefactoringTestBase):
         self.refactor("introduce-null-object", target_class="Customer")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestIntroduceAssertion(RefactoringTestBase):
     """Tests for Introduce Assertion refactoring."""
 
