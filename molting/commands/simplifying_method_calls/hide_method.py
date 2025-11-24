@@ -27,8 +27,6 @@ class HideMethodCommand(BaseCommand):
             ValueError: If method not found or target format is invalid
         """
         target = self.params["target"]
-
-        # Parse target format: "ClassName::method_name"
         class_name, method_name = parse_target(target, expected_parts=2)
 
         # Validate that the method name doesn't already start with underscore
