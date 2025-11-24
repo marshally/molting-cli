@@ -191,11 +191,14 @@ class ReplaceExceptionTransformer(cst.CSTTransformer):
             A comparison expression checking if index >= len(sequence)
         """
         sequence = subscript.value
-        index = (
-            subscript.slice[0].slice.value
-            if isinstance(subscript.slice[0].slice, cst.Index)
-            else subscript.slice[0].slice
-        )
+
+        # Extract the index expression from the subscript
+        slice_element = subscript.slice[0].slice
+        if isinstance(slice_element, cst.Index):
+            index: cst.BaseExpression = slice_element.value
+        else:
+            # For simple subscripts like values[i], the slice is the expression directly
+            index = slice_element  # type: ignore[assignment]
 
         return cst.Comparison(
             left=index,
