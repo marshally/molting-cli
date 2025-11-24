@@ -47,7 +47,6 @@ class TestRemoveParameter(RefactoringTestBase):
         self.refactor("remove-parameter", target="Order::calculate_total::discount_code")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestSeparateQueryFromModifier(RefactoringTestBase):
     """Tests for Separate Query from Modifier refactoring."""
 
