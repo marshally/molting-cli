@@ -10,12 +10,14 @@ from typing import cast
 import libcst as cst
 
 from molting.core.ast_utils import (
+    camel_to_snake_case,
     extract_all_methods,
     extract_init_field_assignments,
     find_class_in_module,
     find_insert_position_after_imports,
     find_method_in_class,
     find_self_field_assignment,
+    generate_field_name_from_class,
     insert_class_after_imports,
     is_assignment_to_field,
     is_empty_class,
@@ -1536,3 +1538,165 @@ from typing import Any
         assert "class FirstClass:" in result_code
         assert "class SecondClass:" in result_code
         assert "import os" in result_code
+
+
+class TestCamelToSnakeCase:
+    """Tests for camel_to_snake_case() function."""
+
+    def test_simple_camel_case(self) -> None:
+        """Should convert simple CamelCase to snake_case."""
+        result = camel_to_snake_case("ClassName")
+
+        assert result == "class_name"
+
+    def test_pascal_case(self) -> None:
+        """Should convert PascalCase to snake_case."""
+        result = camel_to_snake_case("PersonInfo")
+
+        assert result == "person_info"
+
+    def test_consecutive_capitals(self) -> None:
+        """Should handle consecutive capital letters correctly."""
+        result = camel_to_snake_case("HTTPServer")
+
+        assert result == "http_server"
+
+    def test_single_capital(self) -> None:
+        """Should handle single capital letter."""
+        result = camel_to_snake_case("A")
+
+        assert result == "a"
+
+    def test_already_snake_case(self) -> None:
+        """Should handle already snake_case strings."""
+        result = camel_to_snake_case("already_snake")
+
+        assert result == "already_snake"
+
+    def test_lowercase_string(self) -> None:
+        """Should handle lowercase strings."""
+        result = camel_to_snake_case("lowercase")
+
+        assert result == "lowercase"
+
+    def test_acronym_at_end(self) -> None:
+        """Should handle acronyms at the end."""
+        result = camel_to_snake_case("XMLParser")
+
+        assert result == "xml_parser"
+
+    def test_multiple_acronyms(self) -> None:
+        """Should handle multiple acronyms."""
+        result = camel_to_snake_case("HTMLToXMLConverter")
+
+        assert result == "html_to_xml_converter"
+
+    def test_numbers_in_name(self) -> None:
+        """Should handle numbers in names."""
+        result = camel_to_snake_case("User2Factor")
+
+        assert result == "user2_factor"
+
+    def test_single_lowercase_letter(self) -> None:
+        """Should handle single lowercase letters."""
+        result = camel_to_snake_case("a")
+
+        assert result == "a"
+
+
+class TestGenerateFieldNameFromClass:
+    """Tests for generate_field_name_from_class() function."""
+
+    def test_telephone_number_suffix(self) -> None:
+        """Should strip Number suffix."""
+        result = generate_field_name_from_class("TelephoneNumber")
+
+        assert result == "telephone"
+
+    def test_user_info_suffix(self) -> None:
+        """Should strip Info suffix."""
+        result = generate_field_name_from_class("UserInfo")
+
+        assert result == "user"
+
+    def test_order_data_suffix(self) -> None:
+        """Should strip Data suffix."""
+        result = generate_field_name_from_class("OrderData")
+
+        assert result == "order"
+
+    def test_class_suffix(self) -> None:
+        """Should strip Class suffix."""
+        result = generate_field_name_from_class("PersonClass")
+
+        assert result == "person"
+
+    def test_no_suffix_to_strip(self) -> None:
+        """Should return snake_case when no suffix matches."""
+        result = generate_field_name_from_class("Person")
+
+        assert result == "person"
+
+    def test_with_prefix(self) -> None:
+        """Should add prefix to field name."""
+        result = generate_field_name_from_class("UserInfo", prefix="new_")
+
+        assert result == "new_user"
+
+    def test_with_custom_suffixes(self) -> None:
+        """Should use custom suffix list."""
+        result = generate_field_name_from_class(
+            "PersonConfig",
+            strip_suffixes=["Config", "Setting"],
+        )
+
+        assert result == "person"
+
+    def test_custom_suffix_not_matched(self) -> None:
+        """Should not strip if custom suffix doesn't match."""
+        result = generate_field_name_from_class(
+            "PersonInfo",
+            strip_suffixes=["Config", "Setting"],
+        )
+
+        assert result == "person_info"
+
+    def test_multiple_custom_suffixes_first_matched(self) -> None:
+        """Should strip first matching suffix from custom list."""
+        result = generate_field_name_from_class(
+            "OrderData",
+            strip_suffixes=["Data", "Info"],
+        )
+
+        assert result == "order"
+
+    def test_empty_suffix_list(self) -> None:
+        """Should not strip any suffix with empty list."""
+        result = generate_field_name_from_class(
+            "UserInfo",
+            strip_suffixes=[],
+        )
+
+        assert result == "user_info"
+
+    def test_prefix_and_suffix(self) -> None:
+        """Should apply both prefix and suffix stripping."""
+        result = generate_field_name_from_class(
+            "TelephoneNumber",
+            prefix="cached_",
+        )
+
+        assert result == "cached_telephone"
+
+    def test_acronym_class_name(self) -> None:
+        """Should handle acronym class names."""
+        result = generate_field_name_from_class("HTTPServerInfo")
+
+        assert result == "http_server"
+
+    def test_case_sensitive_suffix_matching(self) -> None:
+        """Should match suffixes case-sensitively."""
+        result = generate_field_name_from_class("UserINFO")
+
+        # Since "INFO" is not in ["Number", "Info", "Data", "Class"], it won't be stripped
+        assert result == "user_info"

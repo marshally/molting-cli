@@ -1,6 +1,7 @@
 """Shared AST utility functions for refactorings."""
 
 import ast
+import re
 from typing import Any, List, Optional, Sequence, Tuple
 
 import libcst as cst
@@ -610,3 +611,76 @@ def insert_class_after_imports(
     )
 
     return module.with_changes(body=new_body)
+
+
+def camel_to_snake_case(name: str) -> str:
+    """Convert CamelCase/PascalCase to snake_case.
+
+    Handles various edge cases:
+    - Consecutive capitals: HTTPServer -> http_server
+    - Single character names: A -> a
+    - Already snake_case: already_snake -> already_snake
+
+    Args:
+        name: Name in CamelCase or PascalCase format
+
+    Returns:
+        Name converted to snake_case
+
+    Examples:
+        >>> camel_to_snake_case("ClassName")
+        'class_name'
+        >>> camel_to_snake_case("HTTPServer")
+        'http_server'
+        >>> camel_to_snake_case("already_snake")
+        'already_snake'
+    """
+    # Insert underscore before uppercase letters (except at start)
+    # This handles most cases like ClassName -> class_name
+    s1 = re.sub(r"(?<!^)(?=[A-Z])", "_", name)
+    return s1.lower()
+
+
+def generate_field_name_from_class(
+    class_name: str, prefix: str = "", strip_suffixes: list[str] | None = None
+) -> str:
+    """Generate a readable field name from a class name.
+
+    Converts a class name to a field name by:
+    1. Optionally stripping common suffixes (Number, Info, Data, etc.)
+    2. Converting to snake_case
+    3. Adding an optional prefix
+
+    Args:
+        class_name: Name of the class
+        prefix: Optional prefix to add to the field name
+        strip_suffixes: List of suffixes to strip. Defaults to ["Number", "Info", "Data", "Class"]
+
+    Returns:
+        Generated field name
+
+    Examples:
+        >>> generate_field_name_from_class("TelephoneNumber")
+        'telephone'
+        >>> generate_field_name_from_class("UserInfo", prefix="new_")
+        'new_user'
+        >>> generate_field_name_from_class("OrderData")
+        'order'
+    """
+    if strip_suffixes is None:
+        strip_suffixes = ["Number", "Info", "Data", "Class"]
+
+    base_name = class_name
+    # Strip known suffixes
+    for suffix in strip_suffixes:
+        if base_name.endswith(suffix):
+            base_name = base_name[: -len(suffix)]
+            break
+
+    # Convert to snake_case
+    snake_name = camel_to_snake_case(base_name)
+
+    # Add prefix if provided
+    if prefix:
+        return f"{prefix}{snake_name}"
+    return snake_name
