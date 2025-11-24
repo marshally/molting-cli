@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import find_self_field_assignment, parse_target
+from molting.core.ast_utils import find_self_field_assignment, is_self_attribute, parse_target
 from molting.core.visitors import SelfFieldCollector
 
 
@@ -246,7 +246,7 @@ class SelfReferenceReplacer(cst.CSTTransformer):
         ):
             return cst.Attribute(value=cst.Name("self"), attr=updated_node.attr)
 
-        if isinstance(updated_node.value, cst.Name) and updated_node.value.value == "self":
+        if is_self_attribute(updated_node):
             field_name = updated_node.attr.value
             if field_name in self.fields_to_replace:
                 return cst.Name(field_name)
