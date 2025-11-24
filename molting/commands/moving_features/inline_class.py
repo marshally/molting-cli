@@ -6,7 +6,11 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import extract_init_field_assignments, find_self_field_assignment
+from molting.core.ast_utils import (
+    extract_init_field_assignments,
+    find_class_in_module,
+    find_self_field_assignment,
+)
 
 INIT_METHOD_NAME = "__init__"
 
@@ -55,13 +59,13 @@ class InlineClassTransformer(cst.CSTTransformer):
 
     def visit_Module(self, node: cst.Module) -> bool:  # noqa: N802
         """Visit module to find and analyze source class."""
-        for stmt in node.body:
-            if isinstance(stmt, cst.ClassDef):
-                if stmt.name.value == self.source_class:
-                    self.source_class_def = stmt
-                    self._extract_source_features(stmt)
-                elif isinstance(stmt, cst.ClassDef) and stmt.name.value == self.target_class:
-                    self._determine_field_prefix(stmt)
+        self.source_class_def = find_class_in_module(node, self.source_class)
+        if self.source_class_def:
+            self._extract_source_features(self.source_class_def)
+
+        target_class_def = find_class_in_module(node, self.target_class)
+        if target_class_def:
+            self._determine_field_prefix(target_class_def)
 
         return True
 
