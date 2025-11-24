@@ -8,6 +8,28 @@ Fetch the next ready issue from beads, set up the appropriate worktree/branch, s
 
 ## Workflow
 
+### Step 0: Ensure Proper Branch Setup
+
+Before starting work, ensure we're on the correct branch:
+
+```bash
+cd /Users/marshallyount/code/marshally/molting-cli && git branch --show-current
+```
+
+**Case A: Currently on main branch**
+- Create and checkout a new working branch:
+```bash
+cd /Users/marshallyount/code/marshally/molting-cli && git checkout -b working-branch
+```
+
+**Case B: Currently on a working branch (not main)**
+- Push the branch to origin if it hasn't been pushed yet (this ensures the branch is tracked):
+```bash
+cd /Users/marshallyount/code/marshally/molting-cli && git push -u origin $(git branch --show-current)
+```
+
+This may fail if the branch already exists on remote - that's okay, it means it's already set up correctly.
+
 ### Step 1: Fetch Next Ready Issue
 
 First, ensure we have the latest beads data to avoid race conditions:
