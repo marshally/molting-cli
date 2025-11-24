@@ -12,6 +12,7 @@ from molting.core.ast_utils import (
     find_self_field_assignment,
     parse_comma_separated_list,
 )
+from molting.core.code_generation_utils import create_parameter
 
 
 class ExtractSuperclassCommand(BaseCommand):
@@ -178,13 +179,13 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
             The new superclass definition
         """
         # Create __init__ method with common fields
-        init_params = [cst.Param(name=cst.Name("self"))]
+        init_params = [create_parameter("self")]
         init_assignments: list[cst.BaseStatement] = []
 
         if self.common_fields:
             # Add parameters for common fields
             for field in sorted(self.common_fields):
-                init_params.append(cst.Param(name=cst.Name(field)))
+                init_params.append(create_parameter(field))
 
             # Create assignments for common fields
             for field in sorted(self.common_fields):
