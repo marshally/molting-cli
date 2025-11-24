@@ -24,24 +24,21 @@ Then get ready issues (call this tool directly, not via bash):
 - Use the `mcp__plugin_beads_beads__ready` tool with limit: 20
 
 **IMPORTANT**: Filter and sort the results:
-1. Filter out any issues that are full epics (issues without a dot and sub-number). Only select issues with a format like "molting-cli-abc.2", NOT "molting-cli-abc".
-2. Sort filtered issues by priority (ascending - priority 1 is highest, priority 5 is lowest)
+1. Filter out any issues that are epics (type: "epic"). Epics should not be worked on directly - only their sub-tasks.
+2. Sort filtered issues by priority (ascending - priority 0 is highest, priority 5 is lowest)
 3. Select the FIRST issue after sorting (highest priority ready task)
 
 If no ready issues after filtering, try open issues:
 - Use the `mcp__plugin_beads_beads__list` tool with status: "open", limit: 20
-- Apply the same filtering (exclude full epics)
+- Apply the same filtering (exclude epics by issue_type)
 - Sort by priority (ascending)
 - Select the FIRST issue after sorting
 
 Parse the output to extract:
-- issue_id - The full issue ID (e.g., "molting-cli-abc.2")
-- title - The issue title (e.g., "Implement Some Refactoring")
-
-From the title, extract:
-- refactoring_name - The refactoring name (e.g., "Some Refactoring")
-- test_class - Convert to PascalCase with "Test" prefix (e.g., "TestSomeRefactoring")
-- refactoring_dir - Convert to snake_case (e.g., "some_refactoring")
+- issue_id - The full issue ID (e.g., "molting-cli-abc.2" or "molting-3bi")
+- title - The issue title
+- description - The issue description
+- issue_type - The issue type (task, feature, bug, etc.)
 
 ### Step 1.5: Atomically Claim Issue (Prevent Race Conditions)
 
@@ -87,35 +84,51 @@ cd ~/code/marshally/molting-cli && git worktree add ~/code/worktrees/molting-cli
 Worktree location: ~/code/worktrees/molting-cli/{issue_id}
 Branch: {issue_id}
 
-**IMPORTANT: Use the FULL issue_id (e.g., "molting-cli-357.2") for both the branch name and worktree directory, NOT just the epic prefix (e.g., "molting-cli-357").**
+**IMPORTANT: Use the FULL issue_id for both the branch name and worktree directory.**
 
-### Step 3: Determine Test Structure
+### Step 3: Determine Task Type and Extract Variables
 
-Find which test file contains the test class:
+Check the issue title to determine task type:
+
+**Type A: Standard Refactoring Task**
+- Title matches pattern: "Implement {RefactoringName} refactoring"
+- Example: "Implement Extract Method refactoring"
+- Use TEMPLATE A
+
+For Type A, extract these variables:
+- refactoring_name: The refactoring name (e.g., "Extract Method")
+- test_class: Convert to PascalCase with "Test" prefix (e.g., "TestExtractMethod")
+- refactoring_dir: Convert to snake_case (e.g., "extract_method")
+
+Then find the test structure in the worktree:
 ```bash
 cd ~/code/worktrees/molting-cli/{issue_id} && grep -l "class {test_class}" tests/test_*.py
 ```
+This gives you:
+- test_file_path: The test file (e.g., "tests/test_composing_methods.py")
+- fixture_category: Extract from path (e.g., "composing_methods")
 
-This will give you:
-- test_file_path - The test file path (e.g., "tests/test_composing_methods.py")
-- fixture_category - The fixture category (e.g., "composing_methods")
+**Type B: General Task**
+- Title does NOT match the "Implement X refactoring" pattern
+- Example: "Add naming conversion utilities to ast_utils.py"
+- Use TEMPLATE B
 
-Also check the fixture directory to confirm:
-```bash
-ls tests/fixtures/{fixture_category}/{refactoring_dir}/simple/
-```
+For Type B, extract:
+- title: The full issue title
+- description: The issue description
+- acceptance_criteria: The issue acceptance criteria (if present)
 
 ### Step 4: Spawn Subagent
 
 Use the Task tool with:
 - subagent_type: "general-purpose"
-- model: "haiku" (use "sonnet" if the refactoring seems complex)
-- description: "Implement {refactoring_name} refactoring"
-- prompt: Fill in the template below with all the parsed details
+- model: "haiku" (use "sonnet" if the task seems complex)
+- description: Brief description from the issue title
+- prompt: Fill in the appropriate template below with all extracted variables
 
 ---
 
-## Subagent Prompt Template
+## TEMPLATE A: Subagent Prompt for Standard Refactoring Tasks
 
 You are implementing issue {issue_id}: Implement {refactoring_name} refactoring using strict TDD (Red-Green-Refactor) methodology.
 
@@ -291,12 +304,29 @@ NOW CONTINUE TO STEP 6 - DO NOT STOP HERE
 
 ### STEP 6: Create PR and Wait for CI
 
-a. Verify branch is pushed (should already be pushed from previous steps):
+a. Rebase on latest main to ensure branch is up-to-date:
+```bash
+git fetch origin
+git rebase origin/main
+```
+
+If there are merge conflicts:
+- Resolve them carefully
+- Run tests to ensure conflicts were resolved correctly: `pytest`
+- Continue rebase: `git rebase --continue`
+- If conflicts cannot be resolved: STOP and report
+
+After successful rebase, force push:
+```bash
+git push --force-with-lease
+```
+
+b. Verify branch is pushed:
 ```bash
 git push -u origin {issue_id}
 ```
 
-b. Create pull request:
+c. Create pull request:
 ```bash
 gh pr create --title "Implement {refactoring_name} ({issue_id})" --body "$(cat <<'EOF'
 ## Summary
@@ -327,12 +357,12 @@ EOF
 )" --base main
 ```
 
-c. Wait for CI to start, then check status:
+d. Wait for CI to start, then check status:
 ```bash
 sleep 5 && gh pr checks
 ```
 
-d. If any CI checks fail:
+e. If any CI checks fail:
    - Investigate the failure
    - Fix the issue
    - Format, commit, and push the fix:
@@ -345,24 +375,17 @@ sleep 5 && gh pr checks
 ```
    - Repeat until all checks pass
 
-e. Once all CI checks are passing, update the beads issue status to closed IN THE MAIN REPOSITORY.
+f. Once all CI checks are passing, close the issue.
 
-**CRITICAL**: Close the issue in the MAIN repository (not the worktree) so /work-next can see the status change.
-
-First, set the context to the MAIN repository (call this tool directly, not via bash):
-- Use the `mcp__plugin_beads_beads__set_context` tool with workspace_root: `/Users/marshallyount/code/marshally/molting-cli`
-
-Then close the issue (call this tool directly, not via bash):
+Close the issue (call this tool directly, not via bash):
 - Use the `mcp__plugin_beads_beads__close` tool with:
   - issue_id: "{issue_id}"
   - reason: "Completed with passing tests and CI"
 
-Then sync the beads changes to the sync branch:
+Then sync the beads changes:
 ```bash
-cd /Users/marshallyount/code/marshally/molting-cli && bd sync -m "Close issue {issue_id}"
+bd sync -m "Close issue {issue_id}"
 ```
-
-This commits to beads-metadata branch, pulls latest changes, and pushes the close status.
 
 ### STEP 7: Final Report (REQUIRED)
 
@@ -403,7 +426,230 @@ IMPORTANT NOTES:
 - DO NOT STOP after the code review - continue through STEP 6 and STEP 7
 - Your task is NOT complete until you provide the STEP 7 final report
 - If you encounter complex issues, report them - don't get stuck
-- **CRITICAL: All beads status changes (in_progress, closed) must be done in the MAIN repository (/Users/marshallyount/code/marshally/molting-cli), NOT in the worktree. Set context to main repo before calling beads update/close tools.**
+- **CRITICAL: All beads MCP tools must be called directly as tool invocations, NOT as bash commands. Always call `mcp__plugin_beads_beads__set_context` first before any other beads operations.**
+
+---
+
+## TEMPLATE B: Subagent Prompt for General Tasks
+
+You are implementing issue {issue_id}: {title}
+
+**Issue Description:**
+{description}
+
+**Acceptance Criteria:**
+{acceptance_criteria}
+
+### Setup
+
+Work in this worktree: ~/code/worktrees/molting-cli/{issue_id}
+Branch: {issue_id}
+All commands must be run from this worktree.
+
+**IMPORTANT: For all beads MCP tool calls, you MUST first call `mcp__plugin_beads_beads__set_context` with workspace_root set to the worktree path: `/Users/marshallyount/code/worktrees/molting-cli/{issue_id}`**
+
+### Your Task
+
+Complete this task by following these steps:
+
+### STEP 1: Preflight Checks (MANDATORY)
+
+Run in the worktree directory:
+
+a. Fetch and rebase from origin/main:
+```bash
+git fetch origin
+git rebase origin/main
+```
+
+If there are merge conflicts:
+- Resolve them carefully
+- Run tests to ensure conflicts were resolved correctly
+- Continue rebase: `git rebase --continue`
+- If conflicts cannot be resolved: STOP and report
+
+After successful rebase, force push:
+```bash
+git push --force-with-lease
+```
+
+b. Check git status - STOP if uncommitted changes:
+```bash
+git status
+```
+
+c. Run code quality checks:
+```bash
+make check
+```
+
+If there are any errors: STOP and report
+If there are auto-fixable issues, run:
+```bash
+make format
+```
+
+Then commit the fixes with message "Fix linting and formatting issues" and push immediately:
+```bash
+git add -A && git commit -m "Fix linting and formatting issues" && git push
+```
+
+d. Run all tests:
+```bash
+pytest
+```
+
+If any tests fail: STOP and report
+
+### STEP 2: Understand the Task
+
+Read the issue description and acceptance criteria carefully. Identify:
+- What files need to be modified or created
+- What the expected behavior/output should be
+- Whether tests need to be added or modified
+
+### STEP 3: Implement the Task
+
+Follow TDD principles where applicable:
+1. Write or identify existing tests that verify the behavior
+2. Implement the minimal code to make tests pass
+3. Refactor for clean code
+
+For each logical change:
+- Make the change
+- Run relevant tests: `pytest <test_file>` or `make test`
+- Run code quality checks: `make check`
+- Format code: `make format`
+- Commit with a descriptive message and push immediately:
+```bash
+git add -A && git commit -m "<clear description of change>" && git push
+```
+
+Use commit prefixes:
+- "Add" for new features/functions
+- "Fix" for bug fixes
+- "♻️ Refactor" or "♻️ Pure refactoring" for code improvements
+- "Update" for modifications to existing code
+- "Remove" for deletions
+
+### STEP 4: Verify Acceptance Criteria
+
+Review the acceptance criteria from the issue description and verify each one is met:
+- Run all relevant tests
+- Check that the implementation matches requirements
+- Ensure code quality standards are met
+
+### STEP 5: Create PR and Wait for CI
+
+a. Rebase on latest main to ensure branch is up-to-date:
+```bash
+git fetch origin
+git rebase origin/main
+```
+
+If there are merge conflicts:
+- Resolve them carefully
+- Run tests to ensure conflicts were resolved correctly: `pytest`
+- Continue rebase: `git rebase --continue`
+- If conflicts cannot be resolved: STOP and report
+
+After successful rebase, force push:
+```bash
+git push --force-with-lease
+```
+
+b. Verify branch is pushed:
+```bash
+git push -u origin {issue_id}
+```
+
+c. Create pull request with a clear summary:
+```bash
+gh pr create --title "{title} ({issue_id})" --body "$(cat <<'EOF'
+## Summary
+
+[Describe what was implemented and how]
+
+This completes issue {issue_id}.
+
+## Changes
+
+[List key changes made]
+
+## Test Plan
+
+- [Describe how you tested the changes]
+- All tests passing: pytest [relevant test command]
+
+🤖 Generated with https://claude.com/claude-code
+EOF
+)" --base main
+```
+
+d. Wait for CI to start, then check status:
+```bash
+sleep 5 && gh pr checks
+```
+
+e. If any CI checks fail:
+- Investigate the failure
+- Fix the issue
+- Format, commit, and push the fix:
+```bash
+make format && git add -A && git commit -m "Fix CI failure: <description>" && git push
+```
+- Wait and recheck CI status:
+```bash
+sleep 5 && gh pr checks
+```
+- Repeat until all checks pass
+
+f. Once all CI checks are passing, close the issue.
+
+Close the issue (call this tool directly, not via bash):
+- Use the `mcp__plugin_beads_beads__close` tool with:
+  - issue_id: "{issue_id}"
+  - reason: "Completed with passing tests and CI"
+
+Then sync the beads changes:
+```bash
+bd sync -m "Close issue {issue_id}"
+```
+
+### STEP 6: Final Report (REQUIRED)
+
+YOU MUST PROVIDE THIS FINAL REPORT - THIS IS YOUR DELIVERABLE:
+
+Report back with:
+1. Issue ID and name: {issue_id} - {title}
+2. PR URL: (the URL from gh pr create)
+3. Commit count: X commits total
+4. CI status: All checks passing / Some checks failed (with details)
+5. Brief summary: What was implemented and any notable details
+6. Beads issue status: Closed (if CI passed) / Still open (if CI failed)
+
+Example report format:
+```
+FINAL REPORT - IMPLEMENTATION COMPLETE
+
+1. Issue: molting-3bi - Add naming conversion utilities to ast_utils.py
+2. PR URL: https://github.com/marshally/molting-cli/pull/123
+3. Commits: 3 total
+4. CI Status: All checks passing ✓
+5. Summary: Added camel_to_snake_case and generate_field_name_from_class utility functions to ast_utils.py with comprehensive tests covering edge cases.
+6. Beads Issue: Closed ✓
+```
+
+IMPORTANT NOTES:
+- Run ALL commands from the worktree directory: ~/code/worktrees/molting-cli/{issue_id}
+- NEVER skip preflight checks
+- ALWAYS run make format before committing any code
+- ALWAYS push immediately after every commit using git push
+- Test after EVERY commit where applicable
+- Add type annotations (from typing import Any)
+- ONLY close the beads issue after ALL CI checks pass
+- Your task is NOT complete until you provide the STEP 6 final report
+- If you encounter complex issues, report them - don't get stuck
 - **CRITICAL: All beads MCP tools must be called directly as tool invocations, NOT as bash commands. Always call `mcp__plugin_beads_beads__set_context` first before any other beads operations.**
 
 ---
