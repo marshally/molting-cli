@@ -47,7 +47,6 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
 
             class_node, method_node = result
 
-            # Find the parameter index
             param_index = None
             for i, arg in enumerate(method_node.args.args):
                 if arg.arg == param_name:
@@ -57,7 +56,6 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
             if param_index is None:
                 raise ValueError(f"Parameter '{param_name}' not found in method '{method_name}'")
 
-            # Extract the values that the parameter is compared against
             parameter_values = self._extract_parameter_values(method_node, param_name)
 
             if not parameter_values:
@@ -65,7 +63,6 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
                     f"No parameter values found for '{param_name}' in method '{method_name}'"
                 )
 
-            # Create new methods for each value
             new_methods = []
             for value in parameter_values:
                 new_method = self._create_explicit_method(
@@ -73,13 +70,9 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
                 )
                 new_methods.append(new_method)
 
-            # Find the position to insert the new methods (after the current method)
             method_index = class_node.body.index(method_node)
-
-            # Remove the original method
             class_node.body.pop(method_index)
 
-            # Insert the new methods at the same position
             for i, new_method in enumerate(new_methods):
                 class_node.body.insert(method_index + i, new_method)
 
