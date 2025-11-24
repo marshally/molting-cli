@@ -12,6 +12,7 @@ import molting.commands.composing_methods.inline_method  # noqa: F401
 import molting.commands.composing_methods.inline_temp  # noqa: F401
 import molting.commands.composing_methods.remove_assignments_to_parameters  # noqa: F401
 import molting.commands.composing_methods.replace_method_with_method_object  # noqa: F401
+import molting.commands.composing_methods.split_temporary_variable  # noqa: F401
 import molting.commands.composing_methods.substitute_algorithm  # noqa: F401
 import molting.commands.dealing_with_generalization.collapse_hierarchy  # noqa: F401
 import molting.commands.dealing_with_generalization.extract_interface  # noqa: F401
