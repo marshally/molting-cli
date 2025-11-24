@@ -37,6 +37,19 @@ class PreserveWholeObjectCommand(BaseCommand):
                 return node
         return None
 
+    def _extract_function_name(self, target: str) -> str:
+        """Extract function name from target string.
+
+        Supports both "function_name" and "Class::method_name" formats.
+
+        Args:
+            target: Target specification string
+
+        Returns:
+            The function name
+        """
+        return target.split("::")[-1] if "::" in target else target
+
     def execute(self) -> None:
         """Apply preserve-whole-object refactoring using AST manipulation.
 
@@ -44,8 +57,7 @@ class PreserveWholeObjectCommand(BaseCommand):
             ValueError: If function not found
         """
         target = self.params["target"]
-        # Support both "function_name" and "Class::method_name" formats
-        function_name = target.split("::")[-1] if "::" in target else target
+        function_name = self._extract_function_name(target)
 
         def transform(tree: ast.Module) -> ast.Module:
             """Transform the AST to replace parameters with a whole object.
