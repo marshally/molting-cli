@@ -57,7 +57,7 @@ class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
         self.class_constants: list[str] = []
         self.found_class = False
 
-    def _collect_class_constants(self, class_body: cst.IndentedBlock) -> list[str]:
+    def _collect_class_constants(self, class_body: cst.BaseSuite) -> list[str]:
         """Collect constant names from class body.
 
         Args:
@@ -66,8 +66,15 @@ class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
         Returns:
             List of constant names
         """
-        constants = []
-        for stmt in class_body.body:
+        constants: list[str] = []
+        # BaseSuite can be IndentedBlock or SimpleStatementSuite
+        if isinstance(class_body, cst.IndentedBlock):
+            statements = class_body.body
+        else:
+            # SimpleStatementSuite doesn't have constants typically
+            return constants
+
+        for stmt in statements:
             if isinstance(stmt, cst.SimpleStatementLine):
                 for inner in stmt.body:
                     if isinstance(inner, cst.Assign):
