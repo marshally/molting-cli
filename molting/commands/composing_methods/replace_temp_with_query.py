@@ -131,6 +131,25 @@ class ReplaceTempWithQueryTransformer(cst.CSTTransformer):
         new_body = self._remove_assignment_and_replace_references(updated_node.body)
         return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body)))
 
+    def _create_query_method(self) -> cst.FunctionDef:
+        """Create a new query method that returns the temp expression.
+
+        Returns:
+            The new query method with proper spacing
+        """
+        return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=self.temp_expression)])
+        method_body = cst.IndentedBlock(body=[return_stmt])
+        new_method = cst.FunctionDef(
+            name=cst.Name(self.variable_name),
+            params=cst.Parameters(params=[create_parameter("self")]),
+            body=method_body,
+        )
+
+        # Add leading blank line before the new method
+        return new_method.with_changes(
+            leading_lines=[cst.EmptyLine(indent=False, whitespace=cst.SimpleWhitespace(""))]
+        )
+
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef:
@@ -141,22 +160,8 @@ class ReplaceTempWithQueryTransformer(cst.CSTTransformer):
         if self.temp_expression is None:
             return updated_node
 
-        # Create the new query method
-        return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=self.temp_expression)])
-        method_body = cst.IndentedBlock(body=[return_stmt])
-        self.new_method = cst.FunctionDef(
-            name=cst.Name(self.variable_name),
-            params=cst.Parameters(params=[create_parameter("self")]),
-            body=method_body,
-        )
-
-        # Add leading blank line before the new method
-        new_method_with_spacing = self.new_method.with_changes(
-            leading_lines=[cst.EmptyLine(indent=False, whitespace=cst.SimpleWhitespace(""))]
-        )
-
-        # Add the new method to the class
-        new_body = tuple(list(updated_node.body.body) + [new_method_with_spacing])
+        new_method = self._create_query_method()
+        new_body = tuple(list(updated_node.body.body) + [new_method])
         return updated_node.with_changes(body=updated_node.body.with_changes(body=new_body))
 
 
