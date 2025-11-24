@@ -563,13 +563,7 @@ def find_insert_position_after_imports(module: cst.Module) -> int:
         # Check if this is an import statement
         if isinstance(stmt, cst.SimpleStatementLine):
             # Check if any item in the statement is an import
-            has_import = False
-            for item in stmt.body:
-                if isinstance(item, (cst.Import, cst.ImportFrom)):
-                    has_import = True
-                    break
-
-            if has_import:
+            if any(isinstance(item, (cst.Import, cst.ImportFrom)) for item in stmt.body):
                 insert_pos = i + 1
         elif isinstance(stmt, cst.EmptyLine):
             # Skip empty lines, they don't affect position
