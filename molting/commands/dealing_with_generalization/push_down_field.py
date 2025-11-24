@@ -12,7 +12,10 @@ from molting.core.ast_utils import (
     parse_target,
     statements_contain_only_pass,
 )
-from molting.core.code_generation_utils import create_parameter
+from molting.core.code_generation_utils import (
+    create_field_assignment,
+    create_init_method,
+)
 
 
 class PushDownFieldCommand(BaseCommand):
@@ -228,18 +231,7 @@ class PushDownFieldTransformer(cst.CSTTransformer):
             Field assignment statement
         """
         field_value = self.field_value if self.field_value else cst.Integer("0")
-        return cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[
-                        cst.AssignTarget(
-                            cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.field_name))
-                        )
-                    ],
-                    value=field_value,
-                )
-            ]
-        )
+        return create_field_assignment(self.field_name, field_value)
 
     def _create_init_with_field(self) -> cst.FunctionDef:
         """Create new __init__ method with super call and field assignment.
@@ -247,27 +239,11 @@ class PushDownFieldTransformer(cst.CSTTransformer):
         Returns:
             New __init__ method
         """
-        # Create super().__init__() call
-        super_call = cst.SimpleStatementLine(
-            body=[
-                cst.Expr(
-                    value=cst.Call(
-                        func=cst.Attribute(
-                            value=cst.Call(func=cst.Name("super"), args=[]),
-                            attr=cst.Name("__init__"),
-                        ),
-                        args=[],
-                    )
-                )
-            ]
-        )
-
-        field_assignment = self._create_field_assignment_statement()
-
-        return cst.FunctionDef(
-            name=cst.Name("__init__"),
-            params=cst.Parameters(params=[create_parameter("self")]),
-            body=cst.IndentedBlock(body=[super_call, field_assignment]),
+        field_value = self.field_value if self.field_value else cst.Integer("0")
+        return create_init_method(
+            params=[],
+            field_assignments={self.field_name: field_value},
+            super_call_args=[],
         )
 
     def _add_field_to_init(self, init_node: cst.FunctionDef) -> cst.FunctionDef:
