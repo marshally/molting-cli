@@ -8,6 +8,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import is_pass_statement
+from molting.core.code_generation_utils import create_parameter
 
 
 class MoveFieldCommand(BaseCommand):
@@ -122,7 +123,7 @@ class MoveFieldTransformer(cst.CSTTransformer):
         new_params = list(node.params.params)
         new_stmts: list[cst.BaseStatement] = []
 
-        new_params.append(cst.Param(name=cst.Name(self.target_class_lower)))
+        new_params.append(create_parameter(self.target_class_lower))
 
         if isinstance(node.body, cst.IndentedBlock):
             for stmt in node.body.body:
@@ -221,7 +222,7 @@ class MoveFieldTransformer(cst.CSTTransformer):
         """Create a new __init__ method with the field."""
         return cst.FunctionDef(
             name=cst.Name("__init__"),
-            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
+            params=cst.Parameters(params=[create_parameter("self")]),
             body=cst.IndentedBlock(body=[self._create_field_assignment()]),
         )
 
