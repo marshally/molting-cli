@@ -86,6 +86,83 @@ class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
             self.found_class = True
             self.class_constants = self._collect_class_constants(node.body)
 
+    def _create_condition(self, constant: str, param_name: str) -> cst.Comparison:
+        """Create a condition that tests parameter against constant name.
+
+        Args:
+            constant: The constant name to test
+            param_name: The parameter name to compare
+
+        Returns:
+            A comparison node
+        """
+        return cst.Comparison(
+            left=cst.Name(param_name),
+            comparisons=[
+                cst.ComparisonTarget(
+                    operator=cst.Equal(),
+                    comparator=cst.SimpleString(f'"{constant}"'),
+                )
+            ],
+        )
+
+    def _create_return_statement(self, constant: str) -> cst.SimpleStatementLine:
+        """Create a return statement that instantiates the class with a constant.
+
+        Args:
+            constant: The constant name to use
+
+        Returns:
+            A return statement node
+        """
+        return cst.SimpleStatementLine(
+            body=[
+                cst.Return(
+                    value=cst.Call(
+                        func=cst.Name(self.class_name),
+                        args=[
+                            cst.Arg(
+                                value=cst.Attribute(
+                                    value=cst.Name(self.class_name),
+                                    attr=cst.Name(constant),
+                                )
+                            )
+                        ],
+                    )
+                )
+            ]
+        )
+
+    def _build_if_chain(self, param_name: str) -> cst.If | None:
+        """Build if-elif chain for all constants.
+
+        Args:
+            param_name: The parameter name for the factory function
+
+        Returns:
+            The if chain or None if no constants
+        """
+        if_chain = None
+        for constant in reversed(self.class_constants):
+            condition = self._create_condition(constant, param_name)
+            return_stmt = self._create_return_statement(constant)
+
+            if if_chain is None:
+                # Last condition (no else)
+                if_chain = cst.If(
+                    test=condition,
+                    body=cst.IndentedBlock(body=[return_stmt]),
+                    orelse=None,
+                )
+            else:
+                # Wrap previous chain as orelse
+                if_chain = cst.If(
+                    test=condition,
+                    body=cst.IndentedBlock(body=[return_stmt]),
+                    orelse=if_chain,
+                )
+        return if_chain
+
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
     ) -> cst.Module:
@@ -106,51 +183,10 @@ class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
 
         # Create factory function name
         factory_name = f"create_{self.class_name.lower()}"
+        param_name = "employee_type"
 
-        # Build if-elif chain from the end backwards
-        if_chain = None
-        for constant in reversed(self.class_constants):
-            condition = cst.Comparison(
-                left=cst.Name("employee_type"),
-                comparisons=[
-                    cst.ComparisonTarget(
-                        operator=cst.Equal(),
-                        comparator=cst.SimpleString(f'"{constant}"'),
-                    )
-                ],
-            )
-            return_stmt = cst.SimpleStatementLine(
-                body=[
-                    cst.Return(
-                        value=cst.Call(
-                            func=cst.Name(self.class_name),
-                            args=[
-                                cst.Arg(
-                                    value=cst.Attribute(
-                                        value=cst.Name(self.class_name),
-                                        attr=cst.Name(constant),
-                                    )
-                                )
-                            ],
-                        )
-                    )
-                ]
-            )
-
-            if if_chain is None:
-                # Last condition (no else)
-                if_chain = cst.If(
-                    test=condition,
-                    body=cst.IndentedBlock(body=[return_stmt]),
-                    orelse=None,
-                )
-            else:
-                # Wrap previous chain as orelse
-                if_chain = cst.If(
-                    test=condition,
-                    body=cst.IndentedBlock(body=[return_stmt]),
-                    orelse=if_chain,
-                )
+        # Build if-elif chain
+        if_chain = self._build_if_chain(param_name)
 
         # Create factory function
         factory_func = cst.FunctionDef(
