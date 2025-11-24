@@ -63,7 +63,6 @@ class TestReplaceTempWithQuery(RefactoringTestBase):
         self.refactor("replace-temp-with-query", target="Order::get_price::base_price")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestIntroduceExplainingVariable(RefactoringTestBase):
     """Tests for Introduce Explaining Variable refactoring."""
 
