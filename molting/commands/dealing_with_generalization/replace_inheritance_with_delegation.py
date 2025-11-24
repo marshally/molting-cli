@@ -5,6 +5,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
+from molting.core.code_generation_utils import create_parameter
 
 
 class ReplaceInheritanceWithDelegationCommand(BaseCommand):
@@ -126,7 +127,7 @@ class ReplaceInheritanceTransformer(cst.CSTTransformer):
         init_method = cst.FunctionDef(
             name=cst.Name("__init__"),
             params=cst.Parameters(
-                params=[cst.Param(name=cst.Name("self"))],
+                params=[create_parameter("self")],
             ),
             body=cst.IndentedBlock(body=[assignment]),
         )
