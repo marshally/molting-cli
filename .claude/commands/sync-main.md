@@ -8,7 +8,26 @@ Synchronize the current branch with the latest main branch by fetching updates, 
 
 ## Workflow
 
-### Step 1: Verify Current Branch
+### Step 1: Check for Stuck Rebase
+
+First, check if there's already a rebase in progress:
+```bash
+git status
+```
+
+**If a rebase is in progress:**
+- Check if there are unresolved conflicts
+- If conflicts exist, proceed to resolve them (Step 3)
+- If no conflicts but rebase is stuck, abort it:
+  ```bash
+  git rebase --abort
+  ```
+- Then restart from Step 2
+
+**If no rebase in progress:**
+- Continue to verify current branch
+
+### Step 2: Verify Current Branch
 
 Check that we're not on the main branch:
 ```bash
@@ -19,14 +38,14 @@ If on main branch:
 - STOP and warn the user that this command should be run from a feature branch
 - Suggest checking out or creating a feature branch first
 
-### Step 2: Fetch Latest Changes
+### Step 3: Fetch Latest Changes
 
 Fetch the latest changes from origin:
 ```bash
 git fetch origin
 ```
 
-### Step 3: Rebase on Main
+### Step 4: Rebase on Main
 
 Attempt to rebase the current branch on origin/main:
 ```bash
@@ -34,7 +53,7 @@ git rebase origin/main
 ```
 
 **If rebase succeeds without conflicts:**
-- Continue to Step 4
+- Continue to Step 5
 
 **If there are merge conflicts:**
 - Show the conflicted files:
@@ -56,9 +75,13 @@ git rebase origin/main
   git rebase --continue
   ```
 - If additional conflicts appear in subsequent commits, repeat conflict resolution
-- If conflicts are too complex or unclear, STOP and ask the user for guidance
+- If conflicts are too complex or unclear, abort the rebase and report:
+  ```bash
+  git rebase --abort
+  ```
+- After aborting, exit with an error message explaining the situation
 
-### Step 4: Run Code Quality Checks
+### Step 5: Run Code Quality Checks
 
 Run formatting and linting:
 ```bash
@@ -76,7 +99,7 @@ git status
   git add -A && git commit -m "Fix linting and formatting issues after rebase"
   ```
 
-### Step 5: Run Tests
+### Step 6: Run Tests
 
 Verify that all tests still pass after the rebase:
 ```bash
@@ -89,9 +112,9 @@ make test
 - Suggest investigating the failures before pushing
 
 **If tests pass:**
-- Continue to Step 6
+- Continue to Step 7
 
-### Step 6: Push Changes
+### Step 7: Push Changes
 
 Force push the rebased branch (safe because we're using --force-with-lease):
 ```bash
@@ -104,9 +127,9 @@ git push --force-with-lease
 - STOP
 
 **If push succeeds:**
-- Continue to Step 7
+- Continue to Step 8
 
-### Step 7: Report Results
+### Step 8: Report Results
 
 Provide a summary to the user:
 - Branch name

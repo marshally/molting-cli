@@ -106,9 +106,26 @@ def main() -> None:
                     ["claude", "--print", "/sync-main"],
                     check=True,
                 )
-                print("  ✅ Conflicts resolved successfully")
+                print("  ✅ Claude finished processing")
+
+                # Check if rebase is still in progress (stuck)
+                rebase_dir_result = subprocess.run(
+                    ["git", "rev-parse", "--git-path", "rebase-merge"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                rebase_in_progress = os.path.exists(rebase_dir_result.stdout.strip())
+
+                if rebase_in_progress:
+                    print("  ❌ Rebase is still stuck, aborting...")
+                    subprocess.run(["git", "rebase", "--abort"], check=False)
+                    sys.exit(1)
+                else:
+                    print("  ✅ Rebase completed successfully")
+
             except subprocess.CalledProcessError:
-                print("  ❌ Failed to resolve conflicts, stopping...")
+                print("  ❌ Failed to resolve conflicts, aborting rebase...")
                 subprocess.run(["git", "rebase", "--abort"], check=False)
                 sys.exit(1)
 

@@ -1,6 +1,7 @@
 """Tests for scripts/auto-work.py"""
 
 import importlib.util
+import os
 import signal
 import subprocess
 import sys
@@ -244,24 +245,30 @@ class TestMainLoop:
         mock_run_command = Mock(return_value=True)
         mock_get_pr_count = Mock(return_value=10)
         mock_sleep = Mock()
+        mock_exists = Mock(return_value=False)  # Rebase not in progress after claude
 
         monkeypatch.setattr(signal, "signal", mock_signal)
         monkeypatch.setattr(auto_work, "run_command", mock_run_command)
         monkeypatch.setattr(auto_work, "get_pr_count", mock_get_pr_count)
         monkeypatch.setattr("time.sleep", mock_sleep)
+        monkeypatch.setattr(os.path, "exists", mock_exists)
 
         auto_work.running = True  # type: ignore[attr-defined]
 
-        # Make git rebase fail, then claude succeed
+        # Make git rebase fail, then claude succeed, then check shows rebase complete
         call_count = [0]
 
-        def subprocess_run_side_effect(*args: Any, **kwargs: Any) -> None:
+        def subprocess_run_side_effect(*args: Any, **kwargs: Any) -> Mock:
             call_count[0] += 1
+            result = Mock()
+            result.stdout = "/path/to/.git/rebase-merge"
             if call_count[0] == 1:  # First call is git rebase
                 raise subprocess.CalledProcessError(1, "git")
             elif call_count[0] == 2:  # Second call is claude
-                auto_work.running = False  # type: ignore[attr-defined]
                 return None
+            elif call_count[0] == 3:  # Third call is git rev-parse to check rebase status
+                auto_work.running = False  # type: ignore[attr-defined]
+                return result
             return None
 
         mock_subprocess = Mock(side_effect=subprocess_run_side_effect)
@@ -269,13 +276,19 @@ class TestMainLoop:
 
         auto_work.main()
 
-        # Should call git rebase and then claude
-        assert mock_subprocess.call_count >= 2
+        # Should call git rebase, claude, and then rev-parse to check status
+        assert mock_subprocess.call_count >= 3
         assert mock_subprocess.call_args_list[0] == call(
             ["git", "rebase", "origin/main"], check=True, capture_output=False
         )
         assert mock_subprocess.call_args_list[1] == call(
             ["claude", "--print", "/sync-main"], check=True
+        )
+        assert mock_subprocess.call_args_list[2] == call(
+            ["git", "rev-parse", "--git-path", "rebase-merge"],
+            capture_output=True,
+            text=True,
+            check=True,
         )
 
     def test_main_exits_on_rebase_resolution_failure(self, monkeypatch: Any) -> None:
@@ -308,6 +321,48 @@ class TestMainLoop:
 
         assert exc_info.value.code == 1
         # Should call git rebase --abort
+        mock_subprocess.assert_any_call(["git", "rebase", "--abort"], check=False)
+
+    def test_main_aborts_rebase_when_still_stuck(self, monkeypatch: Any) -> None:
+        """main should abort rebase when it's still stuck after claude runs"""
+        mock_signal = Mock()
+        mock_run_command = Mock(return_value=True)
+        mock_exists = Mock(return_value=True)  # Rebase still in progress
+
+        monkeypatch.setattr(signal, "signal", mock_signal)
+        monkeypatch.setattr(auto_work, "run_command", mock_run_command)
+        monkeypatch.setattr(os.path, "exists", mock_exists)
+
+        auto_work.running = True  # type: ignore[attr-defined]
+
+        call_count = [0]
+
+        def subprocess_run_side_effect(*args: Any, **kwargs: Any) -> Mock:
+            call_count[0] += 1
+            result = Mock()
+            result.stdout = "/path/to/.git/rebase-merge"
+            cmd = args[0][0] if args and args[0] else ""
+
+            if call_count[0] == 1:  # git rebase fails
+                raise subprocess.CalledProcessError(1, "git")
+            elif call_count[0] == 2:  # claude succeeds
+                return None
+            elif call_count[0] == 3:  # git rev-parse to check status
+                return result
+            elif cmd == "git" and len(args[0]) > 2 and args[0][2] == "--abort":
+                return None
+            return None
+
+        mock_subprocess = Mock(side_effect=subprocess_run_side_effect)
+        monkeypatch.setattr(subprocess, "run", mock_subprocess)
+
+        with pytest.raises(SystemExit) as exc_info:
+            auto_work.main()
+
+        assert exc_info.value.code == 1
+        # Should check if rebase is still in progress
+        mock_exists.assert_called_once()
+        # Should abort the stuck rebase
         mock_subprocess.assert_any_call(["git", "rebase", "--abort"], check=False)
 
     def test_main_skips_work_when_at_limit(self, monkeypatch: Any, capsys: Any) -> None:
