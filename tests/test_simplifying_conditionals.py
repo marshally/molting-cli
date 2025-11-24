@@ -19,7 +19,6 @@ class TestDecomposeConditional(RefactoringTestBase):
         self.refactor("decompose-conditional", target="calculate_charge#L2-L5")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestConsolidateConditionalExpression(RefactoringTestBase):
     """Tests for Consolidate Conditional Expression refactoring."""
 
