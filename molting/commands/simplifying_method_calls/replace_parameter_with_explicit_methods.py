@@ -140,17 +140,21 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
         Returns:
             The value being compared, or None if not found
         """
-        if isinstance(condition, ast.Compare):
-            if (
-                isinstance(condition.left, ast.Name)
-                and condition.left.id == param_name
-                and len(condition.ops) == 1
-                and isinstance(condition.ops[0], ast.Eq)
-                and len(condition.comparators) == 1
-                and isinstance(condition.comparators[0], ast.Constant)
-            ):
-                return condition.comparators[0].value
-        return None
+        if not isinstance(condition, ast.Compare):
+            return None
+
+        if not isinstance(condition.left, ast.Name) or condition.left.id != param_name:
+            return None
+
+        if len(condition.ops) != 1 or not isinstance(condition.ops[0], ast.Eq):
+            return None
+
+        if len(condition.comparators) != 1 or not isinstance(
+            condition.comparators[0], ast.Constant
+        ):
+            return None
+
+        return condition.comparators[0].value
 
     def _create_explicit_method(
         self,
