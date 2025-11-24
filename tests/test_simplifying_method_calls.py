@@ -156,7 +156,6 @@ class TestReplaceConstructorWithFactoryFunction(RefactoringTestBase):
         self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceErrorCodeWithException(RefactoringTestBase):
     """Tests for Replace Error Code with Exception refactoring."""
 
