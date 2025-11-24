@@ -31,8 +31,9 @@ PR_NUMBER="$3"
 HEAD_REF="$4"
 
 # Check if claude CLI is available
-if ! command -v claude &> /dev/null; then
-    error "claude CLI is not installed. Please install Claude Code CLI first."
+CLAUDE_CLI="${CLAUDE_CLI:-$HOME/.local/bin/claude}"
+if ! command -v "$CLAUDE_CLI" &> /dev/null; then
+    error "claude CLI is not installed at $CLAUDE_CLI. Please install Claude Code CLI first or set CLAUDE_CLI environment variable."
     exit 1
 fi
 
@@ -132,7 +133,7 @@ $CONFLICTED_CONTENT
 Please output ONLY the resolved file content with all conflicts resolved and conflict markers removed. Do not include any explanations, markdown formatting, or code fences in your response - just the raw resolved file content."
 
         # Use Claude in non-interactive mode to get resolution
-        RESOLVED_CONTENT=$(claude --print "$PROMPT" 2>/dev/null)
+        RESOLVED_CONTENT=$("$CLAUDE_CLI" --print "$PROMPT" 2>/dev/null)
 
         if [ $? -eq 0 ] && [ -n "$RESOLVED_CONTENT" ]; then
             # Write resolved content back to file
