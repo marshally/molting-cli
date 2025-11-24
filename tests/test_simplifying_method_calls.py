@@ -135,7 +135,6 @@ class TestRemoveSettingMethod(RefactoringTestBase):
         self.refactor("remove-setting-method", target="Account::_id")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestHideMethod(RefactoringTestBase):
     """Tests for Hide Method refactoring."""
 
