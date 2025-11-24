@@ -4,7 +4,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_target
+from molting.core.ast_utils import is_empty_class, parse_target
 
 
 class CollapseHierarchyCommand(BaseCommand):
@@ -59,7 +59,7 @@ class CollapseHierarchyTransformer(cst.CSTTransformer):
         """Remove empty subclass definitions."""
         if original_node.name.value == self.target_class:
             # Check if this class is empty (only contains pass or has no body)
-            if self._is_empty_class(original_node):
+            if is_empty_class(original_node):
                 return cst.RemovalSentinel.REMOVE
         return updated_node
 
@@ -74,29 +74,6 @@ class CollapseHierarchyTransformer(cst.CSTTransformer):
             new_body.pop()
 
         return updated_node.with_changes(body=tuple(new_body))
-
-    @staticmethod
-    def _is_empty_class(node: cst.ClassDef) -> bool:
-        """Check if a class is empty (contains only pass or no statements).
-
-        Args:
-            node: The class definition to check
-
-        Returns:
-            True if the class is empty
-        """
-        if isinstance(node.body, cst.IndentedBlock):
-            # Check if body contains only pass or empty statements
-            for stmt in node.body.body:
-                if isinstance(stmt, cst.SimpleStatementLine):
-                    # Check if this line only contains 'pass'
-                    if len(stmt.body) == 1 and isinstance(stmt.body[0], cst.Pass):
-                        continue
-                else:
-                    # Any other statement means it's not empty
-                    return False
-            return True
-        return True
 
 
 # Register the command
