@@ -7,6 +7,7 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.code_generation_utils import create_parameter
 
 
 class DecomposeConditionalCommand(BaseCommand):
@@ -227,7 +228,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         """
         return cst.FunctionDef(
             name=cst.Name(name),
-            params=cst.Parameters(params=[cst.Param(name=cst.Name(param)) for param in params]),
+            params=cst.Parameters(params=[create_parameter(param) for param in params]),
             body=cst.IndentedBlock(
                 body=[
                     cst.SimpleStatementLine(
