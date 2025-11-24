@@ -111,7 +111,6 @@ class TestChangeBidirectionalAssociationToUnidirectional(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceMagicNumberWithSymbolicConstant(RefactoringTestBase):
     """Tests for Replace Magic Number with Symbolic Constant refactoring."""
 
