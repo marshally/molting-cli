@@ -10,7 +10,6 @@ import pytest
 from tests.conftest import RefactoringTestBase
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestSelfEncapsulateField(RefactoringTestBase):
     """Tests for Self Encapsulate Field refactoring."""
 
@@ -18,8 +17,12 @@ class TestSelfEncapsulateField(RefactoringTestBase):
 
     def test_simple(self) -> None:
         """Create getter and setter methods for a field."""
-        self.refactor("self-encapsulate-field", target="Range::low")
-        self.refactor("self-encapsulate-field", target="Range::high")
+        from molting.cli import refactor_file
+
+        assert self.test_file is not None
+        refactor_file("self-encapsulate-field", self.test_file, target="Range::low")
+        refactor_file("self-encapsulate-field", self.test_file, target="Range::high")
+        self.assert_matches_expected()
 
 
 class TestReplaceDataValueWithObject(RefactoringTestBase):
