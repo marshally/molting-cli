@@ -5,6 +5,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import find_class_in_module, is_self_attribute, parse_target
+from molting.core.code_generation_utils import create_parameter
 
 
 class ReplaceMethodWithMethodObjectCommand(BaseCommand):
@@ -263,7 +264,7 @@ class ReplaceMethodWithMethodObjectTransformer(cst.CSTTransformer):
         Returns:
             A FunctionDef for the __init__ method
         """
-        init_params = [cst.Param(name=cst.Name("self")), cst.Param(name=cst.Name("account"))] + [
+        init_params = [create_parameter("self"), create_parameter("account")] + [
             cst.Param(name=p.name) for p in params
         ]
 
@@ -321,7 +322,7 @@ class ReplaceMethodWithMethodObjectTransformer(cst.CSTTransformer):
         compute_body = self._transform_method_body(self.original_method.body)
         return cst.FunctionDef(
             name=cst.Name("compute"),
-            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
+            params=cst.Parameters(params=[create_parameter("self")]),
             body=compute_body,
             leading_lines=[cst.EmptyLine(indent=False, whitespace=cst.SimpleWhitespace(""))],
         )
