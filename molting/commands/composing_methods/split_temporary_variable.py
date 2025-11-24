@@ -1,5 +1,7 @@
 """Split Temporary Variable refactoring command."""
 
+from typing import cast
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -109,7 +111,7 @@ class SplitTemporaryVariableTransformer(cst.CSTTransformer):
         """
         new_name = self._generate_variable_name(assignment_count)
         assignment_replacer = AssignmentTargetReplacer(self.variable_name, new_name)
-        return stmt.visit(assignment_replacer)
+        return cast(cst.BaseStatement, stmt.visit(assignment_replacer))
 
     def _process_usage_statement(
         self, stmt: cst.BaseStatement, assignment_count: int
@@ -128,7 +130,7 @@ class SplitTemporaryVariableTransformer(cst.CSTTransformer):
 
         current_name = self._generate_variable_name(assignment_count)
         name_replacer = NameReplacer(self.variable_name, current_name)
-        return stmt.visit(name_replacer)
+        return cast(cst.BaseStatement, stmt.visit(name_replacer))
 
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
