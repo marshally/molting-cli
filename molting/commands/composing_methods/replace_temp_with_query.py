@@ -79,22 +79,22 @@ class ReplaceTempWithQueryTransformer(cst.CSTTransformer):
                         return True
         return False
 
-    def _extract_temp_expression(self, function_body: cst.IndentedBlock) -> None:
+    def _extract_temp_expression(self, function_body: cst.BaseSuite) -> None:
         """Extract the expression from the temp variable assignment.
 
         Args:
             function_body: The function body to search
         """
         for stmt in function_body.body:
-            if self._is_target_variable_assignment(stmt):
+            if self._is_target_variable_assignment(stmt):  # type: ignore[arg-type]
                 # Extract the expression from the assignment
-                for inner_stmt in stmt.body:  # type: ignore[attr-defined]
+                for inner_stmt in stmt.body:  # type: ignore[union-attr]
                     if isinstance(inner_stmt, cst.Assign):
                         self.temp_expression = inner_stmt.value
                         break
 
     def _remove_assignment_and_replace_references(
-        self, function_body: cst.IndentedBlock
+        self, function_body: cst.BaseSuite
     ) -> list[cst.BaseStatement]:
         """Remove temp assignment and replace variable references with method calls.
 
@@ -107,13 +107,13 @@ class ReplaceTempWithQueryTransformer(cst.CSTTransformer):
         new_body: list[cst.BaseStatement] = []
         for stmt in function_body.body:
             # Skip the assignment statement
-            if self._is_target_variable_assignment(stmt):
+            if self._is_target_variable_assignment(stmt):  # type: ignore[arg-type]
                 continue
 
             # Replace variable references with method calls
             replacer = VariableReplacer(self.variable_name)
             new_stmt = stmt.visit(replacer)
-            new_body.append(new_stmt)
+            new_body.append(new_stmt)  # type: ignore[arg-type]
         return new_body
 
     def leave_FunctionDef(  # noqa: N802
