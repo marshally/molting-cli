@@ -4,7 +4,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_target
+from molting.core.ast_utils import find_method_in_class, parse_target
 
 
 class ReplaceDelegationWithInheritanceCommand(BaseCommand):
@@ -69,25 +69,25 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
         if node.name.value == self.class_name:
             # Find the delegate field assignment to get the delegate class
             # Look in __init__ method first
-            for stmt in node.body.body:
-                if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
-                    # Find the delegate assignment in __init__
-                    for init_stmt in stmt.body.body:
-                        if isinstance(init_stmt, cst.SimpleStatementLine):
-                            for item in init_stmt.body:
-                                if isinstance(item, cst.Assign):
-                                    for target in item.targets:
-                                        # Check for self._field = Class(...)
-                                        if isinstance(target.target, cst.Attribute):
-                                            if (
-                                                isinstance(target.target.value, cst.Name)
-                                                and target.target.value.value == "self"
-                                                and target.target.attr.value == self.delegate_field
-                                            ):
-                                                # Extract delegate class from assignment
-                                                if isinstance(item.value, cst.Call):
-                                                    if isinstance(item.value.func, cst.Name):
-                                                        self.delegate_type = item.value.func.value
+            init_method = find_method_in_class(node, "__init__")
+            if init_method:
+                # Find the delegate assignment in __init__
+                for init_stmt in init_method.body.body:
+                    if isinstance(init_stmt, cst.SimpleStatementLine):
+                        for item in init_stmt.body:
+                            if isinstance(item, cst.Assign):
+                                for target in item.targets:
+                                    # Check for self._field = Class(...)
+                                    if isinstance(target.target, cst.Attribute):
+                                        if (
+                                            isinstance(target.target.value, cst.Name)
+                                            and target.target.value.value == "self"
+                                            and target.target.attr.value == self.delegate_field
+                                        ):
+                                            # Extract delegate class from assignment
+                                            if isinstance(item.value, cst.Call):
+                                                if isinstance(item.value.func, cst.Name):
+                                                    self.delegate_type = item.value.func.value
         return True
 
     def leave_ClassDef(  # noqa: N802
