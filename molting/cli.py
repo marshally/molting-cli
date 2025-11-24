@@ -45,6 +45,7 @@ import molting.commands.simplifying_method_calls.parameterize_method  # noqa: F4
 import molting.commands.simplifying_method_calls.remove_parameter  # noqa: F401
 import molting.commands.simplifying_method_calls.remove_setting_method  # noqa: F401
 import molting.commands.simplifying_method_calls.rename_method  # noqa: F401
+import molting.commands.simplifying_method_calls.replace_constructor_with_factory_function  # noqa: F401
 import molting.commands.simplifying_method_calls.replace_error_code_with_exception  # noqa: F401
 from molting import __version__
 from molting.commands.registry import apply_refactoring

@@ -144,7 +144,6 @@ class TestHideMethod(RefactoringTestBase):
         self.refactor("hide-method", target="Employee::get_bonus_multiplier")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceConstructorWithFactoryFunction(RefactoringTestBase):
     """Tests for Replace Constructor with Factory Function refactoring."""
 
