@@ -125,7 +125,6 @@ class TestIntroduceParameterObject(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestRemoveSettingMethod(RefactoringTestBase):
     """Tests for Remove Setting Method refactoring."""
 

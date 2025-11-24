@@ -483,3 +483,65 @@ def statements_contain_only_pass(stmts: Sequence[cst.BaseStatement]) -> bool:
         if not is_pass_statement(stmt):
             return False
     return True
+
+
+def is_self_attribute(node: cst.BaseExpression, attr_name: str | None = None) -> bool:
+    """Check if node is a self.field attribute access.
+
+    Args:
+        node: The CST node to check
+        attr_name: If provided, check for this specific attribute name.
+                  If None, return True for any self.field pattern.
+
+    Returns:
+        True if node is self.attr (and matches attr_name if provided)
+    """
+    if not isinstance(node, cst.Attribute):
+        return False
+    if not isinstance(node.value, cst.Name):
+        return False
+    if node.value.value != "self":
+        return False
+
+    # If attr_name is specified, check if it matches
+    if attr_name is not None:
+        return node.attr.value == attr_name
+
+    return True
+
+
+def is_self_field_assignment(
+    stmt: cst.SimpleStatementLine, field_names: set[str] | None = None
+) -> bool:
+    """Check if statement is a self.field = value assignment.
+
+    Args:
+        stmt: The statement to check
+        field_names: If provided, check if assigned field is in this set.
+                    If None, return True for any self.field assignment.
+
+    Returns:
+        True if stmt assigns to self.field (and field is in field_names if provided)
+    """
+    if not isinstance(stmt, cst.SimpleStatementLine):
+        return False
+
+    for item in stmt.body:
+        if not isinstance(item, cst.Assign):
+            continue
+
+        for target in item.targets:
+            if not isinstance(target.target, cst.Attribute):
+                continue
+
+            # Check if this is a self.field attribute
+            if not is_self_attribute(target.target):
+                continue
+
+            # Extract field name and check against filter if provided
+            field_name = target.target.attr.value
+            if field_names is not None:
+                return field_name in field_names
+            return True
+
+    return False

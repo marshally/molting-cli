@@ -18,6 +18,8 @@ from molting.core.ast_utils import (
     is_assignment_to_field,
     is_empty_class,
     is_pass_statement,
+    is_self_attribute,
+    is_self_field_assignment,
     parse_comma_separated_list,
     parse_line_number,
     parse_line_range,
@@ -1116,3 +1118,179 @@ def foo():
         stmts = list(module.body)
 
         assert statements_contain_only_pass(stmts) is False
+
+
+class TestIsSelfAttribute:
+    """Tests for is_self_attribute() function."""
+
+    def test_self_field_returns_true(self) -> None:
+        """Should return True for self.field expression."""
+        code = "self.name"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+        expr = stmt.body[0]
+        assert isinstance(expr, cst.Expr)
+
+        result = is_self_attribute(expr.value)
+
+        assert result is True
+
+    def test_self_field_with_matching_attr_name(self) -> None:
+        """Should return True when attr_name matches."""
+        code = "self.field"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+        expr = stmt.body[0]
+        assert isinstance(expr, cst.Expr)
+
+        result = is_self_attribute(expr.value, attr_name="field")
+
+        assert result is True
+
+    def test_self_field_with_non_matching_attr_name(self) -> None:
+        """Should return False when attr_name doesn't match."""
+        code = "self.field"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+        expr = stmt.body[0]
+        assert isinstance(expr, cst.Expr)
+
+        result = is_self_attribute(expr.value, attr_name="other")
+
+        assert result is False
+
+    def test_self_field_with_none_attr_name(self) -> None:
+        """Should return True for any self.field when attr_name is None."""
+        code = "self.anything"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+        expr = stmt.body[0]
+        assert isinstance(expr, cst.Expr)
+
+        result = is_self_attribute(expr.value, attr_name=None)
+
+        assert result is True
+
+    def test_obj_field_returns_false(self) -> None:
+        """Should return False for obj.field (not self)."""
+        code = "obj.field"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+        expr = stmt.body[0]
+        assert isinstance(expr, cst.Expr)
+
+        result = is_self_attribute(expr.value)
+
+        assert result is False
+
+    def test_self_alone_returns_false(self) -> None:
+        """Should return False for just 'self' without attribute."""
+        code = "self"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+        expr = stmt.body[0]
+        assert isinstance(expr, cst.Expr)
+
+        result = is_self_attribute(expr.value)
+
+        assert result is False
+
+    def test_other_expression_returns_false(self) -> None:
+        """Should return False for other expressions."""
+        code = "42"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+        expr = stmt.body[0]
+        assert isinstance(expr, cst.Expr)
+
+        result = is_self_attribute(expr.value)
+
+        assert result is False
+
+
+class TestIsSelfFieldAssignment:
+    """Tests for is_self_field_assignment() function."""
+
+    def test_self_name_assignment_returns_true(self) -> None:
+        """Should return True for self.name = value."""
+        code = "self.name = value"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+
+        result = is_self_field_assignment(stmt)
+
+        assert result is True
+
+    def test_self_name_with_matching_field_names(self) -> None:
+        """Should return True when field_names contains the field."""
+        code = "self.name = value"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+
+        result = is_self_field_assignment(stmt, field_names={"name"})
+
+        assert result is True
+
+    def test_self_name_with_non_matching_field_names(self) -> None:
+        """Should return False when field_names doesn't contain the field."""
+        code = "self.name = value"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+
+        result = is_self_field_assignment(stmt, field_names={"other"})
+
+        assert result is False
+
+    def test_self_name_with_none_field_names(self) -> None:
+        """Should return True for any self.field when field_names is None."""
+        code = "self.anything = value"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+
+        result = is_self_field_assignment(stmt, field_names=None)
+
+        assert result is True
+
+    def test_local_assignment_returns_false(self) -> None:
+        """Should return False for local = value."""
+        code = "local = value"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+
+        result = is_self_field_assignment(stmt)
+
+        assert result is False
+
+    def test_obj_field_assignment_returns_false(self) -> None:
+        """Should return False for obj.field = value."""
+        code = "obj.field = value"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+
+        result = is_self_field_assignment(stmt)
+
+        assert result is False
+
+    def test_non_assignment_statement_returns_false(self) -> None:
+        """Should return False for non-assignment statements."""
+        code = "print('hello')"
+        module = cst.parse_module(code)
+        stmt = module.body[0]
+        assert isinstance(stmt, cst.SimpleStatementLine)
+
+        result = is_self_field_assignment(stmt)
+
+        assert result is False
