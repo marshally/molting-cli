@@ -7,7 +7,6 @@ import os
 import signal
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -60,15 +59,13 @@ sys.exit(0)
         content = original_script.read_text()
 
         # Modify to use mock script and shorter timeouts
-        modified_content = content.replace(
-            'MAX_PRS = 5',
-            'MAX_PRS = 5'
-        ).replace(
-            'SLEEP_MINUTES = 5',
-            'SLEEP_MINUTES = 1'
-        ).replace(
-            '["claude", "--dangerously-skip-permissions", "--print", "/work-next"]',
-            f'["{mock_work_script}"]'
+        modified_content = (
+            content.replace("MAX_PRS = 5", "MAX_PRS = 5")
+            .replace("SLEEP_MINUTES = 5", "SLEEP_MINUTES = 1")
+            .replace(
+                '["claude", "--dangerously-skip-permissions", "--print", "/work-next"]',
+                f'["{mock_work_script}"]',
+            )
         )
 
         script_path.write_text(modified_content)
@@ -76,9 +73,7 @@ sys.exit(0)
         return script_path
 
     def test_graceful_shutdown_allows_child_to_complete(
-        self,
-        mock_auto_work_script: Path,
-        tmp_path: Path
+        self, mock_auto_work_script: Path, tmp_path: Path
     ) -> None:
         """
         Test that sending SIGINT to auto-work.py allows the child process to complete.
@@ -91,21 +86,25 @@ sys.exit(0)
         """
         # Mock git commands to succeed
         mock_git = tmp_path / "git"
-        mock_git.write_text('''#!/bin/bash
+        mock_git.write_text(
+            """#!/bin/bash
 exit 0
-''')
+"""
+        )
         mock_git.chmod(0o755)
 
         # Mock gh command to return PR count below limit
         mock_gh = tmp_path / "gh"
-        mock_gh.write_text('''#!/bin/bash
+        mock_gh.write_text(
+            """#!/bin/bash
 echo "0"
-''')
+"""
+        )
         mock_gh.chmod(0o755)
 
         # Set up environment with mocked commands
         env = os.environ.copy()
-        env['PATH'] = f"{tmp_path}:{env['PATH']}"
+        env["PATH"] = f"{tmp_path}:{env['PATH']}"
 
         # Start auto-work.py process
         process = subprocess.Popen(
@@ -127,6 +126,7 @@ echo "0"
             while not start_seen and (time.time() - start_time) < timeout:
                 # Use non-blocking read
                 import select
+
                 ready, _, _ = select.select([process.stdout], [], [], 0.1)
                 if ready:
                     line = process.stdout.readline()
@@ -151,16 +151,20 @@ echo "0"
                 stdout, stderr = process.communicate()
                 pytest.fail("Process did not complete within timeout")
 
-            full_output = ''.join(all_output)
+            full_output = "".join(all_output)
             print(f"\nFull stdout:\n{full_output}")
             print(f"\nFull stderr:\n{stderr}")
 
             # Verify child process completed successfully
             assert "START" in full_output, "START not found in output"
             assert "END" in full_output, "Child process did not complete (END not found)"
-            assert "SIGINT_RECEIVED" not in full_output, "Child process received SIGINT (should not happen)"
-            assert "Auto-work script stopped cleanly" in full_output or process.returncode in [0, -2], \
-                "Parent did not exit cleanly"
+            assert (
+                "SIGINT_RECEIVED" not in full_output
+            ), "Child process received SIGINT (should not happen)"
+            assert "Auto-work script stopped cleanly" in full_output or process.returncode in [
+                0,
+                -2,
+            ], "Parent did not exit cleanly"
 
         finally:
             # Cleanup: ensure process is terminated
@@ -169,9 +173,7 @@ echo "0"
                 process.wait()
 
     def test_child_completes_before_next_iteration(
-        self,
-        mock_auto_work_script: Path,
-        tmp_path: Path
+        self, mock_auto_work_script: Path, tmp_path: Path
     ) -> None:
         """
         Test that after SIGINT, the script completes current work but doesn't start new work.
@@ -184,20 +186,24 @@ echo "0"
         """
         # Mock git commands
         mock_git = tmp_path / "git"
-        mock_git.write_text('''#!/bin/bash
+        mock_git.write_text(
+            """#!/bin/bash
 exit 0
-''')
+"""
+        )
         mock_git.chmod(0o755)
 
         # Mock gh command - always return 0 (below limit, would trigger multiple iterations)
         mock_gh = tmp_path / "gh"
-        mock_gh.write_text('''#!/bin/bash
+        mock_gh.write_text(
+            """#!/bin/bash
 echo "0"
-''')
+"""
+        )
         mock_gh.chmod(0o755)
 
         env = os.environ.copy()
-        env['PATH'] = f"{tmp_path}:{env['PATH']}"
+        env["PATH"] = f"{tmp_path}:{env['PATH']}"
 
         process = subprocess.Popen(
             [sys.executable, str(mock_auto_work_script)],
@@ -217,6 +223,7 @@ echo "0"
 
             while start_count < 1 and (time.time() - start_time) < timeout:
                 import select
+
                 ready, _, _ = select.select([process.stdout], [], [], 0.1)
                 if ready:
                     line = process.stdout.readline()
@@ -240,7 +247,7 @@ echo "0"
                 stdout, stderr = process.communicate()
                 pytest.fail("Process did not complete within timeout")
 
-            full_output = ''.join(all_output)
+            full_output = "".join(all_output)
             print(f"\nFull stdout:\n{full_output}")
 
             # Count how many times work started
@@ -253,7 +260,10 @@ echo "0"
             assert full_output.count("END") == 1, "Expected exactly 1 END"
 
             # Should see clean shutdown message
-            assert "Auto-work script stopped cleanly" in full_output or process.returncode in [0, -2]
+            assert "Auto-work script stopped cleanly" in full_output or process.returncode in [
+                0,
+                -2,
+            ]
 
         finally:
             if process.poll() is None:
