@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.code_generation_utils import create_parameter
 
 
 class HideDelegateCommand(BaseCommand):
@@ -128,7 +129,7 @@ class HideDelegateTransformer(cst.CSTTransformer):
         """Create a delegating method for the hidden field."""
         return cst.FunctionDef(
             name=cst.Name("get_manager"),
-            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
+            params=cst.Parameters(params=[create_parameter("self")]),
             body=cst.IndentedBlock(
                 body=[
                     cst.SimpleStatementLine(
