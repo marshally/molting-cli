@@ -60,13 +60,13 @@ typecheck:
 # Run tests
 test:
 	@echo "→ Running tests..."
-	pytest tests/
+	PYTHONPATH=$$(pwd):$$PYTHONPATH pytest tests/
 	@echo "✅ Tests passed"
 
 # Run tests with verbose output
 test-verbose:
 	@echo "→ Running tests (verbose)..."
-	pytest tests/ -v
+	PYTHONPATH=$$(pwd):$$PYTHONPATH pytest tests/ -v
 	@echo "✅ Tests passed"
 
 # Clean generated files
