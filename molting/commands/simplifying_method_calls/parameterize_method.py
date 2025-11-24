@@ -62,8 +62,11 @@ class ParameterizeMethodCommand(BaseCommand):
             percentage1 = self._extract_percentage(method_node1)
             percentage2 = self._extract_percentage(method_node2)
 
+            # Extract the attribute name being modified (e.g., "salary")
+            attribute_name = self._extract_attribute_name(method_node1)
+
             # Create the new parameterized method
-            new_method = self._create_parameterized_method(new_name)
+            new_method = self._create_parameterized_method(new_name, attribute_name)
 
             # Update the original methods to call the new method
             self._update_method_to_call_new(method_node1, new_name, percentage1)
@@ -109,11 +112,38 @@ class ParameterizeMethodCommand(BaseCommand):
         percentage = int((multiplier - 1) * 100)
         return percentage
 
-    def _create_parameterized_method(self, method_name: str) -> ast.FunctionDef:
+    def _extract_attribute_name(self, method_node: ast.FunctionDef) -> str:
+        """Extract the attribute name being modified in the method.
+
+        Args:
+            method_node: The method node
+
+        Returns:
+            The attribute name (e.g., "salary")
+
+        Raises:
+            ValueError: If the method doesn't have the expected structure
+        """
+        if not method_node.body or len(method_node.body) != 1:
+            raise ValueError(f"Method '{method_node.name}' has unexpected structure")
+
+        stmt = method_node.body[0]
+        if not isinstance(stmt, ast.AugAssign):
+            raise ValueError(f"Method '{method_node.name}' doesn't have expected assignment")
+
+        if not isinstance(stmt.target, ast.Attribute):
+            raise ValueError(f"Method '{method_node.name}' doesn't modify an attribute")
+
+        return stmt.target.attr
+
+    def _create_parameterized_method(
+        self, method_name: str, attribute_name: str
+    ) -> ast.FunctionDef:
         """Create a new parameterized method.
 
         Args:
             method_name: The name of the new method
+            attribute_name: The attribute name to modify
 
         Returns:
             The new method node
@@ -133,7 +163,7 @@ class ParameterizeMethodCommand(BaseCommand):
                 ast.AugAssign(
                     target=ast.Attribute(
                         value=ast.Name(id="self", ctx=ast.Load()),
-                        attr="salary",
+                        attr=attribute_name,
                         ctx=ast.Store(),
                     ),
                     op=ast.Mult(),
