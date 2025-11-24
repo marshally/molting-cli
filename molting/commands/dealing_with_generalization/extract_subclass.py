@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_comma_separated_list
+from molting.core.visitors import SelfFieldChecker
 
 
 class ExtractSubclassCommand(BaseCommand):
@@ -219,22 +220,9 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
         Returns:
             True if the if statement checks a feature
         """
-
-        # Check if the condition accesses a feature
-        class FeatureAccessChecker(cst.CSTVisitor):
-            def __init__(self, features: set[str]) -> None:
-                self.features = features
-                self.checks_feature = False
-
-            def visit_Attribute(self, node: cst.Attribute) -> None:  # noqa: N802
-                if isinstance(node.value, cst.Name):
-                    if node.value.value == "self":
-                        if node.attr.value in self.features:
-                            self.checks_feature = True
-
-        checker = FeatureAccessChecker(self.features)
+        checker = SelfFieldChecker(target_fields=self.features)
         if_stmt.test.visit(checker)
-        return checker.checks_feature
+        return checker.found
 
     def _create_subclass(self, parent_class: cst.ClassDef) -> cst.ClassDef:
         """Create the subclass with extracted features.
@@ -435,22 +423,9 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
         Returns:
             True if the method uses features
         """
-
-        # Check if method accesses any feature fields
-        class FeatureChecker(cst.CSTVisitor):
-            def __init__(self, features: set[str]) -> None:
-                self.features = features
-                self.uses_features = False
-
-            def visit_Attribute(self, node: cst.Attribute) -> None:  # noqa: N802
-                if isinstance(node.value, cst.Name):
-                    if node.value.value == "self":
-                        if node.attr.value in self.features:
-                            self.uses_features = True
-
-        checker = FeatureChecker(self.features)
+        checker = SelfFieldChecker(target_fields=self.features)
         method.body.visit(checker)
-        return checker.uses_features
+        return checker.found
 
 
 # Register the command

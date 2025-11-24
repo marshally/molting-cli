@@ -4,7 +4,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_target
+from molting.core.ast_utils import find_class_in_module, parse_target
 
 
 class ReplaceMethodWithMethodObjectCommand(BaseCommand):
@@ -219,10 +219,11 @@ class ReplaceMethodWithMethodObjectTransformer(cst.CSTTransformer):
             return updated_node
 
         # Find the class and insert the method object class after it
+        target_class = find_class_in_module(updated_node, self.class_name)
         new_body = []
         for stmt in updated_node.body:
             new_body.append(stmt)
-            if isinstance(stmt, cst.ClassDef) and stmt.name.value == self.class_name:
+            if stmt is target_class and isinstance(stmt, cst.ClassDef):
                 # Add blank lines before the new class
                 method_object_with_spacing = self.method_object_class.with_changes(
                     leading_lines=[

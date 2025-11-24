@@ -1,5 +1,6 @@
 """Tests for scripts/auto-work.py"""
 
+import importlib.util
 import signal
 import subprocess
 import sys
@@ -11,9 +12,6 @@ import pytest
 
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-
-# Import after adding to path
-import importlib.util
 
 spec = importlib.util.spec_from_file_location(
     "auto_work", Path(__file__).parent.parent / "scripts" / "auto-work.py"
