@@ -52,7 +52,7 @@ def get_pr_count() -> int:
             ["gh", "pr", "list", "--state", "open", "--json", "number", "--jq", "length"],
             check=True,
             capture_output=True,
-            text=True
+            text=True,
         )
         return int(result.stdout.strip())
     except (subprocess.CalledProcessError, ValueError):
@@ -75,7 +75,7 @@ def main():
     print()
 
     while running:
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{timestamp}] Starting iteration...")
 
         # Fetch from origin
@@ -109,7 +109,7 @@ def main():
                 subprocess.run(
                     ["claude", "--dangerously-skip-permissions", "--print", "/work-next"],
                     check=True,
-                    preexec_fn=os.setpgrp  # Create new process group (Unix only)
+                    preexec_fn=os.setpgrp,  # Create new process group (Unix only)
                 )
                 print("  ✅ Work completed successfully")
             except subprocess.CalledProcessError:
