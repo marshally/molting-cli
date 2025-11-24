@@ -118,27 +118,8 @@ class ReplaceExceptionTransformer(cst.CSTTransformer):
         if except_return is None:
             return try_node
 
-        # Build the condition: period_count >= len(values)
-        # Extract the index and sequence from the subscript
-        sequence = index_access.value
-        index = (
-            index_access.slice[0].slice.value
-            if isinstance(index_access.slice[0].slice, cst.Index)
-            else index_access.slice[0].slice
-        )
-
-        # Create the test condition
-        condition = cst.Comparison(
-            left=index,
-            comparisons=[
-                cst.ComparisonTarget(
-                    operator=cst.GreaterThanEqual(),
-                    comparator=cst.Call(func=cst.Name("len"), args=[cst.Arg(sequence)]),
-                )
-            ],
-        )
-
-        # Create the if statement
+        # Build the guard clause
+        condition = self._build_range_check_condition(index_access)
         if_stmt = cst.If(
             test=condition,
             body=cst.IndentedBlock(
@@ -199,6 +180,32 @@ class ReplaceExceptionTransformer(cst.CSTTransformer):
                         if isinstance(substmt, cst.Return):
                             return substmt.value
         return None
+
+    def _build_range_check_condition(self, subscript: cst.Subscript) -> cst.Comparison:
+        """Build a condition that checks if an index is out of range.
+
+        Args:
+            subscript: The subscript expression to check
+
+        Returns:
+            A comparison expression checking if index >= len(sequence)
+        """
+        sequence = subscript.value
+        index = (
+            subscript.slice[0].slice.value
+            if isinstance(subscript.slice[0].slice, cst.Index)
+            else subscript.slice[0].slice
+        )
+
+        return cst.Comparison(
+            left=index,
+            comparisons=[
+                cst.ComparisonTarget(
+                    operator=cst.GreaterThanEqual(),
+                    comparator=cst.Call(func=cst.Name("len"), args=[cst.Arg(sequence)]),
+                )
+            ],
+        )
 
 
 # Register the command
