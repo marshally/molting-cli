@@ -81,7 +81,6 @@ class TestIntroduceExplainingVariable(RefactoringTestBase):
         self.refactor("introduce-explaining-variable", target="calculate_total#L4", name="shipping")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestSplitTemporaryVariable(RefactoringTestBase):
     """Tests for Split Temporary Variable refactoring."""
 
