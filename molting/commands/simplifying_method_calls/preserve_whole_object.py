@@ -107,7 +107,7 @@ class PreserveWholeObjectCommand(BaseCommand):
                             ctx=ctx,
                         )
 
-                    def visit_Name(self, node: ast.Name) -> Any:
+                    def visit_Name(self, node: ast.Name) -> Any:  # noqa: N802
                         """Visit Name nodes and replace low/high with temp_range.low/high."""
                         if node.id == "low":
                             return self._create_attribute_access("temp_range", "low", node.ctx)
