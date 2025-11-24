@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import find_class_in_module, parse_target
+from molting.core.code_generation_utils import create_parameter
 
 INIT_METHOD_NAME = "__init__"
 
@@ -238,8 +239,8 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
             name=cst.Name(INIT_METHOD_NAME),
             params=cst.Parameters(
                 params=[
-                    cst.Param(name=cst.Name("self")),
-                    cst.Param(name=cst.Name(param_name)),
+                    create_parameter("self"),
+                    create_parameter(param_name),
                 ]
             ),
             body=cst.IndentedBlock(
