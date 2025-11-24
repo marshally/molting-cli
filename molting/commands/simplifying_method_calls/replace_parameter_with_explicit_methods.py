@@ -60,6 +60,11 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
             # Extract the values that the parameter is compared against
             parameter_values = self._extract_parameter_values(method_node, param_name)
 
+            if not parameter_values:
+                raise ValueError(
+                    f"No parameter values found for '{param_name}' in method '{method_name}'"
+                )
+
             # Create new methods for each value
             new_methods = []
             for value in parameter_values:
