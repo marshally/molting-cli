@@ -1,8 +1,9 @@
-.PHONY: help format lint typecheck test test-verbose clean install all check
+.PHONY: help bootstrap format lint typecheck test test-verbose clean install all check
 
 # Default target - show help
 help:
 	@echo "Available targets:"
+	@echo "  make bootstrap    - First-time setup: install poetry and dependencies"
 	@echo "  make format       - Auto-fix code formatting (black + ruff)"
 	@echo "  make lint         - Check code style without modifying"
 	@echo "  make typecheck    - Run mypy type checking"
@@ -12,6 +13,27 @@ help:
 	@echo "  make install      - Install dependencies with poetry"
 	@echo "  make all          - Format, typecheck, and test"
 	@echo "  make check        - Lint and typecheck (no auto-fix)"
+
+# First-time setup - install poetry if needed, then install dependencies
+bootstrap:
+	@echo "→ Checking for Poetry..."
+	@if command -v poetry >/dev/null 2>&1; then \
+		echo "✓ Poetry is already installed"; \
+		poetry --version; \
+	elif command -v pipx >/dev/null 2>&1; then \
+		echo "→ Installing Poetry via pipx..."; \
+		pipx install poetry; \
+		echo "✅ Poetry installed successfully via pipx"; \
+	else \
+		echo "→ pipx not found, using official Poetry installer..."; \
+		curl -sSL https://install.python-poetry.org | python3 -; \
+		echo "✅ Poetry installed successfully"; \
+		echo "⚠️  You may need to add Poetry to your PATH:"; \
+		echo "    export PATH=\"\$$HOME/.local/bin:\$$PATH\""; \
+	fi
+	@echo "→ Installing project dependencies..."
+	@poetry install
+	@echo "✅ Bootstrap complete!"
 
 # Auto-fix formatting and linting
 format:
