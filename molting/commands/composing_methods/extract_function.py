@@ -6,6 +6,7 @@ from libcst import metadata
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
+from molting.core.code_generation_utils import create_parameter
 
 # Target format constants
 TARGET_SEPARATOR = "#"
@@ -248,7 +249,7 @@ class ExtractFunctionTransformer(cst.CSTTransformer):
         # Create function definition
         new_function = cst.FunctionDef(
             name=cst.Name(self.new_function_name),
-            params=cst.Parameters(params=[cst.Param(name=cst.Name(param_name))]),
+            params=cst.Parameters(params=[create_parameter(param_name)]),
             body=cst.IndentedBlock(body=[return_stmt]),
         )
 
