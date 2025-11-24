@@ -58,7 +58,6 @@ class TestSeparateQueryFromModifier(RefactoringTestBase):
         self.refactor("separate-query-from-modifier", target="Security::get_and_remove_intruder")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestParameterizeMethod(RefactoringTestBase):
     """Tests for Parameterize Method refactoring."""
 
