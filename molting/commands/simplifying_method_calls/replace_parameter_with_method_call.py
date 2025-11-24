@@ -214,8 +214,6 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         Returns:
             True if this is the argument for the parameter we're removing
         """
-        # For now, check if the argument value is a Name node with our param name
-        # or if it's a call to the getter method
         if isinstance(arg.value, cst.Name) and arg.value.value == self.param_name:
             return True
         if self._is_getter_call(arg.value):
