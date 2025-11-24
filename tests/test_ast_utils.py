@@ -13,8 +13,10 @@ from molting.core.ast_utils import (
     extract_all_methods,
     extract_init_field_assignments,
     find_class_in_module,
+    find_insert_position_after_imports,
     find_method_in_class,
     find_self_field_assignment,
+    insert_class_after_imports,
     is_assignment_to_field,
     is_empty_class,
     is_pass_statement,
@@ -1294,3 +1296,243 @@ class TestIsSelfFieldAssignment:
         result = is_self_field_assignment(stmt)
 
         assert result is False
+
+
+class TestFindInsertPositionAfterImports:
+    """Tests for find_insert_position_after_imports() function."""
+
+    def test_module_with_imports_returns_position_after_imports(self) -> None:
+        """Should return position after all imports."""
+        code = """import os
+import sys
+
+class MyClass:
+    pass
+"""
+        module = cst.parse_module(code)
+
+        position = find_insert_position_after_imports(module)
+
+        assert position == 2
+
+    def test_module_with_no_imports_returns_zero(self) -> None:
+        """Should return 0 when no imports exist."""
+        code = """class MyClass:
+    pass
+"""
+        module = cst.parse_module(code)
+
+        position = find_insert_position_after_imports(module)
+
+        assert position == 0
+
+    def test_module_with_only_imports_returns_position_after_all(self) -> None:
+        """Should return position after all imports when module only has imports."""
+        code = """import os
+import sys
+from typing import Any
+"""
+        module = cst.parse_module(code)
+
+        position = find_insert_position_after_imports(module)
+
+        assert position == 3
+
+    def test_module_with_imports_and_code_returns_position_after_imports(self) -> None:
+        """Should return position after imports, before other code."""
+        code = """import os
+from typing import Any
+
+def foo():
+    pass
+
+class MyClass:
+    pass
+"""
+        module = cst.parse_module(code)
+
+        position = find_insert_position_after_imports(module)
+
+        assert position == 2
+
+    def test_empty_module_returns_zero(self) -> None:
+        """Should return 0 for empty module."""
+        code = ""
+        module = cst.parse_module(code)
+
+        position = find_insert_position_after_imports(module)
+
+        assert position == 0
+
+    def test_module_with_from_imports(self) -> None:
+        """Should handle 'from X import Y' statements."""
+        code = """from os import path
+from typing import Any, List
+
+class MyClass:
+    pass
+"""
+        module = cst.parse_module(code)
+
+        position = find_insert_position_after_imports(module)
+
+        assert position == 2
+
+    def test_module_with_mixed_import_types(self) -> None:
+        """Should handle mix of import and from import statements."""
+        code = """import os
+from typing import Any
+import sys
+from pathlib import Path
+
+def foo():
+    pass
+"""
+        module = cst.parse_module(code)
+
+        position = find_insert_position_after_imports(module)
+
+        assert position == 4
+
+
+class TestInsertClassAfterImports:
+    """Tests for insert_class_after_imports() function."""
+
+    def test_insert_class_after_imports(self) -> None:
+        """Should insert class after import statements."""
+        code = """import os
+import sys
+
+class ExistingClass:
+    pass
+"""
+        module = cst.parse_module(code)
+
+        # Create a simple class to insert
+        new_class = cst.ClassDef(
+            name=cst.Name("NewClass"),
+            body=cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[cst.Pass()])]),
+        )
+
+        result = insert_class_after_imports(module, new_class)
+        result_code = result.code
+
+        # Verify the class was inserted after imports
+        assert "import os" in result_code
+        assert "import sys" in result_code
+        assert "class NewClass:" in result_code
+        assert "class ExistingClass:" in result_code
+        # Verify ordering: imports, then NewClass, then ExistingClass
+        assert result_code.index("import sys") < result_code.index("class NewClass:")
+        assert result_code.index("class NewClass:") < result_code.index("class ExistingClass:")
+
+    def test_insert_class_in_empty_module(self) -> None:
+        """Should insert class in empty module."""
+        code = ""
+        module = cst.parse_module(code)
+
+        new_class = cst.ClassDef(
+            name=cst.Name("NewClass"),
+            body=cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[cst.Pass()])]),
+        )
+
+        result = insert_class_after_imports(module, new_class)
+        result_code = result.code
+
+        assert "class NewClass:" in result_code
+        assert "pass" in result_code
+
+    def test_insert_class_with_custom_blank_lines(self) -> None:
+        """Should respect custom blank line parameters."""
+        code = """import os
+
+class ExistingClass:
+    pass
+"""
+        module = cst.parse_module(code)
+
+        new_class = cst.ClassDef(
+            name=cst.Name("NewClass"),
+            body=cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[cst.Pass()])]),
+        )
+
+        # Insert with 3 blank lines before, 2 after
+        result = insert_class_after_imports(
+            module, new_class, blank_lines_before=3, blank_lines_after=2
+        )
+        result_code = result.code
+
+        # Verify class was inserted
+        assert "class NewClass:" in result_code
+        assert result_code.index("import os") < result_code.index("class NewClass:")
+
+    def test_preserve_existing_formatting(self) -> None:
+        """Should preserve existing module formatting."""
+        code = """import os
+import sys
+
+
+def existing_function():
+    pass
+"""
+        module = cst.parse_module(code)
+
+        new_class = cst.ClassDef(
+            name=cst.Name("NewClass"),
+            body=cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[cst.Pass()])]),
+        )
+
+        result = insert_class_after_imports(module, new_class)
+        result_code = result.code
+
+        # Verify original content is preserved
+        assert "def existing_function():" in result_code
+        assert "class NewClass:" in result_code
+
+    def test_module_with_only_imports(self) -> None:
+        """Should handle module with only imports."""
+        code = """import os
+from typing import Any
+"""
+        module = cst.parse_module(code)
+
+        new_class = cst.ClassDef(
+            name=cst.Name("NewClass"),
+            body=cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[cst.Pass()])]),
+        )
+
+        result = insert_class_after_imports(module, new_class)
+        result_code = result.code
+
+        assert "import os" in result_code
+        assert "from typing import Any" in result_code
+        assert "class NewClass:" in result_code
+        # Verify ordering
+        assert result_code.index("from typing import Any") < result_code.index("class NewClass:")
+
+    def test_insert_multiple_classes_sequentially(self) -> None:
+        """Should support inserting multiple classes."""
+        code = """import os
+"""
+        module = cst.parse_module(code)
+
+        # Insert first class
+        class1 = cst.ClassDef(
+            name=cst.Name("FirstClass"),
+            body=cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[cst.Pass()])]),
+        )
+        module = insert_class_after_imports(module, class1)
+
+        # Insert second class
+        class2 = cst.ClassDef(
+            name=cst.Name("SecondClass"),
+            body=cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[cst.Pass()])]),
+        )
+        module = insert_class_after_imports(module, class2)
+
+        result_code = module.code
+
+        # Verify both classes were inserted
+        assert "class FirstClass:" in result_code
+        assert "class SecondClass:" in result_code
+        assert "import os" in result_code
