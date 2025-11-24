@@ -73,7 +73,6 @@ class TestParameterizeMethod(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceParameterWithExplicitMethods(RefactoringTestBase):
     """Tests for Replace Parameter with Explicit Methods refactoring."""
 
@@ -94,7 +93,6 @@ class TestPreserveWholeObject(RefactoringTestBase):
         self.refactor("preserve-whole-object", target="within_plan")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceParameterWithMethodCall(RefactoringTestBase):
     """Tests for Replace Parameter with Method Call refactoring."""
 
