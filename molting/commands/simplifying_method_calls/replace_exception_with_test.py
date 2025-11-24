@@ -109,19 +109,8 @@ class ReplaceExceptionTransformer(cst.CSTTransformer):
         try_body = self._get_block_body(try_node.body)
 
         # Find the return statement in try block
-        return_stmt = None
-        index_access = None
-        for stmt in try_body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                for substmt in stmt.body:
-                    if isinstance(substmt, cst.Return) and substmt.value:
-                        return_stmt = substmt
-                        # Extract the subscript access (values[period_count])
-                        if isinstance(substmt.value, cst.Subscript):
-                            index_access = substmt.value
-                        break
-
-        if not return_stmt or not index_access:
+        index_access = self._find_subscript_return(try_body)
+        if not index_access:
             return try_node
 
         # Get the except handler's return value
@@ -184,6 +173,23 @@ class ReplaceExceptionTransformer(cst.CSTTransformer):
         if isinstance(block, cst.IndentedBlock):
             return list(block.body)
         return []
+
+    def _find_subscript_return(self, statements: list[cst.BaseStatement]) -> cst.Subscript | None:
+        """Find a return statement that returns a subscript access.
+
+        Args:
+            statements: List of statements to search
+
+        Returns:
+            The subscript expression if found, None otherwise
+        """
+        for stmt in statements:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for substmt in stmt.body:
+                    if isinstance(substmt, cst.Return) and substmt.value:
+                        if isinstance(substmt.value, cst.Subscript):
+                            return substmt.value
+        return None
 
 
 # Register the command
