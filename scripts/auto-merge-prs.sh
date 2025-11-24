@@ -134,8 +134,58 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
     fi
 
     if [ "$failed_checks" -gt 0 ]; then
-        warn "PR #$number has failing status checks. Skipping."
-        continue
+        warn "PR #$number has failing status checks. Attempting to fix..."
+
+        # Get repository info
+        repo_owner=$(echo "$pr" | jq -r '.headRepositoryOwner.login')
+        repo_name=$(echo "$pr" | jq -r '.headRepository.name')
+
+        # Call the build failure fix script
+        if [ -f "$SCRIPT_DIR/fix-build-failures.sh" ]; then
+            # Capture output to a temporary file
+            ERROR_LOG=$(mktemp)
+            if "$SCRIPT_DIR/fix-build-failures.sh" "$repo_owner" "$repo_name" "$number" "$head_ref" 2>&1 | tee "$ERROR_LOG"; then
+                log "Successfully fixed build failures for PR #$number"
+                log "Waiting for CI to re-run checks..."
+                rm -f "$ERROR_LOG"
+                # Continue to next PR - the fixes have been pushed and CI will re-run
+                continue
+            else
+                error "Failed to fix build failures for PR #$number"
+
+                # Extract the last error from the log
+                ERROR_SUMMARY=$(grep -E "ERROR:|fatal:|error:" "$ERROR_LOG" | tail -5 || echo "Unknown error occurred")
+
+                # Add a comment to the PR about the failure
+                COMMENT_BODY="## ⚠️ Automatic Build Failure Fix Failed
+
+**Summary:** The auto-merge script attempted to fix build/test failures but encountered an error.
+
+**Error Details:**
+\`\`\`
+$ERROR_SUMMARY
+\`\`\`
+
+**Full Log:**
+<details>
+<summary>Click to expand full error log</summary>
+
+\`\`\`
+$(cat "$ERROR_LOG")
+\`\`\`
+</details>
+
+Please fix the build failures manually."
+
+                gh pr comment "$number" --repo "$pr_repo" --body "$COMMENT_BODY" 2>/dev/null || true
+                rm -f "$ERROR_LOG"
+                continue
+            fi
+        else
+            warn "Build failure fix script not found: $SCRIPT_DIR/fix-build-failures.sh"
+            warn "PR #$number has failing status checks. Skipping."
+            continue
+        fi
     fi
 
     log "PR #$number is ready (approved or labeled) and has passing checks!"
