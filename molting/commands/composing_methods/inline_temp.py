@@ -138,11 +138,9 @@ class InlineTempTransformer(cst.CSTTransformer):
             self.in_target_function = False
 
             # Remove the temp variable assignment
-            statements_without_temp = []
-            for stmt in updated_node.body.body:
-                if self._is_temp_assignment(stmt):
-                    continue
-                statements_without_temp.append(stmt)
+            statements_without_temp = [
+                stmt for stmt in updated_node.body.body if not self._is_temp_assignment(stmt)
+            ]
 
             return updated_node.with_changes(
                 body=updated_node.body.with_changes(body=tuple(statements_without_temp))
