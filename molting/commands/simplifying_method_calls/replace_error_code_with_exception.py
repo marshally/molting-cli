@@ -28,13 +28,14 @@ class ReplaceErrorCodeWithExceptionCommand(BaseCommand):
         """
         target = self.params["target"]
         function_name = target
+        exception_message = self.params.get("message", "Amount exceeds balance")
 
         # Read file
         source_code = self.file_path.read_text()
 
         # Apply transformation
         wrapper = metadata.MetadataWrapper(cst.parse_module(source_code))
-        transformer = ReplaceErrorCodeTransformer(function_name)
+        transformer = ReplaceErrorCodeTransformer(function_name, exception_message)
         modified_tree = wrapper.visit(transformer)
 
         # Write back
@@ -44,13 +45,15 @@ class ReplaceErrorCodeWithExceptionCommand(BaseCommand):
 class ReplaceErrorCodeTransformer(cst.CSTTransformer):
     """Transforms a function by replacing error code returns with exceptions."""
 
-    def __init__(self, function_name: str) -> None:
+    def __init__(self, function_name: str, exception_message: str) -> None:
         """Initialize the transformer.
 
         Args:
             function_name: Name of the function to transform
+            exception_message: Message to use in the exception
         """
         self.function_name = function_name
+        self.exception_message = exception_message
         self.in_target_function = False
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
@@ -87,7 +90,7 @@ class ReplaceErrorCodeTransformer(cst.CSTTransformer):
                         cst.Raise(
                             exc=cst.Call(
                                 func=cst.Name("ValueError"),
-                                args=[cst.Arg(cst.SimpleString('"Amount exceeds balance"'))],
+                                args=[cst.Arg(cst.SimpleString(f'"{self.exception_message}"'))],
                             )
                         )
                     ]
