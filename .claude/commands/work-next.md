@@ -98,9 +98,9 @@ Check if a worktree exists for this **full issue ID**:
 git worktree list | grep {issue_id}
 ```
 
-If NOT exists, create it using the **full issue ID**:
+If NOT exists, fetch latest from origin and create worktree using the **full issue ID** based on origin/main:
 ```bash
-cd ~/code/marshally/molting-cli && git worktree add ~/code/worktrees/molting-cli/{issue_id} -b {issue_id} main
+cd ~/code/marshally/molting-cli && git fetch origin && git worktree add ~/code/worktrees/molting-cli/{issue_id} -b {issue_id} origin/main
 ```
 
 Worktree location: ~/code/worktrees/molting-cli/{issue_id}
