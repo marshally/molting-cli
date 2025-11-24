@@ -103,7 +103,7 @@ def main() -> None:
             # Spawn a new Claude session to run /sync-main
             try:
                 subprocess.run(
-                    ["claude", "--print", "/sync-main"],
+                    ["claude", "--dangerously-skip-permissions", "--print", "/sync-main"],
                     check=True,
                 )
                 print("  ✅ Claude finished processing")
