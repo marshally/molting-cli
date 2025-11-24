@@ -76,20 +76,31 @@ class PreserveWholeObjectCommand(BaseCommand):
                 class NameReplacer(ast.NodeTransformer):
                     """Replace Name nodes for low and high with Attribute access."""
 
+                    def _create_attribute_access(
+                        self, object_name: str, attr_name: str, ctx: ast.expr_context
+                    ) -> ast.Attribute:
+                        """Create an attribute access node.
+
+                        Args:
+                            object_name: Name of the object
+                            attr_name: Name of the attribute
+                            ctx: Context for the expression
+
+                        Returns:
+                            Attribute AST node
+                        """
+                        return ast.Attribute(
+                            value=ast.Name(id=object_name, ctx=ast.Load()),
+                            attr=attr_name,
+                            ctx=ctx,
+                        )
+
                     def visit_Name(self, node: ast.Name) -> Any:
                         """Visit Name nodes and replace low/high with temp_range.low/high."""
                         if node.id == "low":
-                            return ast.Attribute(
-                                value=ast.Name(id="temp_range", ctx=ast.Load()),
-                                attr="low",
-                                ctx=node.ctx,
-                            )
+                            return self._create_attribute_access("temp_range", "low", node.ctx)
                         elif node.id == "high":
-                            return ast.Attribute(
-                                value=ast.Name(id="temp_range", ctx=ast.Load()),
-                                attr="high",
-                                ctx=node.ctx,
-                            )
+                            return self._create_attribute_access("temp_range", "high", node.ctx)
                         return node
 
                 replacer = NameReplacer()
