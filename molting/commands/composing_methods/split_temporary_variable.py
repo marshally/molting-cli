@@ -95,6 +95,41 @@ class SplitTemporaryVariableTransformer(cst.CSTTransformer):
 
         return False
 
+    def _process_assignment_statement(
+        self, stmt: cst.BaseStatement, assignment_count: int
+    ) -> cst.BaseStatement:
+        """Process a statement that assigns to the target variable.
+
+        Args:
+            stmt: The statement to process
+            assignment_count: Current assignment number
+
+        Returns:
+            The transformed statement
+        """
+        new_name = self._generate_variable_name(assignment_count)
+        assignment_replacer = AssignmentTargetReplacer(self.variable_name, new_name)
+        return stmt.visit(assignment_replacer)
+
+    def _process_usage_statement(
+        self, stmt: cst.BaseStatement, assignment_count: int
+    ) -> cst.BaseStatement:
+        """Process a statement that uses the target variable.
+
+        Args:
+            stmt: The statement to process
+            assignment_count: Current assignment number (0 if no assignments yet)
+
+        Returns:
+            The transformed statement (or original if no assignments yet)
+        """
+        if assignment_count == 0:
+            return stmt
+
+        current_name = self._generate_variable_name(assignment_count)
+        name_replacer = NameReplacer(self.variable_name, current_name)
+        return stmt.visit(name_replacer)
+
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
@@ -110,28 +145,13 @@ class SplitTemporaryVariableTransformer(cst.CSTTransformer):
         assignment_count = 0
 
         for stmt in updated_node.body.body:
-            # Check if this statement contains an assignment to our variable
-            is_target_assignment = self._is_assignment_to_variable(stmt)
-
-            if is_target_assignment:
+            if self._is_assignment_to_variable(stmt):
                 assignment_count += 1
-                # Generate new name for this assignment
-                new_name = self._generate_variable_name(assignment_count)
-
-                # Replace only the assignment target
-                assignment_replacer = AssignmentTargetReplacer(self.variable_name, new_name)
-                new_stmt = stmt.visit(assignment_replacer)
-                new_statements.append(new_stmt)
+                new_stmt = self._process_assignment_statement(stmt, assignment_count)
             else:
-                # Replace uses of the variable with the most recent assigned name
-                if assignment_count > 0:
-                    current_name = self._generate_variable_name(assignment_count)
+                new_stmt = self._process_usage_statement(stmt, assignment_count)
 
-                    name_replacer = NameReplacer(self.variable_name, current_name)
-                    new_stmt = stmt.visit(name_replacer)
-                    new_statements.append(new_stmt)
-                else:
-                    new_statements.append(stmt)
+            new_statements.append(new_stmt)
 
         new_body = updated_node.body.with_changes(body=new_statements)
         return updated_node.with_changes(body=new_body)
