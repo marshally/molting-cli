@@ -4,7 +4,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import find_class_in_module, parse_target
+from molting.core.ast_utils import find_class_in_module, is_self_attribute, parse_target
 
 
 class ReplaceMethodWithMethodObjectCommand(BaseCommand):
@@ -383,7 +383,7 @@ class BodyTransformer(cst.CSTTransformer):
         self, original_node: cst.Attribute, updated_node: cst.Attribute
     ) -> cst.Attribute:
         """Transform self.method() to self.account.method() for non-helper methods."""
-        if isinstance(updated_node.value, cst.Name) and updated_node.value.value == "self":
+        if is_self_attribute(updated_node):
             # Check if this is a method call (not a parameter)
             method_name = updated_node.attr.value
             if method_name not in self.param_names and method_name not in self.helper_method_names:
