@@ -72,6 +72,29 @@ class SplitTemporaryVariableTransformer(cst.CSTTransformer):
         else:
             return f"{self.variable_name}_{assignment_number}"
 
+    def _is_assignment_to_variable(self, stmt: cst.BaseStatement) -> bool:
+        """Check if a statement assigns to the target variable.
+
+        Args:
+            stmt: The statement to check
+
+        Returns:
+            True if the statement assigns to the target variable
+        """
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return False
+
+        for line_stmt in stmt.body:
+            if isinstance(line_stmt, cst.Assign):
+                for target in line_stmt.targets:
+                    if (
+                        isinstance(target.target, cst.Name)
+                        and target.target.value == self.variable_name
+                    ):
+                        return True
+
+        return False
+
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
@@ -88,20 +111,10 @@ class SplitTemporaryVariableTransformer(cst.CSTTransformer):
 
         for stmt in updated_node.body.body:
             # Check if this statement contains an assignment to our variable
-            is_target_assignment = False
-            if isinstance(stmt, cst.SimpleStatementLine):
-                for line_stmt in stmt.body:
-                    if isinstance(line_stmt, cst.Assign):
-                        for target in line_stmt.targets:
-                            if (
-                                isinstance(target.target, cst.Name)
-                                and target.target.value == self.variable_name
-                            ):
-                                is_target_assignment = True
-                                assignment_count += 1
-                                break
+            is_target_assignment = self._is_assignment_to_variable(stmt)
 
             if is_target_assignment:
+                assignment_count += 1
                 # Generate new name for this assignment
                 new_name = self._generate_variable_name(assignment_count)
 
