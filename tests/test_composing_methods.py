@@ -43,7 +43,6 @@ class TestInlineMethod(RefactoringTestBase):
         self.refactor("inline-method", target="Person::more_than_five_late_deliveries")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestInlineTemp(RefactoringTestBase):
     """Tests for Inline Temp refactoring."""
 
