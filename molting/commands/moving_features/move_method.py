@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import find_self_field_assignment, is_self_attribute, parse_target
+from molting.core.code_generation_utils import create_parameter
 from molting.core.visitors import SelfFieldCollector
 
 
@@ -209,9 +210,9 @@ class MoveMethodTransformer(cst.CSTTransformer):
 
         params_needed = self._collect_self_references(self.method_to_move)
 
-        new_params = [cst.Param(name=cst.Name("self"))]
+        new_params = [create_parameter("self")]
         for param_name in params_needed:
-            new_params.append(cst.Param(name=cst.Name(param_name)))
+            new_params.append(create_parameter(param_name))
 
         body_transformer = SelfReferenceReplacer(params_needed, self.target_class_field)
         transformed_body = self.method_to_move.body.visit(body_transformer)
