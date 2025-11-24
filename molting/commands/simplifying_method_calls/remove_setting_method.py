@@ -1,7 +1,6 @@
 """Remove Setting Method refactoring command."""
 
 import ast
-from typing import Any
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
@@ -66,9 +65,7 @@ class RemoveSettingMethodCommand(BaseCommand):
                     break
 
             if method_index is None:
-                raise ValueError(
-                    f"Setter method '{setter_name}' not found in class '{class_name}'"
-                )
+                raise ValueError(f"Setter method '{setter_name}' not found in class '{class_name}'")
 
             # Remove the setter method
             class_node.body.pop(method_index)
