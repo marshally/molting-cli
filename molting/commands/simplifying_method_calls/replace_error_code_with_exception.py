@@ -77,47 +77,99 @@ class ReplaceErrorCodeTransformer(cst.CSTTransformer):
         if not self.in_target_function:
             return updated_node
 
-        # Check if this is an error code pattern (if condition: return -1 else: ... return 0)
-        if_body = self._get_block_body(updated_node.body)
-
-        # Check if the if body contains a return statement with error code
-        if len(if_body) == 1 and isinstance(if_body[0], cst.SimpleStatementLine):
-            stmt = if_body[0].body[0]
-            if isinstance(stmt, cst.Return) and self._is_error_code(stmt.value):
-                # This is the error path - replace with raise exception
-                raise_stmt = cst.SimpleStatementLine(
-                    body=[
-                        cst.Raise(
-                            exc=cst.Call(
-                                func=cst.Name("ValueError"),
-                                args=[cst.Arg(cst.SimpleString(f'"{self.exception_message}"'))],
-                            )
-                        )
-                    ]
-                )
-
-                # Get the else body (success path)
-                if updated_node.orelse and isinstance(updated_node.orelse, cst.Else):
-                    else_body = self._get_block_body(updated_node.orelse.body)
-                    # Remove the success return statement (return 0)
-                    success_body = []
-                    for s in else_body:
-                        if isinstance(s, cst.SimpleStatementLine) and len(s.body) > 0:
-                            if isinstance(s.body[0], cst.Return) and self._is_success_code(
-                                s.body[0].value
-                            ):
-                                continue  # Skip success return
-                        success_body.append(s)
-
-                    # Return the transformed if with raise, followed by success body
-                    new_if = updated_node.with_changes(
-                        body=cst.IndentedBlock(body=[raise_stmt]), orelse=None
-                    )
-
-                    # Use FlattenSentinel to insert the if and then the success body
-                    return cst.FlattenSentinel([new_if] + success_body)
+        if self._is_error_code_pattern(updated_node):
+            return self._transform_error_code_to_exception(updated_node)
 
         return updated_node
+
+    def _is_error_code_pattern(self, if_node: cst.If) -> bool:
+        """Check if an if statement matches the error code pattern.
+
+        Args:
+            if_node: The if statement to check
+
+        Returns:
+            True if it matches the error code pattern, False otherwise
+        """
+        if_body = self._get_block_body(if_node.body)
+
+        if len(if_body) == 1 and isinstance(if_body[0], cst.SimpleStatementLine):
+            stmt = if_body[0].body[0]
+            return isinstance(stmt, cst.Return) and self._is_error_code(stmt.value)
+
+        return False
+
+    def _transform_error_code_to_exception(
+        self, if_node: cst.If
+    ) -> cst.BaseStatement | cst.FlattenSentinel[cst.BaseStatement]:
+        """Transform an error code pattern to use exceptions.
+
+        Args:
+            if_node: The if statement to transform
+
+        Returns:
+            The transformed statement(s)
+        """
+        raise_stmt = self._create_raise_statement()
+
+        if if_node.orelse and isinstance(if_node.orelse, cst.Else):
+            else_body = self._get_block_body(if_node.orelse.body)
+            success_body = self._filter_success_returns(else_body)
+
+            new_if = if_node.with_changes(body=cst.IndentedBlock(body=[raise_stmt]), orelse=None)
+
+            return cst.FlattenSentinel([new_if] + success_body)
+
+        return if_node
+
+    def _create_raise_statement(self) -> cst.SimpleStatementLine:
+        """Create a raise statement with the configured exception message.
+
+        Returns:
+            A SimpleStatementLine containing the raise statement
+        """
+        return cst.SimpleStatementLine(
+            body=[
+                cst.Raise(
+                    exc=cst.Call(
+                        func=cst.Name("ValueError"),
+                        args=[cst.Arg(cst.SimpleString(f'"{self.exception_message}"'))],
+                    )
+                )
+            ]
+        )
+
+    def _filter_success_returns(
+        self, statements: list[cst.BaseStatement]
+    ) -> list[cst.BaseStatement]:
+        """Filter out success return statements from a list of statements.
+
+        Args:
+            statements: List of statements to filter
+
+        Returns:
+            List of statements with success returns removed
+        """
+        filtered_statements = []
+        for statement in statements:
+            if self._is_success_return(statement):
+                continue
+            filtered_statements.append(statement)
+        return filtered_statements
+
+    def _is_success_return(self, statement: cst.BaseStatement) -> bool:
+        """Check if a statement is a success return (return 0).
+
+        Args:
+            statement: The statement to check
+
+        Returns:
+            True if it's a success return, False otherwise
+        """
+        if isinstance(statement, cst.SimpleStatementLine) and len(statement.body) > 0:
+            if isinstance(statement.body[0], cst.Return):
+                return self._is_success_code(statement.body[0].value)
+        return False
 
     def _get_block_body(self, block: cst.BaseSuite) -> list[cst.BaseStatement]:
         """Extract statements from a code block.
