@@ -12,7 +12,7 @@ import time
 from datetime import datetime
 
 MAX_PRS = 5
-SLEEP_MINUTES = 5
+SLEEP_MINUTES = 1
 
 # Flag for graceful shutdown
 running = True
