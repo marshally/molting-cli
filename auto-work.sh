@@ -49,6 +49,11 @@ while $RUNNING; do
 
   echo "  📊 Open PRs: ${pr_count}"
 
+  # Check if we should stop before starting new work
+  if ! $RUNNING; then
+    break
+  fi
+
   # Check if we're at or above the limit
   if [ "$pr_count" -ge "$MAX_PRS" ]; then
     echo "  ⏸️  At PR limit (${pr_count}/${MAX_PRS}), waiting..."
@@ -62,9 +67,7 @@ while $RUNNING; do
     if claude --dangerously-skip-permissions --print "/work-next"; then
       echo "  ✅ Work completed successfully"
     else
-      echo "  ❌ Work failed or was interrupted"
-      # If work was interrupted, exit gracefully
-      RUNNING=false
+      echo "  ❌ Work failed"
     fi
 
     # Re-enable trap for next iteration
