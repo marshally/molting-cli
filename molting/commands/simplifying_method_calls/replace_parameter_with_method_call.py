@@ -114,18 +114,8 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         if not self.in_target_class or self.in_target_method:
             return updated_node
 
-        # Check if this is an assignment to the parameter variable
-        if len(updated_node.body) == 1:
-            stmt = updated_node.body[0]
-            if isinstance(stmt, cst.Assign):
-                # Check if assigning to our parameter name
-                if len(stmt.targets) == 1:
-                    target = stmt.targets[0].target
-                    if isinstance(target, cst.Name) and target.value == self.param_name:
-                        # Check if the value is a call to self.get_<param>()
-                        if self._is_getter_call(stmt.value):
-                            # Remove this assignment statement
-                            return cst.RemovalSentinel.REMOVE
+        if self._should_remove_assignment(updated_node):
+            return cst.RemovalSentinel.REMOVE
         return updated_node
 
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
@@ -142,6 +132,31 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
                     new_args.append(arg)
             return updated_node.with_changes(args=new_args)
         return updated_node
+
+    def _should_remove_assignment(self, statement_line: cst.SimpleStatementLine) -> bool:
+        """Check if an assignment statement should be removed.
+
+        Args:
+            statement_line: The statement line to check
+
+        Returns:
+            True if this is an assignment to the parameter with getter call value
+        """
+        if len(statement_line.body) != 1:
+            return False
+
+        stmt = statement_line.body[0]
+        if not isinstance(stmt, cst.Assign):
+            return False
+
+        if len(stmt.targets) != 1:
+            return False
+
+        target = stmt.targets[0].target
+        if not isinstance(target, cst.Name) or target.value != self.param_name:
+            return False
+
+        return self._is_getter_call(stmt.value)
 
     def _create_getter_method_call(self) -> cst.Call:
         """Create a call expression for self.get_<param>().
