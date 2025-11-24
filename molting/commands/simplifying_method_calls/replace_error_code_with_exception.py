@@ -72,7 +72,7 @@ class ReplaceErrorCodeTransformer(cst.CSTTransformer):
 
     def leave_If(  # noqa: N802
         self, original_node: cst.If, updated_node: cst.If
-    ) -> cst.BaseStatement | cst.RemovalSentinel:
+    ) -> cst.BaseStatement | cst.RemovalSentinel | cst.FlattenSentinel[cst.BaseStatement]:
         """Transform If statements in the target function."""
         if not self.in_target_function:
             return updated_node
