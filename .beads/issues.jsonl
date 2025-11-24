@@ -1,17 +1,3 @@
-I need to resolve the git merge conflicts in the `.beads/issues.jsonl` file. Looking at the conflicts, I can see:
-
-1. The HEAD version has verbose JSONL entries with full field names like `content_hash`, `source_repo`, etc.
-2. The main version has more compact JSONL entries with only the essential fields
-
-The main branch version appears to be the result of compaction (as mentioned in the beads system), which is a normal operation. I should keep the main branch version as it represents the current state of the repository.
-
-Additionally, I notice:
-- `molting-cli-357.17` has different status (in_progress in HEAD vs closed in main) - main is more recent (15:15:06 vs 13:33:35)
-- `molting-cli-357.18` exists only in main as closed
-- Several duplicate entries that need deduplication
-
-I'll choose the main branch version and ensure all unique issues are included:
-
 {"id":"molting-cli-357.9","title":"Implement Replace Method with Method Object refactoring","description":"Test class: TestReplaceMethodWithMethodObject from test_composing_methods.py","status":"closed","priority":2,"issue_type":"task","created_at":"2025-11-22T12:37:31.324175-08:00","updated_at":"2025-11-23T10:34:07.101312-08:00","closed_at":"2025-11-23T10:34:07.101312-08:00","dependencies":[{"issue_id":"molting-cli-357.9","depends_on_id":"molting-cli-357","type":"parent-child","created_at":"2025-11-22T08:17:51.289745-08:00","created_by":"daemon"}]}
 {"id":"molting-vt5","title":"Add line number parsing utilities to ast_utils.py","description":"Add utilities for parsing line numbers and line ranges from target specifications to eliminate duplication between ExtractMethodCommand and ExtractFunctionCommand.\n\nFunctions to add:\n1. parse_line_number(line_spec: str) -> int - Parse \"L4\" format\n2. parse_line_range(line_range: str) -> tuple[int, int] - Parse \"L9-L11\" format  \n3. parse_target_with_line(target: str) -> tuple[str, str, str] - Parse \"ClassName::method#L4\"\n4. parse_target_with_range(target: str) -> tuple[str, str, int, int] - Parse \"ClassName::method#L9-L11\"\n\nConstants to add:\n- TARGET_SEPARATOR = \"#\"\n- LINE_PREFIX = \"L\"\n- LINE_RANGE_SEPARATOR = \"-\"\n\nAcceptance criteria:\n- All 4 functions added with proper type hints and error handling\n- Unit tests covering valid and invalid inputs\n- ExtractMethodCommand and ExtractFunctionCommand can use these utilities","status":"closed","issue_type":"task","created_at":"2025-11-23T12:17:46.612084-08:00","updated_at":"2025-11-23T12:34:24.836943-08:00","closed_at":"2025-11-23T12:34:24.836943-08:00"}
 {"id":"molting-cli-jyv.6","title":"Implement Remove Middle Man refactoring","description":"Test class: TestRemoveMiddleMan from test_moving_features.py","status":"closed","priority":2,"issue_type":"task","created_at":"2025-11-22T12:37:31.342391-08:00","updated_at":"2025-11-22T14:45:46.363391-08:00","closed_at":"2025-11-22T14:45:46.3634-08:00","dependencies":[{"issue_id":"molting-cli-jyv.6","depends_on_id":"molting-cli-jyv","type":"parent-child","created_at":"2025-11-22T08:17:52.440256-08:00","created_by":"daemon"}]}
