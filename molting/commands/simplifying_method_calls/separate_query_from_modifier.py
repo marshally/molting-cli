@@ -6,6 +6,9 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
 
+# List of method names that mutate state
+MUTATING_METHODS = frozenset(["pop", "remove", "append", "clear", "extend"])
+
 
 class SeparateQueryFromModifierCommand(BaseCommand):
     """Command to separate a query from a modifier into two separate methods."""
@@ -230,7 +233,7 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
                 if isinstance(sub_stmt, cst.Expr) and isinstance(sub_stmt.value, cst.Call):
                     # Check for mutating method calls like .pop()
                     if isinstance(sub_stmt.value.func, cst.Attribute):
-                        if sub_stmt.value.func.attr.value in ["pop", "remove", "append", "clear"]:
+                        if sub_stmt.value.func.attr.value in MUTATING_METHODS:
                             return True
         return False
 
