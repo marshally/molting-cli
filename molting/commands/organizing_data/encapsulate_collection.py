@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
+from molting.core.code_generation_utils import create_parameter
 
 SELF = "self"
 INIT_METHOD = "__init__"
@@ -233,8 +234,8 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
             name=cst.Name(f"add_{self.singular_name}"),
             params=cst.Parameters(
                 params=[
-                    cst.Param(name=cst.Name(SELF)),
-                    cst.Param(name=cst.Name(self.singular_name)),
+                    create_parameter(SELF),
+                    create_parameter(self.singular_name),
                 ]
             ),
             body=cst.IndentedBlock(
@@ -269,8 +270,8 @@ class EncapsulateCollectionTransformer(cst.CSTTransformer):
             name=cst.Name(f"remove_{self.singular_name}"),
             params=cst.Parameters(
                 params=[
-                    cst.Param(name=cst.Name(SELF)),
-                    cst.Param(name=cst.Name(self.singular_name)),
+                    create_parameter(SELF),
+                    create_parameter(self.singular_name),
                 ]
             ),
             body=cst.IndentedBlock(
