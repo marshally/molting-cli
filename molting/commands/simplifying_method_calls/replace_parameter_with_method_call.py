@@ -104,10 +104,7 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
     ) -> cst.BaseExpression:
         """Leave name node and replace parameter usage with method call."""
         if self.in_target_method and updated_node.value == self.param_name:
-            # Replace the parameter name with self.get_<param_name>()
-            return cst.Call(
-                func=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.getter_method_name))
-            )
+            return self._create_getter_method_call()
         return updated_node
 
     def leave_SimpleStatementLine(  # noqa: N802
@@ -145,6 +142,16 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
                     new_args.append(arg)
             return updated_node.with_changes(args=new_args)
         return updated_node
+
+    def _create_getter_method_call(self) -> cst.Call:
+        """Create a call expression for self.get_<param>().
+
+        Returns:
+            A Call node representing self.get_<param>()
+        """
+        return cst.Call(
+            func=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.getter_method_name))
+        )
 
     def _is_target_method_call(self, node: cst.Call) -> bool:
         """Check if a call node is a call to self.method_name().
