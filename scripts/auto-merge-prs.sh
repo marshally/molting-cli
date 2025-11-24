@@ -153,8 +153,11 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
             else
                 error "Failed to fix build failures for PR #$number"
 
-                # Extract the last error from the log
-                ERROR_SUMMARY=$(grep -E "ERROR:|fatal:|error:" "$ERROR_LOG" | tail -5 || echo "Unknown error occurred")
+                # Strip ANSI color codes from the log
+                CLEAN_LOG=$(cat "$ERROR_LOG" | sed 's/\x1b\[[0-9;]*m//g')
+
+                # Extract the last error from the cleaned log
+                ERROR_SUMMARY=$(echo "$CLEAN_LOG" | grep -E "ERROR:|fatal:|error:" | tail -5 || echo "Unknown error occurred")
 
                 # Add a comment to the PR about the failure
                 COMMENT_BODY="## ⚠️ Automatic Build Failure Fix Failed
@@ -171,7 +174,7 @@ $ERROR_SUMMARY
 <summary>Click to expand full error log</summary>
 
 \`\`\`
-$(cat "$ERROR_LOG")
+$CLEAN_LOG
 \`\`\`
 </details>
 
@@ -221,9 +224,12 @@ Please fix the build failures manually."
             else
                 error "Failed to resolve conflicts for PR #$number"
 
-                # Extract the last error and command from the log
-                ERROR_SUMMARY=$(grep -E "ERROR:|fatal:|error:" "$ERROR_LOG" | tail -5 || echo "Unknown error occurred")
-                LAST_COMMAND=$(grep -B 2 -E "ERROR:|fatal:|error:" "$ERROR_LOG" | grep -v "ERROR:" | grep -v "fatal:" | grep -v "error:" | tail -1 || echo "Command not captured")
+                # Strip ANSI color codes from the log
+                CLEAN_LOG=$(cat "$ERROR_LOG" | sed 's/\x1b\[[0-9;]*m//g')
+
+                # Extract the last error and command from the cleaned log
+                ERROR_SUMMARY=$(echo "$CLEAN_LOG" | grep -E "ERROR:|fatal:|error:" | tail -5 || echo "Unknown error occurred")
+                LAST_COMMAND=$(echo "$CLEAN_LOG" | grep -B 2 -E "ERROR:|fatal:|error:" | grep -v "ERROR:" | grep -v "fatal:" | grep -v "error:" | tail -1 || echo "Command not captured")
 
                 # Change label from automerge to automerge-error
                 if [ "$has_automerge_label" = "true" ]; then
@@ -251,7 +257,7 @@ $LAST_COMMAND
 <summary>Click to expand full error log</summary>
 
 \`\`\`
-$(cat "$ERROR_LOG")
+$CLEAN_LOG
 \`\`\`
 </details>
 
