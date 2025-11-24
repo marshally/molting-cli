@@ -635,10 +635,13 @@ def camel_to_snake_case(name: str) -> str:
         >>> camel_to_snake_case("already_snake")
         'already_snake'
     """
-    # Insert underscore before uppercase letters (except at start)
-    # This handles most cases like ClassName -> class_name
-    s1 = re.sub(r"(?<!^)(?=[A-Z])", "_", name)
-    return s1.lower()
+    # First, handle sequences of capitals followed by a lowercase letter
+    # E.g., HTTPServer -> HTTP_Server
+    s1 = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
+    # Then insert underscore before other uppercase letters
+    # E.g., ClassName -> Class_Name
+    s2 = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1)
+    return s2.lower()
 
 
 def generate_field_name_from_class(
