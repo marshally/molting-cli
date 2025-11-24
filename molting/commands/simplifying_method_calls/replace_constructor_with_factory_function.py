@@ -1,0 +1,164 @@
+"""Replace Constructor with Factory Function refactoring command."""
+
+import libcst as cst
+
+from molting.commands.base import BaseCommand
+from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_target
+
+
+class ReplaceConstructorWithFactoryFunctionCommand(BaseCommand):
+    """Command to replace constructor with a factory function."""
+
+    name = "replace-constructor-with-factory-function"
+
+    def validate(self) -> None:
+        """Validate that required parameters are present.
+
+        Raises:
+            ValueError: If required parameters are missing
+        """
+        self.validate_required_params("target")
+
+    def execute(self) -> None:
+        """Apply replace-constructor-with-factory-function refactoring using libCST.
+
+        Raises:
+            ValueError: If class or method not found or target format is invalid
+        """
+        target = self.params["target"]
+        class_name, method_name = parse_target(target, expected_parts=2)
+
+        if method_name != "__init__":
+            raise ValueError(f"Target must be a constructor (__init__), got: {method_name}")
+
+        # Read file
+        source_code = self.file_path.read_text()
+
+        # Parse and transform
+        module = cst.parse_module(source_code)
+        transformer = ReplaceConstructorWithFactoryFunctionTransformer(class_name)
+        modified_tree = module.visit(transformer)
+
+        # Write back
+        self.file_path.write_text(modified_tree.code)
+
+
+class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
+    """Transforms module by adding a factory function for a class."""
+
+    def __init__(self, class_name: str) -> None:
+        """Initialize the transformer.
+
+        Args:
+            class_name: Name of the class to create factory for
+        """
+        self.class_name = class_name
+        self.class_constants: list[str] = []
+        self.found_class = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Visit class definition to collect constants.
+
+        Args:
+            node: The class definition node
+        """
+        if node.name.value == self.class_name:
+            self.found_class = True
+            # Collect class constants
+            for stmt in node.body.body:
+                if isinstance(stmt, cst.SimpleStatementLine):
+                    for inner in stmt.body:
+                        if isinstance(inner, cst.Assign):
+                            for target in inner.targets:
+                                if isinstance(target.target, cst.Name):
+                                    self.class_constants.append(target.target.value)
+
+    def leave_Module(  # noqa: N802
+        self, original_node: cst.Module, updated_node: cst.Module
+    ) -> cst.Module:
+        """Add factory function after module transformation.
+
+        Args:
+            original_node: The original module
+            updated_node: The updated module
+
+        Returns:
+            Module with factory function added
+        """
+        if not self.found_class:
+            return updated_node
+
+        if not self.class_constants:
+            return updated_node
+
+        # Create factory function name
+        factory_name = f"create_{self.class_name.lower()}"
+
+        # Build if-elif chain from the end backwards
+        if_chain = None
+        for constant in reversed(self.class_constants):
+            condition = cst.Comparison(
+                left=cst.Name("employee_type"),
+                comparisons=[
+                    cst.ComparisonTarget(
+                        operator=cst.Equal(),
+                        comparator=cst.SimpleString(f'"{constant}"'),
+                    )
+                ],
+            )
+            return_stmt = cst.SimpleStatementLine(
+                body=[
+                    cst.Return(
+                        value=cst.Call(
+                            func=cst.Name(self.class_name),
+                            args=[
+                                cst.Arg(
+                                    value=cst.Attribute(
+                                        value=cst.Name(self.class_name),
+                                        attr=cst.Name(constant),
+                                    )
+                                )
+                            ],
+                        )
+                    )
+                ]
+            )
+
+            if if_chain is None:
+                # Last condition (no else)
+                if_chain = cst.If(
+                    test=condition,
+                    body=cst.IndentedBlock(body=[return_stmt]),
+                    orelse=None,
+                )
+            else:
+                # Wrap previous chain as orelse
+                if_chain = cst.If(
+                    test=condition,
+                    body=cst.IndentedBlock(body=[return_stmt]),
+                    orelse=if_chain,
+                )
+
+        # Create factory function
+        factory_func = cst.FunctionDef(
+            name=cst.Name(factory_name),
+            params=cst.Parameters(params=[cst.Param(name=cst.Name("employee_type"))]),
+            body=(
+                cst.IndentedBlock(body=[if_chain])
+                if if_chain
+                else cst.SimpleStatementSuite(body=[cst.Pass()])
+            ),
+            leading_lines=[
+                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+            ],
+        )
+
+        # Add factory function to module
+        new_body = list(updated_node.body) + [factory_func]
+        return updated_node.with_changes(body=new_body)
+
+
+# Register the command
+register_command(ReplaceConstructorWithFactoryFunctionCommand)
