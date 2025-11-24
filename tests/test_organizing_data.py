@@ -111,7 +111,6 @@ class TestChangeBidirectionalAssociationToUnidirectional(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceMagicNumberWithSymbolicConstant(RefactoringTestBase):
     """Tests for Replace Magic Number with Symbolic Constant refactoring."""
 
@@ -136,7 +135,6 @@ class TestEncapsulateField(RefactoringTestBase):
         self.refactor("encapsulate-field", target="Person::name")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestEncapsulateCollection(RefactoringTestBase):
     """Tests for Encapsulate Collection refactoring."""
 
