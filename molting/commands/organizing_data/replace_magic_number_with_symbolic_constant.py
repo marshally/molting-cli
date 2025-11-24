@@ -195,34 +195,38 @@ class ReplaceMagicNumberTransformer(cst.CSTTransformer):
         self.constant_added = True
         return updated_node.with_changes(body=new_body)
 
+    def _should_replace_number(self, node: Union[cst.Integer, cst.Float]) -> bool:
+        """Check if a number node should be replaced with the constant.
+
+        Args:
+            node: The number node to check
+
+        Returns:
+            True if the node should be replaced
+        """
+        if not self.in_target_function:
+            return False
+
+        if not self._is_on_target_line(node):
+            return False
+
+        node_value = int(node.value) if isinstance(node, cst.Integer) else float(node.value)
+        return node_value == self.magic_number
+
     def leave_Integer(  # noqa: N802
         self, original_node: cst.Integer, updated_node: cst.Integer
     ) -> Union[cst.Integer, cst.Name]:
         """Replace integer literals with the constant name."""
-        if not self.in_target_function:
-            return updated_node
-
-        if not self._is_on_target_line(original_node):
-            return updated_node
-
-        if int(updated_node.value) == self.magic_number:
+        if self._should_replace_number(original_node):
             return cst.Name(self.constant_name)
-
         return updated_node
 
     def leave_Float(  # noqa: N802
         self, original_node: cst.Float, updated_node: cst.Float
     ) -> Union[cst.Float, cst.Name]:
         """Replace float literals with the constant name."""
-        if not self.in_target_function:
-            return updated_node
-
-        if not self._is_on_target_line(original_node):
-            return updated_node
-
-        if float(updated_node.value) == self.magic_number:
+        if self._should_replace_number(original_node):
             return cst.Name(self.constant_name)
-
         return updated_node
 
     def _is_on_target_line(self, node: cst.CSTNode) -> bool:
