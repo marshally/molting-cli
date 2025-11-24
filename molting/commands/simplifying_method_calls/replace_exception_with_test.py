@@ -114,16 +114,7 @@ class ReplaceExceptionTransformer(cst.CSTTransformer):
             return try_node
 
         # Get the except handler's return value
-        except_return = None
-        for handler in try_node.handlers:
-            handler_body = self._get_block_body(handler.body)
-            for stmt in handler_body:
-                if isinstance(stmt, cst.SimpleStatementLine):
-                    for substmt in stmt.body:
-                        if isinstance(substmt, cst.Return):
-                            except_return = substmt.value
-                            break
-
+        except_return = self._find_exception_return_value(try_node)
         if except_return is None:
             return try_node
 
@@ -188,6 +179,24 @@ class ReplaceExceptionTransformer(cst.CSTTransformer):
                 for substmt in stmt.body:
                     if isinstance(substmt, cst.Return) and substmt.value:
                         if isinstance(substmt.value, cst.Subscript):
+                            return substmt.value
+        return None
+
+    def _find_exception_return_value(self, try_node: cst.Try) -> cst.BaseExpression | None:
+        """Find the return value in exception handlers.
+
+        Args:
+            try_node: The try statement to search
+
+        Returns:
+            The return value expression if found, None otherwise
+        """
+        for handler in try_node.handlers:
+            handler_body = self._get_block_body(handler.body)
+            for stmt in handler_body:
+                if isinstance(stmt, cst.SimpleStatementLine):
+                    for substmt in stmt.body:
+                        if isinstance(substmt, cst.Return):
                             return substmt.value
         return None
 
