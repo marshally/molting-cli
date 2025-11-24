@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_comma_separated_list
+from molting.core.code_generation_utils import create_parameter
 from molting.core.import_utils import ensure_import
 
 
@@ -161,7 +162,7 @@ class ExtractInterfaceCommand(BaseCommand):
             stub = cst.FunctionDef(
                 name=cst.Name(method_name),
                 params=cst.Parameters(
-                    params=[cst.Param(name=cst.Name("self"))],
+                    params=[create_parameter("self")],
                 ),
                 returns=returns,
                 body=cst.SimpleStatementSuite(body=[cst.Expr(value=cst.Ellipsis())]),
