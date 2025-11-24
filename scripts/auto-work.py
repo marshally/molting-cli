@@ -94,11 +94,23 @@ def main() -> None:
         if not run_command(["git", "fetch", "origin"], "Failed to fetch from origin, stopping..."):
             sys.exit(1)
 
-        # Merge origin/main
-        print("  🔄 Rebasing main onto origin/main...")
-        if not run_command(["git", "merge", "origin/main"], "Merge conflict detected, stopping..."):
-            subprocess.run(["git", "merge", "--abort"], check=False)
-            sys.exit(1)
+        # Rebase on origin/main
+        print("  🔄 Rebasing on origin/main...")
+        try:
+            subprocess.run(["git", "rebase", "origin/main"], check=True, capture_output=False)
+        except subprocess.CalledProcessError:
+            print("  ⚠️  Rebase failed, spawning Claude to resolve conflicts...")
+            # Spawn a new Claude session to run /sync-main
+            try:
+                subprocess.run(
+                    ["claude", "--print", "/sync-main"],
+                    check=True,
+                )
+                print("  ✅ Conflicts resolved successfully")
+            except subprocess.CalledProcessError:
+                print("  ❌ Failed to resolve conflicts, stopping...")
+                subprocess.run(["git", "rebase", "--abort"], check=False)
+                sys.exit(1)
 
         # Count open PRs
         pr_count = get_pr_count()
