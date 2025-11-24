@@ -1,13 +1,12 @@
 """Tests for scripts/auto-work.py"""
 
 import importlib.util
-import os
 import signal
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock, call
+from unittest.mock import Mock
 
 import pytest
 
