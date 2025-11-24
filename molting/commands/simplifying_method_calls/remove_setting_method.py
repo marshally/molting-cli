@@ -12,6 +12,18 @@ class RemoveSettingMethodCommand(BaseCommand):
 
     name = "remove-setting-method"
 
+    def _derive_setter_name(self, field_name: str) -> str:
+        """Derive the setter method name from a field name.
+
+        Args:
+            field_name: The field name (e.g., '_id', 'name')
+
+        Returns:
+            The setter method name (e.g., 'set_id', 'set_name')
+        """
+        clean_field_name = field_name.lstrip("_")
+        return f"set_{clean_field_name}"
+
     def validate(self) -> None:
         """Validate that required parameters are present.
 
@@ -28,12 +40,7 @@ class RemoveSettingMethodCommand(BaseCommand):
         """
         target = self.params["target"]
         class_name, field_name = parse_target(target, expected_parts=2)
-
-        # Determine setter method name from field name
-        # Field _id -> setter set_id
-        # Remove leading underscore if present
-        clean_field_name = field_name.lstrip("_")
-        setter_name = f"set_{clean_field_name}"
+        setter_name = self._derive_setter_name(field_name)
 
         def transform(tree: ast.Module) -> ast.Module:
             """Transform the AST to remove the setter method.
