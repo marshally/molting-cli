@@ -73,7 +73,6 @@ class TestParameterizeMethod(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceParameterWithExplicitMethods(RefactoringTestBase):
     """Tests for Replace Parameter with Explicit Methods refactoring."""
 
