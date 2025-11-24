@@ -278,7 +278,9 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
 
         # Create field assignments dict for feature fields
         # (create_init_method will auto-create self.param = param for each param)
-        field_assignments = {field: cst.Name(field) for field in feature_field_names}
+        field_assignments: dict[str, cst.BaseExpression] = {
+            field: cst.Name(field) for field in feature_field_names
+        }
 
         init_method = create_init_method(
             params=all_param_names,
