@@ -55,12 +55,20 @@ while $RUNNING; do
   else
     echo "  🚀 Below limit (${pr_count}/${MAX_PRS}), starting new work..."
 
+    # Temporarily disable trap to allow current task to complete
+    trap - SIGINT SIGTERM
+
     # Run /work-next command
     if claude --dangerously-skip-permissions --print "/work-next"; then
       echo "  ✅ Work completed successfully"
     else
       echo "  ❌ Work failed or was interrupted"
+      # If work was interrupted, exit gracefully
+      RUNNING=false
     fi
+
+    # Re-enable trap for next iteration
+    trap cleanup SIGINT SIGTERM
   fi
 
   echo "  💤 Sleeping for ${SLEEP_MINUTES} minutes..."
