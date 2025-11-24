@@ -57,6 +57,25 @@ class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
         self.class_constants: list[str] = []
         self.found_class = False
 
+    def _collect_class_constants(self, class_body: cst.IndentedBlock) -> list[str]:
+        """Collect constant names from class body.
+
+        Args:
+            class_body: The class body to search
+
+        Returns:
+            List of constant names
+        """
+        constants = []
+        for stmt in class_body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for inner in stmt.body:
+                    if isinstance(inner, cst.Assign):
+                        for target in inner.targets:
+                            if isinstance(target.target, cst.Name):
+                                constants.append(target.target.value)
+        return constants
+
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Visit class definition to collect constants.
 
@@ -65,14 +84,7 @@ class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
         """
         if node.name.value == self.class_name:
             self.found_class = True
-            # Collect class constants
-            for stmt in node.body.body:
-                if isinstance(stmt, cst.SimpleStatementLine):
-                    for inner in stmt.body:
-                        if isinstance(inner, cst.Assign):
-                            for target in inner.targets:
-                                if isinstance(target.target, cst.Name):
-                                    self.class_constants.append(target.target.value)
+            self.class_constants = self._collect_class_constants(node.body)
 
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
