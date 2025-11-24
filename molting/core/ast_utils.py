@@ -527,15 +527,21 @@ def is_self_field_assignment(
         return False
 
     for item in stmt.body:
-        if isinstance(item, cst.Assign):
-            for target in item.targets:
-                if isinstance(target.target, cst.Attribute):
-                    if isinstance(target.target.value, cst.Name):
-                        if target.target.value.value == "self":
-                            field_name = target.target.attr.value
-                            # If field_names is specified, check if field is in the set
-                            if field_names is not None:
-                                return field_name in field_names
-                            return True
+        if not isinstance(item, cst.Assign):
+            continue
+
+        for target in item.targets:
+            if not isinstance(target.target, cst.Attribute):
+                continue
+
+            # Check if this is a self.field attribute
+            if not is_self_attribute(target.target):
+                continue
+
+            # Extract field name and check against filter if provided
+            field_name = target.target.attr.value
+            if field_names is not None:
+                return field_name in field_names
+            return True
 
     return False
