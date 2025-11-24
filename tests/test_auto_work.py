@@ -4,7 +4,7 @@ import signal
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import Mock, call, patch
+from unittest.mock import Mock, call
 
 import pytest
 
@@ -299,6 +299,7 @@ class TestMainLoop:
 
         # Make subprocess.run succeed for claude command
         mock_subprocess = Mock()
+
         def subprocess_run_side_effect(*args, **kwargs):
             if args[0][0] == "claude":
                 auto_work.running = False  # Stop after first iteration
@@ -315,10 +316,11 @@ class TestMainLoop:
 
         # Should call claude command with preexec_fn to create new process group
         import os
+
         mock_subprocess.assert_any_call(
             ["claude", "--dangerously-skip-permissions", "--print", "/work-next"],
             check=True,
-            preexec_fn=os.setpgrp
+            preexec_fn=os.setpgrp,
         )
 
     def test_main_handles_work_next_failure(self, monkeypatch, capsys) -> None:
@@ -337,6 +339,7 @@ class TestMainLoop:
 
         # Make subprocess.run fail for claude command
         mock_subprocess = Mock()
+
         def subprocess_run_side_effect(*args, **kwargs):
             if args[0][0] == "claude":
                 auto_work.running = False  # Stop after first iteration
