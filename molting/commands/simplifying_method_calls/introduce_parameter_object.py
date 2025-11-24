@@ -171,16 +171,10 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         init_params = [cst.Param(name=cst.Name("self"))]
 
         # Map original parameter names to shorter versions for the class
-        param_mapping = {}
-        for param_name in self.param_names:
-            # Remove common prefixes like "start_" and "end_"
-            if param_name.startswith("start_"):
-                short_name = "start"
-            elif param_name.startswith("end_"):
-                short_name = "end"
-            else:
-                short_name = param_name
-            param_mapping[param_name] = short_name
+        param_mapping = {
+            param_name: self._get_short_field_name(param_name) for param_name in self.param_names
+        }
+        for short_name in param_mapping.values():
             init_params.append(cst.Param(name=cst.Name(short_name)))
 
         # Create field assignments for __init__
@@ -280,6 +274,23 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         # Insert underscores before uppercase letters (except the first one)
         snake_case = re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).lower()
         return snake_case
+
+    def _get_short_field_name(self, param_name: str) -> str:
+        """Get shortened field name by removing common prefixes.
+
+        Args:
+            param_name: The original parameter name
+
+        Returns:
+            The shortened field name for use in the parameter object
+        """
+        # Remove common prefixes like "start_" and "end_"
+        if param_name.startswith("start_"):
+            return "start"
+        elif param_name.startswith("end_"):
+            return "end"
+        else:
+            return param_name
 
 
 # Register the command
