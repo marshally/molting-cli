@@ -79,15 +79,13 @@ class ReplaceTempWithQueryTransformer(cst.CSTTransformer):
                         return True
         return False
 
-    def leave_FunctionDef(  # noqa: N802
-        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
-    ) -> cst.FunctionDef:
-        """Leave function definition and replace temp variable usage."""
-        if original_node.name.value != self.method_name:
-            return updated_node
+    def _extract_temp_expression(self, function_body: cst.IndentedBlock) -> None:
+        """Extract the expression from the temp variable assignment.
 
-        # First pass: find the temp variable assignment and extract its expression
-        for stmt in updated_node.body.body:
+        Args:
+            function_body: The function body to search
+        """
+        for stmt in function_body.body:
             if self._is_target_variable_assignment(stmt):
                 # Extract the expression from the assignment
                 for inner_stmt in stmt.body:  # type: ignore[attr-defined]
@@ -95,12 +93,19 @@ class ReplaceTempWithQueryTransformer(cst.CSTTransformer):
                         self.temp_expression = inner_stmt.value
                         break
 
-        if self.temp_expression is None:
-            return updated_node
+    def _remove_assignment_and_replace_references(
+        self, function_body: cst.IndentedBlock
+    ) -> list[cst.BaseStatement]:
+        """Remove temp assignment and replace variable references with method calls.
 
-        # Second pass: remove the assignment and replace variable usage
+        Args:
+            function_body: The function body to transform
+
+        Returns:
+            List of transformed statements
+        """
         new_body: list[cst.BaseStatement] = []
-        for stmt in updated_node.body.body:
+        for stmt in function_body.body:
             # Skip the assignment statement
             if self._is_target_variable_assignment(stmt):
                 continue
@@ -109,7 +114,21 @@ class ReplaceTempWithQueryTransformer(cst.CSTTransformer):
             replacer = VariableReplacer(self.variable_name)
             new_stmt = stmt.visit(replacer)
             new_body.append(new_stmt)
+        return new_body
 
+    def leave_FunctionDef(  # noqa: N802
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
+        """Leave function definition and replace temp variable usage."""
+        if original_node.name.value != self.method_name:
+            return updated_node
+
+        self._extract_temp_expression(updated_node.body)
+
+        if self.temp_expression is None:
+            return updated_node
+
+        new_body = self._remove_assignment_and_replace_references(updated_node.body)
         return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body)))
 
     def leave_ClassDef(  # noqa: N802
