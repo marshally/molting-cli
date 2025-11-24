@@ -12,7 +12,7 @@ from molting.core.ast_utils import (
     find_self_field_assignment,
     parse_comma_separated_list,
 )
-from molting.core.code_generation_utils import create_parameter
+from molting.core.code_generation_utils import create_init_method
 
 
 class ExtractSuperclassCommand(BaseCommand):
@@ -179,40 +179,8 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
             The new superclass definition
         """
         # Create __init__ method with common fields
-        init_params = [create_parameter("self")]
-        init_assignments: list[cst.BaseStatement] = []
-
-        if self.common_fields:
-            # Add parameters for common fields
-            for field in sorted(self.common_fields):
-                init_params.append(create_parameter(field))
-
-            # Create assignments for common fields
-            for field in sorted(self.common_fields):
-                assignment = cst.SimpleStatementLine(
-                    body=[
-                        cst.Assign(
-                            targets=[
-                                cst.AssignTarget(
-                                    cst.Attribute(value=cst.Name("self"), attr=cst.Name(field))
-                                )
-                            ],
-                            value=cst.Name(field),
-                        )
-                    ]
-                )
-                init_assignments.append(assignment)
-
-        init_method = cst.FunctionDef(
-            name=cst.Name("__init__"),
-            params=cst.Parameters(params=init_params),
-            body=cst.IndentedBlock(
-                body=(
-                    init_assignments
-                    if init_assignments
-                    else [cst.SimpleStatementLine(body=[cst.Pass()])]
-                )
-            ),
+        init_method = create_init_method(
+            params=sorted(self.common_fields) if self.common_fields else []
         )
 
         # Create common methods
