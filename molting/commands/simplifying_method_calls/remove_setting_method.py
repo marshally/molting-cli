@@ -24,6 +24,24 @@ class RemoveSettingMethodCommand(BaseCommand):
         clean_field_name = field_name.lstrip("_")
         return f"set_{clean_field_name}"
 
+    def _find_class_in_tree(self, tree: ast.Module, class_name: str) -> ast.ClassDef:
+        """Find a class definition in the AST.
+
+        Args:
+            tree: The AST module to search
+            class_name: The name of the class to find
+
+        Returns:
+            The class definition node
+
+        Raises:
+            ValueError: If class is not found
+        """
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and node.name == class_name:
+                return node
+        raise ValueError(f"Class '{class_name}' not found in {self.file_path}")
+
     def validate(self) -> None:
         """Validate that required parameters are present.
 
@@ -54,15 +72,7 @@ class RemoveSettingMethodCommand(BaseCommand):
             Raises:
                 ValueError: If class or setter method not found
             """
-            # Find the class
-            class_node = None
-            for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef) and node.name == class_name:
-                    class_node = node
-                    break
-
-            if class_node is None:
-                raise ValueError(f"Class '{class_name}' not found in {self.file_path}")
+            class_node = self._find_class_in_tree(tree, class_name)
 
             # Find and remove the setter method
             method_index = None
