@@ -1,6 +1,7 @@
 """Inline Temp refactoring command."""
 
 import libcst as cst
+import libcst.metadata as metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
@@ -108,7 +109,7 @@ class TempVariableCollector(cst.CSTVisitor):
 class InlineTempTransformer(cst.CSTTransformer):
     """Transforms a function by inlining a temp variable."""
 
-    METADATA_DEPENDENCIES = (cst.metadata.ParentNodeProvider,)
+    METADATA_DEPENDENCIES = (metadata.ParentNodeProvider,)
 
     def __init__(
         self, function_name: str, variable_name: str, variable_expression: cst.BaseExpression
@@ -139,7 +140,9 @@ class InlineTempTransformer(cst.CSTTransformer):
 
             # Remove the temp variable assignment
             statements_without_temp = [
-                stmt for stmt in updated_node.body.body if not self._is_temp_assignment(stmt)
+                stmt
+                for stmt in updated_node.body.body
+                if isinstance(stmt, cst.BaseStatement) and not self._is_temp_assignment(stmt)
             ]
 
             return updated_node.with_changes(
@@ -204,14 +207,14 @@ class InlineTempTransformer(cst.CSTTransformer):
         """
         # Walk up the parent chain to check if we're in an AssignTarget
         try:
-            parent = self.get_metadata(cst.metadata.ParentNodeProvider, node)
+            parent = self.get_metadata(metadata.ParentNodeProvider, node)
             while parent:
                 if isinstance(parent, cst.AssignTarget):
                     return True
                 if isinstance(parent, cst.FunctionDef):
                     # Stop at function boundary
                     break
-                parent = self.get_metadata(cst.metadata.ParentNodeProvider, parent)
+                parent = self.get_metadata(metadata.ParentNodeProvider, parent)
         except KeyError:
             # Metadata not available, fall back to simple check
             pass
