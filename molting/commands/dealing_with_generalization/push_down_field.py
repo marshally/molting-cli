@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_target
+from molting.core.ast_utils import is_pass_statement, parse_target, statements_contain_only_pass
 
 
 class PushDownFieldCommand(BaseCommand):
@@ -127,7 +127,7 @@ class PushDownFieldTransformer(cst.CSTTransformer):
                 new_stmts.append(stmt)
 
         # If __init__ becomes empty or only has pass, return None to remove it
-        if not new_stmts or self._is_only_pass(new_stmts):
+        if not new_stmts or statements_contain_only_pass(new_stmts):
             return None
 
         return init_node.with_changes(body=cst.IndentedBlock(body=new_stmts))
@@ -175,31 +175,6 @@ class PushDownFieldTransformer(cst.CSTTransformer):
             if isinstance(body_stmt, cst.Assign):
                 self.field_value = body_stmt.value
 
-    def _is_pass_statement(self, stmt: cst.BaseStatement) -> bool:
-        """Check if a statement is a pass statement.
-
-        Args:
-            stmt: Statement to check
-
-        Returns:
-            True if statement is a pass statement
-        """
-        if isinstance(stmt, cst.SimpleStatementLine):
-            if len(stmt.body) == 1 and isinstance(stmt.body[0], cst.Pass):
-                return True
-        return False
-
-    def _is_only_pass(self, stmts: list[cst.BaseStatement]) -> bool:
-        """Check if statements list contains only pass.
-
-        Args:
-            stmts: List of statements
-
-        Returns:
-            True if only contains pass
-        """
-        return len(stmts) == 1 and self._is_pass_statement(stmts[0])
-
     def _add_field_to_class(self, class_node: cst.ClassDef) -> cst.ClassDef:
         """Add field to target class __init__.
 
@@ -225,7 +200,7 @@ class PushDownFieldTransformer(cst.CSTTransformer):
                 new_body_stmts.append(modified_init)
             else:
                 # Skip 'pass' statements if we're adding a new __init__
-                if not has_init and self._is_pass_statement(stmt):
+                if not has_init and is_pass_statement(stmt):
                     continue
                 new_body_stmts.append(stmt)
 
