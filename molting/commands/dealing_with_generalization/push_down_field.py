@@ -14,7 +14,7 @@ from molting.core.ast_utils import (
 )
 from molting.core.code_generation_utils import (
     create_field_assignment,
-    create_init_method,
+    create_super_init_call,
 )
 
 
@@ -230,11 +230,13 @@ class PushDownFieldTransformer(cst.CSTTransformer):
         Returns:
             New __init__ method
         """
-        field_value = self.field_value if self.field_value else cst.Integer("0")
-        return create_init_method(
-            params=[],
-            field_assignments={self.field_name: field_value},
-            super_call_args=[],
+        super_call = create_super_init_call()
+        field_assignment = self._create_field_assignment_statement()
+
+        return cst.FunctionDef(
+            name=cst.Name("__init__"),
+            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
+            body=cst.IndentedBlock(body=[super_call, field_assignment]),
         )
 
     def _add_field_to_init(self, init_node: cst.FunctionDef) -> cst.FunctionDef:
