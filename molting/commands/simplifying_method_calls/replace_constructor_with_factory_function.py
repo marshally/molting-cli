@@ -5,6 +5,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
+from molting.core.code_generation_utils import create_parameter
 
 
 class ReplaceConstructorWithFactoryFunctionCommand(BaseCommand):
@@ -185,7 +186,7 @@ class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
         """
         return cst.FunctionDef(
             name=cst.Name(factory_name),
-            params=cst.Parameters(params=[cst.Param(name=cst.Name(param_name))]),
+            params=cst.Parameters(params=[create_parameter(param_name)]),
             body=(
                 cst.IndentedBlock(body=[if_chain])
                 if if_chain
