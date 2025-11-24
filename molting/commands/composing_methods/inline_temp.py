@@ -87,10 +87,22 @@ class TempVariableCollector(cst.CSTVisitor):
         if not self.in_target_function:
             return
 
-        # Check if this assignment is to our target variable
-        for target in node.targets:
+        if self._assigns_to_variable(node):
+            self.variable_expression = node.value
+
+    def _assigns_to_variable(self, assign: cst.Assign) -> bool:
+        """Check if an assignment assigns to the target variable.
+
+        Args:
+            assign: The assignment node to check
+
+        Returns:
+            True if the assignment assigns to the target variable, False otherwise
+        """
+        for target in assign.targets:
             if isinstance(target.target, cst.Name) and target.target.value == self.variable_name:
-                self.variable_expression = node.value
+                return True
+        return False
 
 
 class InlineTempTransformer(cst.CSTTransformer):
