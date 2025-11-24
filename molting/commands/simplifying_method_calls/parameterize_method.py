@@ -70,13 +70,13 @@ class ParameterizeMethodCommand(BaseCommand):
             self._update_method_to_call_new(method_node2, new_name, percentage2)
 
             # Insert the new method after the __init__ method
-            init_index = 0
+            insertion_position = 0
             for i, node in enumerate(class_node.body):
                 if isinstance(node, ast.FunctionDef) and node.name == "__init__":
-                    init_index = i
+                    insertion_position = i
                     break
 
-            class_node.body.insert(init_index + 1, new_method)
+            class_node.body.insert(insertion_position + 1, new_method)
 
             return tree
 
