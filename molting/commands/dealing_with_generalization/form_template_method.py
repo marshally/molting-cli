@@ -4,7 +4,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_comma_separated_list, parse_target
+from molting.core.ast_utils import find_method_in_class, parse_comma_separated_list, parse_target
 
 
 class FormTemplateMethodCommand(BaseCommand):
@@ -88,10 +88,9 @@ class MethodCollector(cst.CSTVisitor):
         # Collect methods for our target classes
         for target_class, target_method in self.method_info:
             if class_name == target_class:
-                for stmt in node.body.body:
-                    if isinstance(stmt, cst.FunctionDef) and stmt.name.value == target_method:
-                        self.method_implementations[class_name] = stmt
-                        break
+                method = find_method_in_class(node, target_method)
+                if method:
+                    self.method_implementations[class_name] = method
 
         return True
 
@@ -206,9 +205,13 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
 
         new_body_stmts: list[cst.BaseStatement] = []
 
+        target_method_def: cst.FunctionDef | None = (
+            find_method_in_class(node, target_method_name) if target_method_name else None
+        )
+
         for stmt in node.body.body:
             # Replace the target method with new abstract method implementations
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == target_method_name:
+            if stmt is target_method_def and isinstance(stmt, cst.FunctionDef):
                 # Extract the abstract methods from this implementation
                 abstract_impls = self._extract_abstract_methods_from_implementation(stmt)
                 new_body_stmts.extend(abstract_impls)

@@ -6,7 +6,12 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import is_pass_statement, parse_target, statements_contain_only_pass
+from molting.core.ast_utils import (
+    find_method_in_class,
+    is_pass_statement,
+    parse_target,
+    statements_contain_only_pass,
+)
 
 
 class PushDownFieldCommand(BaseCommand):
@@ -83,15 +88,19 @@ class PushDownFieldTransformer(cst.CSTTransformer):
         """
         new_body_stmts: list[cst.BaseStatement] = []
 
+        # Find and process __init__ method
+        init_method = find_method_in_class(class_node, "__init__")
+        if init_method:
+            modified_init = self._remove_field_from_init(init_method)
+            if modified_init:
+                new_body_stmts.append(modified_init)
+
+        # Add all other statements
         for stmt in class_node.body.body:
             stmt = cast(cst.BaseStatement, stmt)
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
-                # Transform __init__ to remove field assignment
-                modified_init = self._remove_field_from_init(stmt)
-                if modified_init:
-                    new_body_stmts.append(modified_init)
-            else:
-                new_body_stmts.append(stmt)
+                continue  # Skip __init__, already processed above
+            new_body_stmts.append(stmt)
 
         # If no statements remain, add pass
         if not new_body_stmts:
@@ -185,18 +194,16 @@ class PushDownFieldTransformer(cst.CSTTransformer):
             Modified class definition
         """
         # First, check if class already has __init__
-        has_init = any(
-            isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__"
-            for stmt in class_node.body.body
-        )
+        init_method = find_method_in_class(class_node, "__init__")
+        has_init = init_method is not None
 
         new_body_stmts: list[cst.BaseStatement] = []
 
         for stmt in class_node.body.body:
             stmt = cast(cst.BaseStatement, stmt)
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+            if stmt is init_method:
                 # Add field assignment to existing __init__
-                modified_init = self._add_field_to_init(stmt)
+                modified_init = self._add_field_to_init(init_method)
                 new_body_stmts.append(modified_init)
             else:
                 # Skip 'pass' statements if we're adding a new __init__
