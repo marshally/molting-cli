@@ -179,11 +179,20 @@ class InlineTempTransformer(cst.CSTTransformer):
         if not isinstance(stmt.body[0], cst.Assign):
             return False
 
-        assign = stmt.body[0]
+        return self._assigns_to_variable(stmt.body[0])
+
+    def _assigns_to_variable(self, assign: cst.Assign) -> bool:
+        """Check if an assignment assigns to the target variable.
+
+        Args:
+            assign: The assignment node to check
+
+        Returns:
+            True if the assignment assigns to the target variable, False otherwise
+        """
         for target in assign.targets:
             if isinstance(target.target, cst.Name) and target.target.value == self.variable_name:
                 return True
-
         return False
 
     def _is_in_assignment_target(self, node: cst.Name) -> bool:
