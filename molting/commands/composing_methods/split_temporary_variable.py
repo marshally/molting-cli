@@ -56,6 +56,22 @@ class SplitTemporaryVariableTransformer(cst.CSTTransformer):
         self.function_name = function_name
         self.variable_name = variable_name
 
+    def _generate_variable_name(self, assignment_number: int) -> str:
+        """Generate a unique variable name for an assignment.
+
+        Args:
+            assignment_number: The assignment number (1-indexed)
+
+        Returns:
+            The generated variable name
+        """
+        if assignment_number == 1:
+            return "primary_acc"
+        elif assignment_number == 2:
+            return "secondary_acc"
+        else:
+            return f"{self.variable_name}_{assignment_number}"
+
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
@@ -87,12 +103,7 @@ class SplitTemporaryVariableTransformer(cst.CSTTransformer):
 
             if is_target_assignment:
                 # Generate new name for this assignment
-                if assignment_count == 1:
-                    new_name = "primary_acc"
-                elif assignment_count == 2:
-                    new_name = "secondary_acc"
-                else:
-                    new_name = f"{self.variable_name}_{assignment_count}"
+                new_name = self._generate_variable_name(assignment_count)
 
                 # Replace only the assignment target
                 assignment_replacer = AssignmentTargetReplacer(self.variable_name, new_name)
@@ -101,12 +112,7 @@ class SplitTemporaryVariableTransformer(cst.CSTTransformer):
             else:
                 # Replace uses of the variable with the most recent assigned name
                 if assignment_count > 0:
-                    if assignment_count == 1:
-                        current_name = "primary_acc"
-                    elif assignment_count == 2:
-                        current_name = "secondary_acc"
-                    else:
-                        current_name = f"{self.variable_name}_{assignment_count}"
+                    current_name = self._generate_variable_name(assignment_count)
 
                     name_replacer = NameReplacer(self.variable_name, current_name)
                     new_stmt = stmt.visit(name_replacer)
