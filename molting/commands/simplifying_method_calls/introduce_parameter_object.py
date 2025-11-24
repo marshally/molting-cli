@@ -167,13 +167,40 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         Returns:
             The new class definition
         """
-        # Create __init__ method parameters
-        init_params = [cst.Param(name=cst.Name("self"))]
-
-        # Map original parameter names to shorter versions for the class
         param_mapping = {
             param_name: self._get_short_field_name(param_name) for param_name in self.param_names
         }
+
+        init_method = self._create_init_method(param_mapping)
+        includes_method = self._create_includes_method()
+
+        # Create the class
+        return cst.ClassDef(
+            name=cst.Name(self.class_name),
+            body=cst.IndentedBlock(
+                body=[
+                    init_method,
+                    cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                    includes_method,
+                ]
+            ),
+            leading_lines=[
+                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+            ],
+        )
+
+    def _create_init_method(self, param_mapping: dict[str, str]) -> cst.FunctionDef:
+        """Create the __init__ method for the parameter object.
+
+        Args:
+            param_mapping: Mapping from original parameter names to short field names
+
+        Returns:
+            The __init__ method definition
+        """
+        # Create __init__ method parameters
+        init_params = [cst.Param(name=cst.Name("self"))]
         for short_name in param_mapping.values():
             init_params.append(cst.Param(name=cst.Name(short_name)))
 
@@ -199,15 +226,19 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
                 )
             )
 
-        # Create __init__ method
-        init_method = cst.FunctionDef(
+        return cst.FunctionDef(
             name=cst.Name("__init__"),
             params=cst.Parameters(params=init_params),
             body=cst.IndentedBlock(body=init_body),
         )
 
-        # Create includes method
-        includes_method = cst.FunctionDef(
+    def _create_includes_method(self) -> cst.FunctionDef:
+        """Create the includes method for range checking.
+
+        Returns:
+            The includes method definition
+        """
+        return cst.FunctionDef(
             name=cst.Name("includes"),
             params=cst.Parameters(
                 params=[
@@ -244,22 +275,6 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
                     )
                 ]
             ),
-        )
-
-        # Create the class
-        return cst.ClassDef(
-            name=cst.Name(self.class_name),
-            body=cst.IndentedBlock(
-                body=[
-                    init_method,
-                    cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-                    includes_method,
-                ]
-            ),
-            leading_lines=[
-                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-            ],
         )
 
     def _class_name_to_snake_case(self, class_name: str) -> str:
