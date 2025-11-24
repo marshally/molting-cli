@@ -5,6 +5,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import find_method_in_class, parse_comma_separated_list, parse_target
+from molting.core.code_generation_utils import create_parameter
 
 
 class FormTemplateMethodCommand(BaseCommand):
@@ -330,7 +331,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
         return cst.FunctionDef(
             name=cst.Name(self.template_method_name),
             params=cst.Parameters(
-                params=[cst.Param(name=cst.Name("self"))],
+                params=[create_parameter("self")],
             ),
             body=cst.IndentedBlock(body=[base_stmt, tax_stmt, return_stmt]),
         )
@@ -346,7 +347,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
         get_base_amount = cst.FunctionDef(
             name=cst.Name("get_base_amount"),
             params=cst.Parameters(
-                params=[cst.Param(name=cst.Name("self"))],
+                params=[create_parameter("self")],
             ),
             body=cst.IndentedBlock(
                 body=[
@@ -359,8 +360,8 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
             name=cst.Name("get_tax_amount"),
             params=cst.Parameters(
                 params=[
-                    cst.Param(name=cst.Name("self")),
-                    cst.Param(name=cst.Name("base")),
+                    create_parameter("self"),
+                    create_parameter("base"),
                 ],
             ),
             body=cst.IndentedBlock(
@@ -422,7 +423,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
             get_base_amount = cst.FunctionDef(
                 name=cst.Name("get_base_amount"),
                 params=cst.Parameters(
-                    params=[cst.Param(name=cst.Name("self"))],
+                    params=[create_parameter("self")],
                 ),
                 body=cst.IndentedBlock(
                     body=[cst.SimpleStatementLine(body=[cst.Return(value=base_expr)])]
@@ -436,8 +437,8 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
                 name=cst.Name("get_tax_amount"),
                 params=cst.Parameters(
                     params=[
-                        cst.Param(name=cst.Name("self")),
-                        cst.Param(name=cst.Name("base")),
+                        create_parameter("self"),
+                        create_parameter("base"),
                     ],
                 ),
                 body=cst.IndentedBlock(
