@@ -5,6 +5,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import find_method_in_class, parse_target
+from molting.core.code_generation_utils import create_super_init_call
 
 
 class ReplaceDelegationWithInheritanceCommand(BaseCommand):
@@ -214,16 +215,7 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
             if param.name.value != "self":
                 call_args.append(cst.Arg(value=cst.Name(param.name.value)))
 
-        super_call = cst.Expr(
-            value=cst.Call(
-                func=cst.Attribute(
-                    value=cst.Call(func=cst.Name("super")), attr=cst.Name("__init__")
-                ),
-                args=call_args,
-            )
-        )
-
-        super_call_stmt = cst.SimpleStatementLine(body=[super_call])
+        super_call_stmt = create_super_init_call(call_args)
 
         # Create new body with only the super call
         new_body = cst.IndentedBlock(body=[super_call_stmt])
