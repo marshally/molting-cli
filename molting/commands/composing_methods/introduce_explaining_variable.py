@@ -103,7 +103,7 @@ class IntroduceVariableTransformer(cst.CSTTransformer):
         if not isinstance(function_node.body, cst.IndentedBlock):
             return function_node
 
-        new_statements = []
+        new_statements: list[cst.BaseStatement] = []
         assignment = self._create_assignment()
 
         # Insert assignment before the return statement
@@ -116,6 +116,8 @@ class IntroduceVariableTransformer(cst.CSTTransformer):
 
     def _create_assignment(self) -> cst.SimpleStatementLine:
         """Create a variable assignment statement."""
+        # target_expression is guaranteed to be set when this method is called
+        assert self.target_expression is not None
         return cst.SimpleStatementLine(
             body=[
                 cst.Assign(
@@ -179,6 +181,8 @@ class IntroduceVariableTransformer(cst.CSTTransformer):
 
     def _replace_expression(self, node: cst.BaseExpression) -> cst.BaseExpression:
         """Recursively replace the target expression with the variable name."""
+        # target_expression is guaranteed to be set when this method is called
+        assert self.target_expression is not None
         if node.deep_equals(self.target_expression):
             return cst.Name(self.variable_name)
 
