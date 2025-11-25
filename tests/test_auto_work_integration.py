@@ -158,9 +158,9 @@ echo "0"
             # Verify child process completed successfully
             assert "START" in full_output, "START not found in output"
             assert "END" in full_output, "Child process did not complete (END not found)"
-            assert (
-                "SIGINT_RECEIVED" not in full_output
-            ), "Child process received SIGINT (should not happen)"
+            assert "SIGINT_RECEIVED" not in full_output, (
+                "Child process received SIGINT (should not happen)"
+            )
             assert "Auto-work script stopped cleanly" in full_output or process.returncode in [
                 0,
                 -2,
