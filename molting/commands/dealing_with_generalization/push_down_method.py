@@ -109,13 +109,11 @@ class PushDownMethodTransformer(cst.CSTTransformer):
 
         new_body_stmts: list[cst.BaseStatement] = []
 
-        # Remove pass statements if class currently only has pass
         for stmt in class_node.body.body:
             stmt = cast(cst.BaseStatement, stmt)
             if not is_pass_statement(stmt):
                 new_body_stmts.append(stmt)
 
-        # Add the pushed down method
         new_body_stmts.append(self.method_node)
 
         return class_node.with_changes(
