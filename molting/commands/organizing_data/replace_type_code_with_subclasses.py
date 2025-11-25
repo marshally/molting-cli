@@ -130,6 +130,17 @@ class ReplaceTypeCodeWithSubclassesTransformer(cst.CSTTransformer):
 
         return class_def.with_changes(body=cst.IndentedBlock(body=new_body))
 
+    def _convert_constant_to_class_name(self, const_name: str) -> str:
+        """Convert a type constant name to a class name.
+
+        Args:
+            const_name: The constant name (e.g., ENGINEER)
+
+        Returns:
+            The class name (e.g., Engineer)
+        """
+        return const_name.title().replace("_", "")
+
     def _create_factory_method(self) -> cst.FunctionDef:
         """Create a static factory method.
 
@@ -156,7 +167,7 @@ class ReplaceTypeCodeWithSubclassesTransformer(cst.CSTTransformer):
                 body=[
                     cst.Return(
                         value=cst.Call(
-                            func=cst.Name(const_name.title().replace("_", "")),
+                            func=cst.Name(self._convert_constant_to_class_name(const_name)),
                             args=[],
                         )
                     )
@@ -195,8 +206,7 @@ class ReplaceTypeCodeWithSubclassesTransformer(cst.CSTTransformer):
         Returns:
             Subclass definition
         """
-        # Convert ENGINEER to Engineer
-        subclass_name = const_name.title().replace("_", "")
+        subclass_name = self._convert_constant_to_class_name(const_name)
 
         return cst.ClassDef(
             name=cst.Name(subclass_name),
