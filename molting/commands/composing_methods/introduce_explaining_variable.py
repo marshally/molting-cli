@@ -169,10 +169,10 @@ class IntroduceExplainingVariableTransformer(cst.CSTTransformer):
             body=updated_node.body.with_changes(body=tuple(new_statements))
         )
 
-    def leave_BinaryOperation(  # noqa: N802
-        self, original_node: cst.BinaryOperation, updated_node: cst.BinaryOperation
+    def _replace_if_target(
+        self, original_node: cst.BaseExpression, updated_node: cst.BaseExpression
     ) -> cst.BaseExpression:
-        """Replace target expression with variable name."""
+        """Replace node with variable name if it's the target expression."""
         if not self.in_target_function:
             return updated_node
 
@@ -180,15 +180,15 @@ class IntroduceExplainingVariableTransformer(cst.CSTTransformer):
             return cst.Name(self.variable_name)
 
         return updated_node
+
+    def leave_BinaryOperation(  # noqa: N802
+        self, original_node: cst.BinaryOperation, updated_node: cst.BinaryOperation
+    ) -> cst.BaseExpression:
+        """Replace target expression with variable name."""
+        return self._replace_if_target(original_node, updated_node)
 
     def leave_Call(  # noqa: N802
         self, original_node: cst.Call, updated_node: cst.Call
     ) -> cst.BaseExpression:
         """Replace target expression with variable name."""
-        if not self.in_target_function:
-            return updated_node
-
-        if original_node is self.target_expression:
-            return cst.Name(self.variable_name)
-
-        return updated_node
+        return self._replace_if_target(original_node, updated_node)
