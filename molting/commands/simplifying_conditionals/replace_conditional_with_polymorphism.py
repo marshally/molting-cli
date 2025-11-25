@@ -101,6 +101,7 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
     """Transformer to replace conditional with polymorphism."""
 
     METADATA_DEPENDENCIES = (metadata.PositionProvider,)
+    INIT_METHOD_NAME = "__init__"
 
     def __init__(self, class_name: str, method_name: str, start_line: int, end_line: int) -> None:
         """Initialize the transformer.
@@ -185,7 +186,7 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
             return updated_node
 
         # Handle __init__ method
-        if original_node.name.value == "__init__":
+        if original_node.name.value == self.INIT_METHOD_NAME:
             # Extract base parameters (keep monthly_salary, remove others)
             new_params = []
             for param in original_node.params.params:
@@ -322,7 +323,7 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
                                 value=cst.Call(
                                     func=cst.Attribute(
                                         value=cst.Call(func=cst.Name("super"), args=[]),
-                                        attr=cst.Name("__init__"),
+                                        attr=cst.Name(self.INIT_METHOD_NAME),
                                     ),
                                     args=[cst.Arg(value=cst.Name("monthly_salary"))],
                                 )
@@ -352,7 +353,7 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
                         init_params.append(cst.Param(name=cst.Name(param_name)))
 
                 init_method = cst.FunctionDef(
-                    name=cst.Name("__init__"),
+                    name=cst.Name(self.INIT_METHOD_NAME),
                     params=cst.Parameters(params=init_params),
                     body=cst.IndentedBlock(body=init_body),
                 )
