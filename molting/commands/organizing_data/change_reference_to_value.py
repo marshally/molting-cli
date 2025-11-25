@@ -9,6 +9,8 @@ from molting.commands.registry import register_command
 from molting.core.ast_utils import extract_all_methods, find_class_in_module
 from molting.core.code_generation_utils import create_parameter
 
+DEFAULT_PARAM_NAME = "code"
+
 
 class ChangeReferenceToValueCommand(BaseCommand):
     """Command to change a reference object into a value object."""
@@ -122,7 +124,7 @@ class ChangeReferenceToValueTransformer(cst.CSTTransformer):
             new_body.append(stmt)
 
         # Add __eq__ method
-        param_name = self.init_param_name or "code"
+        param_name = self.init_param_name or DEFAULT_PARAM_NAME
         eq_method = self._create_eq_method(param_name)
         new_body.append(cast(cst.BaseStatement, cst.EmptyLine()))
         new_body.append(eq_method)
