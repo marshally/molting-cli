@@ -9,6 +9,7 @@ from molting.commands.registry import register_command
 from molting.core.ast_utils import (
     generate_field_name_from_class,
     is_assignment_to_field,
+    is_self_attribute,
     parse_comma_separated_list,
 )
 from molting.core.code_generation_utils import create_parameter
@@ -288,11 +289,10 @@ class FieldRenameTransformer(cst.CSTTransformer):
         Returns:
             The transformed attribute node
         """
-        if isinstance(updated_node.value, cst.Name):
-            if updated_node.value.value == "self":
-                if updated_node.attr.value in self.field_mapping:
-                    new_name = self.field_mapping[updated_node.attr.value]
-                    return updated_node.with_changes(attr=cst.Name(new_name))
+        if is_self_attribute(updated_node):
+            if updated_node.attr.value in self.field_mapping:
+                new_name = self.field_mapping[updated_node.attr.value]
+                return updated_node.with_changes(attr=cst.Name(new_name))
         return updated_node
 
 
