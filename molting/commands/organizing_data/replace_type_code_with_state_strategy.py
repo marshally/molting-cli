@@ -165,7 +165,6 @@ class ReplaceTypeCodeWithStateStrategyTransformer(cst.CSTTransformer):
         Returns:
             Base class definition
         """
-        # Create pay_amount method that raises NotImplementedError
         pay_amount_method = cst.FunctionDef(
             name=cst.Name("pay_amount"),
             params=cst.Parameters(
@@ -196,10 +195,7 @@ class ReplaceTypeCodeWithStateStrategyTransformer(cst.CSTTransformer):
         Returns:
             Subclass definition
         """
-        # Convert ENGINEER to Engineer
         class_name = const_name.title()
-
-        # Find the method body by analyzing the conditional logic
         method_body = self._extract_method_body_for_type(const_name)
 
         pay_amount_method = cst.FunctionDef(
