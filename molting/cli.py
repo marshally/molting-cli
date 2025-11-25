@@ -21,8 +21,8 @@ import molting.commands.dealing_with_generalization.extract_interface  # noqa: F
 import molting.commands.dealing_with_generalization.extract_subclass  # noqa: F401
 import molting.commands.dealing_with_generalization.extract_superclass  # noqa: F401
 import molting.commands.dealing_with_generalization.form_template_method  # noqa: F401
-import molting.commands.dealing_with_generalization.pull_up_method  # noqa: F401
 import molting.commands.dealing_with_generalization.pull_up_field  # noqa: F401
+import molting.commands.dealing_with_generalization.pull_up_method  # noqa: F401
 import molting.commands.dealing_with_generalization.push_down_field  # noqa: F401
 import molting.commands.dealing_with_generalization.replace_delegation_with_inheritance  # noqa: F401
 import molting.commands.dealing_with_generalization.replace_inheritance_with_delegation  # noqa: F401
