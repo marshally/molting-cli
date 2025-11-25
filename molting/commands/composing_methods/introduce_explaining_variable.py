@@ -53,7 +53,7 @@ class IntroduceVariableTransformer(cst.CSTTransformer):
         self.in_target_function = False
         self.target_expression: cst.BaseExpression | None = None
         self.found_return_with_expression = False
-        self.candidates: list[cst.BaseExpression] = []
+        self.candidates: list[tuple[int, cst.BaseExpression]] = []
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
         """Visit function definition to find target function."""
@@ -71,31 +71,42 @@ class IntroduceVariableTransformer(cst.CSTTransformer):
 
         # If we found an expression and transformed the return, add variable assignment
         if self.target_expression and self.found_return_with_expression:
-            if isinstance(updated_node.body, cst.IndentedBlock):
-                new_statements = []
-
-                # Add variable assignment before the return
-                for stmt in updated_node.body.body:
-                    if isinstance(stmt, cst.SimpleStatementLine):
-                        has_return = any(isinstance(s, cst.Return) for s in stmt.body)
-                        if has_return:
-                            # Insert variable assignment before return
-                            assignment = cst.SimpleStatementLine(
-                                body=[
-                                    cst.Assign(
-                                        targets=[
-                                            cst.AssignTarget(target=cst.Name(self.variable_name))
-                                        ],
-                                        value=self.target_expression,
-                                    )
-                                ]
-                            )
-                            new_statements.append(assignment)
-                    new_statements.append(stmt)
-
-                return updated_node.with_changes(body=cst.IndentedBlock(body=new_statements))
+            return self._add_variable_before_return(updated_node)
 
         return updated_node
+
+    def _add_variable_before_return(self, function_node: cst.FunctionDef) -> cst.FunctionDef:
+        """Add a variable assignment before the return statement."""
+        if not isinstance(function_node.body, cst.IndentedBlock):
+            return function_node
+
+        new_statements = []
+        assignment = self._create_assignment()
+
+        # Insert assignment before the return statement
+        for stmt in function_node.body.body:
+            if self._is_return_statement(stmt):
+                new_statements.append(assignment)
+            new_statements.append(stmt)
+
+        return function_node.with_changes(body=cst.IndentedBlock(body=new_statements))
+
+    def _create_assignment(self) -> cst.SimpleStatementLine:
+        """Create a variable assignment statement."""
+        return cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(self.variable_name))],
+                    value=self.target_expression,
+                )
+            ]
+        )
+
+    def _is_return_statement(self, stmt: cst.BaseStatement) -> bool:
+        """Check if a statement is a return statement."""
+        return isinstance(stmt, cst.SimpleStatementLine) and any(
+            isinstance(s, cst.Return) for s in stmt.body
+        )
 
     def visit_BinaryOperation(self, node: cst.BinaryOperation) -> None:  # noqa: N802
         """Visit binary operations to find target expression."""
@@ -104,8 +115,9 @@ class IntroduceVariableTransformer(cst.CSTTransformer):
 
         try:
             position = self.get_metadata(metadata.PositionProvider, node)
+            # Collect expressions that start at the target line
             if position.start.line == self.line_number + 1:
-                self.candidates.append(node)
+                self.candidates.append((position.start.line, node))
         except KeyError:
             pass
 
@@ -117,7 +129,7 @@ class IntroduceVariableTransformer(cst.CSTTransformer):
         try:
             position = self.get_metadata(metadata.PositionProvider, node)
             if position.start.line == self.line_number + 1:
-                self.candidates.append(node)
+                self.candidates.append((position.start.line, node))
         except KeyError:
             pass
 
@@ -130,9 +142,10 @@ class IntroduceVariableTransformer(cst.CSTTransformer):
 
         # Select the smallest expression from candidates if not yet selected
         if not self.target_expression and self.candidates:
+            # Select the smallest expression (most specific)
             self.target_expression = min(
-                self.candidates, key=lambda e: len(cst.Module([]).code_for_node(e))
-            )
+                self.candidates, key=lambda x: len(cst.Module([]).code_for_node(x[1]))
+            )[1]
 
         if not self.target_expression:
             return updated_node
