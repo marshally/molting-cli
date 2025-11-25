@@ -35,7 +35,6 @@ class TestReplaceDataValueWithObject(RefactoringTestBase):
         self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestChangeValueToReference(RefactoringTestBase):
     """Tests for Change Value to Reference refactoring."""
 
