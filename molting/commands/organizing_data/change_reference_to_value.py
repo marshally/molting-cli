@@ -119,6 +119,30 @@ class ChangeReferenceToValueTransformer(cst.CSTTransformer):
             for dec in stmt.decorators
         )
 
+    def _filter_reference_object_artifacts(
+        self, body: list[cst.BaseStatement]
+    ) -> list[cst.BaseStatement]:
+        """Filter out reference object artifacts (_instances and factory methods).
+
+        Args:
+            body: The class body statements
+
+        Returns:
+            Filtered list of statements without reference object artifacts
+        """
+        filtered_body: list[cst.BaseStatement] = []
+        for stmt in body:
+            # Skip _instances assignment
+            if self._is_instances_assignment(stmt):
+                continue
+
+            # Skip factory method (classmethod with @classmethod decorator)
+            if self._is_classmethod(stmt):
+                continue
+
+            filtered_body.append(stmt)
+        return filtered_body
+
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef:
@@ -135,18 +159,7 @@ class ChangeReferenceToValueTransformer(cst.CSTTransformer):
             return updated_node
 
         # Filter out _instances assignment and factory method
-        new_body: list[cst.BaseStatement] = []
-
-        for stmt in updated_node.body.body:
-            # Skip _instances assignment
-            if self._is_instances_assignment(stmt):
-                continue
-
-            # Skip factory method (classmethod with @classmethod decorator)
-            if self._is_classmethod(stmt):
-                continue
-
-            new_body.append(stmt)
+        new_body = self._filter_reference_object_artifacts(list(updated_node.body.body))
 
         # Add __eq__ method
         param_name = self.init_param_name or DEFAULT_PARAM_NAME
