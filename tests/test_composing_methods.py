@@ -5,7 +5,6 @@ This module tests refactorings that improve the internal structure of methods
 by extracting, inlining, and reorganizing code.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -63,7 +62,6 @@ class TestReplaceTempWithQuery(RefactoringTestBase):
         self.refactor("replace-temp-with-query", target="Order::get_price::base_price")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestIntroduceExplainingVariable(RefactoringTestBase):
     """Tests for Introduce Explaining Variable refactoring."""
 
