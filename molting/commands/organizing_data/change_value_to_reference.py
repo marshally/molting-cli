@@ -166,7 +166,6 @@ class ChangeValueToReferenceTransformer(cst.CSTTransformer):
             ),
             body=cst.IndentedBlock(
                 body=[
-                    # if name not in cls._instances:
                     cst.If(
                         test=cst.Comparison(
                             left=cst.Name(param_name),
@@ -182,7 +181,6 @@ class ChangeValueToReferenceTransformer(cst.CSTTransformer):
                         ),
                         body=cst.IndentedBlock(
                             body=[
-                                # cls._instances[name] = Customer(name)
                                 cst.SimpleStatementLine(
                                     body=[
                                         cst.Assign(
@@ -213,7 +211,6 @@ class ChangeValueToReferenceTransformer(cst.CSTTransformer):
                             ]
                         ),
                     ),
-                    # return cls._instances[name]
                     cst.SimpleStatementLine(
                         body=[
                             cst.Return(
