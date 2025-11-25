@@ -148,24 +148,41 @@ class ReplaceTypeCodeWithClassTransformer(cst.CSTTransformer):
         new_body: list[cst.BaseStatement] = []
 
         for stmt in class_def.body.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                # Filter out class variable assignments that are type codes
-                is_type_code = False
-                for body_item in stmt.body:
-                    if isinstance(body_item, cst.Assign):
-                        for target in body_item.targets:
-                            if isinstance(target.target, cst.Name):
-                                # Check if this is a type code (already collected)
-                                for code_name, _ in self.type_codes:
-                                    if target.target.value == code_name:
-                                        is_type_code = True
-                                        break
-                if not is_type_code:
-                    new_body.append(stmt)
-            else:
-                new_body.append(cast(cst.BaseStatement, stmt))
+            if not self._is_type_code_statement(stmt):
+                new_body.append(stmt)
 
         return class_def.with_changes(body=cst.IndentedBlock(body=new_body))
+
+    def _is_type_code_statement(self, stmt: cst.BaseStatement) -> bool:
+        """Check if a statement is a type code assignment.
+
+        Args:
+            stmt: The statement to check
+
+        Returns:
+            True if this is a type code assignment
+        """
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return False
+
+        for body_item in stmt.body:
+            if isinstance(body_item, cst.Assign):
+                for target in body_item.targets:
+                    if isinstance(target.target, cst.Name):
+                        if self._is_collected_type_code(target.target.value):
+                            return True
+        return False
+
+    def _is_collected_type_code(self, name: str) -> bool:
+        """Check if a name matches a collected type code.
+
+        Args:
+            name: The name to check
+
+        Returns:
+            True if name is in collected type codes
+        """
+        return any(code_name == name for code_name, _ in self.type_codes)
 
     def _create_new_class(self) -> cst.ClassDef:
         """Create the new type code class.
