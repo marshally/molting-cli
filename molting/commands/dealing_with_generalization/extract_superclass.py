@@ -13,7 +13,7 @@ from molting.core.ast_utils import (
     find_self_field_assignment,
     parse_comma_separated_list,
 )
-from molting.core.code_generation_utils import create_init_method
+from molting.core.code_generation_utils import create_init_method, create_super_init_call
 
 
 class ExtractSuperclassCommand(BaseCommand):
@@ -230,16 +230,7 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
         for field in sorted(self.common_fields):
             call_args.append(cst.Arg(value=cst.Name(field)))
 
-        super_call = cst.Expr(
-            value=cst.Call(
-                func=cst.Attribute(
-                    value=cst.Call(func=cst.Name("super")), attr=cst.Name("__init__")
-                ),
-                args=call_args,
-            )
-        )
-
-        super_call_stmt = cst.SimpleStatementLine(body=[super_call])
+        super_call_stmt = create_super_init_call(call_args)
 
         # Collect non-common field assignments from original __init__
         new_stmts: list[cst.BaseStatement] = [super_call_stmt]
