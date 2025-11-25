@@ -185,7 +185,6 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
         Returns:
             Domain calculate_length method
         """
-        # Simple version: self.length = self.end - self.start
         return cst.FunctionDef(
             name=cst.Name("calculate_length"),
             params=cst.Parameters(params=[create_parameter("self")]),
