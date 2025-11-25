@@ -137,7 +137,8 @@ class ChangeValueToReferenceTransformer(cst.CSTTransformer):
         new_body.append(cast(cst.BaseStatement, cst.EmptyLine()))
 
         # Add existing body
-        new_body.extend(updated_node.body.body)
+        for stmt in updated_node.body.body:
+            new_body.append(cast(cst.BaseStatement, stmt))
 
         # Add empty line before get_named
         new_body.append(cast(cst.BaseStatement, cst.EmptyLine()))
