@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import is_self_attribute
 from molting.core.code_generation_utils import create_parameter
 
 
@@ -112,11 +113,7 @@ class HideDelegateTransformer(cst.CSTTransformer):
             if not isinstance(target.target, cst.Attribute):
                 continue
 
-            if not (
-                isinstance(target.target.value, cst.Name)
-                and target.target.value.value == "self"
-                and target.target.attr.value == self.field_name
-            ):
+            if not is_self_attribute(target.target, self.field_name):
                 continue
 
             new_target = cst.AssignTarget(

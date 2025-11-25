@@ -6,7 +6,11 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import extract_all_methods, parse_comma_separated_list
+from molting.core.ast_utils import (
+    extract_all_methods,
+    is_self_attribute,
+    parse_comma_separated_list,
+)
 from molting.core.code_generation_utils import create_init_method, create_parameter
 from molting.core.visitors import SelfFieldChecker
 
@@ -358,11 +362,10 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
             if isinstance(body_stmt, cst.Assign):
                 for target in body_stmt.targets:
                     if isinstance(target.target, cst.Attribute):
-                        if isinstance(target.target.value, cst.Name):
-                            if target.target.value.value == "self":
-                                field_name = target.target.attr.value
-                                if field_name in self.features:
-                                    return True
+                        if is_self_attribute(target.target):
+                            field_name = target.target.attr.value
+                            if field_name in self.features:
+                                return True
         return False
 
     def _is_boolean_flag(self, param_name: str) -> bool:
