@@ -96,7 +96,8 @@ class ExpressionFinder(cst.CSTVisitor):
             return
 
         pos = self.get_metadata(cst.metadata.WhitespaceInclusivePositionProvider, node)
-        # The target line is offset by 1 (L2 in test refers to line 3 in file)
+        # Line numbers use 1-based indexing: L2 refers to the second line of the return
+        # expression, which is line 3 in the file (def on line 1, return on line 2)
         if pos.start.line == self.line_number + 1:
             # Estimate size
             size = len(cst.Module([]).code_for_node(node))
