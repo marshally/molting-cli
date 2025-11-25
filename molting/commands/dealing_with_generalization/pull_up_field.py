@@ -241,13 +241,7 @@ class PullUpFieldTransformer(cst.CSTTransformer):
         for stmt in init_method.body.body:
             if isinstance(stmt, cst.SimpleStatementLine):
                 if is_self_field_assignment(stmt, {self.field_name}):
-                    # Replace with super().__init__(value)
-                    field_value = None
-                    for body_stmt in stmt.body:
-                        if isinstance(body_stmt, cst.Assign):
-                            field_value = body_stmt.value
-                            break
-
+                    field_value = self._extract_assignment_value(stmt)
                     if field_value:
                         super_call = create_super_init_call([cst.Arg(value=field_value)])
                         new_body_stmts.append(super_call)
