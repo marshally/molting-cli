@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import extract_all_methods
 
 INIT_METHOD_NAME = "__init__"
 
@@ -156,13 +157,12 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         Args:
             class_def: The class definition to analyze
         """
-        for item in class_def.body.body:
-            if not isinstance(item, cst.FunctionDef):
-                continue
-            if item.name.value != INIT_METHOD_NAME:
+        methods = extract_all_methods(class_def, exclude_init=False)
+        for method in methods:
+            if method.name.value != INIT_METHOD_NAME:
                 continue
 
-            self.delegate_field = self._extract_private_field_from_method(item)
+            self.delegate_field = self._extract_private_field_from_method(method)
             if self.delegate_field:
                 break
 
@@ -213,10 +213,10 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         if not self.delegate_field:
             return
 
-        for item in class_def.body.body:
-            if isinstance(item, cst.FunctionDef):
-                if self._is_delegation_method(item):
-                    self.delegation_methods.append(item.name.value)
+        methods = extract_all_methods(class_def, exclude_init=False)
+        for method in methods:
+            if self._is_delegation_method(method):
+                self.delegation_methods.append(method.name.value)
 
     def _is_delegation_method(self, method: cst.FunctionDef) -> bool:
         """Check if a method is a delegation method.
