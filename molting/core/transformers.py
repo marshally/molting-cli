@@ -4,6 +4,8 @@ from typing import Callable
 
 import libcst as cst
 
+from molting.core.ast_utils import is_self_attribute
+
 
 class SelfFieldRenameTransformer(cst.CSTTransformer):
     """Generic transformer for renaming self.field references.
@@ -133,7 +135,7 @@ class FieldAccessCollector(cst.CSTVisitor):
         Args:
             node: The attribute node to visit
         """
-        if isinstance(node.value, cst.Name) and node.value.value == "self":
+        if is_self_attribute(node):
             field_name = node.attr.value
             if field_name not in self.collected_fields and field_name not in self.exclude_fields:
                 self.collected_fields.append(field_name)
