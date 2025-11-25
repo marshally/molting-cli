@@ -3,6 +3,7 @@
 from typing import Any, Sequence
 
 import libcst as cst
+import libcst.metadata as metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
@@ -65,7 +66,7 @@ class IntroduceExplainingVariableCommand(BaseCommand):
 class ExpressionFinder(cst.CSTVisitor):
     """Finds the target expression at a specific line."""
 
-    METADATA_DEPENDENCIES = (cst.metadata.WhitespaceInclusivePositionProvider,)
+    METADATA_DEPENDENCIES = (metadata.WhitespaceInclusivePositionProvider,)
 
     def __init__(self, function_name: str, line_number: int) -> None:
         """Initialize the finder.
@@ -95,7 +96,7 @@ class ExpressionFinder(cst.CSTVisitor):
         if not self.in_target_function:
             return
 
-        pos = self.get_metadata(cst.metadata.WhitespaceInclusivePositionProvider, node)
+        pos = self.get_metadata(metadata.WhitespaceInclusivePositionProvider, node)
         # Line numbers use 1-based indexing: L2 refers to the second line of the return
         # expression, which is line 3 in the file (def on line 1, return on line 2)
         if pos.start.line == self.line_number + 1:
