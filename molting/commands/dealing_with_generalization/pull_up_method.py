@@ -129,7 +129,7 @@ class PullUpMethodTransformer(cst.CSTTransformer):
         self,
         method_name: str,
         target_class: str,
-        method_to_pull_up: cst.FunctionDef | None,
+        method_to_pull_up: cst.FunctionDef,
         subclasses: list[str],
     ) -> None:
         """Initialize the transformer.
@@ -137,7 +137,7 @@ class PullUpMethodTransformer(cst.CSTTransformer):
         Args:
             method_name: Name of the method to pull up
             target_class: Name of the superclass to pull the method to
-            method_to_pull_up: The method definition to add to the superclass
+            method_to_pull_up: The method definition to add to the superclass (never None)
             subclasses: List of subclass names to remove the method from
         """
         self.method_name = method_name
