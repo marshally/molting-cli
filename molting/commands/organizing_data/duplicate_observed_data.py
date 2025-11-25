@@ -95,6 +95,21 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
 
         return updated_node.with_changes(body=tuple(modified_statements))
 
+    def _is_gui_field_attribute(self, attr: cst.Attribute) -> bool:
+        """Check if an attribute is a GUI field (self.<name>_field).
+
+        Args:
+            attr: The attribute to check
+
+        Returns:
+            True if it's a GUI field attribute
+        """
+        return (
+            isinstance(attr.value, cst.Name)
+            and attr.value.value == "self"
+            and attr.attr.value.endswith(FIELD_SUFFIX)
+        )
+
     def _analyze_gui_class(self, class_def: cst.ClassDef) -> None:
         """Analyze the GUI class to extract field names and methods.
 
@@ -112,11 +127,7 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
                                 if isinstance(body_item, cst.Assign):
                                     for target in body_item.targets:
                                         if isinstance(target.target, cst.Attribute):
-                                            if (
-                                                isinstance(target.target.value, cst.Name)
-                                                and target.target.value.value == "self"
-                                                and target.target.attr.value.endswith(FIELD_SUFFIX)
-                                            ):
+                                            if self._is_gui_field_attribute(target.target):
                                                 field_name = target.target.attr.value
                                                 if field_name not in gui_fields_list:
                                                     gui_fields_list.append(field_name)
