@@ -124,19 +124,28 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Track when we're in the target class."""
-        if node.name.value == self.class_name:
-            self.in_target_class = True
-            # Collect class constants
-            for stmt in node.body.body:
-                if isinstance(stmt, cst.SimpleStatementLine):
-                    for item in stmt.body:
-                        if isinstance(item, cst.Assign):
-                            for target in item.targets:
-                                if isinstance(target.target, cst.Name):
-                                    if isinstance(item.value, cst.Integer):
-                                        self.class_constants[target.target.value] = int(
-                                            item.value.value
-                                        )
+        if node.name.value != self.class_name:
+            return
+
+        self.in_target_class = True
+        self._collect_class_constants(node)
+
+    def _collect_class_constants(self, node: cst.ClassDef) -> None:
+        """Collect integer constants defined at class level."""
+        for stmt in node.body.body:
+            if not isinstance(stmt, cst.SimpleStatementLine):
+                continue
+
+            for item in stmt.body:
+                if not isinstance(item, cst.Assign):
+                    continue
+
+                for target in item.targets:
+                    if not isinstance(target.target, cst.Name):
+                        continue
+
+                    if isinstance(item.value, cst.Integer):
+                        self.class_constants[target.target.value] = int(item.value.value)
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
