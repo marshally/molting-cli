@@ -4,7 +4,12 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import find_method_in_class, parse_comma_separated_list, parse_target
+from molting.core.ast_utils import (
+    find_method_in_class,
+    is_self_attribute,
+    parse_comma_separated_list,
+    parse_target,
+)
 from molting.core.code_generation_utils import create_parameter
 
 
@@ -236,11 +241,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
         """
         for target in item.targets:
             if isinstance(target.target, cst.Attribute):
-                if (
-                    isinstance(target.target.value, cst.Name)
-                    and target.target.value.value == "self"
-                    and target.target.attr.value == self.CLASS_VARIABLE_NAME
-                ):
+                if is_self_attribute(target.target, self.CLASS_VARIABLE_NAME):
                     return True
         return False
 

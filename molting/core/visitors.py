@@ -2,6 +2,8 @@
 
 import libcst as cst
 
+from molting.core.ast_utils import is_self_attribute
+
 
 class SelfFieldCollector(cst.CSTVisitor):
     """Collects all self.field references in a node.
@@ -23,7 +25,7 @@ class SelfFieldCollector(cst.CSTVisitor):
 
     def visit_Attribute(self, node: cst.Attribute) -> None:  # noqa: N802
         """Visit attribute access to find self.field references."""
-        if isinstance(node.value, cst.Name) and node.value.value == "self":
+        if is_self_attribute(node):
             field_name = node.attr.value
             if field_name not in self.collected_fields and field_name not in self.exclude_fields:
                 self.collected_fields.append(field_name)
@@ -57,7 +59,7 @@ class SelfFieldChecker(cst.CSTVisitor):
         Returns:
             False to stop traversal if a match is found, otherwise True.
         """
-        if isinstance(node.value, cst.Name) and node.value.value == "self":
+        if is_self_attribute(node):
             field_name = node.attr.value
             if field_name in self.target_fields:
                 self.found = True

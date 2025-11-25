@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_target
+from molting.core.ast_utils import is_self_attribute, parse_target
 from molting.core.code_generation_utils import create_parameter
 
 INIT_METHOD_NAME = "__init__"
@@ -96,9 +96,7 @@ class EncapsulateFieldTransformer(cst.CSTTransformer):
         """
         if not isinstance(target.target, cst.Attribute):
             return False
-        if not isinstance(target.target.value, cst.Name):
-            return False
-        return target.target.value.value == "self" and target.target.attr.value == self.field_name
+        return is_self_attribute(target.target, self.field_name)
 
     def _create_private_field_assignment(self, value: cst.BaseExpression) -> cst.Assign:
         """Create an assignment to the private field.

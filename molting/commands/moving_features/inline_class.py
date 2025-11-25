@@ -11,6 +11,7 @@ from molting.core.ast_utils import (
     extract_init_field_assignments,
     find_class_in_module,
     find_self_field_assignment,
+    is_self_attribute,
 )
 
 INIT_METHOD_NAME = "__init__"
@@ -283,12 +284,11 @@ class FieldReferenceTransformer(cst.CSTTransformer):
         self, original_node: cst.Attribute, updated_node: cst.Attribute
     ) -> cst.Attribute:
         """Leave attribute and update field references."""
-        if isinstance(updated_node.value, cst.Name):
-            if updated_node.value.value == "self":
-                field_name = updated_node.attr.value
-                if field_name in self.source_fields:
-                    new_field_name = self.field_prefix + field_name
-                    return updated_node.with_changes(attr=cst.Name(new_field_name))
+        if is_self_attribute(updated_node):
+            field_name = updated_node.attr.value
+            if field_name in self.source_fields:
+                new_field_name = self.field_prefix + field_name
+                return updated_node.with_changes(attr=cst.Name(new_field_name))
 
         return updated_node
 
