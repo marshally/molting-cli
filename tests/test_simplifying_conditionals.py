@@ -4,8 +4,6 @@ Tests for Simplifying Conditionals refactorings.
 This module tests refactorings that simplify and clarify conditional logic.
 """
 
-import pytest
-
 from tests.conftest import RefactoringTestBase
 
 
@@ -77,7 +75,6 @@ class TestReplaceConditionalWithPolymorphism(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestIntroduceNullObject(RefactoringTestBase):
     """Tests for Introduce Null Object refactoring."""
 
