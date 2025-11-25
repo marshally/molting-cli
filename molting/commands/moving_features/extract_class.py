@@ -6,7 +6,11 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import is_assignment_to_field, parse_comma_separated_list
+from molting.core.ast_utils import (
+    generate_field_name_from_class,
+    is_assignment_to_field,
+    parse_comma_separated_list,
+)
 from molting.core.code_generation_utils import create_parameter
 
 
@@ -119,15 +123,7 @@ class ExtractClassTransformer(cst.CSTTransformer):
         Returns:
             The delegate field name
         """
-        base_name = self.new_class_name
-        for suffix in ["Number", "Info", "Data", "Class"]:
-            if base_name.endswith(suffix):
-                base_name = base_name[: -len(suffix)]
-                break
-        delegate_field_name = (
-            base_name[0].lower() + base_name[1:] if base_name else self.new_class_name.lower()
-        )
-        return f"office_{delegate_field_name.lower()}"
+        return generate_field_name_from_class(self.new_class_name, prefix="office_")
 
     def _modify_init(
         self, init_method: cst.FunctionDef, delegate_field_name: str
