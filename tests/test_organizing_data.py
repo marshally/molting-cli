@@ -161,7 +161,6 @@ class TestReplaceTypeCodeWithSubclasses(RefactoringTestBase):
         self.refactor("replace-type-code-with-subclasses", target="Employee::type")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceTypeCodeWithStateStrategy(RefactoringTestBase):
     """Tests for Replace Type Code with State/Strategy refactoring."""
 
