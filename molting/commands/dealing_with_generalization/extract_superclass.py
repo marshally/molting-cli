@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import (
+    extract_all_methods,
     extract_init_field_assignments,
     find_method_in_class,
     find_self_field_assignment,
@@ -162,13 +163,13 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
         methods: list[str] = []
 
         # Look for __init__ method to find fields
-        for stmt in class_def.body.body:
-            if isinstance(stmt, cst.FunctionDef):
-                methods.append(stmt.name.value)
-                if stmt.name.value == "__init__":
-                    # Extract fields from __init__
-                    field_assignments = extract_init_field_assignments(stmt)
-                    fields.extend(field_assignments.keys())
+        all_methods = extract_all_methods(class_def, exclude_init=False)
+        for method in all_methods:
+            methods.append(method.name.value)
+            if method.name.value == "__init__":
+                # Extract fields from __init__
+                field_assignments = extract_init_field_assignments(method)
+                fields.extend(field_assignments.keys())
 
         return fields, methods
 
