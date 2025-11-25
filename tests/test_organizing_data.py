@@ -55,7 +55,6 @@ class TestChangeReferenceToValue(RefactoringTestBase):
         self.refactor("change-reference-to-value", target="Currency")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceArrayWithObject(RefactoringTestBase):
     """Tests for Replace Array with Object refactoring."""
 
