@@ -168,9 +168,6 @@ class PullUpMethodTransformer(cst.CSTTransformer):
         Returns:
             Modified class definition
         """
-        if not self.method_to_pull_up:
-            return class_node
-
         new_body_stmts: list[cst.BaseStatement] = []
 
         # Remove pass statements from empty class
