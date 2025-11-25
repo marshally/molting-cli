@@ -45,7 +45,6 @@ class TestChangeValueToReference(RefactoringTestBase):
         self.refactor("change-value-to-reference", target="Customer")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestChangeReferenceToValue(RefactoringTestBase):
     """Tests for Change Reference to Value refactoring."""
 
