@@ -81,16 +81,13 @@ class PushDownMethodTransformer(cst.CSTTransformer):
         """
         new_body_stmts: list[cst.BaseStatement] = []
 
-        # Find and capture the method to push down
         for stmt in class_node.body.body:
             stmt = cast(cst.BaseStatement, stmt)
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == self.method_name:
-                # Capture the method for later use
                 self.method_node = stmt
             else:
                 new_body_stmts.append(stmt)
 
-        # If no statements remain, add pass
         if not new_body_stmts:
             new_body_stmts.append(cst.SimpleStatementLine(body=[cst.Pass()]))
 
