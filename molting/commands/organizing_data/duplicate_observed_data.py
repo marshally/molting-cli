@@ -110,6 +110,17 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
             and attr.attr.value.endswith(FIELD_SUFFIX)
         )
 
+    def _get_domain_field_name(self, gui_field: str) -> str:
+        """Convert GUI field name to domain field name.
+
+        Args:
+            gui_field: GUI field name (e.g., 'start_field')
+
+        Returns:
+            Domain field name (e.g., 'start')
+        """
+        return gui_field.replace(FIELD_SUFFIX, "")
+
     def _analyze_gui_class(self, class_def: cst.ClassDef) -> None:
         """Analyze the GUI class to extract field names and methods.
 
@@ -146,8 +157,7 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
         # Create domain fields from GUI fields in order
         domain_fields = []
         for gui_field in self.gui_fields_list:
-            # Convert start_field -> start, end_field -> end, etc.
-            domain_field = gui_field.replace(FIELD_SUFFIX, "")
+            domain_field = self._get_domain_field_name(gui_field)
             domain_fields.append(domain_field)
 
         # Create __init__ method
@@ -415,7 +425,7 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
         # Create statements for each field in order
         statements = []
         for gui_field in self.gui_fields_list:
-            domain_field = gui_field.replace(FIELD_SUFFIX, "")
+            domain_field = self._get_domain_field_name(gui_field)
             statements.append(
                 cst.SimpleStatementLine(
                     body=[
