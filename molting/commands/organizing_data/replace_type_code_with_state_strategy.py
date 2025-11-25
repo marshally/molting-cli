@@ -247,34 +247,43 @@ class ReplaceTypeCodeWithStateStrategyTransformer(cst.CSTTransformer):
         Returns:
             Return statement
         """
-        # Look through method body for If/Elif statements
         for stmt in method.body.body:
             if isinstance(stmt, cst.If):
-                # Check the condition
-                condition_matches = self._check_condition_matches_type(stmt.test, const_name)
-                if condition_matches:
-                    # Extract the return statement
-                    return_stmt = self._extract_return_from_block(stmt.body)
-                    if return_stmt:
-                        # Replace self with employee
-                        return self._replace_self_with_employee(return_stmt)
-
-                # Check elif clauses
-                current = stmt.orelse
-                while current:
-                    if isinstance(current, cst.If):
-                        condition_matches = self._check_condition_matches_type(
-                            current.test, const_name
-                        )
-                        if condition_matches:
-                            return_stmt = self._extract_return_from_block(current.body)
-                            if return_stmt:
-                                return self._replace_self_with_employee(return_stmt)
-                        current = current.orelse
-                    else:
-                        break
+                result = self._try_extract_from_if_chain(stmt, const_name)
+                if result:
+                    return result
 
         return cst.SimpleStatementLine(body=[cst.Pass()])
+
+    def _try_extract_from_if_chain(
+        self, if_stmt: cst.If, const_name: str
+    ) -> cst.BaseStatement | None:
+        """Try to extract return statement from an if/elif chain.
+
+        Args:
+            if_stmt: The if statement to process
+            const_name: Name of the type constant
+
+        Returns:
+            Return statement if found, None otherwise
+        """
+        if self._check_condition_matches_type(if_stmt.test, const_name):
+            return_stmt = self._extract_return_from_block(if_stmt.body)
+            if return_stmt:
+                return self._replace_self_with_employee(return_stmt)
+
+        current = if_stmt.orelse
+        while current:
+            if isinstance(current, cst.If):
+                if self._check_condition_matches_type(current.test, const_name):
+                    return_stmt = self._extract_return_from_block(current.body)
+                    if return_stmt:
+                        return self._replace_self_with_employee(return_stmt)
+                current = current.orelse
+            else:
+                break
+
+        return None
 
     def _check_condition_matches_type(self, condition: cst.BaseExpression, const_name: str) -> bool:
         """Check if a condition matches the type constant.
