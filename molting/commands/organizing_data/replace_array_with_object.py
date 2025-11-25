@@ -91,23 +91,41 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         self.field_names = collector.get_field_names()
 
         # Rename parameter
-        new_param_name = self.new_class_name.lower()
-        new_params = []
-        for param in updated_node.params.params:
-            if isinstance(param.name, cst.Name) and param.name.value == self.param_name:
-                new_params.append(param.with_changes(name=cst.Name(new_param_name)))
-            else:
-                new_params.append(param)
-
-        updated_node = updated_node.with_changes(
-            params=updated_node.params.with_changes(params=new_params)
-        )
+        new_param_name = self._derive_parameter_name()
+        updated_node = self._rename_parameter(updated_node, new_param_name)
 
         # Replace array accesses with attribute accesses
         replacer = ArrayAccessReplacer(self.param_name, new_param_name, self.field_names)
         updated_node = cast(cst.FunctionDef, updated_node.visit(replacer))
 
         return updated_node
+
+    def _derive_parameter_name(self) -> str:
+        """Derive parameter name from class name.
+
+        Returns:
+            Parameter name (lowercase version of class name)
+        """
+        return self.new_class_name.lower()
+
+    def _rename_parameter(self, function: cst.FunctionDef, new_name: str) -> cst.FunctionDef:
+        """Rename the target parameter in function signature.
+
+        Args:
+            function: The function definition
+            new_name: The new parameter name
+
+        Returns:
+            Function with renamed parameter
+        """
+        new_params = []
+        for param in function.params.params:
+            if isinstance(param.name, cst.Name) and param.name.value == self.param_name:
+                new_params.append(param.with_changes(name=cst.Name(new_name)))
+            else:
+                new_params.append(param)
+
+        return function.with_changes(params=function.params.with_changes(params=new_params))
 
     def _create_new_class(self) -> cst.ClassDef:
         """Create the new class.
