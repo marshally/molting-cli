@@ -346,6 +346,9 @@ class ReplaceTypeCodeWithStateStrategyTransformer(cst.CSTTransformer):
         skip_next_empty_line = False
 
         for stmt in class_def.body.body:
+            if not isinstance(stmt, cst.BaseStatement):
+                continue
+
             # Remove type constant definitions
             if self._is_type_constant_definition(stmt):
                 # Skip empty lines after removed constants
