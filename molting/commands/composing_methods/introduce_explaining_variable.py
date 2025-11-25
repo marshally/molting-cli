@@ -17,16 +17,39 @@ class IntroduceExplainingVariableCommand(BaseCommand):
         self.validate_required_params("target", "name")
 
     def execute(self) -> None:
-        """Apply introduce-explaining-variable refactoring using libCST."""
+        """Apply introduce-explaining-variable refactoring using libCST.
+
+        Raises:
+            ValueError: If target format is invalid or line number is not a positive integer
+        """
         target = self.params["target"]
         variable_name = self.params["name"]
 
         # Parse target: "function_name#L2"
         if "#L" not in target:
-            raise ValueError(f"Invalid target format '{target}'. Expected 'function_name#L2'")
+            raise ValueError(
+                f"Invalid target format '{target}'. Expected format: 'function_name#L<line>'"
+            )
 
-        function_name, line_part = target.split("#L")
-        line_number = int(line_part)
+        parts = target.split("#L")
+        if len(parts) != 2:
+            raise ValueError(
+                f"Invalid target format '{target}'. Expected format: 'function_name#L<line>'"
+            )
+
+        function_name = parts[0]
+        if not function_name:
+            raise ValueError("Function name cannot be empty")
+
+        try:
+            line_number = int(parts[1])
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid line number '{parts[1]}'. Line number must be an integer"
+            ) from e
+
+        if line_number < 0:
+            raise ValueError(f"Invalid line number {line_number}. Line number must be non-negative")
 
         # Read file
         source_code = self.file_path.read_text()
