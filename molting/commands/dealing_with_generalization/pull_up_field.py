@@ -124,10 +124,22 @@ class PullUpFieldTransformer(cst.CSTTransformer):
         for stmt in init_method.body.body:
             if isinstance(stmt, cst.SimpleStatementLine):
                 if is_self_field_assignment(stmt, {self.field_name}):
-                    for body_stmt in stmt.body:
-                        if isinstance(body_stmt, cst.Assign):
-                            self.field_value = body_stmt.value
-                            break
+                    self.field_value = self._extract_assignment_value(stmt)
+                    break
+
+    def _extract_assignment_value(self, stmt: cst.SimpleStatementLine) -> cst.BaseExpression | None:
+        """Extract the value from a field assignment statement.
+
+        Args:
+            stmt: Statement containing field assignment
+
+        Returns:
+            The assigned value, or None if not found
+        """
+        for body_stmt in stmt.body:
+            if isinstance(body_stmt, cst.Assign):
+                return body_stmt.value
+        return None
 
     def _add_field_to_superclass(self, class_node: cst.ClassDef) -> cst.ClassDef:
         """Add field to superclass __init__.
