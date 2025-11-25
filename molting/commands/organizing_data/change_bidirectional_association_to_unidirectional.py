@@ -62,7 +62,6 @@ class ChangeBidirectionalAssociationToUnidirectionalTransformer(cst.CSTTransform
         self.class_name = class_name
         self.field_name = field_name
         self.forward_class_name: str | None = None
-        self.forward_parameter_name: str | None = None
 
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
@@ -88,7 +87,7 @@ class ChangeBidirectionalAssociationToUnidirectionalTransformer(cst.CSTTransform
         return updated_node.with_changes(body=tuple(new_statements))
 
     def _extract_forward_class_info(self, class_def: cst.ClassDef | None) -> None:
-        """Extract the forward class name and parameter name.
+        """Extract the forward class name from the back reference class.
 
         Args:
             class_def: The back reference class definition to analyze
@@ -97,25 +96,16 @@ class ChangeBidirectionalAssociationToUnidirectionalTransformer(cst.CSTTransform
             return
 
         # Look for add/remove methods to determine the forward class
-        forward_singular: str | None = None
         for stmt in class_def.body.body:
             if isinstance(stmt, cst.FunctionDef):
                 method_name = stmt.name.value
                 # Method names are like add_order, remove_order
                 if method_name.startswith("add_"):
                     # Extract the singular form (e.g., 'order' from 'add_order')
-                    forward_singular = method_name[4:]  # Remove 'add_'
+                    singular = method_name[4:]  # Remove 'add_'
                     # Capitalize to get class name (e.g., 'Order' from 'order')
-                    self.forward_class_name = forward_singular.capitalize()
+                    self.forward_class_name = singular.capitalize()
                     break
-
-        # Now look for the actual parameter name in the forward class
-        # by examining the init method parameter
-        if self.forward_class_name and forward_singular:
-            # The parameter name is derived from the class name
-            # For Order, it's typically 'order' or derived from add_X method
-            # But we need to check the actual Order.__init__ parameter
-            self.forward_parameter_name = forward_singular
 
     def _modify_back_reference_class(self, class_def: cst.ClassDef) -> cst.ClassDef:
         """Modify the back reference class to remove the back pointer.
