@@ -183,7 +183,7 @@ class ChangeUnidirectionalAssociationToBidirectionalTransformer(cst.CSTTransform
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
                 new_body.append(self._modify_forward_init(stmt))
             else:
-                new_body.append(stmt)
+                new_body.append(cast(cst.BaseStatement, stmt))
 
         # Add the setter method
         new_body.append(self._create_setter_method())
@@ -202,7 +202,7 @@ class ChangeUnidirectionalAssociationToBidirectionalTransformer(cst.CSTTransform
         new_body_stmts: list[cst.BaseStatement] = []
 
         for stmt in init_method.body.body:
-            processed_stmt = self._process_init_statement(stmt)
+            processed_stmt = self._process_init_statement(cast(cst.BaseStatement, stmt))
             new_body_stmts.extend(processed_stmt)
 
         return init_method.with_changes(body=cst.IndentedBlock(body=new_body_stmts))
@@ -408,7 +408,7 @@ class ChangeUnidirectionalAssociationToBidirectionalTransformer(cst.CSTTransform
                 if not has_pass:
                     new_body.append(stmt)
             else:
-                new_body.append(stmt)
+                new_body.append(cast(cst.BaseStatement, stmt))
 
         # If no __init__, create one
         if not has_init:
@@ -431,7 +431,9 @@ class ChangeUnidirectionalAssociationToBidirectionalTransformer(cst.CSTTransform
         Returns:
             Modified __init__ method
         """
-        new_body_stmts: list[cst.BaseStatement] = list(init_method.body.body)
+        new_body_stmts: list[cst.BaseStatement] = [
+            cast(cst.BaseStatement, stmt) for stmt in init_method.body.body
+        ]
 
         # Add initialization of back reference
         new_body_stmts.insert(
