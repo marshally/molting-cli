@@ -280,18 +280,59 @@ class ArrayAccessReplacer(cst.CSTTransformer):
         Returns:
             Attribute access or original subscript
         """
-        if isinstance(updated_node.value, cst.Name):
-            if updated_node.value.value == self.old_param_name:
-                if isinstance(updated_node.slice[0].slice, cst.Index):
-                    index_value = updated_node.slice[0].slice.value
-                    if isinstance(index_value, cst.Integer):
-                        index = int(index_value.value)
-                        if index < len(self.field_names):
-                            return cst.Attribute(
-                                value=cst.Name(self.new_param_name),
-                                attr=cst.Name(self.field_names[index]),
-                            )
-        return updated_node
+        if not self._is_target_array_access(updated_node):
+            return updated_node
+
+        index = self._extract_subscript_index(updated_node)
+        if index is None or index >= len(self.field_names):
+            return updated_node
+
+        return self._create_attribute_access(index)
+
+    def _is_target_array_access(self, subscript: cst.Subscript) -> bool:
+        """Check if subscript accesses the target array parameter.
+
+        Args:
+            subscript: The subscript node to check
+
+        Returns:
+            True if this is accessing the old array parameter
+        """
+        return (
+            isinstance(subscript.value, cst.Name) and subscript.value.value == self.old_param_name
+        )
+
+    def _extract_subscript_index(self, subscript: cst.Subscript) -> int | None:
+        """Extract the integer index from a subscript.
+
+        Args:
+            subscript: The subscript node
+
+        Returns:
+            Integer index or None if not an integer subscript
+        """
+        if not isinstance(subscript.slice[0].slice, cst.Index):
+            return None
+
+        index_value = subscript.slice[0].slice.value
+        if not isinstance(index_value, cst.Integer):
+            return None
+
+        return int(index_value.value)
+
+    def _create_attribute_access(self, index: int) -> cst.Attribute:
+        """Create attribute access for the given index.
+
+        Args:
+            index: The array index to convert
+
+        Returns:
+            Attribute access node
+        """
+        return cst.Attribute(
+            value=cst.Name(self.new_param_name),
+            attr=cst.Name(self.field_names[index]),
+        )
 
 
 # Register the command
