@@ -47,6 +47,24 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
         self.target_class_found = False
         self.init_params: list[tuple[str, str | None]] = []
 
+    def _create_is_null_method(self, return_value: bool) -> cst.FunctionDef:
+        """Create an is_null() method.
+
+        Args:
+            return_value: The value to return (True or False)
+
+        Returns:
+            A FunctionDef node for the is_null method
+        """
+        return cst.FunctionDef(
+            name=cst.Name("is_null"),
+            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
+            body=cst.IndentedBlock(
+                body=[cst.SimpleStatementLine(body=[cst.Return(value=cst.Name(str(return_value)))])]
+            ),
+            leading_lines=[cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))],
+        )
+
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef | cst.FlattenSentinel[cst.ClassDef]:
@@ -66,19 +84,9 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                                     default_value = param.default.value
                             self.init_params.append((param.name.value, default_value))
 
-            # Add is_null() method
-            is_null_method = cst.FunctionDef(
-                name=cst.Name("is_null"),
-                params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
-                body=cst.IndentedBlock(
-                    body=[cst.SimpleStatementLine(body=[cst.Return(value=cst.Name("False"))])]
-                ),
-                leading_lines=[cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))],
-            )
-
-            # Add is_null method to class body
+            # Add is_null() method to target class
             new_body = list(updated_node.body.body)
-            new_body.append(is_null_method)
+            new_body.append(self._create_is_null_method(False))
             updated_node = updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
 
             # Create NullCustomer class
@@ -121,20 +129,11 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                 body=cst.IndentedBlock(body=null_init_assignments),
             )
 
-            # Create is_null method for null class
-            null_is_null_method = cst.FunctionDef(
-                name=cst.Name("is_null"),
-                params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
-                body=cst.IndentedBlock(
-                    body=[cst.SimpleStatementLine(body=[cst.Return(value=cst.Name("True"))])]
-                ),
-                leading_lines=[cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))],
-            )
-
+            # Create null class with __init__ and is_null methods
             null_class = cst.ClassDef(
                 name=cst.Name(null_class_name),
                 bases=[cst.Arg(value=cst.Name(self.target_class))],
-                body=cst.IndentedBlock(body=[null_init, null_is_null_method]),
+                body=cst.IndentedBlock(body=[null_init, self._create_is_null_method(True)]),
                 leading_lines=[
                     cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
                     cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
