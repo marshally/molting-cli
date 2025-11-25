@@ -1,6 +1,5 @@
 """Replace Conditional with Polymorphism refactoring command."""
 
-
 import libcst as cst
 from libcst import metadata
 
