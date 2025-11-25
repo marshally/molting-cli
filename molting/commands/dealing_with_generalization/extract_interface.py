@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_comma_separated_list
+from molting.core.ast_utils import insert_class_after_imports, parse_comma_separated_list
 from molting.core.code_generation_utils import create_parameter
 from molting.core.import_utils import ensure_import
 
@@ -60,8 +60,8 @@ class ExtractInterfaceCommand(BaseCommand):
         # Add typing import if not present
         module = ensure_import(module, "typing", ["Protocol"])
 
-        # Add the protocol at the beginning (after imports)
-        new_module = self._insert_protocol(module, protocol_class)
+        # Add the protocol at the beginning (after imports) using shared utility
+        new_module = insert_class_after_imports(module, protocol_class)
 
         # Write back
         self.file_path.write_text(new_module.code)
@@ -181,40 +181,6 @@ class ExtractInterfaceCommand(BaseCommand):
         )
 
         return protocol
-
-    def _insert_protocol(self, module: cst.Module, protocol: cst.ClassDef) -> cst.Module:
-        """Insert the protocol class into the module.
-
-        Args:
-            module: The module to modify
-            protocol: The Protocol class to insert
-
-        Returns:
-            The modified module
-        """
-        # Find the position to insert (after imports)
-        insert_pos = 0
-        for i, stmt in enumerate(module.body):
-            if isinstance(stmt, cst.SimpleStatementLine):
-                insert_pos = i + 1
-            elif isinstance(stmt, cst.EmptyLine):
-                continue
-            else:
-                break
-
-        # Create blank line separator
-        blank_line = cst.EmptyLine()
-
-        # Insert the protocol
-        new_body = (
-            list(module.body[:insert_pos])
-            + [blank_line, blank_line]
-            + [protocol]
-            + [blank_line]
-            + list(module.body[insert_pos:])
-        )
-
-        return module.with_changes(body=new_body)
 
 
 # Register the command
