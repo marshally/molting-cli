@@ -23,7 +23,6 @@ class PullUpConstructorBodyCommand(BaseCommand):
         """
         self.validate_required_params("target", "to")
 
-        # Validate target format (ClassName::__init__)
         try:
             parse_target(self.params["target"], expected_parts=2)
         except ValueError as e:
@@ -38,7 +37,6 @@ class PullUpConstructorBodyCommand(BaseCommand):
         target = self.params["target"]
         to_class = self.params["to"]
 
-        # Parse target to get class and method names
         class_name, method_name = parse_target(target, expected_parts=2)
 
         # Apply transformation
