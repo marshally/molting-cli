@@ -109,24 +109,64 @@ class ChangeUnidirectionalAssociationToBidirectionalTransformer(cst.CSTTransform
         if class_def is None or not isinstance(class_def.body, cst.IndentedBlock):
             return
 
+        init_method = self._find_init_method(class_def)
+        if init_method:
+            self._extract_class_name_from_init(init_method)
+
+    def _find_init_method(self, class_def: cst.ClassDef) -> cst.FunctionDef | None:
+        """Find the __init__ method in a class definition.
+
+        Args:
+            class_def: The class definition to search
+
+        Returns:
+            The __init__ method if found, None otherwise
+        """
         for stmt in class_def.body.body:
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
-                for body_stmt in stmt.body.body:
-                    if isinstance(body_stmt, cst.SimpleStatementLine):
-                        for item in body_stmt.body:
-                            if isinstance(item, cst.Assign):
-                                for target in item.targets:
-                                    if isinstance(target.target, cst.Attribute):
-                                        if (
-                                            isinstance(target.target.value, cst.Name)
-                                            and target.target.value.value == "self"
-                                            and target.target.attr.value == self.field_name
-                                        ):
-                                            # Get the class name from the parameter
-                                            if isinstance(item.value, cst.Name):
-                                                self.reference_class_name = (
-                                                    item.value.value.capitalize()
-                                                )
+                return stmt
+        return None
+
+    def _extract_class_name_from_init(self, init_method: cst.FunctionDef) -> None:
+        """Extract the reference class name from __init__ assignments.
+
+        Args:
+            init_method: The __init__ method to analyze
+        """
+        for body_stmt in init_method.body.body:
+            if isinstance(body_stmt, cst.SimpleStatementLine):
+                for item in body_stmt.body:
+                    if isinstance(item, cst.Assign):
+                        self._try_extract_class_from_assignment(item)
+
+    def _try_extract_class_from_assignment(self, assign: cst.Assign) -> None:
+        """Try to extract the reference class name from an assignment.
+
+        Args:
+            assign: The assignment statement
+        """
+        for target in assign.targets:
+            if not isinstance(target.target, cst.Attribute):
+                continue
+            if not self._is_self_field_assignment(target.target):
+                continue
+            if isinstance(assign.value, cst.Name):
+                self.reference_class_name = assign.value.value.capitalize()
+
+    def _is_self_field_assignment(self, attr: cst.Attribute) -> bool:
+        """Check if an attribute is an assignment to self.field_name.
+
+        Args:
+            attr: The attribute node to check
+
+        Returns:
+            True if it's self.field_name, False otherwise
+        """
+        return (
+            isinstance(attr.value, cst.Name)
+            and attr.value.value == "self"
+            and attr.attr.value == self.field_name
+        )
 
     def _modify_forward_class(self, class_def: cst.ClassDef) -> cst.ClassDef:
         """Modify the forward class to use a setter method.
