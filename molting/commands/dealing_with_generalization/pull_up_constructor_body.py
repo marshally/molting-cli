@@ -261,15 +261,10 @@ class PullUpConstructorBodyTransformer(cst.CSTTransformer):
                 for body_stmt in stmt.body:
                     if isinstance(body_stmt, cst.Assign):
                         for target in body_stmt.targets:
-                            if isinstance(target.target, cst.Attribute):
-                                if (
-                                    isinstance(target.target.value, cst.Name)
-                                    and target.target.value.value == "self"
-                                ):
-                                    field_name = target.target.attr.value
-                                    if field_name in common_field_names:
-                                        is_common_assignment = True
-                                        break
+                            is_self_field, field_name = self._is_self_field_assignment(target)
+                            if is_self_field and field_name and field_name in common_field_names:
+                                is_common_assignment = True
+                                break
                 if not is_common_assignment:
                     new_body_stmts.append(stmt)
             else:
