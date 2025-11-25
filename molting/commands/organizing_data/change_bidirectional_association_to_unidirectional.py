@@ -97,15 +97,14 @@ class ChangeBidirectionalAssociationToUnidirectionalTransformer(cst.CSTTransform
 
         # Look for add/remove methods to determine the forward class
         for stmt in class_def.body.body:
-            if isinstance(stmt, cst.FunctionDef):
-                method_name = stmt.name.value
-                # Method names are like add_order, remove_order
-                if method_name.startswith("add_"):
-                    # Extract the singular form (e.g., 'order' from 'add_order')
-                    singular = method_name[4:]  # Remove 'add_'
-                    # Capitalize to get class name (e.g., 'Order' from 'order')
-                    self.forward_class_name = singular.capitalize()
-                    break
+            if not isinstance(stmt, cst.FunctionDef):
+                continue
+            if stmt.name.value.startswith("add_"):
+                # Extract the singular form (e.g., 'order' from 'add_order')
+                singular = stmt.name.value[4:]  # Remove 'add_'
+                # Capitalize to get class name (e.g., 'Order' from 'order')
+                self.forward_class_name = singular.capitalize()
+                break
 
     def _modify_back_reference_class(self, class_def: cst.ClassDef) -> cst.ClassDef:
         """Modify the back reference class to remove the back pointer.
@@ -152,15 +151,8 @@ class ChangeBidirectionalAssociationToUnidirectionalTransformer(cst.CSTTransform
         Returns:
             Simplified __init__ method
         """
-        # Get the parameter name from original init (the second parameter after self)
-        params = init_method.params
-        param_name = "customer"  # Default
-
-        if len(params.params) > 1:
-            # Get the actual parameter name (should be like 'customer')
-            second_param = params.params[1]
-            if isinstance(second_param.name, cst.Name):
-                param_name = second_param.name.value
+        # Extract the parameter name from the method signature
+        param_name = self._extract_parameter_name(init_method.params)
 
         # Create simple assignment: self.customer = customer
         simple_assignment = cst.SimpleStatementLine(
@@ -180,6 +172,21 @@ class ChangeBidirectionalAssociationToUnidirectionalTransformer(cst.CSTTransform
         )
 
         return init_method.with_changes(body=cst.IndentedBlock(body=[simple_assignment]))
+
+    def _extract_parameter_name(self, params: cst.Parameters) -> str:
+        """Extract the parameter name from method parameters.
+
+        Args:
+            params: The method parameters
+
+        Returns:
+            The parameter name or 'customer' as default
+        """
+        if len(params.params) > 1:
+            second_param = params.params[1]
+            if isinstance(second_param.name, cst.Name):
+                return second_param.name.value
+        return "customer"
 
 
 # Register the command
