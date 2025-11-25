@@ -172,21 +172,74 @@ class ArrayAccessCollector(cst.CSTVisitor):
         """
         for stmt in node.body:
             if isinstance(stmt, cst.Assign):
-                # Check if right side is array subscript
-                if isinstance(stmt.value, cst.Subscript):
-                    if (
-                        isinstance(stmt.value.value, cst.Name)
-                        and stmt.value.value.value == self.param_name
-                    ):
-                        if isinstance(stmt.value.slice[0].slice, cst.Index):
-                            index_value = stmt.value.slice[0].slice.value
-                            if isinstance(index_value, cst.Integer):
-                                index = int(index_value.value)
-                                # Extract variable name from left side
-                                if len(stmt.targets) > 0:
-                                    target = stmt.targets[0].target
-                                    if isinstance(target, cst.Name):
-                                        self.accesses[index] = target.value
+                self._process_assignment(stmt)
+
+    def _process_assignment(self, assign: cst.Assign) -> None:
+        """Process an assignment to extract field name from array access.
+
+        Args:
+            assign: The assignment statement
+        """
+        if not isinstance(assign.value, cst.Subscript):
+            return
+
+        if not self._is_array_subscript(assign.value):
+            return
+
+        index = self._extract_index(assign.value)
+        if index is None:
+            return
+
+        variable_name = self._extract_variable_name(assign)
+        if variable_name is not None:
+            self.accesses[index] = variable_name
+
+    def _is_array_subscript(self, subscript: cst.Subscript) -> bool:
+        """Check if subscript is accessing our target array parameter.
+
+        Args:
+            subscript: The subscript node to check
+
+        Returns:
+            True if subscript accesses the target array
+        """
+        return isinstance(subscript.value, cst.Name) and subscript.value.value == self.param_name
+
+    def _extract_index(self, subscript: cst.Subscript) -> int | None:
+        """Extract integer index from subscript.
+
+        Args:
+            subscript: The subscript node
+
+        Returns:
+            Integer index or None if not an integer index
+        """
+        if not isinstance(subscript.slice[0].slice, cst.Index):
+            return None
+
+        index_value = subscript.slice[0].slice.value
+        if not isinstance(index_value, cst.Integer):
+            return None
+
+        return int(index_value.value)
+
+    def _extract_variable_name(self, assign: cst.Assign) -> str | None:
+        """Extract variable name from assignment target.
+
+        Args:
+            assign: The assignment statement
+
+        Returns:
+            Variable name or None if target is not a simple name
+        """
+        if len(assign.targets) == 0:
+            return None
+
+        target = assign.targets[0].target
+        if not isinstance(target, cst.Name):
+            return None
+
+        return target.value
 
     def get_field_names(self) -> list[str]:
         """Get the collected field names in order.
