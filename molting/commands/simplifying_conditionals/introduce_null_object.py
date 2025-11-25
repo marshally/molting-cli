@@ -1,5 +1,7 @@
 """Introduce Null Object refactoring command."""
 
+from typing import cast
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -65,12 +67,14 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
             leading_lines=[cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))],
         )
 
-    def _extract_init_parameters(self, class_body: cst.IndentedBlock) -> None:
+    def _extract_init_parameters(self, class_body: cst.BaseSuite) -> None:
         """Extract __init__ parameters from a class body.
 
         Args:
             class_body: The body of the class definition
         """
+        if not isinstance(class_body, cst.IndentedBlock):
+            return
         for stmt in class_body.body:
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
                 for param in stmt.params.params:
@@ -92,7 +96,7 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
         null_init_assignments = []
         for param_name, default_value in self.init_params:
             if param_name == "name":
-                value = cst.SimpleString('"Unknown"')
+                value: cst.BaseExpression = cst.SimpleString('"Unknown"')
             elif param_name == "plan":
                 value = cst.SimpleString('"Basic"')
             else:
@@ -143,9 +147,11 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
             self._extract_init_parameters(updated_node.body)
 
             # Add is_null() method to target class
-            new_body = list(updated_node.body.body)
-            new_body.append(self._create_is_null_method(False))
-            updated_node = updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
+            target_body: list[cst.BaseStatement] = list(
+                cast(cst.IndentedBlock, updated_node.body).body
+            )
+            target_body.append(self._create_is_null_method(False))
+            updated_node = updated_node.with_changes(body=cst.IndentedBlock(body=target_body))
 
             # Create and return null object class
             null_class = self._create_null_class()
@@ -165,7 +171,7 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
 
                 if has_target_param:
                     # Modify __init__ to use null object
-                    new_stmt_body = []
+                    new_stmt_body: list[cst.BaseStatement] = []
                     for body_stmt in stmt.body.body:
                         if isinstance(body_stmt, cst.SimpleStatementLine):
                             modified = False
@@ -207,21 +213,21 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                                                 )
                                                 modified = True
                             if not modified:
-                                new_stmt_body.append(body_stmt)
+                                new_stmt_body.append(cast(cst.BaseStatement, body_stmt))
                         else:
-                            new_stmt_body.append(body_stmt)
+                            new_stmt_body.append(cast(cst.BaseStatement, body_stmt))
 
                     # Rebuild class with modified __init__
-                    new_body = []
-                    for s in updated_node.body.body:
+                    modified_body: list[cst.BaseStatement] = []
+                    for s in cast(cst.IndentedBlock, updated_node.body).body:
                         if s == stmt:
-                            new_body.append(
+                            modified_body.append(
                                 stmt.with_changes(body=cst.IndentedBlock(body=new_stmt_body))
                             )
                         else:
-                            new_body.append(s)
+                            modified_body.append(s)
 
-                    return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
+                    return updated_node.with_changes(body=cst.IndentedBlock(body=modified_body))
 
         return updated_node
 
