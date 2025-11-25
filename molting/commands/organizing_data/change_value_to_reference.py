@@ -9,6 +9,8 @@ from molting.commands.registry import register_command
 from molting.core.ast_utils import find_class_in_module
 from molting.core.code_generation_utils import create_parameter
 
+DEFAULT_PARAM_NAME = "name"
+
 
 class ChangeValueToReferenceCommand(BaseCommand):
     """Command to change a value object into a reference object."""
@@ -141,7 +143,7 @@ class ChangeValueToReferenceTransformer(cst.CSTTransformer):
         new_body.append(cast(cst.BaseStatement, cst.EmptyLine()))
 
         # Add get_named classmethod
-        param_name = self.init_param_name or "name"
+        param_name = self.init_param_name or DEFAULT_PARAM_NAME
         get_named_method = self._create_get_named_method(param_name)
         new_body.append(get_named_method)
 
