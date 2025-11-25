@@ -77,6 +77,15 @@ class ReplaceTypeCodeWithSubclassesTransformer(cst.CSTTransformer):
                                     if isinstance(body_item.value, cst.Integer):
                                         self.type_constants[const_name] = int(body_item.value.value)
 
+    def _add_double_empty_lines(self, statements: list[cst.BaseStatement]) -> None:
+        """Add two empty lines to the statements list.
+
+        Args:
+            statements: The list of statements to append to
+        """
+        statements.append(cast(cst.BaseStatement, cst.EmptyLine()))
+        statements.append(cast(cst.BaseStatement, cst.EmptyLine()))
+
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
     ) -> cst.Module:
@@ -97,16 +106,14 @@ class ReplaceTypeCodeWithSubclassesTransformer(cst.CSTTransformer):
                 # Add modified base class
                 modified_class = self._modify_base_class(stmt)
                 modified_statements.append(modified_class)
-                modified_statements.append(cast(cst.BaseStatement, cst.EmptyLine()))
-                modified_statements.append(cast(cst.BaseStatement, cst.EmptyLine()))
+                self._add_double_empty_lines(modified_statements)
 
                 # Add subclasses (sorted by their numeric value)
                 sorted_constants = sorted(self.type_constants.items(), key=lambda x: x[1])
                 for const_name, _ in sorted_constants:
                     subclass = self._create_subclass(const_name)
                     modified_statements.append(subclass)
-                    modified_statements.append(cast(cst.BaseStatement, cst.EmptyLine()))
-                    modified_statements.append(cast(cst.BaseStatement, cst.EmptyLine()))
+                    self._add_double_empty_lines(modified_statements)
             else:
                 modified_statements.append(stmt)
 
