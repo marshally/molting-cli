@@ -5,6 +5,7 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_target_with_range
 
 
 class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
@@ -20,42 +21,6 @@ class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
         """
         self.validate_required_params("target")
 
-    def _parse_target(self, target: str) -> tuple[str, int, int]:
-        """Parse target specification into function name and line range.
-
-        Args:
-            target: Target string in format "function_name#L2-L7"
-
-        Returns:
-            Tuple of (function_name, start_line, end_line)
-
-        Raises:
-            ValueError: If target format is invalid
-        """
-        # Parse target format: "function_name#L2-L7"
-        parts = target.split("#")
-        if len(parts) != 2:
-            raise ValueError(f"Invalid target format '{target}'. Expected 'function_name#L2-L7'")
-
-        function_name = parts[0]
-        line_range = parts[1]
-
-        # Parse line range
-        if not line_range.startswith("L") or "-" not in line_range:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L7'")
-
-        range_parts = line_range.split("-")
-        if len(range_parts) != 2:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L7'")
-
-        try:
-            start_line = int(range_parts[0][1:])
-            end_line = int(range_parts[1][1:])
-        except ValueError as e:
-            raise ValueError(f"Invalid line numbers in '{line_range}': {e}") from e
-
-        return function_name, start_line, end_line
-
     def execute(self) -> None:
         """Apply consolidate-duplicate-conditional-fragments refactoring using libCST.
 
@@ -63,7 +28,8 @@ class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
             ValueError: If function not found or target format is invalid
         """
         target = self.params["target"]
-        function_name, start_line, end_line = self._parse_target(target)
+        # Parse target using shared utility (for function-level targets, method_name will be empty)
+        function_name, _, start_line, end_line = parse_target_with_range(target)
 
         # Read file
         source_code = self.file_path.read_text()
