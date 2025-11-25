@@ -7,6 +7,7 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_target_with_range
 from molting.core.code_generation_utils import create_parameter
 
 
@@ -23,58 +24,6 @@ class DecomposeConditionalCommand(BaseCommand):
         """
         self.validate_required_params("target")
 
-    def _parse_target(self, target: str) -> tuple[str, int, int]:
-        """Parse target format into function name and line range.
-
-        Args:
-            target: Target string in format "function_name#L2-L5"
-
-        Returns:
-            Tuple of (function_name, start_line, end_line)
-
-        Raises:
-            ValueError: If target format is invalid
-        """
-        parts = target.split("#")
-        if len(parts) != 2:
-            raise ValueError(f"Invalid target format '{target}'. Expected 'function_name#L2-L5'")
-
-        function_name = parts[0]
-        line_range = parts[1]
-
-        start_line, end_line = self._parse_line_range(line_range)
-        return function_name, start_line, end_line
-
-    def _parse_line_range(self, line_range: str) -> tuple[int, int]:
-        """Parse line range string into start and end line numbers.
-
-        Args:
-            line_range: Line range in format "L2-L5"
-
-        Returns:
-            Tuple of (start_line, end_line)
-
-        Raises:
-            ValueError: If line range format is invalid
-        """
-        if not line_range.startswith("L"):
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L5'")
-
-        if "-" not in line_range:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L5'")
-
-        range_parts = line_range.split("-")
-        if len(range_parts) != 2:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L5'")
-
-        try:
-            start_line = int(range_parts[0][1:])
-            end_line = int(range_parts[1][1:])
-        except ValueError as e:
-            raise ValueError(f"Invalid line numbers in '{line_range}': {e}") from e
-
-        return start_line, end_line
-
     def execute(self) -> None:
         """Apply decompose-conditional refactoring using libCST.
 
@@ -82,7 +31,8 @@ class DecomposeConditionalCommand(BaseCommand):
             ValueError: If function not found or target format is invalid
         """
         target = self.params["target"]
-        function_name, start_line, end_line = self._parse_target(target)
+        # Parse target using shared utility (for function-level targets, method_name will be empty)
+        function_name, _, start_line, end_line = parse_target_with_range(target)
 
         # Read file
         source_code = self.file_path.read_text()
