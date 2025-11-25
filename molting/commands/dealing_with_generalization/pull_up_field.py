@@ -75,15 +75,11 @@ class PullUpFieldTransformer(cst.CSTTransformer):
     ) -> cst.ClassDef:
         """Transform class definitions to pull up the field."""
         if original_node.name.value == self.target_class:
-            # Add field to target class __init__
             return self._add_field_to_superclass(updated_node)
         elif original_node.name.value == self.source_class:
-            # Capture field info from source class before modifying
             self._capture_field_info(original_node)
-            # Modify source class to call super().__init__(field)
             return self._modify_subclass(updated_node)
         elif self._is_sibling_class(original_node):
-            # Modify sibling subclasses
             return self._modify_subclass(updated_node)
         return updated_node
 
