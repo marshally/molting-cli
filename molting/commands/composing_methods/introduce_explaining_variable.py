@@ -144,8 +144,16 @@ class IntroduceExplainingVariableTransformer(cst.CSTTransformer):
 
         self.in_target_function = False
 
-        # Create the assignment statement
-        assignment = cst.SimpleStatementLine(
+        assignment = self._create_assignment()
+        new_statements = self._insert_before_return(updated_node.body.body, assignment)
+
+        return updated_node.with_changes(
+            body=updated_node.body.with_changes(body=tuple(new_statements))
+        )
+
+    def _create_assignment(self) -> cst.SimpleStatementLine:
+        """Create an assignment statement for the extracted variable."""
+        return cst.SimpleStatementLine(
             body=[
                 cst.Assign(
                     targets=[cst.AssignTarget(target=cst.Name(self.variable_name))],
@@ -154,9 +162,12 @@ class IntroduceExplainingVariableTransformer(cst.CSTTransformer):
             ]
         )
 
-        # Find the return statement and insert the assignment before it
+    def _insert_before_return(
+        self, statements: tuple[cst.BaseStatement, ...], assignment: cst.SimpleStatementLine
+    ) -> list[cst.BaseStatement]:
+        """Insert assignment statement before the return statement."""
         new_statements = []
-        for stmt in updated_node.body.body:
+        for stmt in statements:
             if isinstance(stmt, cst.SimpleStatementLine):
                 # Check if this contains a return statement
                 for inner_stmt in stmt.body:
@@ -165,10 +176,7 @@ class IntroduceExplainingVariableTransformer(cst.CSTTransformer):
                         new_statements.append(assignment)
                         break
             new_statements.append(stmt)
-
-        return updated_node.with_changes(
-            body=updated_node.body.with_changes(body=tuple(new_statements))
-        )
+        return new_statements
 
     def _replace_if_target(
         self, original_node: cst.BaseExpression, updated_node: cst.BaseExpression
