@@ -44,7 +44,6 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
             target_class: Name of the class to add null object pattern to
         """
         self.target_class = target_class
-        self.null_class_created = False
         self.target_class_found = False
         self.init_params: list[tuple[str, str | None]] = []
 
@@ -142,7 +141,6 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                 ],
             )
 
-            self.null_class_created = True
             return cst.FlattenSentinel([updated_node, null_class])
 
         # Modify classes that have a parameter matching the target class name (in lowercase)
