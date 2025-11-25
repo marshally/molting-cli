@@ -50,6 +50,7 @@ import molting.commands.simplifying_conditionals.consolidate_conditional_express
 import molting.commands.simplifying_conditionals.consolidate_duplicate_conditional_fragments  # noqa: F401
 import molting.commands.simplifying_conditionals.decompose_conditional  # noqa: F401
 import molting.commands.simplifying_conditionals.introduce_assertion  # noqa: F401
+import molting.commands.simplifying_conditionals.introduce_null_object  # noqa: F401
 import molting.commands.simplifying_conditionals.remove_control_flag  # noqa: F401
 import molting.commands.simplifying_conditionals.replace_conditional_with_polymorphism  # noqa: F401
 import molting.commands.simplifying_conditionals.replace_nested_conditional_with_guard_clauses  # noqa: F401
