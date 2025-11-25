@@ -143,6 +143,29 @@ class ChangeReferenceToValueTransformer(cst.CSTTransformer):
             filtered_body.append(stmt)
         return filtered_body
 
+    def _add_value_object_methods(self, body: list[cst.BaseStatement]) -> list[cst.BaseStatement]:
+        """Add __eq__ and __hash__ methods for value object semantics.
+
+        Args:
+            body: The class body statements
+
+        Returns:
+            Body with value object methods added
+        """
+        param_name = self.init_param_name or DEFAULT_PARAM_NAME
+
+        # Add __eq__ method
+        eq_method = self._create_eq_method(param_name)
+        body.append(cast(cst.BaseStatement, cst.EmptyLine()))
+        body.append(eq_method)
+
+        # Add __hash__ method
+        hash_method = self._create_hash_method(param_name)
+        body.append(cast(cst.BaseStatement, cst.EmptyLine()))
+        body.append(hash_method)
+
+        return body
+
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef:
@@ -161,16 +184,8 @@ class ChangeReferenceToValueTransformer(cst.CSTTransformer):
         # Filter out _instances assignment and factory method
         new_body = self._filter_reference_object_artifacts(list(updated_node.body.body))
 
-        # Add __eq__ method
-        param_name = self.init_param_name or DEFAULT_PARAM_NAME
-        eq_method = self._create_eq_method(param_name)
-        new_body.append(cast(cst.BaseStatement, cst.EmptyLine()))
-        new_body.append(eq_method)
-
-        # Add __hash__ method
-        hash_method = self._create_hash_method(param_name)
-        new_body.append(cast(cst.BaseStatement, cst.EmptyLine()))
-        new_body.append(hash_method)
+        # Add __eq__ and __hash__ methods for value object semantics
+        new_body = self._add_value_object_methods(new_body)
 
         return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
 
