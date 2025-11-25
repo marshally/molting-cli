@@ -8,6 +8,8 @@ from molting.core.ast_utils import find_class_in_module, parse_target
 
 # Method name constants
 INIT_METHOD_NAME = "__init__"
+ADD_METHOD_PREFIX = "add_"
+SET_METHOD_PREFIX = "set_"
 
 
 class ChangeBidirectionalAssociationToUnidirectionalCommand(BaseCommand):
@@ -99,9 +101,9 @@ class ChangeBidirectionalAssociationToUnidirectionalTransformer(cst.CSTTransform
         for stmt in class_def.body.body:
             if not isinstance(stmt, cst.FunctionDef):
                 continue
-            if stmt.name.value.startswith("add_"):
+            if stmt.name.value.startswith(ADD_METHOD_PREFIX):
                 # Extract the singular form (e.g., 'order' from 'add_order')
-                singular = stmt.name.value[4:]  # Remove 'add_'
+                singular = stmt.name.value[len(ADD_METHOD_PREFIX) :]
                 # Capitalize to get class name (e.g., 'Order' from 'order')
                 self.forward_class_name = singular.capitalize()
                 break
@@ -134,7 +136,9 @@ class ChangeBidirectionalAssociationToUnidirectionalTransformer(cst.CSTTransform
         for stmt in class_def.body.body:
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
                 new_body.append(self._simplify_init(stmt))
-            elif isinstance(stmt, cst.FunctionDef) and stmt.name.value.startswith("set_"):
+            elif isinstance(stmt, cst.FunctionDef) and stmt.name.value.startswith(
+                SET_METHOD_PREFIX
+            ):
                 # Remove setter methods
                 continue
             else:
