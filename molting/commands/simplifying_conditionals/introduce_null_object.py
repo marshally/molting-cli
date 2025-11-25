@@ -80,6 +80,58 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                             default_value = param.default.value
                         self.init_params.append((param.name.value, default_value))
 
+    def _create_null_class(self) -> cst.ClassDef:
+        """Create the null object subclass.
+
+        Returns:
+            A ClassDef node for the null object class
+        """
+        null_class_name = f"Null{self.target_class}"
+
+        # Build __init__ assignments for null class
+        null_init_assignments = []
+        for param_name, default_value in self.init_params:
+            if param_name == "name":
+                value = cst.SimpleString('"Unknown"')
+            elif param_name == "plan":
+                value = cst.SimpleString('"Basic"')
+            else:
+                value = cst.SimpleString(default_value) if default_value else cst.Name("None")
+
+            null_init_assignments.append(
+                cst.SimpleStatementLine(
+                    body=[
+                        cst.Assign(
+                            targets=[
+                                cst.AssignTarget(
+                                    target=cst.Attribute(
+                                        value=cst.Name("self"),
+                                        attr=cst.Name(param_name),
+                                    )
+                                )
+                            ],
+                            value=value,
+                        )
+                    ]
+                )
+            )
+
+        null_init = cst.FunctionDef(
+            name=cst.Name("__init__"),
+            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
+            body=cst.IndentedBlock(body=null_init_assignments),
+        )
+
+        return cst.ClassDef(
+            name=cst.Name(null_class_name),
+            bases=[cst.Arg(value=cst.Name(self.target_class))],
+            body=cst.IndentedBlock(body=[null_init, self._create_is_null_method(True)]),
+            leading_lines=[
+                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+            ],
+        )
+
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef | cst.FlattenSentinel[cst.ClassDef]:
@@ -95,57 +147,8 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
             new_body.append(self._create_is_null_method(False))
             updated_node = updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
 
-            # Create NullCustomer class
-            null_class_name = f"Null{self.target_class}"
-
-            # Build __init__ for null class
-            null_init_assignments = []
-            for param_name, default_value in self.init_params:
-                if param_name == "name":
-                    value = cst.SimpleString('"Unknown"')
-                elif param_name == "plan":
-                    value = cst.SimpleString('"Basic"')
-                else:
-                    if default_value:
-                        value = cst.SimpleString(default_value)
-                    else:
-                        value = cst.Name("None")
-
-                null_init_assignments.append(
-                    cst.SimpleStatementLine(
-                        body=[
-                            cst.Assign(
-                                targets=[
-                                    cst.AssignTarget(
-                                        target=cst.Attribute(
-                                            value=cst.Name("self"),
-                                            attr=cst.Name(param_name),
-                                        )
-                                    )
-                                ],
-                                value=value,
-                            )
-                        ]
-                    )
-                )
-
-            null_init = cst.FunctionDef(
-                name=cst.Name("__init__"),
-                params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
-                body=cst.IndentedBlock(body=null_init_assignments),
-            )
-
-            # Create null class with __init__ and is_null methods
-            null_class = cst.ClassDef(
-                name=cst.Name(null_class_name),
-                bases=[cst.Arg(value=cst.Name(self.target_class))],
-                body=cst.IndentedBlock(body=[null_init, self._create_is_null_method(True)]),
-                leading_lines=[
-                    cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-                    cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-                ],
-            )
-
+            # Create and return null object class
+            null_class = self._create_null_class()
             return cst.FlattenSentinel([updated_node, null_class])
 
         # Modify classes that have a parameter matching the target class name (in lowercase)
