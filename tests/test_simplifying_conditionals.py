@@ -65,7 +65,6 @@ class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceConditionalWithPolymorphism(RefactoringTestBase):
     """Tests for Replace Conditional with Polymorphism refactoring."""
 
