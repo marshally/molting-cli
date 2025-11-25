@@ -154,7 +154,7 @@ class ReplaceTypeCodeWithClassTransformer(cst.CSTTransformer):
         new_body: list[cst.BaseStatement] = []
 
         for stmt in class_def.body.body:
-            if not self._is_type_code_statement(stmt):
+            if isinstance(stmt, cst.BaseStatement) and not self._is_type_code_statement(stmt):
                 new_body.append(stmt)
 
         return class_def.with_changes(body=cst.IndentedBlock(body=new_body))
