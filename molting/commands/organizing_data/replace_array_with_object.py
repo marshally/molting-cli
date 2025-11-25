@@ -164,21 +164,29 @@ class ArrayAccessCollector(cst.CSTVisitor):
         self.param_name = param_name
         self.accesses: dict[int, str] = {}
 
-    def visit_Subscript(self, node: cst.Subscript) -> None:  # noqa: N802
-        """Visit subscript nodes to collect array accesses.
+    def visit_SimpleStatementLine(self, node: cst.SimpleStatementLine) -> None:  # noqa: N802
+        """Visit assignment statements to extract field names from variable names.
 
         Args:
-            node: The subscript node
+            node: The statement line node
         """
-        if isinstance(node.value, cst.Name) and node.value.value == self.param_name:
-            if isinstance(node.slice[0].slice, cst.Index):
-                index_value = node.slice[0].slice.value
-                if isinstance(index_value, cst.Integer):
-                    index = int(index_value.value)
-                    # Map index to field name
-                    field_names = ["name", "wins", "losses"]
-                    if index < len(field_names):
-                        self.accesses[index] = field_names[index]
+        for stmt in node.body:
+            if isinstance(stmt, cst.Assign):
+                # Check if right side is array subscript
+                if isinstance(stmt.value, cst.Subscript):
+                    if (
+                        isinstance(stmt.value.value, cst.Name)
+                        and stmt.value.value.value == self.param_name
+                    ):
+                        if isinstance(stmt.value.slice[0].slice, cst.Index):
+                            index_value = stmt.value.slice[0].slice.value
+                            if isinstance(index_value, cst.Integer):
+                                index = int(index_value.value)
+                                # Extract variable name from left side
+                                if len(stmt.targets) > 0:
+                                    target = stmt.targets[0].target
+                                    if isinstance(target, cst.Name):
+                                        self.accesses[index] = target.value
 
     def get_field_names(self) -> list[str]:
         """Get the collected field names in order.
