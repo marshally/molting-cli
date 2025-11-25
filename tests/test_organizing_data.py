@@ -79,7 +79,6 @@ class TestDuplicateObservedData(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestChangeUnidirectionalAssociationToBidirectional(RefactoringTestBase):
     """Tests for Change Unidirectional Association to Bidirectional refactoring."""
 
