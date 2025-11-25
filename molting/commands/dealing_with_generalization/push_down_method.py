@@ -39,10 +39,8 @@ class PushDownMethodCommand(BaseCommand):
         target = self.params["target"]
         to_class = self.params["to"]
 
-        # Parse target to get class and method names
         class_name, method_name = parse_target(target, expected_parts=2)
 
-        # Apply transformation
         self.apply_libcst_transform(PushDownMethodTransformer, class_name, method_name, to_class)
 
 
