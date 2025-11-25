@@ -340,7 +340,7 @@ class ReplaceTypeCodeWithStateStrategyTransformer(cst.CSTTransformer):
         new_body: list[cst.BaseStatement] = []
         skip_next_empty_line = False
 
-        for i, stmt in enumerate(class_def.body.body):
+        for stmt in class_def.body.body:
             # Remove type constant definitions
             if self._is_type_constant_definition(stmt):
                 # Skip empty lines after removed constants
