@@ -48,6 +48,13 @@ class PullUpMethodCommand(BaseCommand):
         collector = MethodCollector(class_name, method_name, to_class)
         module.visit(collector)
 
+        # Validate that we found the method to pull up
+        if collector.method_to_pull_up is None:
+            raise ValueError(
+                f"Method '{method_name}' not found in class '{class_name}'. "
+                "Ensure the method exists and the target class is correct."
+            )
+
         # Second pass: apply transformation
         transformer = PullUpMethodTransformer(
             method_name, to_class, collector.method_to_pull_up, collector.subclasses
