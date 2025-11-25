@@ -4,7 +4,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import find_method_in_class, parse_target
+from molting.core.ast_utils import find_method_in_class, is_self_attribute, parse_target
 from molting.core.code_generation_utils import create_super_init_call
 
 
@@ -80,11 +80,7 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
                                 for target in item.targets:
                                     # Check for self._field = Class(...)
                                     if isinstance(target.target, cst.Attribute):
-                                        if (
-                                            isinstance(target.target.value, cst.Name)
-                                            and target.target.value.value == "self"
-                                            and target.target.attr.value == self.delegate_field
-                                        ):
+                                        if is_self_attribute(target.target, self.delegate_field):
                                             # Extract delegate class from assignment
                                             if isinstance(item.value, cst.Call):
                                                 if isinstance(item.value.func, cst.Name):
@@ -193,12 +189,7 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
         Returns:
             True if the expression is self._field
         """
-        return (
-            isinstance(node, cst.Attribute)
-            and isinstance(node.value, cst.Name)
-            and node.value.value == "self"
-            and node.attr.value == self.delegate_field
-        )
+        return is_self_attribute(node, self.delegate_field)
 
     def _transform_init_method(self, node: cst.FunctionDef) -> cst.FunctionDef:
         """Transform the __init__ method to call super().__init__().
