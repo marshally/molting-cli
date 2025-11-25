@@ -84,6 +84,25 @@ class ChangeReferenceToValueTransformer(cst.CSTTransformer):
                     self.init_param_name = params[1].name.value
                 break
 
+    def _is_instances_assignment(self, stmt: cst.BaseStatement) -> bool:
+        """Check if a statement is the _instances class variable assignment.
+
+        Args:
+            stmt: The statement to check
+
+        Returns:
+            True if statement assigns to _instances
+        """
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return False
+        if len(stmt.body) == 0 or not isinstance(stmt.body[0], cst.Assign):
+            return False
+        assign = stmt.body[0]
+        if len(assign.targets) == 0:
+            return False
+        target = assign.targets[0].target
+        return isinstance(target, cst.Name) and target.value == "_instances"
+
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef:
@@ -104,13 +123,8 @@ class ChangeReferenceToValueTransformer(cst.CSTTransformer):
 
         for stmt in updated_node.body.body:
             # Skip _instances assignment
-            if isinstance(stmt, cst.SimpleStatementLine):
-                if len(stmt.body) > 0 and isinstance(stmt.body[0], cst.Assign):
-                    assign = stmt.body[0]
-                    if len(assign.targets) > 0:
-                        target = assign.targets[0].target
-                        if isinstance(target, cst.Name) and target.value == "_instances":
-                            continue
+            if self._is_instances_assignment(stmt):
+                continue
 
             # Skip factory method (classmethod with @classmethod decorator)
             if isinstance(stmt, cst.FunctionDef):
