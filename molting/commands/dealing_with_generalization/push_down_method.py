@@ -25,7 +25,6 @@ class PushDownMethodCommand(BaseCommand):
         """
         self.validate_required_params("target", "to")
 
-        # Validate target format (ClassName::method_name)
         try:
             parse_target(self.params["target"], expected_parts=2)
         except ValueError as e:
