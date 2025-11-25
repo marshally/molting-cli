@@ -80,7 +80,7 @@ class ExtractMethodCommand(BaseCommand):
         parts_range = line_range.split(LINE_RANGE_SEPARATOR)
         if len(parts_range) != 2:
             raise ValueError(
-                f"Invalid line range format '{line_range}'. " f"Expected 'L<start>-L<end>' format"
+                f"Invalid line range format '{line_range}'. Expected 'L<start>-L<end>' format"
             )
 
         try:
