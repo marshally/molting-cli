@@ -123,7 +123,7 @@ class ReplaceTypeCodeWithStateStrategyTransformer(cst.CSTTransformer):
         new_body: list[cst.BaseStatement] = []
 
         # Add strategy classes at the beginning
-        for i, new_class in enumerate(new_classes):
+        for new_class in new_classes:
             new_body.append(new_class)
             # Add two empty lines after each class
             new_body.append(cast(cst.BaseStatement, cst.EmptyLine()))
