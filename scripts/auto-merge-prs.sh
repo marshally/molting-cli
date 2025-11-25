@@ -159,6 +159,12 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
                 # Extract the last error from the cleaned log
                 ERROR_SUMMARY=$(echo "$CLEAN_LOG" | grep -E "ERROR:|fatal:|error:" | tail -5 || echo "Unknown error occurred")
 
+                # Change label from automerge to automerge-error
+                if [ "$has_automerge_label" = "true" ]; then
+                    log "Changing label from '$AUTOMERGE_LABEL' to 'automerge-error'"
+                    gh pr edit "$number" --repo "$pr_repo" --remove-label "$AUTOMERGE_LABEL" --add-label "automerge-error" 2>/dev/null || true
+                fi
+
                 # Add a comment to the PR about the failure
                 COMMENT_BODY="## ⚠️ Automatic Build Failure Fix Failed
 
@@ -195,17 +201,13 @@ Please fix the build failures manually."
 
     # Check if PR is mergeable
     if [ "$mergeable" = "MERGEABLE" ]; then
-        log "PR #$number is mergeable. Attempting rebase and merge..."
+        log "PR #$number is mergeable. Attempting rebase merge..."
 
         if gh pr merge "$number" --repo "$pr_repo" --rebase --auto 2>&1; then
             log "Successfully merged PR #$number with rebase"
         else
-            warn "Rebase merge failed (branch may have merge commits). Trying squash merge..."
-            if gh pr merge "$number" --repo "$pr_repo" --squash --auto; then
-                log "Successfully merged PR #$number with squash"
-            else
-                error "Failed to merge PR #$number with both rebase and squash"
-            fi
+            error "Rebase merge failed for PR #$number. Manual intervention required."
+            error "This may be due to merge commits in the branch history. Consider rebasing the branch manually."
         fi
     elif [ "$mergeable" = "CONFLICTING" ]; then
         warn "PR #$number has merge conflicts. Attempting to resolve..."
