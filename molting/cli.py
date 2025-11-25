@@ -25,6 +25,7 @@ import molting.commands.dealing_with_generalization.pull_up_constructor_body  # 
 import molting.commands.dealing_with_generalization.pull_up_field  # noqa: F401
 import molting.commands.dealing_with_generalization.pull_up_method  # noqa: F401
 import molting.commands.dealing_with_generalization.push_down_field  # noqa: F401
+import molting.commands.dealing_with_generalization.push_down_method  # noqa: F401
 import molting.commands.dealing_with_generalization.replace_delegation_with_inheritance  # noqa: F401
 import molting.commands.dealing_with_generalization.replace_inheritance_with_delegation  # noqa: F401
 import molting.commands.moving_features.extract_class  # noqa: F401
