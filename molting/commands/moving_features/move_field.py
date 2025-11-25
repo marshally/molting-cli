@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import camel_to_snake_case, is_pass_statement
+from molting.core.ast_utils import camel_to_snake_case, is_pass_statement, is_self_attribute
 from molting.core.code_generation_utils import (
     create_field_assignment,
     create_init_method,
@@ -113,11 +113,7 @@ class MoveFieldTransformer(cst.CSTTransformer):
         """
         for target in assign_node.targets:
             if isinstance(target.target, cst.Attribute):
-                if (
-                    isinstance(target.target.value, cst.Name)
-                    and target.target.value.value == "self"
-                    and target.target.attr.value == self.field_name
-                ):
+                if is_self_attribute(target.target, self.field_name):
                     return True
         return False
 
@@ -229,11 +225,7 @@ class FieldReferenceUpdater(cst.CSTTransformer):
         self, original_node: cst.Attribute, updated_node: cst.Attribute
     ) -> cst.Attribute | cst.BaseExpression:
         """Update attribute access to moved field."""
-        if (
-            isinstance(updated_node.value, cst.Name)
-            and updated_node.value.value == "self"
-            and updated_node.attr.value == self.field_name
-        ):
+        if is_self_attribute(updated_node, self.field_name):
             return cst.Attribute(
                 value=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.target_class_lower)),
                 attr=cst.Name(self.field_name),
