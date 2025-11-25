@@ -202,61 +202,81 @@ class ChangeUnidirectionalAssociationToBidirectionalTransformer(cst.CSTTransform
         new_body_stmts: list[cst.BaseStatement] = []
 
         for stmt in init_method.body.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                modified = False
-                for body_item in stmt.body:
-                    if isinstance(body_item, cst.Assign):
-                        for target in body_item.targets:
-                            if isinstance(target.target, cst.Attribute):
-                                if (
-                                    isinstance(target.target.value, cst.Name)
-                                    and target.target.value.value == "self"
-                                    and target.target.attr.value == self.field_name
-                                ):
-                                    # Initialize private field as None
-                                    new_body_stmts.append(
-                                        cst.SimpleStatementLine(
-                                            body=[
-                                                cst.Assign(
-                                                    targets=[
-                                                        cst.AssignTarget(
-                                                            target=cst.Attribute(
-                                                                value=cst.Name("self"),
-                                                                attr=cst.Name(
-                                                                    f"_{self.field_name}"
-                                                                ),
-                                                            )
-                                                        )
-                                                    ],
-                                                    value=cst.Name("None"),
-                                                )
-                                            ]
-                                        )
-                                    )
-                                    # Call setter
-                                    new_body_stmts.append(
-                                        cst.SimpleStatementLine(
-                                            body=[
-                                                cst.Expr(
-                                                    cst.Call(
-                                                        func=cst.Attribute(
-                                                            value=cst.Name("self"),
-                                                            attr=cst.Name(f"set_{self.field_name}"),
-                                                        ),
-                                                        args=[cst.Arg(value=body_item.value)],
-                                                    )
-                                                )
-                                            ]
-                                        )
-                                    )
-                                    modified = True
-                                    break
-                if not modified:
-                    new_body_stmts.append(stmt)
-            else:
-                new_body_stmts.append(cast(cst.BaseStatement, stmt))
+            processed_stmt = self._process_init_statement(stmt)
+            new_body_stmts.extend(processed_stmt)
 
         return init_method.with_changes(body=cst.IndentedBlock(body=new_body_stmts))
+
+    def _process_init_statement(self, stmt: cst.BaseStatement) -> list[cst.BaseStatement]:
+        """Process a single statement from __init__, replacing field assignment.
+
+        Args:
+            stmt: The statement to process
+
+        Returns:
+            List of replacement statements
+        """
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return [cast(cst.BaseStatement, stmt)]
+
+        for body_item in stmt.body:
+            if isinstance(body_item, cst.Assign):
+                replacement = self._replace_field_assignment(body_item)
+                if replacement:
+                    return replacement
+
+        return [stmt]
+
+    def _replace_field_assignment(self, assign: cst.Assign) -> list[cst.BaseStatement] | None:
+        """Replace field assignment with initialization and setter call.
+
+        Args:
+            assign: The assignment to potentially replace
+
+        Returns:
+            List of replacement statements, or None if not applicable
+        """
+        for target in assign.targets:
+            if not isinstance(target.target, cst.Attribute):
+                continue
+            if not self._is_self_field_assignment(target.target):
+                continue
+
+            # Initialize private field as None
+            init_stmt = cst.SimpleStatementLine(
+                body=[
+                    cst.Assign(
+                        targets=[
+                            cst.AssignTarget(
+                                target=cst.Attribute(
+                                    value=cst.Name("self"),
+                                    attr=cst.Name(f"_{self.field_name}"),
+                                )
+                            )
+                        ],
+                        value=cst.Name("None"),
+                    )
+                ]
+            )
+
+            # Call setter
+            setter_stmt = cst.SimpleStatementLine(
+                body=[
+                    cst.Expr(
+                        cst.Call(
+                            func=cst.Attribute(
+                                value=cst.Name("self"),
+                                attr=cst.Name(f"set_{self.field_name}"),
+                            ),
+                            args=[cst.Arg(value=assign.value)],
+                        )
+                    )
+                ]
+            )
+
+            return [init_stmt, setter_stmt]
+
+        return None
 
     def _create_setter_method(self) -> cst.FunctionDef:
         """Create the setter method for the field.
