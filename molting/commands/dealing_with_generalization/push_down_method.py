@@ -65,10 +65,8 @@ class PushDownMethodTransformer(cst.CSTTransformer):
     ) -> cst.ClassDef:
         """Transform class definitions to push down the method."""
         if original_node.name.value == self.source_class:
-            # Remove method from source class
             return self._remove_method_from_class(updated_node)
         elif original_node.name.value == self.target_class:
-            # Add method to target class
             return self._add_method_to_class(updated_node)
         return updated_node
 
