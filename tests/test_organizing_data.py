@@ -68,7 +68,6 @@ class TestReplaceArrayWithObject(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestDuplicateObservedData(RefactoringTestBase):
     """Tests for Duplicate Observed Data refactoring."""
 
