@@ -58,7 +58,6 @@ class ReplaceTypeCodeWithSubclassesTransformer(cst.CSTTransformer):
         self.class_name = class_name
         self.field_name = field_name
         self.type_constants: dict[str, int] = {}
-        self.found_target_class = False
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Visit class definitions to find the target class and extract type constants.
@@ -67,7 +66,6 @@ class ReplaceTypeCodeWithSubclassesTransformer(cst.CSTTransformer):
             node: The class definition node
         """
         if node.name.value == self.class_name:
-            self.found_target_class = True
             # Extract type constants
             for stmt in node.body.body:
                 if isinstance(stmt, cst.SimpleStatementLine):
