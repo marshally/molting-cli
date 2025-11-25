@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import find_class_in_module, parse_target
+from molting.core.ast_utils import find_class_in_module, is_self_attribute, parse_target
 from molting.core.code_generation_utils import create_parameter
 
 INIT_METHOD_NAME = "__init__"
@@ -128,11 +128,7 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
                     if isinstance(body_item, cst.Assign):
                         for target in body_item.targets:
                             if isinstance(target.target, cst.Attribute):
-                                if (
-                                    isinstance(target.target.value, cst.Name)
-                                    and target.target.value.value == "self"
-                                    and target.target.attr.value == self.field_name
-                                ):
+                                if is_self_attribute(target.target, self.field_name):
                                     if isinstance(body_item.value, cst.Name):
                                         assigned_param = body_item.value.value
                                         # Use simplified name for new class
@@ -164,11 +160,7 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
                         # Check if this is assignment to self.field_name
                         for target in body_item.targets:
                             if isinstance(target.target, cst.Attribute):
-                                if (
-                                    isinstance(target.target.value, cst.Name)
-                                    and target.target.value.value == "self"
-                                    and target.target.attr.value == self.field_name
-                                ):
+                                if is_self_attribute(target.target, self.field_name):
                                     # Replace with self.field_name = NewClass(value)
                                     new_stmt = self._create_object_assignment(body_item.value)
                                     new_body_stmts.append(new_stmt)
@@ -296,12 +288,11 @@ class FieldAccessTransformer(cst.CSTTransformer):
         Returns:
             Transformed attribute node
         """
-        if isinstance(updated_node.value, cst.Name):
-            if updated_node.value.value == "self" and updated_node.attr.value == self.field_name:
-                return cst.Attribute(
-                    value=updated_node,
-                    attr=cst.Name(self.param_name),
-                )
+        if is_self_attribute(updated_node, self.field_name):
+            return cst.Attribute(
+                value=updated_node,
+                attr=cst.Name(self.param_name),
+            )
 
         return updated_node
 
