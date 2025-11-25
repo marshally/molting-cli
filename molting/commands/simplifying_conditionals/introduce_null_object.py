@@ -65,6 +65,21 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
             leading_lines=[cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))],
         )
 
+    def _extract_init_parameters(self, class_body: cst.IndentedBlock) -> None:
+        """Extract __init__ parameters from a class body.
+
+        Args:
+            class_body: The body of the class definition
+        """
+        for stmt in class_body.body:
+            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+                for param in stmt.params.params:
+                    if param.name.value != "self":
+                        default_value = None
+                        if param.default and isinstance(param.default, cst.SimpleString):
+                            default_value = param.default.value
+                        self.init_params.append((param.name.value, default_value))
+
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef | cst.FlattenSentinel[cst.ClassDef]:
@@ -73,16 +88,7 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
             self.target_class_found = True
 
             # Extract __init__ parameters for the null class
-            for stmt in updated_node.body.body:
-                if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
-                    # Collect parameters and their defaults
-                    for param in stmt.params.params:
-                        if param.name.value != "self":
-                            default_value = None
-                            if param.default:
-                                if isinstance(param.default, cst.SimpleString):
-                                    default_value = param.default.value
-                            self.init_params.append((param.name.value, default_value))
+            self._extract_init_parameters(updated_node.body)
 
             # Add is_null() method to target class
             new_body = list(updated_node.body.body)
