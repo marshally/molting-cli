@@ -213,6 +213,7 @@ class PullUpFieldTransformer(cst.CSTTransformer):
         new_params = list(init_node.params.params) + [param]
         new_params_obj = init_node.params.with_changes(params=new_params)
 
+        new_body: cst.BaseSuite
         if isinstance(init_node.body, cst.IndentedBlock):
             field_value = self.field_value if self.field_value else cst.Name(self.field_name)
             field_assignment = create_field_assignment(self.field_name, field_value)
@@ -260,8 +261,8 @@ class PullUpFieldTransformer(cst.CSTTransformer):
 
         # Replace init method in class body
         new_class_body: list[cst.BaseStatement] = []
-        for stmt in class_node.body.body:
-            stmt = cast(cst.BaseStatement, stmt)
+        for stmt_item in class_node.body.body:
+            stmt = cast(cst.BaseStatement, stmt_item)
             if stmt is init_method:
                 new_class_body.append(modified_init)
             else:
