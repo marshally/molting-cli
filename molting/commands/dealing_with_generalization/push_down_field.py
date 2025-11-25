@@ -9,6 +9,7 @@ from molting.commands.registry import register_command
 from molting.core.ast_utils import (
     find_method_in_class,
     is_pass_statement,
+    is_self_attribute,
     parse_target,
     statements_contain_only_pass,
 )
@@ -172,11 +173,7 @@ class PushDownFieldTransformer(cst.CSTTransformer):
         Returns:
             True if node is self.field_name
         """
-        if not isinstance(node, cst.Attribute):
-            return False
-        if not isinstance(node.value, cst.Name):
-            return False
-        return node.value.value == "self" and node.attr.value == self.field_name
+        return is_self_attribute(node, self.field_name)
 
     def _capture_field_value(self, stmt: cst.SimpleStatementLine) -> None:
         """Capture the value assigned to the field.
