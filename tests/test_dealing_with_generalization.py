@@ -12,7 +12,6 @@ import pytest
 from tests.conftest import RefactoringTestBase
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestPullUpField(RefactoringTestBase):
     """Tests for Pull Up Field refactoring."""
 
