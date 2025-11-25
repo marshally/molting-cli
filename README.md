@@ -303,6 +303,7 @@ chmod +x .git/hooks/pre-push
 
 **What it does:**
 - Runs **black --check**, **ruff check**, **mypy** on entire codebase
+- Checks for uncommitted beads JSONL changes (if using bd issue tracking)
 - Blocks the push if any checks fail
 - Catches issues that pre-commit hook might miss
 
