@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import find_class_in_module
+from molting.core.ast_utils import extract_all_methods, find_class_in_module
 from molting.core.code_generation_utils import create_parameter
 
 DEFAULT_PARAM_NAME = "name"
@@ -75,10 +75,11 @@ class ChangeValueToReferenceTransformer(cst.CSTTransformer):
         Args:
             class_def: The class definition
         """
-        for stmt in class_def.body.body:
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+        methods = extract_all_methods(class_def, exclude_init=False)
+        for method in methods:
+            if method.name.value == "__init__":
                 # Get the first parameter after 'self'
-                params = stmt.params.params
+                params = method.params.params
                 if len(params) > 1:
                     self.init_param_name = params[1].name.value
                 break
