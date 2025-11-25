@@ -86,19 +86,40 @@ class MethodCollector(cst.CSTVisitor):
         """Visit class definitions to collect subclasses and the method."""
         class_name = node.name.value
 
-        # Check if this class is a subclass of the target class
-        if node.bases:
-            for base in node.bases:
-                if isinstance(base.value, cst.Name) and base.value.value == self.target_class:
-                    self.subclasses.append(class_name)
-                    # Capture the method from the source class
-                    if class_name == self.source_class:
-                        method = find_method_in_class(node, self.method_name)
-                        if method:
-                            self.method_to_pull_up = method
-                    break
+        if self._is_subclass_of_target(node):
+            self.subclasses.append(class_name)
+            if class_name == self.source_class:
+                self._capture_method_from_class(node)
 
         return True
+
+    def _is_subclass_of_target(self, node: cst.ClassDef) -> bool:
+        """Check if a class is a subclass of the target class.
+
+        Args:
+            node: The class definition to check
+
+        Returns:
+            True if the class inherits from the target class
+        """
+        if not node.bases:
+            return False
+
+        for base in node.bases:
+            if isinstance(base.value, cst.Name) and base.value.value == self.target_class:
+                return True
+
+        return False
+
+    def _capture_method_from_class(self, node: cst.ClassDef) -> None:
+        """Capture the method definition from the class.
+
+        Args:
+            node: The class definition to extract the method from
+        """
+        method = find_method_in_class(node, self.method_name)
+        if method:
+            self.method_to_pull_up = method
 
 
 class PullUpMethodTransformer(cst.CSTTransformer):
