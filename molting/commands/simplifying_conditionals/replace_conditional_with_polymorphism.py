@@ -129,22 +129,9 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
         if self.in_target_class:
             self.in_target_class = False
 
-            # Transform the base class
             new_body = []
             for stmt in updated_node.body.body:
-                # Remove class constants
-                if isinstance(stmt, cst.SimpleStatementLine):
-                    is_constant = False
-                    for item in stmt.body:
-                        if isinstance(item, cst.Assign):
-                            for target in item.targets:
-                                if isinstance(target.target, cst.Name):
-                                    if target.target.value in self.class_constants:
-                                        is_constant = True
-                                        break
-                    if not is_constant:
-                        new_body.append(stmt)
-                else:
+                if not self._is_class_constant_statement(stmt):
                     new_body.append(stmt)
 
             # Update the base class body
@@ -382,6 +369,26 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
             refs.extend(self._collect_attribute_refs(node.left))
             refs.extend(self._collect_attribute_refs(node.right))
         return refs
+
+    def _is_class_constant_statement(self, stmt: cst.BaseStatement) -> bool:
+        """Check if a statement is a class constant assignment.
+
+        Args:
+            stmt: Statement to check
+
+        Returns:
+            True if statement assigns to a class constant, False otherwise
+        """
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return False
+
+        for item in stmt.body:
+            if isinstance(item, cst.Assign):
+                for target in item.targets:
+                    if isinstance(target.target, cst.Name):
+                        if target.target.value in self.class_constants:
+                            return True
+        return False
 
 
 # Register the command
