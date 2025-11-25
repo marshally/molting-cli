@@ -168,15 +168,6 @@ class MoveFieldTransformer(cst.CSTTransformer):
         transformer = FieldReferenceUpdater(self.field_name, self.target_class_lower)
         return cast(cst.FunctionDef, node.visit(transformer))
 
-    def _create_field_assignment(self) -> cst.SimpleStatementLine:
-        """Create a field assignment statement for the moved field.
-
-        Uses the field's original value if available, otherwise defaults to 0.05
-        (matching the test fixture's interest_rate default).
-        """
-        field_value = self.field_value if self.field_value else cst.Float("0.05")
-        return create_field_assignment(self.field_name, field_value)
-
     def _transform_target_class(self, node: cst.ClassDef) -> cst.ClassDef:
         """Transform the target class to add the field."""
         has_init = False
@@ -207,7 +198,8 @@ class MoveFieldTransformer(cst.CSTTransformer):
         if isinstance(node.body, cst.IndentedBlock):
             new_stmts = list(node.body.body)
 
-        new_stmts.append(self._create_field_assignment())
+        field_value = self.field_value if self.field_value else cst.Float("0.05")
+        new_stmts.append(create_field_assignment(self.field_name, field_value))
 
         return node.with_changes(body=cst.IndentedBlock(body=tuple(new_stmts)))
 
