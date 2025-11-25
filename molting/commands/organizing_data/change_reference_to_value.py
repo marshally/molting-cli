@@ -182,7 +182,8 @@ class ChangeReferenceToValueTransformer(cst.CSTTransformer):
             return updated_node
 
         # Filter out _instances assignment and factory method
-        new_body = self._filter_reference_object_artifacts(list(updated_node.body.body))  # type: ignore[arg-type]
+        body_statements = [cast(cst.BaseStatement, stmt) for stmt in updated_node.body.body]
+        new_body = self._filter_reference_object_artifacts(body_statements)
 
         # Add __eq__ and __hash__ methods for value object semantics
         new_body = self._add_value_object_methods(new_body)
