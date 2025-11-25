@@ -141,6 +141,16 @@ class PullUpFieldTransformer(cst.CSTTransformer):
                 return body_stmt.value
         return None
 
+    def _get_or_create_field_param(self) -> cst.Param:
+        """Get the captured field parameter or create a default one.
+
+        Returns:
+            Field parameter for __init__ signature
+        """
+        if self.field_param:
+            return self.field_param
+        return cst.Param(name=cst.Name(self.field_name))
+
     def _add_field_to_superclass(self, class_node: cst.ClassDef) -> cst.ClassDef:
         """Add field to superclass __init__.
 
@@ -184,9 +194,7 @@ class PullUpFieldTransformer(cst.CSTTransformer):
         Returns:
             New __init__ method
         """
-        # Use captured parameter or create default
-        param = self.field_param if self.field_param else cst.Param(name=cst.Name(self.field_name))
-
+        param = self._get_or_create_field_param()
         field_value = self.field_value if self.field_value else cst.Name(self.field_name)
         field_assignment = create_field_assignment(self.field_name, field_value)
 
@@ -205,12 +213,10 @@ class PullUpFieldTransformer(cst.CSTTransformer):
         Returns:
             Modified __init__ method
         """
-        # Add parameter to __init__ signature
-        param = self.field_param if self.field_param else cst.Param(name=cst.Name(self.field_name))
+        param = self._get_or_create_field_param()
         new_params = list(init_node.params.params) + [param]
         new_params_obj = init_node.params.with_changes(params=new_params)
 
-        # Add field assignment to body
         if isinstance(init_node.body, cst.IndentedBlock):
             field_value = self.field_value if self.field_value else cst.Name(self.field_name)
             field_assignment = create_field_assignment(self.field_name, field_value)
