@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import (
+    extract_all_methods,
     extract_init_field_assignments,
     find_class_in_module,
     find_self_field_assignment,
@@ -165,11 +166,11 @@ class InlineClassTransformer(cst.CSTTransformer):
         Args:
             class_def: The source class definition
         """
-        for stmt in class_def.body.body:
-            if isinstance(stmt, cst.FunctionDef):
-                self.source_methods.append(stmt)
-                if stmt.name.value == INIT_METHOD_NAME:
-                    self.source_fields = extract_init_field_assignments(stmt)
+        methods = extract_all_methods(class_def, exclude_init=False)
+        for method in methods:
+            self.source_methods.append(method)
+            if method.name.value == INIT_METHOD_NAME:
+                self.source_fields = extract_init_field_assignments(method)
 
     def _compute_prefix_from_field(self, field_name: str) -> str:
         """Compute the prefix from a delegation field name.
@@ -191,15 +192,14 @@ class InlineClassTransformer(cst.CSTTransformer):
         Args:
             target_class_def: The target class definition
         """
-        for stmt in target_class_def.body.body:
-            if not isinstance(stmt, cst.FunctionDef):
+        methods = extract_all_methods(target_class_def, exclude_init=False)
+        for method in methods:
+            if method.name.value != INIT_METHOD_NAME:
                 continue
-            if stmt.name.value != INIT_METHOD_NAME:
-                continue
-            if not isinstance(stmt.body, cst.IndentedBlock):
+            if not isinstance(method.body, cst.IndentedBlock):
                 continue
 
-            for body_stmt in stmt.body.body:
+            for body_stmt in method.body.body:
                 if isinstance(body_stmt, cst.SimpleStatementLine):
                     result = find_self_field_assignment(body_stmt)
                     if result:
