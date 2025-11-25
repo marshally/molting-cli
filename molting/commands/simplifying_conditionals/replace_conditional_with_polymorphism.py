@@ -405,7 +405,9 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
             refs.extend(self._collect_attribute_refs(node.right))
         return refs
 
-    def _is_class_constant_statement(self, stmt: cst.BaseStatement) -> bool:
+    def _is_class_constant_statement(
+        self, stmt: cst.BaseStatement | cst.BaseSmallStatement
+    ) -> bool:
         """Check if a statement is a class constant assignment.
 
         Args:
