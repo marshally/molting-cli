@@ -103,6 +103,22 @@ class ChangeReferenceToValueTransformer(cst.CSTTransformer):
         target = assign.targets[0].target
         return isinstance(target, cst.Name) and target.value == "_instances"
 
+    def _is_classmethod(self, stmt: cst.BaseStatement) -> bool:
+        """Check if a statement is a classmethod.
+
+        Args:
+            stmt: The statement to check
+
+        Returns:
+            True if statement is a function decorated with @classmethod
+        """
+        if not isinstance(stmt, cst.FunctionDef):
+            return False
+        return any(
+            isinstance(dec.decorator, cst.Name) and dec.decorator.value == "classmethod"
+            for dec in stmt.decorators
+        )
+
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef:
@@ -127,13 +143,8 @@ class ChangeReferenceToValueTransformer(cst.CSTTransformer):
                 continue
 
             # Skip factory method (classmethod with @classmethod decorator)
-            if isinstance(stmt, cst.FunctionDef):
-                has_classmethod = any(
-                    isinstance(dec.decorator, cst.Name) and dec.decorator.value == "classmethod"
-                    for dec in stmt.decorators
-                )
-                if has_classmethod:
-                    continue
+            if self._is_classmethod(stmt):
+                continue
 
             new_body.append(stmt)
 
