@@ -74,15 +74,21 @@ class ReplaceTypeCodeWithClassTransformer(cst.CSTTransformer):
             node: The class definition node
         """
         if node.name.value == self.class_name:
-            # Collect type codes from class variable assignments
-            for stmt in node.body.body:
-                if isinstance(stmt, cst.SimpleStatementLine):
-                    for body_item in stmt.body:
-                        if isinstance(body_item, cst.Assign):
-                            for target in body_item.targets:
-                                if isinstance(target.target, cst.Name):
-                                    # Store the type code for later
-                                    self.type_codes.append((target.target.value, body_item.value))
+            self._collect_type_codes_from_class(node)
+
+    def _collect_type_codes_from_class(self, class_def: cst.ClassDef) -> None:
+        """Collect type code constants from class variable assignments.
+
+        Args:
+            class_def: The class definition to collect from
+        """
+        for stmt in class_def.body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for body_item in stmt.body:
+                    if isinstance(body_item, cst.Assign):
+                        for target in body_item.targets:
+                            if isinstance(target.target, cst.Name):
+                                self.type_codes.append((target.target.value, body_item.value))
 
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
