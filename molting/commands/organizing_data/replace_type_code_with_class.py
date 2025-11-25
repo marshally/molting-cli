@@ -89,8 +89,30 @@ class ReplaceTypeCodeWithClassTransformer(cst.CSTTransformer):
     ) -> cst.Module:
         """Add the new class to the module and modify the target class."""
         new_class = self._create_new_class()
+        class_attributes = self._create_class_attributes()
 
-        # Create class attribute assignments
+        modified_statements: list[cst.BaseStatement] = [
+            new_class,
+            cast(cst.BaseStatement, cst.EmptyLine()),
+        ]
+        modified_statements.extend(class_attributes)
+        modified_statements.append(cast(cst.BaseStatement, cst.EmptyLine()))
+
+        target_class = find_class_in_module(updated_node, self.class_name)
+        for stmt in updated_node.body:
+            if stmt is target_class and isinstance(stmt, cst.ClassDef):
+                modified_statements.append(self._modify_class(stmt))
+            else:
+                modified_statements.append(stmt)
+
+        return updated_node.with_changes(body=tuple(modified_statements))
+
+    def _create_class_attributes(self) -> list[cst.BaseStatement]:
+        """Create class attribute assignments for type codes.
+
+        Returns:
+            List of assignment statements
+        """
         class_attributes: list[cst.BaseStatement] = []
         for code_name, code_value in self.type_codes:
             assignment = cst.SimpleStatementLine(
@@ -112,22 +134,7 @@ class ReplaceTypeCodeWithClassTransformer(cst.CSTTransformer):
                 ]
             )
             class_attributes.append(assignment)
-
-        modified_statements: list[cst.BaseStatement] = [
-            new_class,
-            cast(cst.BaseStatement, cst.EmptyLine()),
-        ]
-        modified_statements.extend(class_attributes)
-        modified_statements.append(cast(cst.BaseStatement, cst.EmptyLine()))
-
-        target_class = find_class_in_module(updated_node, self.class_name)
-        for stmt in updated_node.body:
-            if stmt is target_class and isinstance(stmt, cst.ClassDef):
-                modified_statements.append(self._modify_class(stmt))
-            else:
-                modified_statements.append(stmt)
-
-        return updated_node.with_changes(body=tuple(modified_statements))
+        return class_attributes
 
     def _modify_class(self, class_def: cst.ClassDef) -> cst.ClassDef:
         """Remove type code constants from the original class.
