@@ -1,13 +1,12 @@
 """Move Field refactoring command."""
 
-import re
 from typing import cast
 
 import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import is_pass_statement
+from molting.core.ast_utils import camel_to_snake_case, is_pass_statement
 from molting.core.code_generation_utils import (
     create_field_assignment,
     create_init_method,
@@ -73,7 +72,7 @@ class MoveFieldTransformer(cst.CSTTransformer):
         self.field_name = field_name
         self.target_class = target_class
         # Convert camelCase/PascalCase to snake_case
-        self.target_class_lower = re.sub(r"(?<!^)(?=[A-Z])", "_", target_class).lower()
+        self.target_class_lower = camel_to_snake_case(target_class)
         self.field_value: cst.BaseExpression | None = None
 
     def leave_ClassDef(  # noqa: N802
