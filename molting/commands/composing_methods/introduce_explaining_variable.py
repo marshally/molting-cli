@@ -1,6 +1,6 @@
 """Introduce Explaining Variable refactoring command."""
 
-from typing import Any
+from typing import Any, Sequence
 
 import libcst as cst
 
@@ -163,10 +163,12 @@ class IntroduceExplainingVariableTransformer(cst.CSTTransformer):
         )
 
     def _insert_before_return(
-        self, statements: tuple[cst.BaseStatement, ...], assignment: cst.SimpleStatementLine
+        self,
+        statements: Sequence[cst.BaseStatement | cst.BaseSmallStatement],
+        assignment: cst.SimpleStatementLine,
     ) -> list[cst.BaseStatement]:
         """Insert assignment statement before the return statement."""
-        new_statements = []
+        new_statements: list[cst.BaseStatement] = []
         for stmt in statements:
             if isinstance(stmt, cst.SimpleStatementLine):
                 # Check if this contains a return statement
@@ -175,7 +177,7 @@ class IntroduceExplainingVariableTransformer(cst.CSTTransformer):
                         # Insert assignment before return
                         new_statements.append(assignment)
                         break
-            new_statements.append(stmt)
+            new_statements.append(stmt)  # type: ignore[arg-type]
         return new_statements
 
     def _replace_if_target(
