@@ -5,6 +5,7 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_target_with_line
 
 
 class IntroduceAssertionCommand(BaseCommand):
@@ -20,33 +21,6 @@ class IntroduceAssertionCommand(BaseCommand):
         """
         self.validate_required_params("target", "condition")
 
-    def _parse_target(self, target: str) -> tuple[str, int]:
-        """Parse target parameter into function name and line number.
-
-        Args:
-            target: Target string in format function_name#L<line_number>
-
-        Returns:
-            Tuple of (function_name, target_line)
-
-        Raises:
-            ValueError: If target format is invalid
-        """
-        if "#L" not in target:
-            raise ValueError(
-                f"Invalid target format: {target}. Expected: function_name#L<line_number>"
-            )
-
-        function_name, line_part = target.split("#L", 1)
-        try:
-            target_line = int(line_part)
-        except ValueError:
-            raise ValueError(
-                f"Invalid line number in target: {target}. Expected: function_name#L<line_number>"
-            )
-
-        return function_name, target_line
-
     def execute(self) -> None:
         """Apply introduce-assertion refactoring using libCST.
 
@@ -57,7 +31,10 @@ class IntroduceAssertionCommand(BaseCommand):
         condition = self.params["condition"]
         message = self.params.get("message", "Project must have expense limit or primary project")
 
-        function_name, target_line = self._parse_target(target)
+        # Parse target using shared utility (for function-level targets, method_name will be empty)
+        function_name, _, line_spec = parse_target_with_line(target)
+        # Extract line number from line_spec (e.g., "L4" -> 4)
+        target_line = int(line_spec[1:])
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
