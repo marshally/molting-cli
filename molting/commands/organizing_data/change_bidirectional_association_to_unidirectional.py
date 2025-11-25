@@ -1,5 +1,7 @@
 """Change Bidirectional Association to Unidirectional refactoring command."""
 
+from typing import cast
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -8,8 +10,6 @@ from molting.core.ast_utils import find_class_in_module, parse_target
 
 # Method name constants
 INIT_METHOD_NAME = "__init__"
-ADD_METHOD_PREFIX = "add_"
-SET_METHOD_PREFIX = "set_"
 
 
 class ChangeBidirectionalAssociationToUnidirectionalCommand(BaseCommand):
@@ -101,9 +101,9 @@ class ChangeBidirectionalAssociationToUnidirectionalTransformer(cst.CSTTransform
         for stmt in class_def.body.body:
             if not isinstance(stmt, cst.FunctionDef):
                 continue
-            if stmt.name.value.startswith(ADD_METHOD_PREFIX):
+            if stmt.name.value.startswith("add_"):
                 # Extract the singular form (e.g., 'order' from 'add_order')
-                singular = stmt.name.value[len(ADD_METHOD_PREFIX) :]
+                singular = stmt.name.value[4:]  # Remove 'add_'
                 # Capitalize to get class name (e.g., 'Order' from 'order')
                 self.forward_class_name = singular.capitalize()
                 break
@@ -134,16 +134,13 @@ class ChangeBidirectionalAssociationToUnidirectionalTransformer(cst.CSTTransform
         new_body: list[cst.BaseStatement] = []
 
         for stmt in class_def.body.body:
-            if isinstance(stmt, cst.FunctionDef):
-                if stmt.name.value == INIT_METHOD_NAME:
-                    new_body.append(self._simplify_init(stmt))
-                elif stmt.name.value.startswith(SET_METHOD_PREFIX):
-                    # Remove setter methods - skip this statement
-                    pass
-                else:
-                    new_body.append(stmt)
+            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
+                new_body.append(self._simplify_init(stmt))
+            elif isinstance(stmt, cst.FunctionDef) and stmt.name.value.startswith("set_"):
+                # Remove setter methods
+                continue
             else:
-                new_body.append(stmt)
+                new_body.append(cast(cst.BaseStatement, stmt))
 
         return class_def.with_changes(body=cst.IndentedBlock(body=new_body))
 
