@@ -32,7 +32,6 @@ class TestPullUpMethod(RefactoringTestBase):
         self.refactor("pull-up-method", target="Salesman::get_annual_cost", to="Employee")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestPullUpConstructorBody(RefactoringTestBase):
     """Tests for Pull Up Constructor Body refactoring."""
 
