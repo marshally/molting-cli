@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_comma_separated_list
+from molting.core.ast_utils import extract_all_methods, parse_comma_separated_list
 from molting.core.code_generation_utils import create_init_method, create_parameter
 from molting.core.visitors import SelfFieldChecker
 
@@ -76,17 +76,17 @@ class ExtractSubclassTransformer(cst.CSTTransformer):
             class_def: The class definition
         """
         # Find __init__ in original class
-        for stmt in class_def.body.body:
-            if isinstance(stmt, cst.FunctionDef):
-                if stmt.name.value == "__init__":
-                    if isinstance(stmt.params, cst.Parameters):
-                        for param in stmt.params.params:
-                            if param.name.value != "self":
-                                if param.name.value in self.features:
-                                    self.original_feature_params.append(param.name.value)
-                                else:
-                                    self.original_non_feature_params.append(param.name.value)
-                    break
+        methods = extract_all_methods(class_def, exclude_init=False)
+        for method in methods:
+            if method.name.value == "__init__":
+                if isinstance(method.params, cst.Parameters):
+                    for param in method.params.params:
+                        if param.name.value != "self":
+                            if param.name.value in self.features:
+                                self.original_feature_params.append(param.name.value)
+                            else:
+                                self.original_non_feature_params.append(param.name.value)
+                break
 
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
