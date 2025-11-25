@@ -134,13 +134,14 @@ class ChangeBidirectionalAssociationToUnidirectionalTransformer(cst.CSTTransform
         new_body: list[cst.BaseStatement] = []
 
         for stmt in class_def.body.body:
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
-                new_body.append(self._simplify_init(stmt))
-            elif isinstance(stmt, cst.FunctionDef) and stmt.name.value.startswith(
-                SET_METHOD_PREFIX
-            ):
-                # Remove setter methods
-                continue
+            if isinstance(stmt, cst.FunctionDef):
+                if stmt.name.value == INIT_METHOD_NAME:
+                    new_body.append(self._simplify_init(stmt))
+                elif stmt.name.value.startswith(SET_METHOD_PREFIX):
+                    # Remove setter methods - skip this statement
+                    pass
+                else:
+                    new_body.append(stmt)
             else:
                 new_body.append(stmt)
 
