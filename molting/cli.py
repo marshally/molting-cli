@@ -37,6 +37,7 @@ import molting.commands.organizing_data.change_value_to_reference  # noqa: F401
 import molting.commands.organizing_data.duplicate_observed_data  # noqa: F401
 import molting.commands.organizing_data.encapsulate_collection  # noqa: F401
 import molting.commands.organizing_data.encapsulate_field  # noqa: F401
+import molting.commands.organizing_data.replace_array_with_object  # noqa: F401
 import molting.commands.organizing_data.replace_data_value_with_object  # noqa: F401
 import molting.commands.organizing_data.replace_magic_number_with_symbolic_constant  # noqa: F401
 import molting.commands.organizing_data.self_encapsulate_field  # noqa: F401
