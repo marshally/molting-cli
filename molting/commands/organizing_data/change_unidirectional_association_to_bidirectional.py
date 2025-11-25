@@ -9,6 +9,9 @@ from molting.commands.registry import register_command
 from molting.core.ast_utils import find_class_in_module, parse_target
 from molting.core.code_generation_utils import create_parameter
 
+# Method name constants
+INIT_METHOD_NAME = "__init__"
+
 
 class ChangeUnidirectionalAssociationToBidirectionalCommand(BaseCommand):
     """Command to change unidirectional association to bidirectional."""
@@ -107,7 +110,7 @@ class ChangeUnidirectionalAssociationToBidirectionalTransformer(cst.CSTTransform
             return
 
         for stmt in class_def.body.body:
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
                 for body_stmt in stmt.body.body:
                     if isinstance(body_stmt, cst.SimpleStatementLine):
                         for item in body_stmt.body:
@@ -137,7 +140,7 @@ class ChangeUnidirectionalAssociationToBidirectionalTransformer(cst.CSTTransform
         new_body: list[cst.BaseStatement] = []
 
         for stmt in class_def.body.body:
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
                 new_body.append(self._modify_forward_init(stmt))
             else:
                 new_body.append(stmt)
@@ -332,7 +335,7 @@ class ChangeUnidirectionalAssociationToBidirectionalTransformer(cst.CSTTransform
         has_init = False
 
         for stmt in class_def.body.body:
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
                 has_init = True
                 new_body.append(self._modify_reference_init(stmt))
             elif isinstance(stmt, cst.SimpleStatementLine):
@@ -399,7 +402,7 @@ class ChangeUnidirectionalAssociationToBidirectionalTransformer(cst.CSTTransform
             The __init__ method
         """
         return cst.FunctionDef(
-            name=cst.Name("__init__"),
+            name=cst.Name(INIT_METHOD_NAME),
             params=cst.Parameters(params=[create_parameter("self")]),
             body=cst.IndentedBlock(
                 body=[
