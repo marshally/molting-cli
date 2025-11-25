@@ -5,7 +5,6 @@ This module tests refactorings that improve method interfaces by simplifying
 how they are called, removing unnecessary parameters, and improving readability.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
