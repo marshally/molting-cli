@@ -151,41 +151,51 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef | cst.FlattenSentinel[cst.ClassDef]:
         """Process class definition after visiting."""
-        if self.in_target_class:
-            self.in_target_class = False
+        if not self.in_target_class:
+            return updated_node
 
-            new_body = []
-            for stmt in updated_node.body.body:
-                if not self._is_class_constant_statement(stmt):
-                    new_body.append(stmt)
+        self.in_target_class = False
 
-            # Update the base class body
-            updated_node = updated_node.with_changes(
-                body=updated_node.body.with_changes(body=new_body)
-            )
+        # Remove class constants from base class
+        updated_node = self._remove_class_constants(updated_node)
 
-            # Return base class followed by subclasses with proper spacing
-            if self.new_classes:
-                # Add blank lines after base class
-                updated_node = updated_node.with_changes(
-                    leading_lines=[],
-                    lines_after_decorators=[],
-                )
-
-                # Add blank lines before each subclass
-                spaced_subclasses = []
-                for subclass in self.new_classes:
-                    spaced_subclass = subclass.with_changes(
-                        leading_lines=[
-                            cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-                            cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-                        ]
-                    )
-                    spaced_subclasses.append(spaced_subclass)
-
-                return cst.FlattenSentinel([updated_node] + spaced_subclasses)
+        # Return base class with subclasses if any were created
+        if self.new_classes:
+            return self._create_class_hierarchy(updated_node)
 
         return updated_node
+
+    def _remove_class_constants(self, class_node: cst.ClassDef) -> cst.ClassDef:
+        """Remove class constant assignments from the class body."""
+        new_body = []
+        for stmt in class_node.body.body:
+            if not self._is_class_constant_statement(stmt):
+                new_body.append(stmt)
+
+        return class_node.with_changes(body=class_node.body.with_changes(body=new_body))
+
+    def _create_class_hierarchy(
+        self, base_class: cst.ClassDef
+    ) -> cst.FlattenSentinel[cst.ClassDef]:
+        """Create a flattened hierarchy of base class followed by subclasses."""
+        # Add blank lines after base class
+        base_class = base_class.with_changes(
+            leading_lines=[],
+            lines_after_decorators=[],
+        )
+
+        # Add blank lines before each subclass
+        spaced_subclasses = []
+        for subclass in self.new_classes:
+            spaced_subclass = subclass.with_changes(
+                leading_lines=[
+                    cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                    cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                ]
+            )
+            spaced_subclasses.append(spaced_subclass)
+
+        return cst.FlattenSentinel([base_class] + spaced_subclasses)
 
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
