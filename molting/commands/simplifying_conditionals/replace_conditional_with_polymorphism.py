@@ -1,6 +1,5 @@
 """Replace Conditional with Polymorphism refactoring command."""
 
-
 import libcst as cst
 from libcst import metadata
 
@@ -20,6 +19,36 @@ class ReplaceConditionalWithPolymorphismCommand(BaseCommand):
             ValueError: If required parameters are missing
         """
         self.validate_required_params("target")
+
+    def _parse_line_range(self, line_range: str) -> tuple[int, int]:
+        """Parse line range string into start and end line numbers.
+
+        Args:
+            line_range: Line range in format "L13-L20"
+
+        Returns:
+            Tuple of (start_line, end_line)
+
+        Raises:
+            ValueError: If line range format is invalid
+        """
+        if not line_range.startswith("L"):
+            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L13-L20'")
+
+        if "-" not in line_range:
+            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L13-L20'")
+
+        range_parts = line_range.split("-")
+        if len(range_parts) != 2:
+            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L13-L20'")
+
+        try:
+            start_line = int(range_parts[0][1:])
+            end_line = int(range_parts[1][1:])
+        except ValueError as e:
+            raise ValueError(f"Invalid line numbers in '{line_range}': {e}") from e
+
+        return start_line, end_line
 
     def _parse_target(self, target: str) -> tuple[str, str, int, int]:
         """Parse target format into class name, method name and line range.
@@ -41,22 +70,7 @@ class ReplaceConditionalWithPolymorphismCommand(BaseCommand):
         class_method, line_range = target.split("#")
         class_name, method_name = class_method.split("::")
 
-        if not line_range.startswith("L"):
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L13-L20'")
-
-        if "-" not in line_range:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L13-L20'")
-
-        range_parts = line_range.split("-")
-        if len(range_parts) != 2:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L13-L20'")
-
-        try:
-            start_line = int(range_parts[0][1:])
-            end_line = int(range_parts[1][1:])
-        except ValueError as e:
-            raise ValueError(f"Invalid line numbers in '{line_range}': {e}") from e
-
+        start_line, end_line = self._parse_line_range(line_range)
         return class_name, method_name, start_line, end_line
 
     def execute(self) -> None:
