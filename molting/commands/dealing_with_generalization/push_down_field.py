@@ -231,7 +231,8 @@ class PushDownFieldTransformer(cst.CSTTransformer):
             New __init__ method
         """
         super_call = create_super_init_call()
-        field_assignment = self._create_field_assignment_statement()
+        field_value = self.field_value if self.field_value else cst.Integer("0")
+        field_assignment = create_field_assignment(self.field_name, field_value)
 
         return cst.FunctionDef(
             name=cst.Name("__init__"),

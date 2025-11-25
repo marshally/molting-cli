@@ -302,7 +302,7 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
 
         # Keep original field assignments
         for stmt in init_method.body.body:
-            new_body.append(stmt)
+            new_body.append(cast(cst.BaseStatement, stmt))
 
         # Add self.update() call
         new_body.append(
@@ -366,7 +366,7 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
 
         # Keep original body
         for stmt in method.body.body:
-            new_body.append(stmt)
+            new_body.append(cast(cst.BaseStatement, stmt))
 
         return method.with_changes(body=cst.IndentedBlock(body=new_body))
 
