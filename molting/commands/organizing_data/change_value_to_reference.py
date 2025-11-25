@@ -147,6 +147,17 @@ class ChangeValueToReferenceTransformer(cst.CSTTransformer):
 
         return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
 
+    def _create_instances_attribute(self) -> cst.Attribute:
+        """Create cls._instances attribute access.
+
+        Returns:
+            The attribute node for cls._instances
+        """
+        return cst.Attribute(
+            value=cst.Name("cls"),
+            attr=cst.Name("_instances"),
+        )
+
     def _create_get_named_method(self, param_name: str) -> cst.FunctionDef:
         """Create the get_named classmethod.
 
@@ -172,10 +183,7 @@ class ChangeValueToReferenceTransformer(cst.CSTTransformer):
                             comparisons=[
                                 cst.ComparisonTarget(
                                     operator=cst.NotIn(),
-                                    comparator=cst.Attribute(
-                                        value=cst.Name("cls"),
-                                        attr=cst.Name("_instances"),
-                                    ),
+                                    comparator=self._create_instances_attribute(),
                                 )
                             ],
                         ),
@@ -187,10 +195,7 @@ class ChangeValueToReferenceTransformer(cst.CSTTransformer):
                                             targets=[
                                                 cst.AssignTarget(
                                                     target=cst.Subscript(
-                                                        value=cst.Attribute(
-                                                            value=cst.Name("cls"),
-                                                            attr=cst.Name("_instances"),
-                                                        ),
+                                                        value=self._create_instances_attribute(),
                                                         slice=[
                                                             cst.SubscriptElement(
                                                                 slice=cst.Index(
@@ -215,10 +220,7 @@ class ChangeValueToReferenceTransformer(cst.CSTTransformer):
                         body=[
                             cst.Return(
                                 value=cst.Subscript(
-                                    value=cst.Attribute(
-                                        value=cst.Name("cls"),
-                                        attr=cst.Name("_instances"),
-                                    ),
+                                    value=self._create_instances_attribute(),
                                     slice=[
                                         cst.SubscriptElement(
                                             slice=cst.Index(value=cst.Name(param_name))
