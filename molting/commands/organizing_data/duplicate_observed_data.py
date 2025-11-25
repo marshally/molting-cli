@@ -10,6 +10,7 @@ from molting.core.ast_utils import find_class_in_module, parse_target
 from molting.core.code_generation_utils import create_parameter
 
 INIT_METHOD_NAME = "__init__"
+FIELD_SUFFIX = "_field"
 
 
 class DuplicateObservedDataCommand(BaseCommand):
@@ -114,7 +115,7 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
                                             if (
                                                 isinstance(target.target.value, cst.Name)
                                                 and target.target.value.value == "self"
-                                                and target.target.attr.value.endswith("_field")
+                                                and target.target.attr.value.endswith(FIELD_SUFFIX)
                                             ):
                                                 field_name = target.target.attr.value
                                                 if field_name not in gui_fields_list:
@@ -135,7 +136,7 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
         domain_fields = []
         for gui_field in self.gui_fields_list:
             # Convert start_field -> start, end_field -> end, etc.
-            domain_field = gui_field.replace("_field", "")
+            domain_field = gui_field.replace(FIELD_SUFFIX, "")
             domain_fields.append(domain_field)
 
         # Create __init__ method
@@ -404,7 +405,7 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
         # Create statements for each field in order
         statements = []
         for gui_field in self.gui_fields_list:
-            domain_field = gui_field.replace("_field", "")
+            domain_field = gui_field.replace(FIELD_SUFFIX, "")
             statements.append(
                 cst.SimpleStatementLine(
                     body=[
