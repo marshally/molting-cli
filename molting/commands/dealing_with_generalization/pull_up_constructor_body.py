@@ -114,6 +114,26 @@ class PullUpConstructorBodyTransformer(cst.CSTTransformer):
                 return True
         return False
 
+    def _is_self_field_assignment(self, target: cst.AssignTarget) -> tuple[bool, str | None]:
+        """Check if an assignment target is a self.field assignment.
+
+        Args:
+            target: Assignment target to check
+
+        Returns:
+            Tuple of (is_self_field_assignment, field_name or None)
+        """
+        if not isinstance(target.target, cst.Attribute):
+            return False, None
+
+        if not isinstance(target.target.value, cst.Name):
+            return False, None
+
+        if target.target.value.value != "self":
+            return False, None
+
+        return True, target.target.attr.value
+
     def _extract_constructor_info(self, class_node: cst.ClassDef) -> dict[str, Any] | None:
         """Extract constructor information from a class.
 
@@ -141,13 +161,9 @@ class PullUpConstructorBodyTransformer(cst.CSTTransformer):
                 for body_stmt in stmt.body:
                     if isinstance(body_stmt, cst.Assign):
                         for target in body_stmt.targets:
-                            if isinstance(target.target, cst.Attribute):
-                                if (
-                                    isinstance(target.target.value, cst.Name)
-                                    and target.target.value.value == "self"
-                                ):
-                                    field_name = target.target.attr.value
-                                    assignments[field_name] = body_stmt.value
+                            is_self_field, field_name = self._is_self_field_assignment(target)
+                            if is_self_field and field_name:
+                                assignments[field_name] = body_stmt.value
 
         return {"params": params, "assignments": assignments}
 
