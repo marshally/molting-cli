@@ -6,7 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import is_self_attribute
+from molting.core.ast_utils import is_self_attribute, parse_target
 from molting.core.code_generation_utils import create_parameter
 
 
@@ -32,14 +32,8 @@ class HideDelegateCommand(BaseCommand):
         """
         target = self.params["target"]
 
-        parts = target.split("::")
-        if len(parts) != 2:
-            raise ValueError(
-                f"Invalid target format: {target}. Expected format: ClassName::field_name"
-            )
-
-        class_name = parts[0]
-        field_name = parts[1]
+        # Parse target using shared utility
+        class_name, field_name = parse_target(target, expected_parts=2)
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
