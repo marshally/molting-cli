@@ -151,7 +151,6 @@ class TestReplaceTypeCodeWithClass(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceTypeCodeWithSubclasses(RefactoringTestBase):
     """Tests for Replace Type Code with Subclasses refactoring."""
 
