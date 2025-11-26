@@ -6,6 +6,24 @@ description: Execute all ready beads issues in parallel using up to 4 subagents
 
 Continuously process all ready beads issues by spawning up to 4 parallel subagents. Each subagent works on one issue independently in its own worktree. Keep going until all issues are completed.
 
+## Multi-Agent Architecture
+
+This workflow uses:
+- **Agent Mail** - Real-time coordination to prevent collisions (<100ms vs 2-5s git-based)
+- **Git Worktrees** - Isolated working directories per issue
+- **Protected Branch** - Issues sync to `beads-metadata` branch (not main)
+- **No-Daemon Mode** - Required for worktree compatibility
+
+### Environment Configuration
+
+Each subagent MUST set these environment variables at the start:
+```bash
+export BEADS_AGENT_MAIL_URL=http://127.0.0.1:8765
+export BEADS_AGENT_NAME=claude-{issue_id}  # Unique per agent
+export BEADS_PROJECT_ID=molting-cli
+export BEADS_NO_DAEMON=1  # Required for worktrees
+```
+
 ## Workflow
 
 ### Step 0: Ensure Proper Branch Setup
@@ -30,11 +48,18 @@ cd /Users/marshallyount/code/marshally/molting-cli && git push -u origin $(git b
 
 This may fail if the branch already exists on remote - that's okay, it means it's already set up correctly.
 
+### Step 0.5: Verify Agent Mail Server
+
+Check that Agent Mail is running:
+```bash
+curl -s http://127.0.0.1:8765/mail/ | head -5 || echo "Agent Mail not running - start with: cd /tmp/mcp_agent_mail && source .venv/bin/activate && python -m mcp_agent_mail.cli serve-http --port 8765"
+```
+
 ### Step 1: Fetch All Ready Issues
 
-First, ensure we have the latest beads data to avoid race conditions:
+First, ensure we have the latest beads data from the protected branch:
 ```bash
-cd /Users/marshallyount/code/marshally/molting-cli && bd sync --import-only
+cd /Users/marshallyount/code/marshally/molting-cli && BEADS_NO_DAEMON=1 bd sync --import-only
 ```
 
 This imports the latest issue statuses from the beads-metadata branch.
@@ -133,6 +158,20 @@ Use the Task tool with:
 You are implementing issue {issue_id}: Implement {refactoring_name} refactoring using strict TDD (Red-Green-Refactor) methodology.
 
 CRITICAL: You MUST complete ALL 7 steps below. Do NOT stop after any intermediate step. You are not done until you have completed STEP 7 and provided the final report.
+
+### STEP 0: Environment Setup (MANDATORY - DO THIS FIRST)
+
+Set these environment variables BEFORE any beads commands:
+```bash
+export BEADS_AGENT_MAIL_URL=http://127.0.0.1:8765
+export BEADS_AGENT_NAME=claude-{issue_id}
+export BEADS_PROJECT_ID=molting-cli
+export BEADS_NO_DAEMON=1
+```
+
+These enable:
+- Agent Mail coordination (prevents collisions with other agents)
+- No-daemon mode (required for git worktrees)
 
 ### CRITICAL: Review Base Classes and Utilities FIRST
 
@@ -485,6 +524,20 @@ You are implementing issue {issue_id}: {title}
 **Acceptance Criteria:**
 {acceptance_criteria}
 
+### STEP 0: Environment Setup (MANDATORY - DO THIS FIRST)
+
+Set these environment variables BEFORE any beads commands:
+```bash
+export BEADS_AGENT_MAIL_URL=http://127.0.0.1:8765
+export BEADS_AGENT_NAME=claude-{issue_id}
+export BEADS_PROJECT_ID=molting-cli
+export BEADS_NO_DAEMON=1
+```
+
+These enable:
+- Agent Mail coordination (prevents collisions with other agents)
+- No-daemon mode (required for git worktrees)
+
 ### CRITICAL: Review Base Classes and Utilities FIRST
 
 Before writing ANY code, you MUST read and understand the shared functionality available in this codebase. This is NON-NEGOTIABLE.
@@ -756,12 +809,16 @@ After all subagents in a batch complete:
 2. Track results:
    - Successful completions (PR created, CI passing, issue closed)
    - Failures (with reasons)
-3. Check for more ready issues:
+3. **Sync beads to protected branch**:
+   ```bash
+   cd /Users/marshallyount/code/marshally/molting-cli && BEADS_NO_DAEMON=1 bd sync -m "Batch complete: closed issues from parallel execution"
+   ```
+4. Check for more ready issues:
    - Use `mcp__plugin_beads_beads__ready` again
    - Filter out epics and already-processed issues
-4. If more issues exist:
+5. If more issues exist:
    - Repeat Step 2 with next batch (up to 4)
-5. Continue until no ready issues remain
+6. Continue until no ready issues remain
 
 ### Step 4: Final Summary
 
@@ -794,3 +851,6 @@ Remaining Ready Issues: N
 5. **Track results** - maintain a running tally of successes and failures
 6. **Report failures** - don't hide issues that couldn't be completed
 7. **Subagents MUST read utilities first** - ensure they use shared functionality
+8. **Always use BEADS_NO_DAEMON=1** - daemon mode doesn't work with worktrees
+9. **Agent Mail for coordination** - each subagent gets unique BEADS_AGENT_NAME
+10. **Sync to protected branch** - use `bd sync` after each batch completes
