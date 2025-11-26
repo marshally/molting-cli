@@ -52,7 +52,7 @@ This may fail if the branch already exists on remote - that's okay, it means it'
 
 Check that Agent Mail is running:
 ```bash
-curl -s http://127.0.0.1:8765/mail/ | head -5 || echo "Agent Mail not running - start with: cd /tmp/mcp_agent_mail && source .venv/bin/activate && python -m mcp_agent_mail.cli serve-http --port 8765"
+curl -s http://127.0.0.1:8765/mail/ | head -5 || echo "Agent Mail not running - start with: cd ~/code/tools/mcp_agent_mail && source .venv/bin/activate && python -m mcp_agent_mail.cli serve-http --port 8765"
 ```
 
 ### Step 1: Fetch All Ready Issues

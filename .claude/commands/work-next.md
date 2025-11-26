@@ -6,9 +6,34 @@ description: Fetch the first ready issue from beads, create a branch, and set up
 
 Fetch the next ready issue from beads, set up the appropriate worktree/branch, spawn a subagent to implement it using strict TDD, verify results, and STOP for user confirmation.
 
+## Multi-Agent Architecture
+
+This workflow uses:
+- **Agent Mail** - Real-time coordination to prevent collisions (<100ms vs 2-5s git-based)
+- **Git Worktrees** - Isolated working directories per issue
+- **Protected Branch** - Issues sync to `beads-metadata` branch (not main)
+- **No-Daemon Mode** - Required for worktree compatibility
+
+### Environment Configuration
+
+The subagent MUST set these environment variables at the start:
+```bash
+export BEADS_AGENT_MAIL_URL=http://127.0.0.1:8765
+export BEADS_AGENT_NAME=claude-{issue_id}  # Unique per agent
+export BEADS_PROJECT_ID=molting-cli
+export BEADS_NO_DAEMON=1  # Required for worktrees
+```
+
 ## Workflow
 
-### Step 0: Ensure Proper Branch Setup
+### Step 0: Verify Agent Mail Server
+
+Check that Agent Mail is running:
+```bash
+curl -s http://127.0.0.1:8765/mail/ | head -5 || echo "Agent Mail not running - start with: cd ~/code/tools/mcp_agent_mail && source .venv/bin/activate && python -m mcp_agent_mail.cli serve-http --port 8765"
+```
+
+### Step 0.5: Ensure Proper Branch Setup
 
 Before starting work, ensure we're on the correct branch:
 
@@ -32,9 +57,9 @@ This may fail if the branch already exists on remote - that's okay, it means it'
 
 ### Step 1: Fetch Next Ready Issue
 
-First, ensure we have the latest beads data to avoid race conditions:
+First, ensure we have the latest beads data from the protected branch:
 ```bash
-cd /Users/marshallyount/code/marshally/molting-cli && bd sync --import-only
+cd /Users/marshallyount/code/marshally/molting-cli && BEADS_NO_DAEMON=1 bd sync --import-only
 ```
 
 This imports the latest issue statuses from the beads-metadata branch.
@@ -140,6 +165,20 @@ Use the Task tool with:
 You are implementing issue {issue_id}: Implement {refactoring_name} refactoring using strict TDD (Red-Green-Refactor) methodology.
 
 CRITICAL: You MUST complete ALL 7 steps below. Do NOT stop after any intermediate step. You are not done until you have completed STEP 7 and provided the final report.
+
+### STEP 0: Environment Setup (MANDATORY - DO THIS FIRST)
+
+Set these environment variables BEFORE any beads commands:
+```bash
+export BEADS_AGENT_MAIL_URL=http://127.0.0.1:8765
+export BEADS_AGENT_NAME=claude-{issue_id}
+export BEADS_PROJECT_ID=molting-cli
+export BEADS_NO_DAEMON=1
+```
+
+These enable:
+- Agent Mail coordination (prevents collisions with other agents)
+- No-daemon mode (required for git worktrees)
 
 ### Setup
 
@@ -441,6 +480,20 @@ You are implementing issue {issue_id}: {title}
 
 **Acceptance Criteria:**
 {acceptance_criteria}
+
+### STEP 0: Environment Setup (MANDATORY - DO THIS FIRST)
+
+Set these environment variables BEFORE any beads commands:
+```bash
+export BEADS_AGENT_MAIL_URL=http://127.0.0.1:8765
+export BEADS_AGENT_NAME=claude-{issue_id}
+export BEADS_PROJECT_ID=molting-cli
+export BEADS_NO_DAEMON=1
+```
+
+These enable:
+- Agent Mail coordination (prevents collisions with other agents)
+- No-daemon mode (required for git worktrees)
 
 ### Setup
 
