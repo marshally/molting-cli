@@ -209,6 +209,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
         target_method_def: cst.FunctionDef | None = (
             find_method_in_class(node, target_method_name) if target_method_name else None
         )
+        init_method: cst.FunctionDef | None = find_method_in_class(node, "__init__")
 
         for stmt in node.body.body:
             # Replace the target method with new abstract method implementations
@@ -217,8 +218,8 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
                 abstract_impls = self._extract_abstract_methods_from_implementation(stmt)
                 new_body_stmts.extend(abstract_impls)
             # Clean up __init__ to remove TAX_RATE assignment
-            elif isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
-                new_init = self._clean_init_method(stmt)
+            elif stmt is init_method:
+                new_init = self._clean_init_method(init_method)
                 new_body_stmts.append(new_init)
             else:
                 new_body_stmts.append(stmt)  # type: ignore[arg-type]
