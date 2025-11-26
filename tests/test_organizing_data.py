@@ -139,7 +139,6 @@ class TestEncapsulateCollection(RefactoringTestBase):
         self.refactor("encapsulate-collection", target="Person::courses")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceTypeCodeWithClass(RefactoringTestBase):
     """Tests for Replace Type Code with Class refactoring."""
 
