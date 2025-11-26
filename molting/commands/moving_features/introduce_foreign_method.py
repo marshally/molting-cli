@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_line_number, parse_target_with_line
 from molting.core.code_generation_utils import create_parameter
 
 
@@ -37,30 +38,9 @@ class IntroduceForeignMethodCommand(BaseCommand):
         for_class = self.params["for_class"]
         method_name = self.params["name"]
 
-        # Parse target: "ClassName::method_name#L<line_number>"
-        parts = target.split("#")
-        if len(parts) != 2:
-            raise ValueError(f"Invalid target format: {target}")
-
-        class_method_part = parts[0]
-        line_spec = parts[1]
-
-        # Parse class and method
-        class_parts = class_method_part.split("::")
-        if len(class_parts) != 2:
-            raise ValueError(f"Invalid class::method format: {class_method_part}")
-
-        class_name = class_parts[0]
-        method_name_to_find = class_parts[1]
-
-        # Parse line number
-        if not line_spec.startswith("L"):
-            raise ValueError(f"Invalid line format: {line_spec}")
-
-        try:
-            target_line = int(line_spec[1:])
-        except ValueError as e:
-            raise ValueError(f"Invalid line number in {line_spec}: {e}") from e
+        # Parse target using shared utility
+        class_name, method_name_to_find, line_spec = parse_target_with_line(target)
+        target_line = parse_line_number(line_spec)
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
