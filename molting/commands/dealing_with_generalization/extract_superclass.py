@@ -11,6 +11,7 @@ from molting.core.ast_utils import (
     extract_init_field_assignments,
     find_method_in_class,
     find_self_field_assignment,
+    insert_class_after_imports,
     parse_comma_separated_list,
 )
 from molting.core.code_generation_utils import create_init_method, create_super_init_call
@@ -82,24 +83,9 @@ class ExtractSuperclassTransformer(cst.CSTTransformer):
         if not self.class_defs:
             return updated_node
 
-        # Find the position to insert the superclass (before first target class)
-        first_target_index = None
-        new_body: list[cst.BaseStatement] = []
-
-        for i, stmt in enumerate(updated_node.body):
-            if isinstance(stmt, cst.ClassDef):
-                if stmt.name.value == self.target_classes[0]:
-                    first_target_index = i
-                    # Insert superclass before the first target class
-                    superclass = self._create_superclass()
-                    new_body.append(superclass)
-
-            new_body.append(stmt)
-
-        if first_target_index is None:
-            return updated_node
-
-        return updated_node.with_changes(body=tuple(new_body))
+        # Create and insert superclass after imports
+        superclass = self._create_superclass()
+        return insert_class_after_imports(updated_node, superclass)
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef

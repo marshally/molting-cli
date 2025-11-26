@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_target
 
 
 @register_command
@@ -30,13 +31,8 @@ class SplitTemporaryVariableCommand(BaseCommand):
         """
         target = self.params["target"]
 
-        # Parse target as "function_name::variable_name"
-        if "::" not in target:
-            raise ValueError(
-                f"Invalid target format: {target}. Expected 'function_name::variable_name'"
-            )
-
-        function_name, variable_name = target.split("::", 1)
+        # Parse target using shared utility
+        function_name, variable_name = parse_target(target, expected_parts=2)
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
