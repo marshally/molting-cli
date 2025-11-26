@@ -77,7 +77,6 @@ class TestReplaceConditionalWithPolymorphism(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestIntroduceNullObject(RefactoringTestBase):
     """Tests for Introduce Null Object refactoring."""
 
