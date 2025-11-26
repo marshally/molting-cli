@@ -53,7 +53,6 @@ class TestInlineTemp(RefactoringTestBase):
         self.refactor("inline-temp", target="calculate_total::base_price")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestReplaceTempWithQuery(RefactoringTestBase):
     """Tests for Replace Temp with Query refactoring."""
 
