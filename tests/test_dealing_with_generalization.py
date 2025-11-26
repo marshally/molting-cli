@@ -22,7 +22,6 @@ class TestPullUpField(RefactoringTestBase):
         self.refactor("pull-up-field", target="Salesman::name", to="Employee")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestPullUpMethod(RefactoringTestBase):
     """Tests for Pull Up Method refactoring."""
 
