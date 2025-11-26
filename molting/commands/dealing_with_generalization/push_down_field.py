@@ -102,7 +102,7 @@ class PushDownFieldTransformer(cst.CSTTransformer):
         # Add all other statements
         for stmt in class_node.body.body:
             stmt = cast(cst.BaseStatement, stmt)
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+            if stmt is init_method:
                 continue  # Skip __init__, already processed above
             new_body_stmts.append(stmt)
 
