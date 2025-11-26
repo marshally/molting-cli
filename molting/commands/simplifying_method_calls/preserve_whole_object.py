@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_target
 
 
 class PreserveWholeObjectCommand(BaseCommand):
@@ -48,7 +49,10 @@ class PreserveWholeObjectCommand(BaseCommand):
         Returns:
             The function name
         """
-        return target.split("::")[-1] if "::" in target else target
+        if "::" in target:
+            _, method_name = parse_target(target, expected_parts=2)
+            return method_name
+        return target
 
     def execute(self) -> None:
         """Apply preserve-whole-object refactoring using AST manipulation.
