@@ -1,10 +1,10 @@
 ---
-description: Fetch the first ready issue from beads, create a branch, and set up a git worktree
+description: Execute all ready beads issues in parallel using up to 4 subagents
 ---
 
 ## Your Role
 
-Fetch the next ready issue from beads, set up the appropriate worktree/branch, spawn a subagent to implement it using strict TDD, verify results, and STOP for user confirmation.
+Continuously process all ready beads issues by spawning up to 4 parallel subagents. Each subagent works on one issue independently in its own worktree. Keep going until all issues are completed.
 
 ## Workflow
 
@@ -30,7 +30,7 @@ cd /Users/marshallyount/code/marshally/molting-cli && git push -u origin $(git b
 
 This may fail if the branch already exists on remote - that's okay, it means it's already set up correctly.
 
-### Step 1: Fetch Next Ready Issue
+### Step 1: Fetch All Ready Issues
 
 First, ensure we have the latest beads data to avoid race conditions:
 ```bash
@@ -43,59 +43,50 @@ Then set the beads context (call this tool directly, not via bash):
 - Use the `mcp__plugin_beads_beads__set_context` tool with workspace_root: `/Users/marshallyount/code/marshally/molting-cli`
 
 Then get ready issues (call this tool directly, not via bash):
-- Use the `mcp__plugin_beads_beads__ready` tool with limit: 20
+- Use the `mcp__plugin_beads_beads__ready` tool with limit: 50
 
 **IMPORTANT**: Filter and sort the results:
 1. Filter out any issues that are epics (type: "epic"). Epics should not be worked on directly - only their sub-tasks.
 2. Sort filtered issues by priority (ascending - priority 0 is highest, priority 5 is lowest)
-3. Select the FIRST issue after sorting (highest priority ready task)
 
 If no ready issues after filtering, try open issues:
-- Use the `mcp__plugin_beads_beads__list` tool with status: "open", limit: 20
+- Use the `mcp__plugin_beads_beads__list` tool with status: "open", limit: 50
 - Apply the same filtering (exclude epics by issue_type)
 - Sort by priority (ascending)
-- Select the FIRST issue after sorting
 
-Parse the output to extract:
-- issue_id - The full issue ID (e.g., "molting-cli-abc.2" or "molting-3bi")
-- title - The issue title
-- description - The issue description
-- issue_type - The issue type (task, feature, bug, etc.)
+Create a list of all issues to process.
 
-### Step 1.5: Atomically Claim Issue (Prevent Race Conditions)
+### Step 2: Process Issues in Batches of 4
 
-**CRITICAL**: This step prevents race conditions where multiple agents select the same issue.
-We use git push as an atomic lock mechanism - only one agent can successfully push first.
+**CRITICAL: Maximum 4 concurrent subagents at any time.**
 
-Use beads MCP to update the issue status (call these tools directly, not via bash):
-- Context is already set to main repo from Step 1
+For each batch of up to 4 issues:
+
+#### 2a. Claim Issues Atomically
+
+For EACH issue in the batch, update status to "in_progress":
 - Use the `mcp__plugin_beads_beads__update` tool with:
   - issue_id: "{issue_id}"
   - status: "in_progress"
-  - assignee: "Claude" (or appropriate unique agent identifier)
+  - assignee: "Claude"
 
-The MCP tool updates the local database directly. Proceed to Step 2 to create the worktree.
+The MCP tool updates the local database directly.
 
-### Step 2: Set Up Worktree (if needed)
+#### 2b. Create Worktrees
 
-Check if a worktree exists for this **full issue ID**:
+For each issue, check if a worktree exists:
 ```bash
 git worktree list | grep {issue_id}
 ```
 
-If NOT exists, fetch latest from origin and create worktree using the **full issue ID** based on origin/main:
+If NOT exists, fetch latest from origin and create worktree:
 ```bash
 cd ~/code/marshally/molting-cli && git fetch origin && git worktree add ~/code/worktrees/molting-cli/{issue_id} -b {issue_id} origin/main
 ```
 
-Worktree location: ~/code/worktrees/molting-cli/{issue_id}
-Branch: {issue_id}
+#### 2c. Determine Task Types
 
-**IMPORTANT: Use the FULL issue_id for both the branch name and worktree directory.**
-
-### Step 3: Determine Task Type and Extract Variables
-
-Check the issue title to determine task type:
+For each issue, check the title to determine task type:
 
 **Type A: Standard Refactoring Task**
 - Title matches pattern: "Implement {RefactoringName} refactoring"
@@ -125,11 +116,13 @@ For Type B, extract:
 - description: The issue description
 - acceptance_criteria: The issue acceptance criteria (if present)
 
-### Step 4: Spawn Subagent
+#### 2d. Spawn Subagents IN PARALLEL
+
+**CRITICAL: Send ALL Task tool calls for this batch in a SINGLE message to run them in parallel.**
 
 Use the Task tool with:
 - subagent_type: "general-purpose"
-- model: "haiku" (use "sonnet" if the task seems complex)
+- model: "sonnet" (use sonnet for reliability in parallel execution)
 - description: Brief description from the issue title
 - prompt: Fill in the appropriate template below with all extracted variables
 
@@ -140,6 +133,41 @@ Use the Task tool with:
 You are implementing issue {issue_id}: Implement {refactoring_name} refactoring using strict TDD (Red-Green-Refactor) methodology.
 
 CRITICAL: You MUST complete ALL 7 steps below. Do NOT stop after any intermediate step. You are not done until you have completed STEP 7 and provided the final report.
+
+### CRITICAL: Review Base Classes and Utilities FIRST
+
+Before writing ANY code, you MUST read and understand the shared functionality available in this codebase. This is NON-NEGOTIABLE.
+
+**Required Reading (in this order):**
+
+1. **Base Command Class** - `molting/commands/base.py`
+   - `BaseCommand` abstract class
+   - `validate_required_params()` helper
+   - `apply_libcst_transform()` and `apply_ast_transform()` methods
+
+2. **AST Utilities** - `molting/core/ast_utils.py`
+   - `parse_target()`, `parse_line_number()`, `parse_line_range()`
+   - `find_method_in_tree()`, `find_class_in_module()`
+   - `extract_all_methods()`, `extract_init_field_assignments()`
+   - `camel_to_snake_case()`, `generate_field_name_from_class()`
+   - `insert_class_after_imports()`
+
+3. **Code Generation Utilities** - `molting/core/code_generation_utils.py`
+   - `create_super_init_call()`, `create_field_assignment()`
+   - `create_init_method()`, `create_parameter()`
+
+4. **Import Utilities** - `molting/core/import_utils.py`
+   - `has_import()`, `ensure_import()`
+
+5. **Visitor Classes** - `molting/core/visitors.py`
+   - `SelfFieldCollector`, `SelfFieldChecker`
+
+6. **Similar Commands** - Look at existing commands in `molting/commands/` for patterns:
+   - Check commands in the same category as your task
+   - See how they inherit from BaseCommand
+   - Note how they use transformers and utilities
+
+**YOU MUST USE THESE UTILITIES** instead of reimplementing functionality. If a utility exists for what you need, USE IT.
 
 ### Setup
 
@@ -202,12 +230,25 @@ pytest
 
    If any tests fail: STOP and report
 
-### STEP 2: Verify Preflight Complete
+### STEP 2: Read Base Classes and Utilities (MANDATORY)
 
-The issue has already been marked as "in_progress" in the main repository by the /work-next command.
-You can now proceed with the TDD cycle.
+Before writing any code, read these files:
+```bash
+cat molting/commands/base.py
+cat molting/core/ast_utils.py
+cat molting/core/code_generation_utils.py
+cat molting/core/import_utils.py
+cat molting/core/visitors.py
+```
 
-### STEP 3: RED Stage 🔴
+Also look at similar existing commands:
+```bash
+ls molting/commands/*/
+```
+
+Take note of what helper functions already exist that you can reuse.
+
+### STEP 3: RED Stage
 
 a. Read the test file to find the test for this refactoring:
    {test_file_path}
@@ -227,7 +268,7 @@ pytest {test_file_path}::{test_class}::test_simple -v
 
 e. Format, commit, and push the failing test:
 ```bash
-make format && git add -A && git commit -m "🔴 RED: Unskip {test_class}::test_simple
+make format && git add -A && git commit -m "RED: Unskip {test_class}::test_simple
 
 Command: pytest {test_file_path}::{test_class}::test_simple -v
 
@@ -237,11 +278,12 @@ The test correctly fails because {refactoring_name} refactoring is not implement
 This is the expected behavior for the RED phase of TDD." && git push
 ```
 
-### STEP 4: GREEN Stage 🟢
+### STEP 4: GREEN Stage
 
 a. Implement the MINIMUM code needed to make the test pass:
    - Create a new command class in molting/commands/{fixture_category}/{refactoring_dir}.py
    - Follow the Command Pattern established in the codebase
+   - **USE existing base classes and utilities** - don't reinvent the wheel
    - Look at existing commands as reference (check molting/commands/<category>/<name>.py)
    - Register the command in the registry
    - Import the command in molting/cli.py
@@ -262,7 +304,7 @@ c. If test fails: fix the implementation and try again
    If test passes: format, commit, and push the implementation
 
 ```bash
-make format && git add -A && git commit -m "🟢 GREEN: Implement {refactoring_name} command
+make format && git add -A && git commit -m "GREEN: Implement {refactoring_name} command
 
 Command: pytest {test_file_path}::{test_class}::test_simple -v
 
@@ -274,7 +316,7 @@ Implemented the minimum code required to make the test pass:
 - " && git push
 ```
 
-### STEP 5: REFACTOR Stage ♻️
+### STEP 5: REFACTOR Stage
 
 IMPORTANT: After completing the code review in this step, you MUST continue to STEP 6. Do NOT stop here.
 
@@ -294,16 +336,16 @@ b. For EACH issue identified (critical, important, minor):
    - Format, commit, and push each fix separately:
 
 ```bash
-make format && git add -A && git commit -m "♻️ <description>
+make format && git add -A && git commit -m "Refactor: <description>
 
 Test command: pytest {test_file_path}::{test_class}::test_simple -v
 Result: PASSED (1 passed, X warnings in Y.YYs)" && git push
 ```
 
    Examples:
-   - "♻️ Pure refactoring: Remove unused variable"
-   - "♻️ Add error handling for missing parameters"
-   - "♻️ Pure refactoring: Extract validation to helper function"
+   - "Refactor: Remove unused variable"
+   - "Refactor: Add error handling for missing parameters"
+   - "Refactor: Extract validation to helper function"
 
 c. Continue until all major issues are addressed
 
@@ -359,7 +401,7 @@ Created {test_class}Command class following the established Command Pattern arch
 - All refactorings maintain passing tests
 - Code reviewed against Clean Code principles
 
-🤖 Generated with https://claude.com/claude-code
+Generated with https://claude.com/claude-code
 EOF
 )" --base main
 ```
@@ -408,19 +450,20 @@ FINAL REPORT - IMPLEMENTATION COMPLETE
 1. Issue: molting-cli-abc.2 - Implement Extract Method
 2. PR URL: https://github.com/marshally/molting-cli/pull/123
 3. Commits: 5 total (1 RED + 1 GREEN + 2 REFACTOR + 1 CI fix)
-4. CI Status: All checks passing ✓
+4. CI Status: All checks passing
 5. Summary: Implemented ExtractMethod command using libCST for AST transformation. Added validation for method name format and error handling for invalid selections.
-6. Beads Issue: Closed ✓
+6. Beads Issue: Closed
 ```
 
 IMPORTANT NOTES:
 - Run ALL commands from the worktree directory: ~/code/worktrees/molting-cli/{issue_id}
 - Use the FULL issue_id (e.g., "molting-cli-357.2") everywhere, NOT just the epic prefix
 - NEVER skip preflight checks
+- **READ BASE CLASSES AND UTILITIES BEFORE WRITING CODE**
+- **USE EXISTING UTILITIES** - don't reimplement functionality
 - ALWAYS run make format before committing any code
 - ALWAYS push immediately after every commit using git push
 - NEVER combine RED/GREEN/REFACTOR commits
-- ALWAYS use commit emojis (🔴 🟢 ♻️)
 - Test after EVERY commit
 - Follow the Command Pattern architecture (see existing commands as examples)
 - Add type annotations (from typing import Any)
@@ -441,6 +484,38 @@ You are implementing issue {issue_id}: {title}
 
 **Acceptance Criteria:**
 {acceptance_criteria}
+
+### CRITICAL: Review Base Classes and Utilities FIRST
+
+Before writing ANY code, you MUST read and understand the shared functionality available in this codebase. This is NON-NEGOTIABLE.
+
+**Required Reading (in this order):**
+
+1. **Base Command Class** - `molting/commands/base.py`
+   - `BaseCommand` abstract class
+   - `validate_required_params()` helper
+   - `apply_libcst_transform()` and `apply_ast_transform()` methods
+
+2. **AST Utilities** - `molting/core/ast_utils.py`
+   - `parse_target()`, `parse_line_number()`, `parse_line_range()`
+   - `find_method_in_tree()`, `find_class_in_module()`
+   - `extract_all_methods()`, `extract_init_field_assignments()`
+   - `camel_to_snake_case()`, `generate_field_name_from_class()`
+   - `insert_class_after_imports()`
+
+3. **Code Generation Utilities** - `molting/core/code_generation_utils.py`
+   - `create_super_init_call()`, `create_field_assignment()`
+   - `create_init_method()`, `create_parameter()`
+
+4. **Import Utilities** - `molting/core/import_utils.py`
+   - `has_import()`, `ensure_import()`
+
+5. **Visitor Classes** - `molting/core/visitors.py`
+   - `SelfFieldCollector`, `SelfFieldChecker`
+
+6. **Similar Commands** - Look at existing commands in `molting/commands/` for patterns
+
+**YOU MUST USE THESE UTILITIES** instead of reimplementing functionality. If a utility exists for what you need, USE IT.
 
 ### Setup
 
@@ -503,19 +578,39 @@ pytest
 
 If any tests fail: STOP and report
 
-### STEP 2: Understand the Task
+### STEP 2: Read Base Classes and Utilities (MANDATORY)
+
+Before writing any code, read these files:
+```bash
+cat molting/commands/base.py
+cat molting/core/ast_utils.py
+cat molting/core/code_generation_utils.py
+cat molting/core/import_utils.py
+cat molting/core/visitors.py
+```
+
+Also look at similar existing commands:
+```bash
+ls molting/commands/*/
+```
+
+Take note of what helper functions already exist that you can reuse.
+
+### STEP 3: Understand the Task
 
 Read the issue description and acceptance criteria carefully. Identify:
 - What files need to be modified or created
 - What the expected behavior/output should be
 - Whether tests need to be added or modified
 
-### STEP 3: Implement the Task
+### STEP 4: Implement the Task
 
 Follow TDD principles where applicable:
 1. Write or identify existing tests that verify the behavior
 2. Implement the minimal code to make tests pass
 3. Refactor for clean code
+
+**USE existing base classes and utilities** - don't reinvent the wheel.
 
 For each logical change:
 - Make the change
@@ -530,18 +625,18 @@ git add -A && git commit -m "<clear description of change>" && git push
 Use commit prefixes:
 - "Add" for new features/functions
 - "Fix" for bug fixes
-- "♻️ Refactor" or "♻️ Pure refactoring" for code improvements
+- "Refactor" for code improvements
 - "Update" for modifications to existing code
 - "Remove" for deletions
 
-### STEP 4: Verify Acceptance Criteria
+### STEP 5: Verify Acceptance Criteria
 
 Review the acceptance criteria from the issue description and verify each one is met:
 - Run all relevant tests
 - Check that the implementation matches requirements
 - Ensure code quality standards are met
 
-### STEP 5: Create PR and Wait for CI
+### STEP 6: Create PR and Wait for CI
 
 a. Rebase on latest main to ensure branch is up-to-date:
 ```bash
@@ -583,7 +678,7 @@ This completes issue {issue_id}.
 - [Describe how you tested the changes]
 - All tests passing: pytest [relevant test command]
 
-🤖 Generated with https://claude.com/claude-code
+Generated with https://claude.com/claude-code
 EOF
 )" --base main
 ```
@@ -613,7 +708,7 @@ Close the issue (call this tool directly, not via bash):
   - issue_id: "{issue_id}"
   - reason: "Completed with passing tests and CI"
 
-### STEP 6: Final Report (REQUIRED)
+### STEP 7: Final Report (REQUIRED)
 
 YOU MUST PROVIDE THIS FINAL REPORT - THIS IS YOUR DELIVERABLE:
 
@@ -632,31 +727,70 @@ FINAL REPORT - IMPLEMENTATION COMPLETE
 1. Issue: molting-3bi - Add naming conversion utilities to ast_utils.py
 2. PR URL: https://github.com/marshally/molting-cli/pull/123
 3. Commits: 3 total
-4. CI Status: All checks passing ✓
+4. CI Status: All checks passing
 5. Summary: Added camel_to_snake_case and generate_field_name_from_class utility functions to ast_utils.py with comprehensive tests covering edge cases.
-6. Beads Issue: Closed ✓
+6. Beads Issue: Closed
 ```
 
 IMPORTANT NOTES:
 - Run ALL commands from the worktree directory: ~/code/worktrees/molting-cli/{issue_id}
 - NEVER skip preflight checks
+- **READ BASE CLASSES AND UTILITIES BEFORE WRITING CODE**
+- **USE EXISTING UTILITIES** - don't reimplement functionality
 - ALWAYS run make format before committing any code
 - ALWAYS push immediately after every commit using git push
 - Test after EVERY commit where applicable
 - Add type annotations (from typing import Any)
 - ONLY close the beads issue after ALL CI checks pass
-- Your task is NOT complete until you provide the STEP 6 final report
+- Your task is NOT complete until you provide the STEP 7 final report
 - If you encounter complex issues, report them - don't get stuck
 - **CRITICAL: All beads MCP tools must be called directly as tool invocations, NOT as bash commands. Always call `mcp__plugin_beads_beads__set_context` first before any other beads operations.**
 
 ---
 
-### Step 5: After Subagent Completes
+### Step 3: Collect Results and Continue
 
-1. Verify the PR was created and CI passes
-2. Report results to user:
-   - Issue ID and name
-   - PR URL
-   - CI status
-   - Summary of what was implemented
-3. **STOP** - wait for user confirmation before continuing to next issue
+After all subagents in a batch complete:
+
+1. Collect their final reports
+2. Track results:
+   - Successful completions (PR created, CI passing, issue closed)
+   - Failures (with reasons)
+3. Check for more ready issues:
+   - Use `mcp__plugin_beads_beads__ready` again
+   - Filter out epics and already-processed issues
+4. If more issues exist:
+   - Repeat Step 2 with next batch (up to 4)
+5. Continue until no ready issues remain
+
+### Step 4: Final Summary
+
+When all issues are processed, provide a summary:
+
+```
+PARALLEL EXECUTION COMPLETE
+
+Total Issues Processed: X
+Successful: Y
+Failed: Z
+
+Successful PRs:
+- [issue_id]: [PR URL]
+- ...
+
+Failed Issues:
+- [issue_id]: [reason]
+- ...
+
+Remaining Ready Issues: N
+```
+
+## Key Rules
+
+1. **Maximum 4 concurrent subagents** - never spawn more than 4 at once
+2. **Spawn in parallel** - use a SINGLE message with multiple Task tool calls
+3. **Claim before spawning** - update beads status to prevent race conditions
+4. **Keep going** - don't stop until all ready issues are processed
+5. **Track results** - maintain a running tally of successes and failures
+6. **Report failures** - don't hide issues that couldn't be completed
+7. **Subagents MUST read utilities first** - ensure they use shared functionality
