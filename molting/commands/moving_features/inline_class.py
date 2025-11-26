@@ -11,8 +11,8 @@ from molting.core.ast_utils import (
     extract_init_field_assignments,
     find_class_in_module,
     find_self_field_assignment,
-    is_self_attribute,
 )
+from molting.core.transformers import SelfFieldRenameTransformer
 
 INIT_METHOD_NAME = "__init__"
 
@@ -263,34 +263,12 @@ class InlineClassTransformer(cst.CSTTransformer):
         Returns:
             The transformed method
         """
-        transformer = FieldReferenceTransformer(self.source_fields, self.field_prefix)
+        # Use shared SelfFieldRenameTransformer to add prefix to field names
+        transformer = SelfFieldRenameTransformer(
+            field_prefix=self.field_prefix,
+            field_names=set(self.source_fields.keys()),
+        )
         return cast(cst.FunctionDef, method.visit(transformer))
-
-
-class FieldReferenceTransformer(cst.CSTTransformer):
-    """Transforms field references in methods."""
-
-    def __init__(self, source_fields: dict[str, cst.BaseExpression], field_prefix: str) -> None:
-        """Initialize the transformer.
-
-        Args:
-            source_fields: Dictionary of source class fields
-            field_prefix: Prefix to add to field names
-        """
-        self.source_fields = source_fields
-        self.field_prefix = field_prefix
-
-    def leave_Attribute(  # noqa: N802
-        self, original_node: cst.Attribute, updated_node: cst.Attribute
-    ) -> cst.Attribute:
-        """Leave attribute and update field references."""
-        if is_self_attribute(updated_node):
-            field_name = updated_node.attr.value
-            if field_name in self.source_fields:
-                new_field_name = self.field_prefix + field_name
-                return updated_node.with_changes(attr=cst.Name(new_field_name))
-
-        return updated_node
 
 
 register_command(InlineClassCommand)
