@@ -46,6 +46,7 @@ import molting.commands.organizing_data.replace_array_with_object  # noqa: F401
 import molting.commands.organizing_data.replace_data_value_with_object  # noqa: F401
 import molting.commands.organizing_data.replace_magic_number_with_symbolic_constant  # noqa: F401
 import molting.commands.organizing_data.replace_type_code_with_class  # noqa: F401
+import molting.commands.organizing_data.replace_type_code_with_subclasses  # noqa: F401
 import molting.commands.organizing_data.self_encapsulate_field  # noqa: F401
 import molting.commands.simplifying_conditionals.consolidate_conditional_expression  # noqa: F401
 import molting.commands.simplifying_conditionals.consolidate_duplicate_conditional_fragments  # noqa: F401
