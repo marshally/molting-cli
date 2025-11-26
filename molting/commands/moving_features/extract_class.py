@@ -9,10 +9,10 @@ from molting.commands.registry import register_command
 from molting.core.ast_utils import (
     generate_field_name_from_class,
     is_assignment_to_field,
-    is_self_attribute,
     parse_comma_separated_list,
 )
 from molting.core.code_generation_utils import create_parameter
+from molting.core.transformers import SelfFieldRenameTransformer
 
 
 class ExtractClassCommand(BaseCommand):
@@ -244,7 +244,8 @@ class ExtractClassTransformer(cst.CSTTransformer):
 
         updated_methods: list[cst.FunctionDef] = []
         for method in self.extracted_methods:
-            transformer = FieldRenameTransformer(param_mapping)
+            # Use shared SelfFieldRenameTransformer to rename fields
+            transformer = SelfFieldRenameTransformer(field_mapping=param_mapping)
             updated_method = method.visit(transformer)
             updated_methods.append(cast(cst.FunctionDef, updated_method))
 
@@ -264,36 +265,6 @@ class ExtractClassTransformer(cst.CSTTransformer):
             bases=[],
             body=cst.IndentedBlock(body=class_body),
         )
-
-
-class FieldRenameTransformer(cst.CSTTransformer):
-    """Transformer to rename fields in extracted methods."""
-
-    def __init__(self, field_mapping: dict[str, str]):
-        """Initialize the transformer.
-
-        Args:
-            field_mapping: Mapping from old field names to new field names
-        """
-        self.field_mapping = field_mapping
-
-    def leave_Attribute(  # noqa: N802
-        self, original_node: cst.Attribute, updated_node: cst.Attribute
-    ) -> cst.Attribute:
-        """Rename self.old_field to self.new_field.
-
-        Args:
-            original_node: The original attribute node
-            updated_node: The updated attribute node
-
-        Returns:
-            The transformed attribute node
-        """
-        if is_self_attribute(updated_node):
-            if updated_node.attr.value in self.field_mapping:
-                new_name = self.field_mapping[updated_node.attr.value]
-                return updated_node.with_changes(attr=cst.Name(new_name))
-        return updated_node
 
 
 # Register the command
