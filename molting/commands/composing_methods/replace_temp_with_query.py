@@ -8,7 +8,6 @@ from molting.core.ast_utils import parse_target
 from molting.core.code_generation_utils import create_parameter
 
 
-@register_command
 class ReplaceTempWithQueryCommand(BaseCommand):
     """Command to replace a temp variable with a query method."""
 
@@ -188,3 +187,7 @@ class VariableReplacer(cst.CSTTransformer):
                 )
             )
         return updated_node
+
+
+# Register the command
+register_command(ReplaceTempWithQueryCommand)
