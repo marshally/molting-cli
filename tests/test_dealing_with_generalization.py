@@ -42,7 +42,6 @@ class TestPullUpConstructorBody(RefactoringTestBase):
         self.refactor("pull-up-constructor-body", target="Manager::__init__", to="Employee")
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestPushDownMethod(RefactoringTestBase):
     """Tests for Push Down Method refactoring."""
 
