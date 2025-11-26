@@ -93,7 +93,6 @@ class TestChangeUnidirectionalAssociationToBidirectional(RefactoringTestBase):
         )
 
 
-@pytest.mark.skip(reason="No implementation yet")
 class TestChangeBidirectionalAssociationToUnidirectional(RefactoringTestBase):
     """Tests for Change Bidirectional Association to Unidirectional refactoring."""
 

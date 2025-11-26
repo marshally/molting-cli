@@ -35,6 +35,7 @@ import molting.commands.moving_features.introduce_local_extension  # noqa: F401
 import molting.commands.moving_features.move_field  # noqa: F401
 import molting.commands.moving_features.move_method  # noqa: F401
 import molting.commands.moving_features.remove_middle_man  # noqa: F401
+import molting.commands.organizing_data.change_bidirectional_association_to_unidirectional  # noqa: F401
 import molting.commands.organizing_data.change_reference_to_value  # noqa: F401
 import molting.commands.organizing_data.change_unidirectional_association_to_bidirectional  # noqa: F401
 import molting.commands.organizing_data.change_value_to_reference  # noqa: F401
