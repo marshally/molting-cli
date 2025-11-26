@@ -11,7 +11,7 @@ from molting.core.code_generation_utils import create_parameter
 
 
 class ReplaceArrayWithObjectCommand(BaseCommand):
-    """Command to replace an array with an object."""
+    """Command to replace an array with an object that has a field for each element."""
 
     name = "replace-array-with-object"
 
@@ -61,85 +61,127 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         self.function_name = function_name
         self.param_name = param_name
         self.new_class_name = new_class_name
-        self.field_names: list[str] = []
+        self.array_accesses: list[tuple[int, str]] = []
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Visit function definitions to find array accesses.
+
+        Args:
+            node: The function definition node
+
+        Returns:
+            True to continue visiting children
+        """
+        if node.name.value == self.function_name:
+            # Scan the function body to find array accesses
+            self._scan_for_array_accesses(node)
+        return True
+
+    def _scan_for_array_accesses(self, func_def: cst.FunctionDef) -> None:
+        """Scan function body to identify array accesses and their indices.
+
+        Args:
+            func_def: The function definition to scan
+        """
+        scanner = ArrayAccessScanner(self.param_name)
+        func_def.visit(scanner)
+        self.array_accesses = scanner.accesses
 
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
     ) -> cst.Module:
-        """Add the new class to the module."""
+        """Add the new class to the module.
+
+        Args:
+            original_node: The original module
+            updated_node: The updated module
+
+        Returns:
+            Modified module with new class
+        """
         new_class = self._create_new_class()
         modified_statements: list[cst.BaseStatement] = [
             new_class,
             cast(cst.BaseStatement, cst.EmptyLine()),
+            cast(cst.BaseStatement, cst.EmptyLine()),
         ]
 
-        for stmt in updated_node.body:
-            modified_statements.append(stmt)
+        modified_statements.extend(updated_node.body)
 
         return updated_node.with_changes(body=tuple(modified_statements))
 
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
-        """Transform function to use object instead of array."""
+        """Transform the function to use object attributes instead of array indices.
+
+        Args:
+            original_node: The original function
+            updated_node: The updated function
+
+        Returns:
+            Modified function
+        """
         if updated_node.name.value != self.function_name:
             return updated_node
 
-        # Collect field names from array subscripts
-        collector = ArrayAccessCollector(self.param_name)
-        original_node.visit(collector)
-        self.field_names = collector.get_field_names()
+        # First, transform array accesses to object attribute accesses
+        transformer = ArrayToObjectTransformer(self.param_name, self.array_accesses)
+        updated_func = cast(cst.FunctionDef, updated_node.visit(transformer))
 
-        # Rename parameter
-        new_param_name = self._derive_parameter_name()
-        updated_node = self._rename_parameter(updated_node, new_param_name)
+        # Then, rename the parameter to use the lowercase version of the class name
+        new_param_name = self.new_class_name.lower()
+        updated_func = self._rename_parameter(updated_func, self.param_name, new_param_name)
 
-        # Replace array accesses with attribute accesses
-        replacer = ArrayAccessReplacer(self.param_name, new_param_name, self.field_names)
-        updated_node = cast(cst.FunctionDef, updated_node.visit(replacer))
+        return updated_func
 
-        return updated_node
-
-    def _derive_parameter_name(self) -> str:
-        """Derive parameter name from class name.
-
-        Returns:
-            Parameter name (lowercase version of class name)
-        """
-        return self.new_class_name.lower()
-
-    def _rename_parameter(self, function: cst.FunctionDef, new_name: str) -> cst.FunctionDef:
-        """Rename the target parameter in function signature.
+    def _rename_parameter(
+        self, func_def: cst.FunctionDef, old_name: str, new_name: str
+    ) -> cst.FunctionDef:
+        """Rename a parameter in a function.
 
         Args:
-            function: The function definition
+            func_def: The function definition
+            old_name: The old parameter name
             new_name: The new parameter name
 
         Returns:
-            Function with renamed parameter
+            Modified function definition
         """
+        # Update parameters
         new_params = []
-        for param in function.params.params:
-            if isinstance(param.name, cst.Name) and param.name.value == self.param_name:
+        for param in func_def.params.params:
+            if param.name.value == old_name:
                 new_params.append(param.with_changes(name=cst.Name(new_name)))
             else:
                 new_params.append(param)
 
-        return function.with_changes(params=function.params.with_changes(params=new_params))
+        updated_params = func_def.params.with_changes(params=new_params)
+
+        # Update references in the body
+        renamer = NameRenamer(old_name, new_name)
+        new_body = func_def.body.visit(renamer)
+
+        return func_def.with_changes(params=updated_params, body=new_body)
 
     def _create_new_class(self) -> cst.ClassDef:
-        """Create the new class.
+        """Create the new class with fields for each array element.
 
         Returns:
             New class definition
         """
-        # Create __init__ parameters
-        init_params = [create_parameter("self")]
-        init_assignments = []
+        # Sort accesses by index to maintain consistent order
+        sorted_accesses = sorted(self.array_accesses, key=lambda x: x[0])
 
-        for field_name in self.field_names:
-            init_params.append(create_parameter(field_name))
-            init_assignments.append(
+        # Create parameters for __init__
+        params = [create_parameter("self")]
+        for _, var_name in sorted_accesses:
+            params.append(create_parameter(var_name))
+
+        # Create assignment statements for __init__
+        assignments: list[cst.SimpleStatementLine] = []
+        for _, var_name in sorted_accesses:
+            assignments.append(
                 cst.SimpleStatementLine(
                     body=[
                         cst.Assign(
@@ -147,11 +189,11 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
                                 cst.AssignTarget(
                                     target=cst.Attribute(
                                         value=cst.Name("self"),
-                                        attr=cst.Name(field_name),
+                                        attr=cst.Name(var_name),
                                     )
                                 )
                             ],
-                            value=cst.Name(field_name),
+                            value=cst.Name(var_name),
                         )
                     ]
                 )
@@ -159,8 +201,8 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
 
         init_method = cst.FunctionDef(
             name=cst.Name("__init__"),
-            params=cst.Parameters(params=init_params),
-            body=cst.IndentedBlock(body=init_assignments),
+            params=cst.Parameters(params=params),
+            body=cst.IndentedBlock(body=assignments),
         )
 
         return cst.ClassDef(
@@ -170,187 +212,114 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         )
 
 
-class ArrayAccessCollector(cst.CSTVisitor):
-    """Collects array access patterns to determine field names."""
+class ArrayAccessScanner(cst.CSTVisitor):
+    """Scans for array accesses to determine field names."""
 
     def __init__(self, param_name: str) -> None:
-        """Initialize the collector.
+        """Initialize the scanner.
 
         Args:
             param_name: Name of the array parameter
         """
         self.param_name = param_name
-        self.accesses: dict[int, str] = {}
+        self.accesses: list[tuple[int, str]] = []
 
-    def visit_SimpleStatementLine(self, node: cst.SimpleStatementLine) -> None:  # noqa: N802
-        """Visit assignment statements to extract field names from variable names.
+    def visit_Assign(self, node: cst.Assign) -> None:  # noqa: N802
+        """Visit assignment nodes to find array accesses.
 
         Args:
-            node: The statement line node
+            node: The assignment node
         """
-        for stmt in node.body:
-            if isinstance(stmt, cst.Assign):
-                self._process_assignment(stmt)
+        # Check if the value is a subscript of our parameter
+        if isinstance(node.value, cst.Subscript):
+            if isinstance(node.value.value, cst.Name) and node.value.value.value == self.param_name:
+                # Extract the index
+                for subscript_element in node.value.slice:
+                    if isinstance(subscript_element.slice, cst.Index):
+                        index_value = subscript_element.slice.value
+                        if isinstance(index_value, cst.Integer):
+                            index = int(index_value.value)
+                            # Get the target variable name
+                            for target in node.targets:
+                                if isinstance(target.target, cst.Name):
+                                    var_name = target.target.value
+                                    self.accesses.append((index, var_name))
 
-    def _process_assignment(self, assign: cst.Assign) -> None:
-        """Process an assignment to extract field name from array access.
+
+class ArrayToObjectTransformer(cst.CSTTransformer):
+    """Transforms array subscript access to object attribute access."""
+
+    def __init__(self, param_name: str, accesses: list[tuple[int, str]]) -> None:
+        """Initialize the transformer.
 
         Args:
-            assign: The assignment statement
+            param_name: Name of the array parameter
+            accesses: List of (index, variable_name) tuples
         """
-        if not isinstance(assign.value, cst.Subscript):
-            return
+        self.param_name = param_name
+        self.index_to_var = {index: var_name for index, var_name in accesses}
 
-        if not self._is_array_subscript(assign.value):
-            return
-
-        index = self._extract_index(assign.value)
-        if index is None:
-            return
-
-        variable_name = self._extract_variable_name(assign)
-        if variable_name is not None:
-            self.accesses[index] = variable_name
-
-    def _is_array_subscript(self, subscript: cst.Subscript) -> bool:
-        """Check if subscript is accessing our target array parameter.
+    def leave_Assign(  # noqa: N802
+        self, original_node: cst.Assign, updated_node: cst.Assign
+    ) -> cst.Assign:
+        """Transform array access assignments to object attribute access.
 
         Args:
-            subscript: The subscript node to check
+            original_node: The original assignment
+            updated_node: The updated assignment
 
         Returns:
-            True if subscript accesses the target array
+            Modified assignment
         """
-        return isinstance(subscript.value, cst.Name) and subscript.value.value == self.param_name
+        if isinstance(updated_node.value, cst.Subscript):
+            if (
+                isinstance(updated_node.value.value, cst.Name)
+                and updated_node.value.value.value == self.param_name
+            ):
+                # Get the index
+                for subscript_element in updated_node.value.slice:
+                    if isinstance(subscript_element.slice, cst.Index):
+                        index_value = subscript_element.slice.value
+                        if isinstance(index_value, cst.Integer):
+                            index = int(index_value.value)
+                            if index in self.index_to_var:
+                                var_name = self.index_to_var[index]
+                                # Replace row[index] with row.var_name
+                                new_value = cst.Attribute(
+                                    value=cst.Name(self.param_name),
+                                    attr=cst.Name(var_name),
+                                )
+                                return updated_node.with_changes(value=new_value)
 
-    def _extract_index(self, subscript: cst.Subscript) -> int | None:
-        """Extract integer index from subscript.
+        return updated_node
+
+
+class NameRenamer(cst.CSTTransformer):
+    """Renames all references to a name in the AST."""
+
+    def __init__(self, old_name: str, new_name: str) -> None:
+        """Initialize the renamer.
 
         Args:
-            subscript: The subscript node
-
-        Returns:
-            Integer index or None if not an integer index
+            old_name: The old name to replace
+            new_name: The new name to use
         """
-        if not isinstance(subscript.slice[0].slice, cst.Index):
-            return None
+        self.old_name = old_name
+        self.new_name = new_name
 
-        index_value = subscript.slice[0].slice.value
-        if not isinstance(index_value, cst.Integer):
-            return None
-
-        return int(index_value.value)
-
-    def _extract_variable_name(self, assign: cst.Assign) -> str | None:
-        """Extract variable name from assignment target.
+    def leave_Name(self, original_node: cst.Name, updated_node: cst.Name) -> cst.Name:  # noqa: N802
+        """Rename name nodes.
 
         Args:
-            assign: The assignment statement
+            original_node: The original name node
+            updated_node: The updated name node
 
         Returns:
-            Variable name or None if target is not a simple name
+            Modified name node
         """
-        if len(assign.targets) == 0:
-            return None
-
-        target = assign.targets[0].target
-        if not isinstance(target, cst.Name):
-            return None
-
-        return target.value
-
-    def get_field_names(self) -> list[str]:
-        """Get the collected field names in order.
-
-        Returns:
-            List of field names
-        """
-        if not self.accesses:
-            return []
-        max_index = max(self.accesses.keys())
-        return [self.accesses.get(i, f"field_{i}") for i in range(max_index + 1)]
-
-
-class ArrayAccessReplacer(cst.CSTTransformer):
-    """Replaces array accesses with attribute accesses."""
-
-    def __init__(self, old_param_name: str, new_param_name: str, field_names: list[str]) -> None:
-        """Initialize the replacer.
-
-        Args:
-            old_param_name: Original array parameter name
-            new_param_name: New object parameter name
-            field_names: List of field names to use
-        """
-        self.old_param_name = old_param_name
-        self.new_param_name = new_param_name
-        self.field_names = field_names
-
-    def leave_Subscript(  # noqa: N802
-        self, original_node: cst.Subscript, updated_node: cst.Subscript
-    ) -> cst.BaseExpression:
-        """Replace array subscripts with attribute access.
-
-        Args:
-            original_node: The original subscript node
-            updated_node: The updated subscript node
-
-        Returns:
-            Attribute access or original subscript
-        """
-        if not self._is_target_array_access(updated_node):
-            return updated_node
-
-        index = self._extract_subscript_index(updated_node)
-        if index is None or index >= len(self.field_names):
-            return updated_node
-
-        return self._create_attribute_access(index)
-
-    def _is_target_array_access(self, subscript: cst.Subscript) -> bool:
-        """Check if subscript accesses the target array parameter.
-
-        Args:
-            subscript: The subscript node to check
-
-        Returns:
-            True if this is accessing the old array parameter
-        """
-        return (
-            isinstance(subscript.value, cst.Name) and subscript.value.value == self.old_param_name
-        )
-
-    def _extract_subscript_index(self, subscript: cst.Subscript) -> int | None:
-        """Extract the integer index from a subscript.
-
-        Args:
-            subscript: The subscript node
-
-        Returns:
-            Integer index or None if not an integer subscript
-        """
-        if not isinstance(subscript.slice[0].slice, cst.Index):
-            return None
-
-        index_value = subscript.slice[0].slice.value
-        if not isinstance(index_value, cst.Integer):
-            return None
-
-        return int(index_value.value)
-
-    def _create_attribute_access(self, index: int) -> cst.Attribute:
-        """Create attribute access for the given index.
-
-        Args:
-            index: The array index to convert
-
-        Returns:
-            Attribute access node
-        """
-        return cst.Attribute(
-            value=cst.Name(self.new_param_name),
-            attr=cst.Name(self.field_names[index]),
-        )
+        if updated_node.value == self.old_name:
+            return updated_node.with_changes(value=self.new_name)
+        return updated_node
 
 
 # Register the command
