@@ -7,8 +7,6 @@ superclasses and subclasses, collapsing hierarchies, and converting between
 inheritance and delegation patterns.
 """
 
-import pytest
-
 from tests.conftest import RefactoringTestBase
 
 
