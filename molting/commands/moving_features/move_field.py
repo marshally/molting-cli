@@ -6,7 +6,12 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import camel_to_snake_case, is_pass_statement, is_self_attribute
+from molting.core.ast_utils import (
+    camel_to_snake_case,
+    is_pass_statement,
+    is_self_attribute,
+    parse_target,
+)
 from molting.core.code_generation_utils import (
     create_field_assignment,
     create_init_method,
@@ -39,14 +44,8 @@ class MoveFieldCommand(BaseCommand):
         source = self.params["source"]
         target_class = self.params["to"]
 
-        parts = source.split("::")
-        if len(parts) != 2:
-            raise ValueError(
-                f"Invalid source format: {source}. Expected format: ClassName::field_name"
-            )
-
-        source_class = parts[0]
-        field_name = parts[1]
+        # Parse source using shared utility
+        source_class, field_name = parse_target(source, expected_parts=2)
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
