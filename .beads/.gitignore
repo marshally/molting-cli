@@ -27,3 +27,7 @@ beads.right.meta.json
 # Keep metadata and config files in main branch
 !metadata.json
 !config.json
+
+# Issue data - tracked only on beads-metadata branch (protected branch mode)
+issues.jsonl
+beads.jsonl
