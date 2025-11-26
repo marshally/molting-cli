@@ -119,9 +119,9 @@ def create_init_method(
         >>> #     self.count = 0
     """
     # Build parameter list with self
-    param_list = [cst.Param(name=cst.Name("self"))]
+    param_list = [create_parameter("self")]
     for param_name in params:
-        param_list.append(cst.Param(name=cst.Name(param_name)))
+        param_list.append(create_parameter(param_name))
 
     # Build body statements
     body_stmts: list[cst.BaseStatement] = []

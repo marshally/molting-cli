@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.code_generation_utils import create_parameter
 
 
 class IntroduceParameterObjectCommand(BaseCommand):
@@ -104,11 +105,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
             if param.name.value in self.param_names:
                 # Replace the first occurrence with the new parameter
                 if not replaced:
-                    new_params.append(
-                        cst.Param(
-                            name=cst.Name(self.new_param_name),
-                        )
-                    )
+                    new_params.append(create_parameter(self.new_param_name))
                     replaced = True
                 # Skip other target parameters
             else:
@@ -200,9 +197,9 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
             The __init__ method definition
         """
         # Create __init__ method parameters
-        init_params = [cst.Param(name=cst.Name("self"))]
+        init_params = [create_parameter("self")]
         for short_name in param_mapping.values():
-            init_params.append(cst.Param(name=cst.Name(short_name)))
+            init_params.append(create_parameter(short_name))
 
         # Create field assignments for __init__
         init_body = []
@@ -242,8 +239,8 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
             name=cst.Name("includes"),
             params=cst.Parameters(
                 params=[
-                    cst.Param(name=cst.Name("self")),
-                    cst.Param(name=cst.Name("date")),
+                    create_parameter("self"),
+                    create_parameter("date"),
                 ]
             ),
             body=cst.IndentedBlock(
