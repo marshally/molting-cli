@@ -264,6 +264,12 @@ class TestSplitTemporaryVariable(RefactoringTestBase):
         """Split a temp variable assigned multiple times."""
         self.refactor("split-temporary-variable", target="calculate_distance::temp")
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test split temporary variable when new variable name already exists."""
+        # Try to split temp to primary_acc but it already exists
+        self.refactor("split-temporary-variable", target="calculate_distance::temp")
+
 
 class TestRemoveAssignmentsToParameters(RefactoringTestBase):
     """Tests for Remove Assignments to Parameters refactoring."""
