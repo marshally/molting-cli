@@ -39,11 +39,15 @@ class TestReplaceDataValueWithObject(RefactoringTestBase):
         """Test replace data value with object with local variables."""
         self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict - should detect existing class")
+    @pytest.mark.skip(
+        reason="Implementation needed for name_conflict - should detect existing class"
+    )
     def test_name_conflict(self) -> None:
         """Test replace data value with object when target name already exists."""
         with pytest.raises(ValueError, match="Class.*Customer.*already exists"):
-            self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
+            self.refactor(
+                "replace-data-value-with-object", target="Order::customer", name="Customer"
+            )
 
 
 class TestChangeValueToReference(RefactoringTestBase):
@@ -89,7 +93,9 @@ class TestReplaceArrayWithObject(RefactoringTestBase):
             "replace-array-with-object", target="analyze_performance::row", name="Performance"
         )
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict - should detect existing class")
+    @pytest.mark.skip(
+        reason="Implementation needed for name_conflict - should detect existing class"
+    )
     def test_name_conflict(self) -> None:
         """Test replace array with object when target name already exists."""
         with pytest.raises(ValueError, match="Class.*Performance.*already exists"):
@@ -163,10 +169,14 @@ class TestReplaceMagicNumberWithSymbolicConstant(RefactoringTestBase):
             name="GRAVITATIONAL_CONSTANT",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict - should detect existing constant")
+    @pytest.mark.skip(
+        reason="Implementation needed for name_conflict - should detect existing constant"
+    )
     def test_name_conflict(self) -> None:
         """Test replace magic number with symbolic constant when target name already exists."""
-        with pytest.raises(ValueError, match="Constant.*GRAVITATIONAL_CONSTANT.*already exists"):
+        with pytest.raises(
+            ValueError, match="Constant.*GRAVITATIONAL_CONSTANT.*already exists"
+        ):
             self.refactor(
                 "replace-magic-number-with-symbolic-constant",
                 target="potential_energy#L2",
@@ -205,7 +215,9 @@ class TestReplaceTypeCodeWithClass(RefactoringTestBase):
             "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
         )
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict - should detect existing class")
+    @pytest.mark.skip(
+        reason="Implementation needed for name_conflict - should detect existing class"
+    )
     def test_name_conflict(self) -> None:
         """Test replace type code with class when target name already exists."""
         with pytest.raises(ValueError, match="Class.*BloodGroup.*already exists"):
@@ -235,10 +247,14 @@ class TestReplaceTypeCodeWithStateStrategy(RefactoringTestBase):
             "replace-type-code-with-state-strategy", target="Employee::type", name="EmployeeType"
         )
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict - should detect existing class")
+    @pytest.mark.skip(
+        reason="Implementation needed for name_conflict - should detect existing class"
+    )
     def test_name_conflict(self) -> None:
         """Test replace type code with state/strategy when target name already exists."""
         with pytest.raises(ValueError, match="Class.*EmployeeType.*already exists"):
             self.refactor(
-                "replace-type-code-with-state-strategy", target="Employee::type", name="EmployeeType"
+                "replace-type-code-with-state-strategy",
+                target="Employee::type",
+                name="EmployeeType",
             )
