@@ -137,6 +137,11 @@ class TestExtractSuperclass(RefactoringTestBase):
         """Create a superclass and move common features to it."""
         self.refactor("extract-superclass", targets="Employee,Department", name="Party")
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test extract-superclass when target superclass name already exists."""
+        self.refactor("extract-superclass", targets="Employee,Department", name="Party")
+
 
 class TestExtractInterface(RefactoringTestBase):
     """Tests for Extract Interface refactoring."""
