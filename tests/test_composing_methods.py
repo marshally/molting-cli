@@ -30,6 +30,16 @@ class TestExtractMethod(RefactoringTestBase):
             name="calculate_outstanding",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test extract method with instance variables."""
+        # Extract subtotal calculation that uses self.items
+        self.refactor(
+            "extract-method",
+            target="Order::calculate_total#L13-L15",
+            name="calculate_subtotal",
+        )
+
 
 class TestExtractFunction(RefactoringTestBase):
     """Tests for Extract Function refactoring."""
