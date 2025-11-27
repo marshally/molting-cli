@@ -108,6 +108,11 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
             target="OrderProcessor::process_order#L10-L15",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test consolidate duplicate conditional fragments with multiple call sites."""
+        self.refactor("consolidate-duplicate-conditional-fragments", target="process_order#L4-L9")
+
 
 class TestRemoveControlFlag(RefactoringTestBase):
     """Tests for Remove Control Flag refactoring."""
