@@ -234,3 +234,11 @@ class TestReplaceTypeCodeWithStateStrategy(RefactoringTestBase):
         self.refactor(
             "replace-type-code-with-state-strategy", target="Employee::type", name="EmployeeType"
         )
+
+    @pytest.mark.skip(reason="Implementation needed for name_conflict - should detect existing class")
+    def test_name_conflict(self) -> None:
+        """Test replace type code with state/strategy when target name already exists."""
+        with pytest.raises(ValueError, match="Class.*EmployeeType.*already exists"):
+            self.refactor(
+                "replace-type-code-with-state-strategy", target="Employee::type", name="EmployeeType"
+            )
