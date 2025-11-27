@@ -111,6 +111,10 @@ class TestPushDownMethod(RefactoringTestBase):
         """Test push-down-method with @classmethod decorator."""
         self.refactor("push-down-method", target="Employee::create_from_config", to="Salesman")
 
+    def test_multiple_calls(self) -> None:
+        """Test push-down-method with multiple call sites."""
+        self.refactor("push-down-method", target="Employee::get_quota", to="Salesman")
+
 
 class TestPushDownField(RefactoringTestBase):
     """Tests for Push Down Field refactoring."""
