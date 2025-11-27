@@ -36,6 +36,10 @@ class TestPullUpMethod(RefactoringTestBase):
         """Move identical methods from subclasses to the superclass."""
         self.refactor("pull-up-method", target="Salesman::get_annual_cost", to="Employee")
 
+    def test_with_instance_vars(self) -> None:
+        """Test pull-up-method with instance variables."""
+        self.refactor("pull-up-method", target="Salesman::get_employee_info", to="Employee")
+
 
 class TestPullUpConstructorBody(RefactoringTestBase):
     """Tests for Pull Up Constructor Body refactoring."""

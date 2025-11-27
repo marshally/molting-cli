@@ -1,6 +1,3 @@
-"""Expected output after pull-up-field with instance variables."""
-
-
 class Employee:
     def __init__(self, id, department, name):
         self.employee_id = id
