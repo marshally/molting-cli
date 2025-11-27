@@ -151,6 +151,12 @@ class TestReplaceTempWithQuery(RefactoringTestBase):
         # Try to replace base_price temp with a method but the method already exists
         self.refactor("replace-temp-with-query", target="Order::get_price::base_price")
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test replace temp with query with decorated methods."""
+        # Replace perimeter temp in @property decorated area method
+        self.refactor("replace-temp-with-query", target="Rectangle::area::perimeter")
+
 
 class TestIntroduceExplainingVariable(RefactoringTestBase):
     """Tests for Introduce Explaining Variable refactoring."""
