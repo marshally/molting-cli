@@ -98,6 +98,10 @@ class TestPushDownMethod(RefactoringTestBase):
         """Test push-down-method when target subclass already has method."""
         self.refactor("push-down-method", target="Employee::get_quota", to="Salesman")
 
+    def test_with_decorators(self) -> None:
+        """Test push-down-method with @classmethod decorator."""
+        self.refactor("push-down-method", target="Employee::create_from_config", to="Salesman")
+
 
 class TestPushDownField(RefactoringTestBase):
     """Tests for Push Down Field refactoring."""
