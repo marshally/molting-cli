@@ -181,7 +181,9 @@ class TestReplaceParameterWithExplicitMethods(RefactoringTestBase):
     @pytest.mark.skip(reason="Implementation needed for with_decorators - decorators not preserved")
     def test_with_decorators(self) -> None:
         """Test replace parameter with explicit methods with decorated methods."""
-        self.refactor("replace-parameter-with-explicit-methods", target="Configuration::set_value::name")
+        self.refactor(
+            "replace-parameter-with-explicit-methods", target="Configuration::set_value::name"
+        )
 
     @pytest.mark.skip(reason="Implementation needed for name_conflict detection")
     def test_name_conflict(self) -> None:
