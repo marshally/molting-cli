@@ -139,6 +139,10 @@ class TestPushDownField(RefactoringTestBase):
         """Test push-down-field with decorated property methods."""
         self.refactor("push-down-field", target="Employee::sales_target", to="Salesman")
 
+    def test_multiple_calls(self) -> None:
+        """Test push-down-field with multiple call sites."""
+        self.refactor("push-down-field", target="Employee::quota", to="Salesman")
+
 
 class TestExtractSubclass(RefactoringTestBase):
     """Tests for Extract Subclass refactoring."""
