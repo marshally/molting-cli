@@ -21,6 +21,12 @@ class TestRenameMethod(RefactoringTestBase):
             "rename-method", target="Customer::get_inv_cdtlmt", new_name="get_invoice_credit_limit"
         )
 
+    def test_with_instance_vars(self) -> None:
+        """Test rename method with instance variables."""
+        self.refactor(
+            "rename-method", target="ShoppingCart::calc_amt", new_name="calculate_total_amount"
+        )
+
 
 class TestAddParameter(RefactoringTestBase):
     """Tests for Add Parameter refactoring."""
