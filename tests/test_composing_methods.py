@@ -5,6 +5,8 @@ This module tests refactorings that improve the internal structure of methods
 by extracting, inlining, and reorganizing code.
 """
 
+import pytest
+
 from tests.conftest import RefactoringTestBase
 
 
@@ -94,6 +96,50 @@ class TestIntroduceExplainingVariable(RefactoringTestBase):
             self.test_file,
             target="calculate_total#L7",
             name="shipping",
+        )
+        self.assert_matches_expected()
+
+
+class TestIntroduceExplainingVariableWithReplacement(RefactoringTestBase):
+    """Tests for Introduce Explaining Variable with replace_all option."""
+
+    fixture_category = "composing_methods/introduce_explaining_variable"
+
+    @pytest.mark.skip(reason="replace_all option not implemented yet")
+    def test_with_replacement(self) -> None:
+        """Extract expression and replace all occurrences with the variable.
+
+        This tests the more advanced version of introduce-explaining-variable
+        that also replaces other occurrences of the extracted expression with
+        the new variable name. For example, extracting `order.quantity * order.item_price`
+        to `base_price` should also replace `order.quantity * order.item_price` in
+        the min() call with `base_price`.
+        """
+        from molting.cli import refactor_file
+
+        assert self.test_file is not None  # Type guard
+
+        # Apply refactorings with replace_all=True
+        refactor_file(
+            "introduce-explaining-variable",
+            self.test_file,
+            target="calculate_total#L3",
+            name="base_price",
+            replace_all=True,
+        )
+        refactor_file(
+            "introduce-explaining-variable",
+            self.test_file,
+            target="calculate_total#L4",
+            name="quantity_discount",
+            replace_all=True,
+        )
+        refactor_file(
+            "introduce-explaining-variable",
+            self.test_file,
+            target="calculate_total#L5",
+            name="shipping",
+            replace_all=True,
         )
         self.assert_matches_expected()
 
