@@ -400,6 +400,11 @@ class TestReplaceExceptionWithTest(RefactoringTestBase):
         """Change the caller to test first instead of catching exception."""
         self.refactor("replace-exception-with-test", target="get_value_for_period")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test replace exception with test with multiple call sites."""
+        self.refactor("replace-exception-with-test", target="get_value_for_period")
+
     def test_with_instance_vars(self) -> None:
         """Test replace exception with test with instance variables."""
         self.refactor("replace-exception-with-test", target="get_value_at_index")
