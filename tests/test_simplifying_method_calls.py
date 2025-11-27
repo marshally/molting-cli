@@ -135,6 +135,16 @@ class TestIntroduceParameterObject(RefactoringTestBase):
             name="DateRange",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    def test_with_locals(self) -> None:
+        """Test introduce parameter object with local variables."""
+        self.refactor(
+            "introduce-parameter-object",
+            target="ReportGenerator::generate_summary",
+            params="start_row,end_row,include_headers,include_totals",
+            name="ReportConfig",
+        )
+
 
 class TestRemoveSettingMethod(RefactoringTestBase):
     """Tests for Remove Setting Method refactoring."""
