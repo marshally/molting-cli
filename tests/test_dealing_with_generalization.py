@@ -163,6 +163,11 @@ class TestReplaceInheritanceWithDelegation(RefactoringTestBase):
         """Create a field for the superclass and remove the subclassing."""
         self.refactor("replace-inheritance-with-delegation", target="Stack")
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test replace-inheritance-with-delegation with instance variables."""
+        self.refactor("replace-inheritance-with-delegation", target="DataStore")
+
 
 class TestReplaceDelegationWithInheritance(RefactoringTestBase):
     """Tests for Replace Delegation with Inheritance refactoring."""
