@@ -120,6 +120,13 @@ class TestExtractSubclass(RefactoringTestBase):
             "extract-subclass", target="JobItem", features="is_labor,employee", name="LaborItem"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test extract-subclass when target subclass name already exists."""
+        self.refactor(
+            "extract-subclass", target="JobItem", features="is_labor,employee", name="LaborItem"
+        )
+
 
 class TestExtractSuperclass(RefactoringTestBase):
     """Tests for Extract Superclass refactoring."""
