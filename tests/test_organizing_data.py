@@ -5,7 +5,6 @@ This module tests refactorings that organize data structures, improve encapsulat
 and replace primitives with objects.
 """
 
-
 from tests.conftest import RefactoringTestBase
 
 
