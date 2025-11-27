@@ -58,6 +58,14 @@ class TestExtractFunction(RefactoringTestBase):
             "extract-function", target="DataProcessor::process#L4", name="normalize_string"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test extract function when target function name already exists."""
+        # Try to extract to normalize_string but it already exists at module level
+        self.refactor(
+            "extract-function", target="DataProcessor::process#L12", name="normalize_string"
+        )
+
 
 class TestInlineMethod(RefactoringTestBase):
     """Tests for Inline Method refactoring."""
