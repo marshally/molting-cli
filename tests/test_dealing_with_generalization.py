@@ -7,6 +7,8 @@ superclasses and subclasses, collapsing hierarchies, and converting between
 inheritance and delegation patterns.
 """
 
+import pytest
+
 from tests.conftest import RefactoringTestBase
 
 
@@ -37,6 +39,11 @@ class TestPullUpConstructorBody(RefactoringTestBase):
 
     def test_simple(self) -> None:
         """Create a superclass constructor and call it from subclass constructors."""
+        self.refactor("pull-up-constructor-body", target="Manager::__init__", to="Employee")
+
+    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    def test_with_locals(self) -> None:
+        """Test pull up constructor body with local variables."""
         self.refactor("pull-up-constructor-body", target="Manager::__init__", to="Employee")
 
 
