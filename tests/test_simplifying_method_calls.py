@@ -190,6 +190,10 @@ class TestRemoveSettingMethod(RefactoringTestBase):
         """Make the field immutable by removing the setter."""
         self.refactor("remove-setting-method", target="Account::_id")
 
+    def test_with_instance_vars(self) -> None:
+        """Test remove setting method with instance variables."""
+        self.refactor("remove-setting-method", target="User::_user_id")
+
 
 class TestHideMethod(RefactoringTestBase):
     """Tests for Hide Method refactoring."""
