@@ -5,6 +5,8 @@ This module tests refactorings that improve method interfaces by simplifying
 how they are called, removing unnecessary parameters, and improving readability.
 """
 
+import pytest
+
 from tests.conftest import RefactoringTestBase
 
 
@@ -53,6 +55,11 @@ class TestSeparateQueryFromModifier(RefactoringTestBase):
     def test_simple(self) -> None:
         """Create two methods, one for the query and one for the modification."""
         self.refactor("separate-query-from-modifier", target="Security::get_and_remove_intruder")
+
+    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    def test_with_locals(self) -> None:
+        """Test separate query from modifier with local variables."""
+        self.refactor("separate-query-from-modifier", target="TaskQueue::process_and_get_next")
 
 
 class TestParameterizeMethod(RefactoringTestBase):
