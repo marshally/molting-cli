@@ -27,6 +27,11 @@ class TestMoveMethod(RefactoringTestBase):
         """Test move method with instance variables."""
         self.refactor("move-method", source="Account::calculate_interest", to="AccountType")
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test move method with decorated methods."""
+        self.refactor("move-method", source="Account::balance", to="AccountType")
+
     @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test move method when target class already has method with same name."""
