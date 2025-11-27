@@ -5,7 +5,6 @@ This module tests refactorings that improve the internal structure of methods
 by extracting, inlining, and reorganizing code.
 """
 
-
 from tests.conftest import RefactoringTestBase
 
 
