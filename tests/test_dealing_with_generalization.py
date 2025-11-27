@@ -84,6 +84,11 @@ class TestPushDownMethod(RefactoringTestBase):
         """Test push-down-method with instance variables."""
         self.refactor("push-down-method", target="Employee::calculate_bonus", to="Salesman")
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test push-down-method when target subclass already has method."""
+        self.refactor("push-down-method", target="Employee::get_quota", to="Salesman")
+
 
 class TestPushDownField(RefactoringTestBase):
     """Tests for Push Down Field refactoring."""
