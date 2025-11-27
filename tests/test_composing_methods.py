@@ -141,6 +141,44 @@ class TestIntroduceExplainingVariableReplaceAll(RefactoringTestBase):
         )
         self.assert_matches_expected()
 
+    def test_condensed(self) -> None:
+        """Extract expressions using expression-based targeting (not line numbers).
+
+        This tests the expression-based targeting mode using --in_function and
+        --expression parameters. This is useful when expressions span multiple
+        lines or don't have clean line boundaries.
+        """
+        from molting.cli import refactor_file
+
+        assert self.test_file is not None  # Type guard
+
+        # Use expression-based targeting - no need to track line numbers!
+        refactor_file(
+            "introduce-explaining-variable",
+            self.test_file,
+            in_function="calculate_total",
+            expression="order.quantity * order.item_price",
+            name="base_price",
+            replace_all=True,
+        )
+        refactor_file(
+            "introduce-explaining-variable",
+            self.test_file,
+            in_function="calculate_total",
+            expression="max(0, order.quantity - 500) * order.item_price * 0.05",
+            name="quantity_discount",
+            replace_all=True,
+        )
+        refactor_file(
+            "introduce-explaining-variable",
+            self.test_file,
+            in_function="calculate_total",
+            expression="min(base_price * 0.1, 100.0)",
+            name="shipping",
+            replace_all=True,
+        )
+        self.assert_matches_expected()
+
 
 class TestSplitTemporaryVariable(RefactoringTestBase):
     """Tests for Split Temporary Variable refactoring."""
