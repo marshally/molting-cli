@@ -84,7 +84,10 @@ class TestSeparateQueryFromModifier(RefactoringTestBase):
     @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test separate query from modifier with instance variables."""
-        self.refactor("separate-query-from-modifier", target="Inventory::get_and_update_lowest_stock")
+        self.refactor(
+            "separate-query-from-modifier",
+            target="Inventory::get_and_update_lowest_stock",
+        )
 
 
 class TestParameterizeMethod(RefactoringTestBase):
