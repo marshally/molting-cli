@@ -72,6 +72,11 @@ class TestReplaceTempWithQuery(RefactoringTestBase):
         """Extract expression into a method and replace temp."""
         self.refactor("replace-temp-with-query", target="Order::get_price::base_price")
 
+    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    def test_with_locals(self) -> None:
+        """Test replace temp with query with local variables used multiple times."""
+        self.refactor("replace-temp-with-query", target="Invoice::calculate_total::base_price")
+
 
 class TestIntroduceExplainingVariable(RefactoringTestBase):
     """Tests for Introduce Explaining Variable refactoring."""
