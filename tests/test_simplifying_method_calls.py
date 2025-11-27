@@ -101,6 +101,10 @@ class TestSeparateQueryFromModifier(RefactoringTestBase):
         """Create two methods, one for the query and one for the modification."""
         self.refactor("separate-query-from-modifier", target="Security::get_and_remove_intruder")
 
+    def test_with_decorators(self) -> None:
+        """Test separate query from modifier with decorated methods."""
+        self.refactor("separate-query-from-modifier", target="TaskQueue::get_and_remove_next")
+
     @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test separate query from modifier with local variables."""
