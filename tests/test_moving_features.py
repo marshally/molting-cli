@@ -221,6 +221,13 @@ class TestIntroduceLocalExtension(RefactoringTestBase):
             "introduce-local-extension", target_class="date", name="MfDate", type="subclass"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test introduce local extension with decorated methods."""
+        self.refactor(
+            "introduce-local-extension", target_class="list", name="EnhancedList", type="subclass"
+        )
+
     @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test introduce local extension when class name already exists."""
