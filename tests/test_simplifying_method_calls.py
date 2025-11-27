@@ -27,6 +27,13 @@ class TestRenameMethod(RefactoringTestBase):
             "rename-method", target="ShoppingCart::calc_amt", new_name="calculate_total_amount"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict detection")
+    def test_name_conflict(self) -> None:
+        """Test rename method when target name already exists."""
+        self.refactor(
+            "rename-method", target="Customer::get_inv_cdtlmt", new_name="get_invoice_credit_limit"
+        )
+
 
 class TestAddParameter(RefactoringTestBase):
     """Tests for Add Parameter refactoring."""
