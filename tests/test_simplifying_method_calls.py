@@ -242,3 +242,7 @@ class TestReplaceExceptionWithTest(RefactoringTestBase):
     def test_simple(self) -> None:
         """Change the caller to test first instead of catching exception."""
         self.refactor("replace-exception-with-test", target="get_value_for_period")
+
+    def test_with_instance_vars(self) -> None:
+        """Test replace exception with test with instance variables."""
+        self.refactor("replace-exception-with-test", target="get_value_at_index")
