@@ -253,6 +253,13 @@ class TestReplaceTypeCodeWithClass(RefactoringTestBase):
             "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls - doesn't update type code references")
+    def test_multiple_calls(self) -> None:
+        """Test replace-type-code-with-class with multiple call sites."""
+        self.refactor(
+            "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
+        )
+
     @pytest.mark.skip(
         reason="Implementation needed for name_conflict - should detect existing class"
     )
