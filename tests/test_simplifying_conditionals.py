@@ -117,6 +117,14 @@ class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
             "replace-nested-conditional-with-guard-clauses", target="get_payment_amount#L2-L11"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test replace nested conditional with guard clauses with instance variables."""
+        self.refactor(
+            "replace-nested-conditional-with-guard-clauses",
+            target="PaymentCalculator::get_payment_amount#L10-L19",
+        )
+
 
 class TestReplaceConditionalWithPolymorphism(RefactoringTestBase):
     """Tests for Replace Conditional with Polymorphism refactoring."""
