@@ -132,6 +132,17 @@ class TestReplaceMagicNumberWithSymbolicConstant(RefactoringTestBase):
             name="GRAVITATIONAL_CONSTANT",
         )
 
+    @pytest.mark.skip(
+        reason="Implementation needed for with_locals - only replaces in targeted function, not all occurrences"
+    )
+    def test_with_locals(self) -> None:
+        """Test replace magic number with symbolic constant with local variables."""
+        self.refactor(
+            "replace-magic-number-with-symbolic-constant",
+            target="potential_energy#L5",
+            name="GRAVITATIONAL_CONSTANT",
+        )
+
 
 class TestEncapsulateField(RefactoringTestBase):
     """Tests for Encapsulate Field refactoring."""
