@@ -59,12 +59,26 @@ Replace calls to a method with the method's body.
 molting inline src/foo.py::Calculator::simple_helper
 ```
 
-#### Extract Variable
+#### Extract Variable / Introduce Explaining Variable
 Extract an expression into a named variable.
 
 ```bash
-# Extract expression on lines 10-12 into a variable
+# Extract expression on lines 10-12 into a variable (line-based targeting)
 molting extract-variable src/foo.py::Calculator::compute#L10-L12 discount_rate
+
+# Introduce explaining variable using expression-based targeting
+# This is useful when expressions span multiple lines or don't have clean line boundaries
+molting introduce-explaining-variable src/foo.py \
+  --in calculate_total \
+  --expression "order.quantity * order.item_price" \
+  --name base_price
+
+# With --replace-all to replace all occurrences of the expression
+molting introduce-explaining-variable src/foo.py \
+  --in calculate_total \
+  --expression "order.quantity * order.item_price" \
+  --name base_price \
+  --replace-all
 ```
 
 #### Extract Method
