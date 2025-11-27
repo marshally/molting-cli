@@ -126,6 +126,16 @@ class TestParameterizeMethod(RefactoringTestBase):
             new_name="mark_stock_level",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict detection")
+    def test_name_conflict(self) -> None:
+        """Test parameterize method when target name already exists."""
+        self.refactor(
+            "parameterize-method",
+            target1="Employee::five_percent_raise",
+            target2="Employee::ten_percent_raise",
+            new_name="raise_salary",
+        )
+
 
 class TestReplaceParameterWithExplicitMethods(RefactoringTestBase):
     """Tests for Replace Parameter with Explicit Methods refactoring."""
