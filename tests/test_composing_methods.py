@@ -5,7 +5,6 @@ This module tests refactorings that improve the internal structure of methods
 by extracting, inlining, and reorganizing code.
 """
 
-
 from tests.conftest import RefactoringTestBase
 
 
@@ -69,13 +68,34 @@ class TestIntroduceExplainingVariable(RefactoringTestBase):
 
     def test_simple(self) -> None:
         """Put complex expressions into named temp variables."""
-        self.refactor(
-            "introduce-explaining-variable", target="calculate_total#L2", name="base_price"
+        from molting.cli import refactor_file
+
+        assert self.test_file is not None  # Type guard
+
+        # Apply all three refactorings before checking
+        # Note: Line numbers shift as variables are introduced
+        # Original: L3=base_price expr, L4=quantity_discount expr, L5=shipping expr
+        refactor_file(
+            "introduce-explaining-variable",
+            self.test_file,
+            target="calculate_total#L3",
+            name="base_price",
         )
-        self.refactor(
-            "introduce-explaining-variable", target="calculate_total#L3", name="quantity_discount"
+        # After first: L5=quantity_discount expr (shifted due to new assignment)
+        refactor_file(
+            "introduce-explaining-variable",
+            self.test_file,
+            target="calculate_total#L5",
+            name="quantity_discount",
         )
-        self.refactor("introduce-explaining-variable", target="calculate_total#L4", name="shipping")
+        # After second: L7=shipping expr (min(...) is on line 7)
+        refactor_file(
+            "introduce-explaining-variable",
+            self.test_file,
+            target="calculate_total#L7",
+            name="shipping",
+        )
+        self.assert_matches_expected()
 
 
 class TestSplitTemporaryVariable(RefactoringTestBase):

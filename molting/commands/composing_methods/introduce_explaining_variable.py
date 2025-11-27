@@ -1,0 +1,277 @@
+"""Introduce Explaining Variable refactoring command."""
+
+from typing import cast
+
+import libcst as cst
+from libcst import metadata
+
+from molting.commands.base import BaseCommand
+from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_target_with_line
+
+
+@register_command
+class IntroduceExplainingVariableCommand(BaseCommand):
+    """Command to introduce explaining variables for complex expressions."""
+
+    name = "introduce-explaining-variable"
+
+    def validate(self) -> None:
+        """Validate that required parameters are present.
+
+        Raises:
+            ValueError: If required parameters are missing
+        """
+        self.validate_required_params("target", "name")
+
+    def execute(self) -> None:
+        """Apply introduce-explaining-variable refactoring using libCST.
+
+        Raises:
+            ValueError: If function or line not found
+        """
+        target = self.params["target"]
+        variable_name = self.params["name"]
+
+        # Parse target format: "function_name#L<line>"
+        function_name, _, line_spec = parse_target_with_line(target)
+        target_line = int(line_spec.lstrip("L"))
+
+        # Read file
+        source_code = self.file_path.read_text()
+
+        # First pass: collect candidate expressions
+        module = cst.parse_module(source_code)
+        wrapper = metadata.MetadataWrapper(module)
+        collector = ExpressionCollector(function_name, target_line)
+        wrapper.visit(collector)
+
+        if collector.best_expression is None:
+            raise ValueError(
+                f"Could not find expression at line {target_line} in function '{function_name}'"
+            )
+
+        # Second pass: apply transformation
+        wrapper = metadata.MetadataWrapper(module)
+        transformer = IntroduceExplainingVariableTransformer(
+            function_name, variable_name, collector.best_expression, collector.best_line
+        )
+        modified_tree = wrapper.visit(transformer)
+
+        # Write back
+        self.file_path.write_text(modified_tree.code)
+
+
+class ExpressionCollector(cst.CSTVisitor):
+    """Collector to find the best expression to extract."""
+
+    METADATA_DEPENDENCIES = (metadata.PositionProvider,)
+
+    def __init__(self, function_name: str, target_line: int) -> None:
+        """Initialize the collector.
+
+        Args:
+            function_name: Name of the function containing the expression
+            target_line: Minimum line number to search from (1-indexed)
+        """
+        self.function_name = function_name
+        self.target_line = target_line
+        self.best_expression: cst.BaseExpression | None = None
+        self.best_line: int = 0
+        self.in_target_function = False
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Visit function definition to track if we're in the target function."""
+        if node.name.value == self.function_name:
+            self.in_target_function = True
+        return True
+
+    def leave_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
+        """Leave function definition."""
+        if node.name.value == self.function_name:
+            self.in_target_function = False
+
+    def _check_expression(self, node: cst.BaseExpression) -> None:
+        """Check if this expression should be extracted.
+
+        We want the OUTERMOST expression on the target line. In leave_ order,
+        the outermost is visited LAST (children first). So we keep updating
+        best_expression to get the outermost.
+        """
+        if not self.in_target_function:
+            return
+
+        try:
+            pos = self.get_metadata(metadata.PositionProvider, node)
+            line = pos.start.line
+
+            # Only consider expressions that start on the target line exactly
+            if line != self.target_line:
+                return
+
+            # Always update - the last one (outermost) wins
+            self.best_expression = node
+            self.best_line = line
+        except KeyError:
+            pass
+
+    def visit_BinaryOperation(self, node: cst.BinaryOperation) -> bool:  # noqa: N802
+        """Visit binary operation - continue to children."""
+        return True
+
+    def leave_BinaryOperation(self, node: cst.BinaryOperation) -> None:  # noqa: N802
+        """After visiting children, check if this whole binop should be extracted.
+
+        Only consider multiply chains (not add/subtract).
+        """
+        if isinstance(node.operator, cst.Multiply):
+            self._check_expression(node)
+
+    def leave_Call(self, node: cst.Call) -> None:  # noqa: N802
+        """After visiting children, check if call should be extracted.
+
+        Calls are checked in leave_ to compete with multiplies for "outermost".
+        """
+        self._check_expression(node)
+
+
+class IntroduceExplainingVariableTransformer(cst.CSTTransformer):
+    """Transforms code by extracting expressions into explaining variables."""
+
+    METADATA_DEPENDENCIES = (metadata.PositionProvider,)
+
+    def __init__(
+        self,
+        function_name: str,
+        variable_name: str,
+        target_expression: cst.BaseExpression,
+        target_line: int,
+    ) -> None:
+        """Initialize the transformer.
+
+        Args:
+            function_name: Name of the function containing the expression
+            variable_name: Name for the new variable
+            target_expression: The expression to extract (for reference)
+            target_line: Line where the target expression starts
+        """
+        self.function_name = function_name
+        self.variable_name = variable_name
+        self.target_expression = target_expression
+        self.target_line = target_line
+        self.in_target_function = False
+        self.replaced = False
+        self.captured_expression: cst.BaseExpression | None = None
+        # Track whether we expect to replace a BinaryOperation (Multiply) or a Call
+        self.expect_multiply = isinstance(target_expression, cst.BinaryOperation) and isinstance(
+            target_expression.operator, cst.Multiply
+        )
+        self.expect_call = isinstance(target_expression, cst.Call)
+        # Track depth of multiply operations on target line
+        self.multiply_depth = 0
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Visit function definition to track if we're in the target function."""
+        if node.name.value == self.function_name:
+            self.in_target_function = True
+        return True
+
+    def leave_FunctionDef(  # noqa: N802
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
+        """Leave function definition and insert variable assignment."""
+        if original_node.name.value != self.function_name:
+            return updated_node
+
+        self.in_target_function = False
+
+        if not self.replaced or self.captured_expression is None:
+            return updated_node
+
+        # Build the new assignment statement
+        new_assignment = cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(self.variable_name))],
+                    value=self.captured_expression,
+                )
+            ]
+        )
+
+        # Find the return statement and insert before it
+        new_body: list[cst.BaseStatement] = []
+
+        for stmt in updated_node.body.body:
+            stmt = cast(cst.BaseStatement, stmt)
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for inner in stmt.body:
+                    if isinstance(inner, cst.Return):
+                        new_body.append(new_assignment)
+                        break
+            new_body.append(stmt)
+
+        return updated_node.with_changes(body=updated_node.body.with_changes(body=new_body))
+
+    def _is_on_target_line(self, node: cst.BaseExpression) -> bool:
+        """Check if this node starts on the target line."""
+        if not self.in_target_function:
+            return False
+
+        try:
+            pos = self.get_metadata(metadata.PositionProvider, node)
+            return pos.start.line == self.target_line
+        except KeyError:
+            return False
+
+    def visit_BinaryOperation(self, node: cst.BinaryOperation) -> bool:  # noqa: N802
+        """Track entry into multiply operations on target line."""
+        if isinstance(node.operator, cst.Multiply) and self._is_on_target_line(node):
+            self.multiply_depth += 1
+        return True
+
+    def leave_BinaryOperation(  # noqa: N802
+        self, original_node: cst.BinaryOperation, updated_node: cst.BinaryOperation
+    ) -> cst.BaseExpression:
+        """Replace binary operation with variable name if it matches target.
+
+        We need to replace only the OUTERMOST multiply chain on the target line.
+        We track depth: increment on visit, decrement on leave. Only replace when
+        depth becomes 0 (we're leaving the outermost multiply).
+        """
+        if not isinstance(original_node.operator, cst.Multiply):
+            return updated_node
+
+        if not self._is_on_target_line(original_node):
+            return updated_node
+
+        # Decrement depth
+        self.multiply_depth -= 1
+
+        # Only replace at the outermost level (depth == 0)
+        if self.multiply_depth == 0 and self.expect_multiply and not self.replaced:
+            self.replaced = True
+            self.captured_expression = updated_node
+            return cst.Name(self.variable_name)
+
+        return updated_node
+
+    def leave_Call(  # noqa: N802
+        self, original_node: cst.Call, updated_node: cst.Call
+    ) -> cst.BaseExpression:
+        """Replace call expression with variable name if it matches target.
+
+        Only replace if we're expecting a Call (not a BinaryOperation).
+        """
+        if not self.expect_call:
+            # We don't expect a call, skip
+            return updated_node
+
+        if self.replaced:
+            return updated_node
+
+        if not self._is_on_target_line(original_node):
+            return updated_node
+
+        self.replaced = True
+        self.captured_expression = updated_node
+        return cst.Name(self.variable_name)
