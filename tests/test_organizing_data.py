@@ -89,6 +89,14 @@ class TestReplaceArrayWithObject(RefactoringTestBase):
             "replace-array-with-object", target="analyze_performance::row", name="Performance"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict - should detect existing class")
+    def test_name_conflict(self) -> None:
+        """Test replace array with object when target name already exists."""
+        with pytest.raises(ValueError, match="Class.*Performance.*already exists"):
+            self.refactor(
+                "replace-array-with-object", target="analyze_performance::row", name="Performance"
+            )
+
 
 class TestDuplicateObservedData(RefactoringTestBase):
     """Tests for Duplicate Observed Data refactoring."""
