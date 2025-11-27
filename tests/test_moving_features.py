@@ -5,6 +5,8 @@ This module tests refactorings that move functionality between classes
 and create new classes.
 """
 
+import pytest
+
 from tests.conftest import RefactoringTestBase
 
 
@@ -90,6 +92,16 @@ class TestIntroduceForeignMethod(RefactoringTestBase):
             target="Report::generate#L6",
             for_class="date",
             name="next_day",
+        )
+
+    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    def test_with_locals(self) -> None:
+        """Test introduce foreign method with local variables."""
+        self.refactor(
+            "introduce-foreign-method",
+            target="Report::generate#L12",
+            for_class="date",
+            name="add_days",
         )
 
 
