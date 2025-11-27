@@ -19,46 +19,82 @@ class IntroduceExplainingVariableCommand(BaseCommand):
     def validate(self) -> None:
         """Validate that required parameters are present.
 
+        Supports two targeting modes:
+        1. Line-based: target="function_name#L<line>"
+        2. Expression-based: in_function="function_name", expression="<code>"
+
         Raises:
-            ValueError: If required parameters are missing
+            ValueError: If required parameters are missing or invalid
         """
-        self.validate_required_params("target", "name")
+        # Always require name
+        if "name" not in self.params:
+            raise ValueError(f"Missing required parameter for {self.name}: name")
+
+        # Check for either target OR (in_function + expression)
+        has_target = "target" in self.params
+        has_expression_mode = "in_function" in self.params and "expression" in self.params
+
+        if not has_target and not has_expression_mode:
+            raise ValueError(
+                f"Missing required parameters for {self.name}: "
+                "either 'target' or both 'in_function' and 'expression' must be provided"
+            )
 
     def execute(self) -> None:
         """Apply introduce-explaining-variable refactoring using libCST.
 
         Raises:
-            ValueError: If function or line not found
+            ValueError: If function or expression not found
         """
-        target = self.params["target"]
         variable_name = self.params["name"]
         replace_all = self.params.get("replace_all", False)
 
-        # Parse target format: "function_name#L<line>"
-        function_name, _, line_spec = parse_target_with_line(target)
-        target_line = int(line_spec.lstrip("L"))
-
         # Read file
         source_code = self.file_path.read_text()
-
-        # First pass: collect candidate expressions
         module = cst.parse_module(source_code)
-        wrapper = metadata.MetadataWrapper(module)
-        collector = ExpressionCollector(function_name, target_line)
-        wrapper.visit(collector)
 
-        if collector.best_expression is None:
-            raise ValueError(
-                f"Could not find expression at line {target_line} in function '{function_name}'"
-            )
+        # Determine targeting mode and find the expression
+        if "target" in self.params:
+            # Line-based targeting: "function_name#L<line>"
+            target = self.params["target"]
+            function_name, _, line_spec = parse_target_with_line(target)
+            target_line = int(line_spec.lstrip("L"))
 
-        # Second pass: apply transformation
+            wrapper = metadata.MetadataWrapper(module)
+            line_collector = ExpressionCollector(function_name, target_line)
+            wrapper.visit(line_collector)
+
+            if line_collector.best_expression is None:
+                raise ValueError(
+                    f"Could not find expression at line {target_line} in function '{function_name}'"
+                )
+
+            target_expression = line_collector.best_expression
+            expression_line = line_collector.best_line
+        else:
+            # Expression-based targeting: in_function + expression
+            function_name = self.params["in_function"]
+            expression_str = self.params["expression"]
+
+            wrapper = metadata.MetadataWrapper(module)
+            string_collector = ExpressionByStringCollector(function_name, expression_str)
+            wrapper.visit(string_collector)
+
+            if string_collector.found_expression is None:
+                raise ValueError(
+                    f"Could not find expression '{expression_str}' in function '{function_name}'"
+                )
+
+            target_expression = string_collector.found_expression
+            expression_line = string_collector.found_line
+
+        # Apply transformation
         wrapper = metadata.MetadataWrapper(module)
         transformer = IntroduceExplainingVariableTransformer(
             function_name,
             variable_name,
-            collector.best_expression,
-            collector.best_line,
+            target_expression,
+            expression_line,
             replace_all=replace_all,
         )
         modified_tree = wrapper.visit(transformer)
@@ -137,6 +173,63 @@ class ExpressionCollector(cst.CSTVisitor):
 
         Calls are checked in leave_ to compete with multiplies for "outermost".
         """
+        self._check_expression(node)
+
+
+class ExpressionByStringCollector(cst.CSTVisitor):
+    """Collector to find expressions by their source code string."""
+
+    METADATA_DEPENDENCIES = (metadata.PositionProvider,)
+
+    def __init__(self, function_name: str, expression_str: str) -> None:
+        """Initialize the collector.
+
+        Args:
+            function_name: Name of the function containing the expression
+            expression_str: The source code of the expression to find
+        """
+        self.function_name = function_name
+        # Normalize the expression string by parsing and unparsing
+        self.target_expression = cst.parse_expression(expression_str)
+        self.found_expression: cst.BaseExpression | None = None
+        self.found_line: int = 0
+        self.in_target_function = False
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Visit function definition to track if we're in the target function."""
+        if node.name.value == self.function_name:
+            self.in_target_function = True
+        return True
+
+    def leave_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
+        """Leave function definition."""
+        if node.name.value == self.function_name:
+            self.in_target_function = False
+
+    def _check_expression(self, node: cst.BaseExpression) -> None:
+        """Check if this expression matches the target expression string."""
+        if not self.in_target_function:
+            return
+
+        # Already found - only want first occurrence
+        if self.found_expression is not None:
+            return
+
+        # Compare structurally (ignoring whitespace differences)
+        if node.deep_equals(self.target_expression):
+            self.found_expression = node
+            try:
+                pos = self.get_metadata(metadata.PositionProvider, node)
+                self.found_line = pos.start.line
+            except KeyError:
+                self.found_line = 0
+
+    def leave_BinaryOperation(self, node: cst.BinaryOperation) -> None:  # noqa: N802
+        """Check binary operations for matches."""
+        self._check_expression(node)
+
+    def leave_Call(self, node: cst.Call) -> None:  # noqa: N802
+        """Check call expressions for matches."""
         self._check_expression(node)
 
 
