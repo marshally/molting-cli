@@ -100,6 +100,11 @@ class TestRemoveControlFlag(RefactoringTestBase):
         """Test remove control flag with local variables."""
         self.refactor("remove-control-flag", target="find_matching_product::found")
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test remove control flag with instance variables."""
+        self.refactor("remove-control-flag", target="SecurityChecker::check_security::found")
+
 
 class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
     """Tests for Replace Nested Conditional with Guard Clauses refactoring."""
