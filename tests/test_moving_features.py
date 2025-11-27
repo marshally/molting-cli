@@ -78,6 +78,10 @@ class TestInlineClass(RefactoringTestBase):
         """Move all features from one class into another."""
         self.refactor("inline-class", source_class="TelephoneNumber", into="Person")
 
+    def test_with_instance_vars(self) -> None:
+        """Test inline class with instance variables."""
+        self.refactor("inline-class", source_class="Compensation", into="Employee")
+
 
 class TestHideDelegate(RefactoringTestBase):
     """Tests for Hide Delegate refactoring."""
