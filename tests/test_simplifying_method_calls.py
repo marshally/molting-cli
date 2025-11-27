@@ -42,6 +42,16 @@ class TestAddParameter(RefactoringTestBase):
             default="False",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test add parameter with instance variables."""
+        self.refactor(
+            "add-parameter",
+            target="BankAccount::get_account_summary",
+            name="include_overdraft",
+            default="False",
+        )
+
 
 class TestRemoveParameter(RefactoringTestBase):
     """Tests for Remove Parameter refactoring."""
