@@ -195,3 +195,11 @@ class TestIntroduceLocalExtension(RefactoringTestBase):
         self.refactor(
             "introduce-local-extension", target_class="date", name="MfDate", type="subclass"
         )
+
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test introduce local extension when class name already exists."""
+        with pytest.raises(ValueError, match="Class .* already exists"):
+            self.refactor(
+                "introduce-local-extension", target_class="date", name="MfDate", type="subclass"
+            )
