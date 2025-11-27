@@ -137,6 +137,14 @@ class TestReplaceConditionalWithPolymorphism(RefactoringTestBase):
             "replace-conditional-with-polymorphism", target="Employee::pay_amount#L13-L20"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test replace conditional with polymorphism with heavy instance variable usage."""
+        self.refactor(
+            "replace-conditional-with-polymorphism",
+            target="ShippingCalculator::calculate_cost#L16-L27",
+        )
+
 
 class TestIntroduceNullObject(RefactoringTestBase):
     """Tests for Introduce Null Object refactoring."""
