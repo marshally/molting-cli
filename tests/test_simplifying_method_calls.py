@@ -138,6 +138,16 @@ class TestParameterizeMethod(RefactoringTestBase):
             new_name="raise_salary",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators - decorator not preserved")
+    def test_with_decorators(self) -> None:
+        """Test parameterize method with decorated methods."""
+        self.refactor(
+            "parameterize-method",
+            target1="Employee::small_raise",
+            target2="Employee::large_raise",
+            new_name="apply_raise",
+        )
+
     @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test parameterize method with instance variables."""
