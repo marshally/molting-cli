@@ -74,6 +74,15 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             name="is_not_eligible_for_disability",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test consolidate conditional expression with multiple call sites."""
+        self.refactor(
+            "consolidate-conditional-expression",
+            target="disability_amount#L4-L9",
+            name="is_not_eligible_for_disability",
+        )
+
 
 class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
     """Tests for Consolidate Duplicate Conditional Fragments refactoring."""

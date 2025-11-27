@@ -1,0 +1,26 @@
+"""Expected output after consolidate-conditional-expression with multiple call sites."""
+
+
+def disability_amount(employee):
+    if is_not_eligible_for_disability(employee):
+        return 0
+    # calculate disability amount
+    return 100
+
+
+def vacation_days(employee):
+    if is_not_eligible_for_disability(employee):
+        return 0
+    # calculate vacation days
+    return employee.seniority * 2
+
+
+def bonus_multiplier(employee):
+    if is_not_eligible_for_disability(employee):
+        return 0.5
+    # calculate bonus multiplier
+    return 1.0 + (employee.seniority * 0.1)
+
+
+def is_not_eligible_for_disability(employee):
+    return employee.seniority < 2 or employee.months_disabled > 12 or employee.is_part_time
