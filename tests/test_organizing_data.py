@@ -71,6 +71,15 @@ class TestReplaceArrayWithObject(RefactoringTestBase):
             "replace-array-with-object", target="analyze_performance::row", name="Performance"
         )
 
+    @pytest.mark.skip(
+        reason="Implementation needed for with_locals - only transforms first function, not all functions with same parameter"
+    )
+    def test_with_locals(self) -> None:
+        """Test replace array with object with local variables."""
+        self.refactor(
+            "replace-array-with-object", target="analyze_performance::row", name="Performance"
+        )
+
 
 class TestDuplicateObservedData(RefactoringTestBase):
     """Tests for Duplicate Observed Data refactoring."""
