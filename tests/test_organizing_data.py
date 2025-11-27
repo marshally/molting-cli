@@ -39,6 +39,12 @@ class TestReplaceDataValueWithObject(RefactoringTestBase):
         """Test replace data value with object with local variables."""
         self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict - should detect existing class")
+    def test_name_conflict(self) -> None:
+        """Test replace data value with object when target name already exists."""
+        with pytest.raises(ValueError, match="Class.*Customer.*already exists"):
+            self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
+
 
 class TestChangeValueToReference(RefactoringTestBase):
     """Tests for Change Value to Reference refactoring."""
