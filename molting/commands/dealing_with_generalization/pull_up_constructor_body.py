@@ -263,7 +263,7 @@ class PullUpConstructorBodyTransformer(cst.CSTTransformer):
             if stmt is init_method:
                 new_body_stmts.append(new_init)
             else:
-                new_body_stmts.append(stmt)
+                new_body_stmts.append(cast(cst.BaseStatement, stmt))
 
         return class_node.with_changes(
             body=class_node.body.with_changes(body=tuple(new_body_stmts))

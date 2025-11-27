@@ -231,7 +231,7 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
                 else:
                     new_body.append(stmt)
             else:
-                new_body.append(stmt)
+                new_body.append(cast(cst.BaseStatement, stmt))
 
         # Add update method at the end
         new_body.append(cast(cst.BaseStatement, cst.EmptyLine()))
@@ -270,7 +270,7 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
 
         # Keep existing field initializations
         for stmt in init_method.body.body:
-            new_body_stmts.append(stmt)
+            new_body_stmts.append(cast(cst.BaseStatement, stmt))
 
         # Add call to update()
         update_call = cst.SimpleStatementLine(
@@ -331,9 +331,10 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
         )
 
         # Keep original method call
-        new_body = [update_domain]
+        new_body: list[cst.SimpleStatementLine] = [update_domain]
         for stmt in method.body.body:
-            new_body.append(stmt)
+            if isinstance(stmt, cst.SimpleStatementLine):
+                new_body.append(stmt)
 
         return method.with_changes(body=cst.IndentedBlock(body=new_body))
 
