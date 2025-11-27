@@ -92,6 +92,11 @@ class TestHideDelegate(RefactoringTestBase):
         """Create methods on server to hide the delegate."""
         self.refactor("hide-delegate", target="Person::department")
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test hide delegate with instance variables."""
+        self.refactor("hide-delegate", target="Employee::compensation")
+
 
 class TestRemoveMiddleMan(RefactoringTestBase):
     """Tests for Remove Middle Man refactoring."""
