@@ -157,6 +157,16 @@ class TestExtractInterface(RefactoringTestBase):
             name="Billable",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test extract-interface when target interface name already exists."""
+        self.refactor(
+            "extract-interface",
+            target="Employee",
+            methods="get_rate,has_special_skill",
+            name="Billable",
+        )
+
 
 class TestCollapseHierarchy(RefactoringTestBase):
     """Tests for Collapse Hierarchy refactoring."""
