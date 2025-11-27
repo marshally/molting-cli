@@ -51,6 +51,15 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             name="is_not_eligible_for_bonus",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test consolidate conditional expression with instance variables."""
+        self.refactor(
+            "consolidate-conditional-expression",
+            target="BenefitsCalculator::disability_amount#L10-L15",
+            name="is_not_eligible_for_disability",
+        )
+
 
 class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
     """Tests for Consolidate Duplicate Conditional Fragments refactoring."""
