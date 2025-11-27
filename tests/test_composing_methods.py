@@ -62,6 +62,12 @@ class TestInlineMethod(RefactoringTestBase):
         """Inline a simple method whose body is as clear as its name."""
         self.refactor("inline-method", target="Person::more_than_five_late_deliveries")
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test inline method with instance variables."""
+        # Inline get_subtotal which uses self.items
+        self.refactor("inline-method", target="ShoppingCart::get_subtotal")
+
 
 class TestInlineTemp(RefactoringTestBase):
     """Tests for Inline Temp refactoring."""
