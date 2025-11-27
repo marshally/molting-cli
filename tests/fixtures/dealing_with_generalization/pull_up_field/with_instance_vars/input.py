@@ -1,6 +1,3 @@
-"""Example code for pull-up-field with instance variables."""
-
-
 class Employee:
     def __init__(self, id, department):
         self.employee_id = id
