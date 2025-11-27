@@ -106,6 +106,12 @@ class TestInlineClass(RefactoringTestBase):
         """Test inline class with instance variables."""
         self.refactor("inline-class", source_class="Compensation", into="Employee")
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test inline class when target class already has method with same name."""
+        with pytest.raises(ValueError, match="already has a method"):
+            self.refactor("inline-class", source_class="TelephoneNumber", into="Person")
+
 
 class TestHideDelegate(RefactoringTestBase):
     """Tests for Hide Delegate refactoring."""
