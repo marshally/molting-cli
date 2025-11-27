@@ -177,3 +177,8 @@ class TestReplaceDelegationWithInheritance(RefactoringTestBase):
     def test_simple(self) -> None:
         """Make the delegating class a subclass of the delegate."""
         self.refactor("replace-delegation-with-inheritance", target="Employee", delegate="_person")
+
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test replace-delegation-with-inheritance with instance variables."""
+        self.refactor("replace-delegation-with-inheritance", target="Employee", delegate="_contact")
