@@ -62,6 +62,10 @@ class TestRemoveParameter(RefactoringTestBase):
         """Remove a parameter that is no longer used."""
         self.refactor("remove-parameter", target="Order::calculate_total::discount_code")
 
+    def test_with_instance_vars(self) -> None:
+        """Test remove parameter with instance variables."""
+        self.refactor("remove-parameter", target="EmailService::send_email::priority")
+
 
 class TestSeparateQueryFromModifier(RefactoringTestBase):
     """Tests for Separate Query from Modifier refactoring."""
