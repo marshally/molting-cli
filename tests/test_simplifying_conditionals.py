@@ -180,6 +180,14 @@ class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
             target="PaymentCalculator::get_payment_amount#L10-L19",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test replace nested conditional with guard clauses with decorated methods."""
+        self.refactor(
+            "replace-nested-conditional-with-guard-clauses",
+            target="PaymentCalculator::payment_amount#L10-L19",
+        )
+
 
 class TestReplaceConditionalWithPolymorphism(RefactoringTestBase):
     """Tests for Replace Conditional with Polymorphism refactoring."""
