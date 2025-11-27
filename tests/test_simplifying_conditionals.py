@@ -155,6 +155,11 @@ class TestRemoveControlFlag(RefactoringTestBase):
         """Test remove control flag with instance variables."""
         self.refactor("remove-control-flag", target="SecurityChecker::check_security::found")
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test remove control flag with decorated methods."""
+        self.refactor("remove-control-flag", target="SecurityChecker::is_secure::found")
+
 
 class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
     """Tests for Replace Nested Conditional with Guard Clauses refactoring."""
