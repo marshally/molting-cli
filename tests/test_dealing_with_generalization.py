@@ -55,6 +55,10 @@ class TestPullUpMethod(RefactoringTestBase):
         """Test pull-up-method when target method already exists in parent."""
         self.refactor("pull-up-method", target="Salesman::get_annual_cost", to="Employee")
 
+    def test_with_decorators(self) -> None:
+        """Test pull-up-method with @staticmethod decorator."""
+        self.refactor("pull-up-method", target="Salesman::format_currency", to="Employee")
+
 
 class TestPullUpConstructorBody(RefactoringTestBase):
     """Tests for Pull Up Constructor Body refactoring."""
