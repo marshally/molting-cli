@@ -57,6 +57,11 @@ class TestReplaceDataValueWithObject(RefactoringTestBase):
         """Test replace data value with object with local variables."""
         self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls - doesn't update all call sites")
+    def test_multiple_calls(self) -> None:
+        """Test replace-data-value-with-object with multiple call sites."""
+        self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
+
     @pytest.mark.skip(
         reason="Implementation needed for name_conflict - should detect existing class"
     )
