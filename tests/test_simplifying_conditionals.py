@@ -60,6 +60,15 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             name="is_not_eligible_for_disability",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test consolidate conditional expression when target name already exists."""
+        self.refactor(
+            "consolidate-conditional-expression",
+            target="disability_amount#L10-L15",
+            name="is_not_eligible_for_disability",
+        )
+
 
 class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
     """Tests for Consolidate Duplicate Conditional Fragments refactoring."""
