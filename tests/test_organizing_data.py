@@ -156,6 +156,14 @@ class TestChangeUnidirectionalAssociationToBidirectional(RefactoringTestBase):
             back="orders",
         )
 
+    def test_with_instance_vars(self) -> None:
+        """Test change-unidirectional-association-to-bidirectional with instance variables."""
+        self.refactor(
+            "change-unidirectional-association-to-bidirectional",
+            target="Team::manager",
+            back="teams",
+        )
+
 
 class TestChangeBidirectionalAssociationToUnidirectional(RefactoringTestBase):
     """Tests for Change Bidirectional Association to Unidirectional refactoring."""
