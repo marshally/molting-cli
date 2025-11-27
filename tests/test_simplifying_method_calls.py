@@ -70,6 +70,16 @@ class TestAddParameter(RefactoringTestBase):
             default="False",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test add parameter with multiple call sites."""
+        self.refactor(
+            "add-parameter",
+            target="Contact::get_contact_info",
+            name="include_email",
+            default="False",
+        )
+
     @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test add parameter with instance variables."""
