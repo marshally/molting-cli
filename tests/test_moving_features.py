@@ -32,6 +32,10 @@ class TestMoveMethod(RefactoringTestBase):
         """Test move method with decorated methods."""
         self.refactor("move-method", source="Account::balance", to="AccountType")
 
+    def test_multiple_calls(self) -> None:
+        """Test move method with multiple call sites."""
+        self.refactor("move-method", source="Account::overdraft_charge", to="AccountType")
+
     @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test move method when target class already has method with same name."""
