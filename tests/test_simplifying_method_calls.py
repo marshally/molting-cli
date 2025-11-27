@@ -27,6 +27,10 @@ class TestRenameMethod(RefactoringTestBase):
             "rename-method", target="ShoppingCart::calc_amt", new_name="calculate_total_amount"
         )
 
+    def test_with_decorators(self) -> None:
+        """Test rename method with decorated methods."""
+        self.refactor("rename-method", target="Product::n", new_name="name")
+
     @pytest.mark.skip(reason="Implementation needed for name_conflict detection")
     def test_name_conflict(self) -> None:
         """Test rename method when target name already exists."""
