@@ -94,6 +94,17 @@ class TestExtractClass(RefactoringTestBase):
             name="Compensation",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test extract class with multiple call sites."""
+        self.refactor(
+            "extract-class",
+            source="Person",
+            fields="office_area_code,office_number",
+            methods="get_telephone_number",
+            name="TelephoneNumber",
+        )
+
     @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test extract class with decorated methods."""
