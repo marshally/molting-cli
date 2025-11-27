@@ -281,6 +281,10 @@ class TestHideMethod(RefactoringTestBase):
         """Make the method private."""
         self.refactor("hide-method", target="Employee::get_bonus_multiplier")
 
+    def test_with_decorators(self) -> None:
+        """Test hide method with decorated methods."""
+        self.refactor("hide-method", target="Calculator::calculate_discount_rate")
+
     def test_with_instance_vars(self) -> None:
         """Test hide method with instance variables."""
         self.refactor("hide-method", target="PriceCalculator::apply_discount")
