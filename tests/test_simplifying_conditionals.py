@@ -37,6 +37,15 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             name="is_not_eligible_for_disability",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    def test_with_locals(self) -> None:
+        """Test consolidate conditional expression with local variables."""
+        self.refactor(
+            "consolidate-conditional-expression",
+            target="calculate_bonus#L9-L15",
+            name="is_not_eligible_for_bonus",
+        )
+
 
 class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
     """Tests for Consolidate Duplicate Conditional Fragments refactoring."""
