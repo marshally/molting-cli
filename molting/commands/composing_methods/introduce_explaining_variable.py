@@ -32,6 +32,7 @@ class IntroduceExplainingVariableCommand(BaseCommand):
         """
         target = self.params["target"]
         variable_name = self.params["name"]
+        replace_all = self.params.get("replace_all", False)
 
         # Parse target format: "function_name#L<line>"
         function_name, _, line_spec = parse_target_with_line(target)
@@ -54,7 +55,11 @@ class IntroduceExplainingVariableCommand(BaseCommand):
         # Second pass: apply transformation
         wrapper = metadata.MetadataWrapper(module)
         transformer = IntroduceExplainingVariableTransformer(
-            function_name, variable_name, collector.best_expression, collector.best_line
+            function_name,
+            variable_name,
+            collector.best_expression,
+            collector.best_line,
+            replace_all=replace_all,
         )
         modified_tree = wrapper.visit(transformer)
 
@@ -146,6 +151,8 @@ class IntroduceExplainingVariableTransformer(cst.CSTTransformer):
         variable_name: str,
         target_expression: cst.BaseExpression,
         target_line: int,
+        *,
+        replace_all: bool = False,
     ) -> None:
         """Initialize the transformer.
 
@@ -154,11 +161,13 @@ class IntroduceExplainingVariableTransformer(cst.CSTTransformer):
             variable_name: Name for the new variable
             target_expression: The expression to extract (for reference)
             target_line: Line where the target expression starts
+            replace_all: If True, replace all occurrences of the expression
         """
         self.function_name = function_name
         self.variable_name = variable_name
         self.target_expression = target_expression
         self.target_line = target_line
+        self.replace_all = replace_all
         self.in_target_function = False
         self.replaced = False
         self.captured_expression: cst.BaseExpression | None = None
@@ -223,6 +232,10 @@ class IntroduceExplainingVariableTransformer(cst.CSTTransformer):
         except KeyError:
             return False
 
+    def _expressions_equal(self, node: cst.BaseExpression, target: cst.BaseExpression) -> bool:
+        """Check if two expressions are structurally equal (ignoring whitespace)."""
+        return node.deep_equals(target)
+
     def visit_BinaryOperation(self, node: cst.BinaryOperation) -> bool:  # noqa: N802
         """Track entry into multiply operations on target line."""
         if isinstance(node.operator, cst.Multiply) and self._is_on_target_line(node):
@@ -237,9 +250,22 @@ class IntroduceExplainingVariableTransformer(cst.CSTTransformer):
         We need to replace only the OUTERMOST multiply chain on the target line.
         We track depth: increment on visit, decrement on leave. Only replace when
         depth becomes 0 (we're leaving the outermost multiply).
+
+        When replace_all=True, also replace other occurrences of the same expression.
         """
+        if not self.in_target_function:
+            return updated_node
+
         if not isinstance(original_node.operator, cst.Multiply):
             return updated_node
+
+        # Check if this matches the target expression for replace_all
+        if (
+            self.replace_all
+            and self.captured_expression is not None
+            and self._expressions_equal(original_node, self.target_expression)
+        ):
+            return cst.Name(self.variable_name)
 
         if not self._is_on_target_line(original_node):
             return updated_node
