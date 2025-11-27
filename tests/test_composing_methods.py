@@ -119,6 +119,12 @@ class TestReplaceTempWithQuery(RefactoringTestBase):
             "replace-temp-with-query", target="Product::get_final_price::discounted_price"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test replace temp with query when method name already exists."""
+        # Try to replace base_price temp with a method but the method already exists
+        self.refactor("replace-temp-with-query", target="Order::get_price::base_price")
+
 
 class TestIntroduceExplainingVariable(RefactoringTestBase):
     """Tests for Introduce Explaining Variable refactoring."""
