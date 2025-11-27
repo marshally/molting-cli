@@ -146,6 +146,11 @@ class TestInlineClass(RefactoringTestBase):
         """Test inline class with decorated methods."""
         self.refactor("inline-class", source_class="Address", into="Employee")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test inline class with multiple call sites."""
+        self.refactor("inline-class", source_class="TelephoneNumber", into="Person")
+
     @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test inline class when target class already has method with same name."""
