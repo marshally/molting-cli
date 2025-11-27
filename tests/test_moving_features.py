@@ -52,6 +52,11 @@ class TestMoveField(RefactoringTestBase):
         """Move a field to the class that uses it most."""
         self.refactor("move-field", source="Account::interest_rate", to="AccountType")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test move field with multiple call sites."""
+        self.refactor("move-field", source="Account::interest_rate", to="AccountType")
+
     @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test move field with instance variables."""
