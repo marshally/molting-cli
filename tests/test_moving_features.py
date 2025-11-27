@@ -58,6 +58,16 @@ class TestExtractClass(RefactoringTestBase):
             name="TelephoneNumber",
         )
 
+    def test_with_instance_vars(self) -> None:
+        """Test extract class with instance variables."""
+        self.refactor(
+            "extract-class",
+            source="Employee",
+            fields="salary,bonus_percentage,deduction_rate,tax_rate",
+            methods="calculate_gross_pay,calculate_net_pay,get_annual_compensation",
+            name="Compensation",
+        )
+
 
 class TestInlineClass(RefactoringTestBase):
     """Tests for Inline Class refactoring."""
