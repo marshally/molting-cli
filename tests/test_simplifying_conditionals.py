@@ -208,6 +208,13 @@ class TestReplaceConditionalWithPolymorphism(RefactoringTestBase):
             target="ShippingCalculator::calculate_cost#L16-L27",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test replace conditional with polymorphism with decorated methods."""
+        self.refactor(
+            "replace-conditional-with-polymorphism", target="Employee::pay_amount#L17-L24"
+        )
+
 
 class TestIntroduceNullObject(RefactoringTestBase):
     """Tests for Introduce Null Object refactoring."""
