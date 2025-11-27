@@ -36,6 +36,11 @@ class TestPullUpField(RefactoringTestBase):
         """Test pull-up-field with decorated property methods."""
         self.refactor("pull-up-field", target="Salesman::commission_rate", to="Employee")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test pull-up-field with multiple call sites."""
+        self.refactor("pull-up-field", target="Salesman::name", to="Employee")
+
 
 class TestPullUpMethod(RefactoringTestBase):
     """Tests for Pull Up Method refactoring."""
