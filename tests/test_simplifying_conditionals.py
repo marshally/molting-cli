@@ -257,3 +257,12 @@ class TestIntroduceAssertion(RefactoringTestBase):
             target="ExpenseManager::get_expense_limit#L10",
             condition="project.expense_limit is not None or project.primary_project is not None",
         )
+
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test introduce assertion with decorated methods."""
+        self.refactor(
+            "introduce-assertion",
+            target="ExpenseManager::expense_limit#L10",
+            condition="self.project.expense_limit is not None or self.project.primary_project is not None",
+        )
