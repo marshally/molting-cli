@@ -64,6 +64,10 @@ class TestPullUpMethod(RefactoringTestBase):
         """Test pull-up-method with @staticmethod decorator."""
         self.refactor("pull-up-method", target="Salesman::format_currency", to="Employee")
 
+    def test_multiple_calls(self) -> None:
+        """Test pull-up-method with multiple call sites."""
+        self.refactor("pull-up-method", target="Salesman::get_annual_cost", to="Employee")
+
 
 class TestPullUpConstructorBody(RefactoringTestBase):
     """Tests for Pull Up Constructor Body refactoring."""
