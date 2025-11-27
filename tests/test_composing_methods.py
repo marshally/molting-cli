@@ -46,6 +46,16 @@ class TestExtractMethod(RefactoringTestBase):
         # Try to extract to print_banner but it already exists
         self.refactor("extract-method", target="Order::print_owing#L13-L15", name="print_banner")
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test extract method with decorated methods."""
+        # Extract pricing calculation from @property decorated method
+        self.refactor(
+            "extract-method",
+            target="Product::display_info#L23-L25",
+            name="_calculate_pricing",
+        )
+
 
 class TestExtractFunction(RefactoringTestBase):
     """Tests for Extract Function refactoring."""
