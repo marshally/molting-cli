@@ -102,6 +102,12 @@ class TestInlineMethod(RefactoringTestBase):
         # Inline get_subtotal which uses self.items
         self.refactor("inline-method", target="ShoppingCart::get_subtotal")
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test inline method with decorated methods."""
+        # Inline _get_base_total into the @property decorated total method
+        self.refactor("inline-method", target="ShoppingCart::_get_base_total")
+
 
 class TestInlineTemp(RefactoringTestBase):
     """Tests for Inline Temp refactoring."""
