@@ -254,6 +254,11 @@ class TestReplaceMethodWithMethodObject(RefactoringTestBase):
         """Turn a long method into its own object."""
         self.refactor("replace-method-with-method-object", target="Account::gamma")
 
+    def test_with_instance_vars(self) -> None:
+        """Test replace method with method object with instance variables."""
+        # Convert method that uses multiple instance vars to method object
+        self.refactor("replace-method-with-method-object", target="Order::calculate_total")
+
 
 class TestSubstituteAlgorithm(RefactoringTestBase):
     """Tests for Substitute Algorithm refactoring."""
