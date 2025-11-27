@@ -182,6 +182,10 @@ class TestEncapsulateCollection(RefactoringTestBase):
         """Make the method return a read-only view and provide add/remove methods."""
         self.refactor("encapsulate-collection", target="Person::courses")
 
+    def test_with_decorators(self) -> None:
+        """Test encapsulate-collection with decorated methods."""
+        self.refactor("encapsulate-collection", target="Person::courses")
+
 
 class TestReplaceTypeCodeWithClass(RefactoringTestBase):
     """Tests for Replace Type Code with Class refactoring."""
