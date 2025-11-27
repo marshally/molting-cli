@@ -17,6 +17,10 @@ class TestMoveMethod(RefactoringTestBase):
         """Move a method to the class that uses it most."""
         self.refactor("move-method", source="Account::overdraft_charge", to="AccountType")
 
+    def test_with_locals(self) -> None:
+        """Test move method with local variables."""
+        self.refactor("move-method", source="Account::calculate_fees", to="AccountType")
+
 
 class TestMoveField(RefactoringTestBase):
     """Tests for Move Field refactoring."""
