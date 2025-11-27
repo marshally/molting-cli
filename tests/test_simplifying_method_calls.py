@@ -96,6 +96,11 @@ class TestSeparateQueryFromModifier(RefactoringTestBase):
             target="Inventory::get_and_update_lowest_stock",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict detection")
+    def test_name_conflict(self) -> None:
+        """Test separate query from modifier when target name already exists."""
+        self.refactor("separate-query-from-modifier", target="Security::get_and_remove_intruder")
+
 
 class TestParameterizeMethod(RefactoringTestBase):
     """Tests for Parameterize Method refactoring."""
