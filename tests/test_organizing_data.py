@@ -72,7 +72,10 @@ class TestReplaceArrayWithObject(RefactoringTestBase):
         )
 
     @pytest.mark.skip(
-        reason="Implementation needed for with_locals - only transforms first function, not all functions with same parameter"
+        reason=(
+            "Implementation needed for with_locals - only transforms first function, "
+            "not all functions with same parameter"
+        )
     )
     def test_with_locals(self) -> None:
         """Test replace array with object with local variables."""
@@ -133,7 +136,10 @@ class TestReplaceMagicNumberWithSymbolicConstant(RefactoringTestBase):
         )
 
     @pytest.mark.skip(
-        reason="Implementation needed for with_locals - only replaces in targeted function, not all occurrences"
+        reason=(
+            "Implementation needed for with_locals - only replaces in targeted function, "
+            "not all occurrences"
+        )
     )
     def test_with_locals(self) -> None:
         """Test replace magic number with symbolic constant with local variables."""
