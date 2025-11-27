@@ -23,6 +23,10 @@ class TestMoveMethod(RefactoringTestBase):
         """Test move method with local variables."""
         self.refactor("move-method", source="Account::calculate_fees", to="AccountType")
 
+    def test_with_instance_vars(self) -> None:
+        """Test move method with instance variables."""
+        self.refactor("move-method", source="Account::calculate_interest", to="AccountType")
+
 
 class TestMoveField(RefactoringTestBase):
     """Tests for Move Field refactoring."""
