@@ -173,6 +173,17 @@ class TestIntroduceForeignMethod(RefactoringTestBase):
             name="add_days",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test introduce foreign method when method name already exists."""
+        with pytest.raises(ValueError, match="already has a method"):
+            self.refactor(
+                "introduce-foreign-method",
+                target="Report::generate#L6",
+                for_class="date",
+                name="next_day",
+            )
+
 
 class TestIntroduceLocalExtension(RefactoringTestBase):
     """Tests for Introduce Local Extension refactoring."""
