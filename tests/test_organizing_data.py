@@ -218,6 +218,10 @@ class TestEncapsulateField(RefactoringTestBase):
         """Test encapsulate-field with decorated methods."""
         self.refactor("encapsulate-field", target="Person::name")
 
+    def test_multiple_calls(self) -> None:
+        """Test encapsulate-field with multiple call sites."""
+        self.refactor("encapsulate-field", target="Person::name")
+
 
 class TestEncapsulateCollection(RefactoringTestBase):
     """Tests for Encapsulate Collection refactoring."""
