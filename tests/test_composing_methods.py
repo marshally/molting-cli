@@ -289,6 +289,12 @@ class TestReplaceMethodWithMethodObject(RefactoringTestBase):
         # Convert method that uses multiple instance vars to method object
         self.refactor("replace-method-with-method-object", target="Order::calculate_total")
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test replace method with method object when class name already exists."""
+        # Try to create Gamma class but it already exists
+        self.refactor("replace-method-with-method-object", target="Account::gamma")
+
 
 class TestSubstituteAlgorithm(RefactoringTestBase):
     """Tests for Substitute Algorithm refactoring."""
