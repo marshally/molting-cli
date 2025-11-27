@@ -205,6 +205,14 @@ class TestReplaceTypeCodeWithClass(RefactoringTestBase):
             "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict - should detect existing class")
+    def test_name_conflict(self) -> None:
+        """Test replace type code with class when target name already exists."""
+        with pytest.raises(ValueError, match="Class.*BloodGroup.*already exists"):
+            self.refactor(
+                "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
+            )
+
 
 class TestReplaceTypeCodeWithSubclasses(RefactoringTestBase):
     """Tests for Replace Type Code with Subclasses refactoring."""
