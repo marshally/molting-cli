@@ -283,6 +283,16 @@ class TestIntroduceParameterObject(RefactoringTestBase):
             name="DateRange",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test introduce parameter object with multiple call sites."""
+        self.refactor(
+            "introduce-parameter-object",
+            target="flow_between",
+            params="start_date,end_date",
+            name="DateRange",
+        )
+
     @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test introduce parameter object with local variables."""
