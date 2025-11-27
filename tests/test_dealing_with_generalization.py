@@ -45,6 +45,11 @@ class TestPullUpMethod(RefactoringTestBase):
         """Test pull-up-method with instance variables."""
         self.refactor("pull-up-method", target="Salesman::get_employee_info", to="Employee")
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test pull-up-method when target method already exists in parent."""
+        self.refactor("pull-up-method", target="Salesman::get_annual_cost", to="Employee")
+
 
 class TestPullUpConstructorBody(RefactoringTestBase):
     """Tests for Pull Up Constructor Body refactoring."""
