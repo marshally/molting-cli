@@ -56,6 +56,11 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
         """Move duplicate code outside the conditional."""
         self.refactor("consolidate-duplicate-conditional-fragments", target="process_order#L2-L7")
 
+    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    def test_with_locals(self) -> None:
+        """Test consolidate duplicate conditional fragments with local variables."""
+        self.refactor("consolidate-duplicate-conditional-fragments", target="calculate_shipping#L8-L16")
+
 
 class TestRemoveControlFlag(RefactoringTestBase):
     """Tests for Remove Control Flag refactoring."""
