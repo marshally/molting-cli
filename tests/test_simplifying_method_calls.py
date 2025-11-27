@@ -101,6 +101,16 @@ class TestParameterizeMethod(RefactoringTestBase):
             new_name="raise_salary",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test parameterize method with instance variables."""
+        self.refactor(
+            "parameterize-method",
+            target1="InventoryItem::mark_low_stock",
+            target2="InventoryItem::mark_critical_stock",
+            new_name="mark_stock_level",
+        )
+
 
 class TestReplaceParameterWithExplicitMethods(RefactoringTestBase):
     """Tests for Replace Parameter with Explicit Methods refactoring."""
