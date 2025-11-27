@@ -236,6 +236,11 @@ class TestEncapsulateCollection(RefactoringTestBase):
         """Test encapsulate-collection with decorated methods."""
         self.refactor("encapsulate-collection", target="Person::courses")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls - doesn't update external call sites")
+    def test_multiple_calls(self) -> None:
+        """Test encapsulate-collection with multiple call sites."""
+        self.refactor("encapsulate-collection", target="Person::courses")
+
 
 class TestReplaceTypeCodeWithClass(RefactoringTestBase):
     """Tests for Replace Type Code with Class refactoring."""
