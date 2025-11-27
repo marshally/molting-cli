@@ -121,6 +121,11 @@ class TestPushDownField(RefactoringTestBase):
         """Test push-down-field when target subclass already has field."""
         self.refactor("push-down-field", target="Employee::quota", to="Salesman")
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test push-down-field with decorated property methods."""
+        self.refactor("push-down-field", target="Employee::sales_target", to="Salesman")
+
 
 class TestExtractSubclass(RefactoringTestBase):
     """Tests for Extract Subclass refactoring."""
