@@ -40,6 +40,12 @@ class TestExtractMethod(RefactoringTestBase):
             name="calculate_subtotal",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test extract method when target method name already exists."""
+        # Try to extract to print_banner but it already exists
+        self.refactor("extract-method", target="Order::print_owing#L13-L15", name="print_banner")
+
 
 class TestExtractFunction(RefactoringTestBase):
     """Tests for Extract Function refactoring."""
