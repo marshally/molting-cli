@@ -31,6 +31,13 @@ class TestRenameMethod(RefactoringTestBase):
         """Test rename method with decorated methods."""
         self.refactor("rename-method", target="Product::n", new_name="name")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test rename method with multiple call sites."""
+        self.refactor(
+            "rename-method", target="Customer::get_inv_cdtlmt", new_name="get_invoice_credit_limit"
+        )
+
     @pytest.mark.skip(reason="Implementation needed for name_conflict detection")
     def test_name_conflict(self) -> None:
         """Test rename method when target name already exists."""
