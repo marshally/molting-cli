@@ -24,6 +24,15 @@ class TestSelfEncapsulateField(RefactoringTestBase):
         refactor_file("self-encapsulate-field", self.test_file, target="Range::high")
         self.assert_matches_expected()
 
+    def test_with_decorators(self) -> None:
+        """Test self-encapsulate-field with decorated methods."""
+        from molting.cli import refactor_file
+
+        assert self.test_file is not None
+        refactor_file("self-encapsulate-field", self.test_file, target="Range::low")
+        refactor_file("self-encapsulate-field", self.test_file, target="Range::high")
+        self.assert_matches_expected()
+
 
 class TestReplaceDataValueWithObject(RefactoringTestBase):
     """Tests for Replace Data Value with Object refactoring."""
