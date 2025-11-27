@@ -33,6 +33,10 @@ class TestSelfEncapsulateField(RefactoringTestBase):
         refactor_file("self-encapsulate-field", self.test_file, target="Range::high")
         self.assert_matches_expected()
 
+    def test_with_instance_vars(self) -> None:
+        """Test self-encapsulate-field with instance variables."""
+        self.refactor("self-encapsulate-field", target="Account::balance")
+
 
 class TestReplaceDataValueWithObject(RefactoringTestBase):
     """Tests for Replace Data Value with Object refactoring."""
