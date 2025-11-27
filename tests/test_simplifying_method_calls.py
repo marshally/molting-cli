@@ -258,6 +258,11 @@ class TestReplaceConstructorWithFactoryFunction(RefactoringTestBase):
         """Replace the constructor with a factory function."""
         self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict detection")
+    def test_name_conflict(self) -> None:
+        """Test replace constructor with factory function when factory name already exists."""
+        self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
+
 
 class TestReplaceErrorCodeWithException(RefactoringTestBase):
     """Tests for Replace Error Code with Exception refactoring."""
