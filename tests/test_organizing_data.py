@@ -168,6 +168,10 @@ class TestEncapsulateField(RefactoringTestBase):
         """Make the field private and provide accessors."""
         self.refactor("encapsulate-field", target="Person::name")
 
+    def test_with_decorators(self) -> None:
+        """Test encapsulate-field with decorated methods."""
+        self.refactor("encapsulate-field", target="Person::name")
+
 
 class TestEncapsulateCollection(RefactoringTestBase):
     """Tests for Encapsulate Collection refactoring."""
