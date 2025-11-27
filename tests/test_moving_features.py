@@ -85,6 +85,17 @@ class TestExtractClass(RefactoringTestBase):
             name="Compensation",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test extract class with decorated methods."""
+        self.refactor(
+            "extract-class",
+            source="Employee",
+            fields="street,city,state,zip_code",
+            methods="full_address,update_street",
+            name="Address",
+        )
+
     @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test extract class when target class name already exists."""
