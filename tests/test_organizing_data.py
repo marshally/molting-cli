@@ -163,6 +163,16 @@ class TestReplaceMagicNumberWithSymbolicConstant(RefactoringTestBase):
             name="GRAVITATIONAL_CONSTANT",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict - should detect existing constant")
+    def test_name_conflict(self) -> None:
+        """Test replace magic number with symbolic constant when target name already exists."""
+        with pytest.raises(ValueError, match="Constant.*GRAVITATIONAL_CONSTANT.*already exists"):
+            self.refactor(
+                "replace-magic-number-with-symbolic-constant",
+                target="potential_energy#L2",
+                name="GRAVITATIONAL_CONSTANT",
+            )
+
 
 class TestEncapsulateField(RefactoringTestBase):
     """Tests for Encapsulate Field refactoring."""
