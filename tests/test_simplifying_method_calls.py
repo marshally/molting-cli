@@ -104,6 +104,11 @@ class TestRemoveParameter(RefactoringTestBase):
         """Test remove parameter with decorated methods."""
         self.refactor("remove-parameter", target="ReportGenerator::generate_report::unused_param")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test remove parameter with multiple call sites."""
+        self.refactor("remove-parameter", target="Order::calculate_total::discount_code")
+
     def test_with_instance_vars(self) -> None:
         """Test remove parameter with instance variables."""
         self.refactor("remove-parameter", target="EmailService::send_email::priority")
