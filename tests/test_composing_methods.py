@@ -108,6 +108,10 @@ class TestInlineMethod(RefactoringTestBase):
         # Inline _get_base_total into the @property decorated total method
         self.refactor("inline-method", target="ShoppingCart::_get_base_total")
 
+    def test_multiple_calls(self) -> None:
+        """Test inline method with multiple call sites."""
+        self.refactor("inline-method", target="Person::more_than_five_late_deliveries")
+
 
 class TestInlineTemp(RefactoringTestBase):
     """Tests for Inline Temp refactoring."""
