@@ -127,6 +127,12 @@ class TestHideDelegate(RefactoringTestBase):
         """Test hide delegate with instance variables."""
         self.refactor("hide-delegate", target="Employee::compensation")
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test hide delegate when delegating method name already exists."""
+        with pytest.raises(ValueError, match="already has a method"):
+            self.refactor("hide-delegate", target="Person::department")
+
 
 class TestRemoveMiddleMan(RefactoringTestBase):
     """Tests for Remove Middle Man refactoring."""
