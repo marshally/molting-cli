@@ -222,6 +222,10 @@ class TestEncapsulateField(RefactoringTestBase):
         """Test encapsulate-field with decorated methods."""
         self.refactor("encapsulate-field", target="Person::name")
 
+    def test_with_instance_vars(self) -> None:
+        """Test encapsulate-field with instance variables."""
+        self.refactor("encapsulate-field", target="BankAccount::balance")
+
 
 class TestEncapsulateCollection(RefactoringTestBase):
     """Tests for Encapsulate Collection refactoring."""
