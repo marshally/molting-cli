@@ -62,6 +62,11 @@ class TestInlineTemp(RefactoringTestBase):
         """Replace a temp variable with its expression."""
         self.refactor("inline-temp", target="calculate_total::base_price")
 
+    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    def test_with_locals(self) -> None:
+        """Test inline temp with local variables used in multiple places."""
+        self.refactor("inline-temp", target="calculate_price::base_price")
+
 
 class TestReplaceTempWithQuery(RefactoringTestBase):
     """Tests for Replace Temp with Query refactoring."""
