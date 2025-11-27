@@ -107,6 +107,11 @@ class TestRemoveMiddleMan(RefactoringTestBase):
         """Get the client to call the delegate directly."""
         self.refactor("remove-middle-man", target="Person")
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test remove middle man with instance variables."""
+        self.refactor("remove-middle-man", target="Employee")
+
 
 class TestIntroduceForeignMethod(RefactoringTestBase):
     """Tests for Introduce Foreign Method refactoring."""
