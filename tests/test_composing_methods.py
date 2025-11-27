@@ -98,6 +98,13 @@ class TestReplaceTempWithQuery(RefactoringTestBase):
         """Test replace temp with query with local variables used multiple times."""
         self.refactor("replace-temp-with-query", target="Invoice::calculate_total::base_price")
 
+    def test_with_instance_vars(self) -> None:
+        """Test replace temp with query with instance variables."""
+        # Replace discounted_price temp with a query method that uses instance vars
+        self.refactor(
+            "replace-temp-with-query", target="Product::get_final_price::discounted_price"
+        )
+
 
 class TestIntroduceExplainingVariable(RefactoringTestBase):
     """Tests for Introduce Explaining Variable refactoring."""
