@@ -65,6 +65,11 @@ class TestPullUpConstructorBody(RefactoringTestBase):
         """Test pull up constructor body with local variables."""
         self.refactor("pull-up-constructor-body", target="Manager::__init__", to="Employee")
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test pull-up-constructor-body when parent already has incompatible constructor."""
+        self.refactor("pull-up-constructor-body", target="Manager::__init__", to="Employee")
+
 
 class TestPushDownMethod(RefactoringTestBase):
     """Tests for Push Down Method refactoring."""
