@@ -5,7 +5,6 @@ This module tests refactorings that improve the internal structure of methods
 by extracting, inlining, and reorganizing code.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -105,7 +104,6 @@ class TestIntroduceExplainingVariableReplaceAll(RefactoringTestBase):
 
     fixture_category = "composing_methods/introduce_explaining_variable/replace_all"
 
-    @pytest.mark.skip(reason="replace_all option not implemented yet")
     def test_simple(self) -> None:
         """Extract expression and replace all occurrences with the variable.
 
