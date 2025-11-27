@@ -240,6 +240,10 @@ class TestEncapsulateCollection(RefactoringTestBase):
         """Test encapsulate-collection with decorated methods."""
         self.refactor("encapsulate-collection", target="Person::courses")
 
+    def test_with_instance_vars(self) -> None:
+        """Test encapsulate-collection with instance variables."""
+        self.refactor("encapsulate-collection", target="Library::books")
+
 
 class TestReplaceTypeCodeWithClass(RefactoringTestBase):
     """Tests for Replace Type Code with Class refactoring."""
