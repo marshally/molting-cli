@@ -65,6 +65,10 @@ class TestPushDownMethod(RefactoringTestBase):
         """Move a method from superclass to those subclasses that need it."""
         self.refactor("push-down-method", target="Employee::get_quota", to="Salesman")
 
+    def test_with_instance_vars(self) -> None:
+        """Test push-down-method with instance variables."""
+        self.refactor("push-down-method", target="Employee::calculate_bonus", to="Salesman")
+
 
 class TestPushDownField(RefactoringTestBase):
     """Tests for Push Down Field refactoring."""
