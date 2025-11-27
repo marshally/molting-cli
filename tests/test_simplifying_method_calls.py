@@ -96,6 +96,11 @@ class TestPreserveWholeObject(RefactoringTestBase):
         """Send the whole object instead of extracting values from it."""
         self.refactor("preserve-whole-object", target="within_plan")
 
+    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    def test_with_locals(self) -> None:
+        """Test preserve whole object with local variables."""
+        self.refactor("preserve-whole-object", target="can_withdraw")
+
 
 class TestReplaceParameterWithMethodCall(RefactoringTestBase):
     """Tests for Replace Parameter with Method Call refactoring."""
