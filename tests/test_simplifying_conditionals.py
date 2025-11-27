@@ -77,6 +77,14 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
             "consolidate-duplicate-conditional-fragments", target="calculate_shipping#L8-L16"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test consolidate duplicate conditional fragments with instance variables."""
+        self.refactor(
+            "consolidate-duplicate-conditional-fragments",
+            target="OrderProcessor::process_order#L10-L15",
+        )
+
 
 class TestRemoveControlFlag(RefactoringTestBase):
     """Tests for Remove Control Flag refactoring."""
