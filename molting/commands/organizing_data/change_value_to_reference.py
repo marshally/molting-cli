@@ -122,7 +122,7 @@ class ChangeValueToReferenceTransformer(cst.CSTTransformer):
 
         # Add existing class body
         for stmt in class_def.body.body:
-            new_body.append(stmt)
+            new_body.append(cast(cst.BaseStatement, stmt))
 
         # Add empty line before get_named method
         new_body.append(cast(cst.BaseStatement, empty_line))

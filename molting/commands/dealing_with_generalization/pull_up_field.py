@@ -139,7 +139,7 @@ class PullUpFieldTransformer(cst.CSTTransformer):
             # For simplicity, we'll replace it with a new one that includes the field
             for stmt in class_node.body.body:
                 if stmt is not init_method:
-                    new_body_stmts.append(stmt)
+                    new_body_stmts.append(cast(cst.BaseStatement, stmt))
                 else:
                     # Create modified __init__
                     new_init = self._create_updated_superclass_init(init_method)
@@ -215,7 +215,7 @@ class PullUpFieldTransformer(cst.CSTTransformer):
             if stmt is init_method:
                 new_body_stmts.append(new_init)
             else:
-                new_body_stmts.append(stmt)
+                new_body_stmts.append(cast(cst.BaseStatement, stmt))
 
         return class_node.with_changes(
             body=class_node.body.with_changes(body=tuple(new_body_stmts))

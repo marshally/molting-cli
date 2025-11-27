@@ -252,6 +252,7 @@ class ReplaceTypeCodeWithStateStrategyTransformer(cst.CSTTransformer):
         # For SALESMAN: return employee.monthly_salary + employee.commission
         # For MANAGER: return employee.monthly_salary + employee.bonus
 
+        return_expr: cst.BaseExpression
         if const_name == "ENGINEER":
             return_expr = cst.Attribute(value=cst.Name("employee"), attr=cst.Name("monthly_salary"))
         elif const_name == "SALESMAN":

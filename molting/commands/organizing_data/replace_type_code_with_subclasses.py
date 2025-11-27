@@ -1,5 +1,7 @@
 """Replace Type Code with Subclasses refactoring command."""
 
+from typing import cast
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -93,14 +95,15 @@ class ReplaceTypeCodeWithSubclassesTransformer(cst.CSTTransformer):
         new_body: list[cst.BaseStatement] = []
 
         for stmt in updated_node.body.body:
+            base_stmt = cast(cst.BaseStatement, stmt)
             # Skip type code constants
-            if self._is_type_code_constant(stmt):
+            if self._is_type_code_constant(base_stmt):
                 continue
             # Replace __init__ with factory method
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
                 new_body.append(self._create_factory_method())
             else:
-                new_body.append(stmt)
+                new_body.append(base_stmt)
 
         # If there was no __init__, just add the factory method
         has_init = any(
@@ -119,7 +122,8 @@ class ReplaceTypeCodeWithSubclassesTransformer(cst.CSTTransformer):
             class_node: The class definition to extract from
         """
         for stmt in class_node.body.body:
-            if self._is_type_code_constant(stmt):
+            base_stmt = cast(cst.BaseStatement, stmt)
+            if self._is_type_code_constant(base_stmt):
                 if isinstance(stmt, cst.SimpleStatementLine):
                     for body_item in stmt.body:
                         if isinstance(body_item, cst.Assign):
@@ -157,7 +161,7 @@ class ReplaceTypeCodeWithSubclassesTransformer(cst.CSTTransformer):
             Factory method definition
         """
         # Build if-elif chain by iterating in reverse and nesting
-        if_chain = None
+        if_chain: cst.If | None = None
 
         for type_code in reversed(self.type_codes):
             condition = cst.Comparison(
@@ -198,7 +202,7 @@ class ReplaceTypeCodeWithSubclassesTransformer(cst.CSTTransformer):
                     )
                 ]
             ),
-            body=cst.IndentedBlock(body=[if_chain]),
+            body=cst.IndentedBlock(body=[cast(cst.BaseStatement, if_chain)]),
             decorators=[cst.Decorator(decorator=cst.Name("staticmethod"))],
         )
 

@@ -1,5 +1,7 @@
 """Change Reference to Value refactoring command."""
 
+from typing import cast
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -77,7 +79,7 @@ class ChangeReferenceToValueTransformer(cst.CSTTransformer):
                 else:
                     new_body.append(stmt)
             else:
-                new_body.append(stmt)
+                new_body.append(cast(cst.BaseStatement, stmt))
 
         # Add __eq__ method
         new_body.append(self._create_eq_method())
