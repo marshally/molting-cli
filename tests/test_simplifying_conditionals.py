@@ -88,6 +88,15 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             name="is_not_eligible_for_disability",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test consolidate conditional expression with decorated methods."""
+        self.refactor(
+            "consolidate-conditional-expression",
+            target="EmployeeBenefits::disability_amount#L10-L15",
+            name="is_not_eligible_for_disability",
+        )
+
 
 class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
     """Tests for Consolidate Duplicate Conditional Fragments refactoring."""
