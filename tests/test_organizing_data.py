@@ -176,6 +176,12 @@ class TestChangeBidirectionalAssociationToUnidirectional(RefactoringTestBase):
             "change-bidirectional-association-to-unidirectional", target="Customer::_orders"
         )
 
+    def test_with_instance_vars(self) -> None:
+        """Test change-bidirectional-association-to-unidirectional with instance variables."""
+        self.refactor(
+            "change-bidirectional-association-to-unidirectional", target="Owner::_projects"
+        )
+
 
 class TestReplaceMagicNumberWithSymbolicConstant(RefactoringTestBase):
     """Tests for Replace Magic Number with Symbolic Constant refactoring."""
