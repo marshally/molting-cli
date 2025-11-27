@@ -59,7 +59,9 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
     @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test consolidate duplicate conditional fragments with local variables."""
-        self.refactor("consolidate-duplicate-conditional-fragments", target="calculate_shipping#L8-L16")
+        self.refactor(
+            "consolidate-duplicate-conditional-fragments", target="calculate_shipping#L8-L16"
+        )
 
 
 class TestRemoveControlFlag(RefactoringTestBase):
@@ -70,6 +72,11 @@ class TestRemoveControlFlag(RefactoringTestBase):
     def test_simple(self) -> None:
         """Replace a control flag variable with break or return."""
         self.refactor("remove-control-flag", target="check_security::found")
+
+    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    def test_with_locals(self) -> None:
+        """Test remove control flag with local variables."""
+        self.refactor("remove-control-flag", target="find_matching_product::found")
 
 
 class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
