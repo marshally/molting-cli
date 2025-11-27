@@ -80,6 +80,18 @@ class TestExtractClass(RefactoringTestBase):
             name="Compensation",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test extract class when target class name already exists."""
+        with pytest.raises(ValueError, match="Class .* already exists"):
+            self.refactor(
+                "extract-class",
+                source="Person",
+                fields="office_area_code,office_number",
+                methods="get_telephone_number",
+                name="TelephoneNumber",
+            )
+
 
 class TestInlineClass(RefactoringTestBase):
     """Tests for Inline Class refactoring."""
