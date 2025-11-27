@@ -342,6 +342,10 @@ class TestReplaceMethodWithMethodObject(RefactoringTestBase):
         # Convert @log_call decorated method to method object
         self.refactor("replace-method-with-method-object", target="Report::generate_summary")
 
+    def test_multiple_calls(self) -> None:
+        """Test replace method with method object with multiple call sites."""
+        self.refactor("replace-method-with-method-object", target="Account::gamma")
+
 
 class TestSubstituteAlgorithm(RefactoringTestBase):
     """Tests for Substitute Algorithm refactoring."""
