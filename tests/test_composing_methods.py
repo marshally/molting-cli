@@ -100,13 +100,13 @@ class TestIntroduceExplainingVariable(RefactoringTestBase):
         self.assert_matches_expected()
 
 
-class TestIntroduceExplainingVariableWithReplacement(RefactoringTestBase):
+class TestIntroduceExplainingVariableReplaceAll(RefactoringTestBase):
     """Tests for Introduce Explaining Variable with replace_all option."""
 
-    fixture_category = "composing_methods/introduce_explaining_variable"
+    fixture_category = "composing_methods/introduce_explaining_variable/replace_all"
 
     @pytest.mark.skip(reason="replace_all option not implemented yet")
-    def test_with_replacement(self) -> None:
+    def test_simple(self) -> None:
         """Extract expression and replace all occurrences with the variable.
 
         This tests the more advanced version of introduce-explaining-variable
@@ -120,6 +120,7 @@ class TestIntroduceExplainingVariableWithReplacement(RefactoringTestBase):
         assert self.test_file is not None  # Type guard
 
         # Apply refactorings with replace_all=True
+        # Note: Line numbers shift as variables are introduced
         refactor_file(
             "introduce-explaining-variable",
             self.test_file,
@@ -130,14 +131,14 @@ class TestIntroduceExplainingVariableWithReplacement(RefactoringTestBase):
         refactor_file(
             "introduce-explaining-variable",
             self.test_file,
-            target="calculate_total#L4",
+            target="calculate_total#L5",
             name="quantity_discount",
             replace_all=True,
         )
         refactor_file(
             "introduce-explaining-variable",
             self.test_file,
-            target="calculate_total#L5",
+            target="calculate_total#L7",
             name="shipping",
             replace_all=True,
         )
