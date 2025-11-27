@@ -270,6 +270,10 @@ class TestReplaceTypeCodeWithClass(RefactoringTestBase):
             "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
         )
 
+    def test_with_instance_vars(self) -> None:
+        """Test replace-type-code-with-class with instance variables."""
+        self.refactor("replace-type-code-with-class", target="Task::priority", name="Priority")
+
     @pytest.mark.skip(
         reason="Implementation needed for name_conflict - should detect existing class"
     )
