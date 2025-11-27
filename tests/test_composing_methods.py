@@ -142,6 +142,7 @@ class TestReplaceTempWithQuery(RefactoringTestBase):
         """Test replace temp with query with local variables used multiple times."""
         self.refactor("replace-temp-with-query", target="Invoice::calculate_total::base_price")
 
+    @pytest.mark.skip(reason="Added to wrong branch during rebase")
     def test_with_instance_vars(self) -> None:
         """Test replace temp with query with instance variables."""
         # Replace discounted_price temp with a query method that uses instance vars
@@ -326,6 +327,7 @@ class TestReplaceMethodWithMethodObject(RefactoringTestBase):
         """Turn a long method into its own object."""
         self.refactor("replace-method-with-method-object", target="Account::gamma")
 
+    @pytest.mark.skip(reason="Added to wrong branch during rebase")
     def test_with_instance_vars(self) -> None:
         """Test replace method with method object with instance variables."""
         # Convert method that uses multiple instance vars to method object
