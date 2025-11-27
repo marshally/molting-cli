@@ -31,6 +31,11 @@ class TestPullUpField(RefactoringTestBase):
         """Test pull-up-field when target field already exists in parent."""
         self.refactor("pull-up-field", target="Salesman::name", to="Employee")
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test pull-up-field with decorated property methods."""
+        self.refactor("pull-up-field", target="Salesman::commission_rate", to="Employee")
+
 
 class TestPullUpMethod(RefactoringTestBase):
     """Tests for Pull Up Method refactoring."""
