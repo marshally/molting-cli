@@ -155,6 +155,11 @@ class TestIntroduceNullObject(RefactoringTestBase):
         """Replace null checks with a null object."""
         self.refactor("introduce-null-object", target_class="Customer")
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test introduce null object with instance variables."""
+        self.refactor("introduce-null-object", target_class="Customer")
+
 
 class TestIntroduceAssertion(RefactoringTestBase):
     """Tests for Introduce Assertion refactoring."""
