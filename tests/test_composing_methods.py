@@ -76,6 +76,16 @@ class TestExtractFunction(RefactoringTestBase):
             "extract-function", target="DataProcessor::process#L12", name="normalize_string"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test extract function from decorated methods."""
+        # Extract email formatting from @log_call decorated method
+        self.refactor(
+            "extract-function",
+            target="EmailService::send_email#L19",
+            name="format_email_address",
+        )
+
 
 class TestInlineMethod(RefactoringTestBase):
     """Tests for Inline Method refactoring."""
