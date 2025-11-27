@@ -360,6 +360,11 @@ class TestReplaceConstructorWithFactoryFunction(RefactoringTestBase):
         """Replace the constructor with a factory function."""
         self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test replace constructor with factory function with multiple call sites."""
+        self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
+
     @pytest.mark.skip(reason="Implementation needed for name_conflict detection")
     def test_name_conflict(self) -> None:
         """Test replace constructor with factory function when factory name already exists."""
