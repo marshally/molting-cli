@@ -173,3 +173,12 @@ class TestIntroduceAssertion(RefactoringTestBase):
             target="get_expense_limit#L3",
             condition="project.expense_limit is not None or project.primary_project is not None",
         )
+
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test introduce assertion with instance variables."""
+        self.refactor(
+            "introduce-assertion",
+            target="ExpenseManager::get_expense_limit#L10",
+            condition="project.expense_limit is not None or project.primary_project is not None",
+        )
