@@ -26,6 +26,11 @@ class TestPullUpField(RefactoringTestBase):
         """Test pull-up-field with instance variables."""
         self.refactor("pull-up-field", target="Salesman::name", to="Employee")
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test pull-up-field when target field already exists in parent."""
+        self.refactor("pull-up-field", target="Salesman::name", to="Employee")
+
 
 class TestPullUpMethod(RefactoringTestBase):
     """Tests for Pull Up Method refactoring."""
