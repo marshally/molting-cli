@@ -228,6 +228,11 @@ class TestReplaceErrorCodeWithException(RefactoringTestBase):
         """Throw an exception instead of returning an error code."""
         self.refactor("replace-error-code-with-exception", target="withdraw")
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test replace error code with exception with instance variables."""
+        self.refactor("replace-error-code-with-exception", target="process_withdrawal")
+
 
 class TestReplaceExceptionWithTest(RefactoringTestBase):
     """Tests for Replace Exception with Test refactoring."""
