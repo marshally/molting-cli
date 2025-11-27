@@ -48,6 +48,12 @@ class TestMoveField(RefactoringTestBase):
         """Test move field with instance variables."""
         self.refactor("move-field", source="Account::interest_rate", to="AccountType")
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test move field when target class already has field with same name."""
+        with pytest.raises(ValueError, match="already has a field"):
+            self.refactor("move-field", source="Account::interest_rate", to="AccountType")
+
 
 class TestExtractClass(RefactoringTestBase):
     """Tests for Extract Class refactoring."""
