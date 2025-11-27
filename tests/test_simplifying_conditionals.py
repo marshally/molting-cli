@@ -23,6 +23,11 @@ class TestDecomposeConditional(RefactoringTestBase):
         """Test decompose conditional with local variables."""
         self.refactor("decompose-conditional", target="process_order#L8-L13")
 
+    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
+    def test_with_instance_vars(self) -> None:
+        """Test decompose conditional with instance variables."""
+        self.refactor("decompose-conditional", target="PricingCalculator::calculate_charge#L11-L14")
+
 
 class TestConsolidateConditionalExpression(RefactoringTestBase):
     """Tests for Consolidate Conditional Expression refactoring."""
