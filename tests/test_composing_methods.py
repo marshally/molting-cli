@@ -333,6 +333,11 @@ class TestReplaceMethodWithMethodObject(RefactoringTestBase):
         # Try to create Gamma class but it already exists
         self.refactor("replace-method-with-method-object", target="Account::gamma")
 
+    def test_with_decorators(self) -> None:
+        """Test replace method with method object with decorated methods."""
+        # Convert @log_call decorated method to method object
+        self.refactor("replace-method-with-method-object", target="Report::generate_summary")
+
 
 class TestSubstituteAlgorithm(RefactoringTestBase):
     """Tests for Substitute Algorithm refactoring."""
