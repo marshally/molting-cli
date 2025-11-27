@@ -78,6 +78,10 @@ class TestChangeValueToReference(RefactoringTestBase):
         """Turn a value object into a reference object."""
         self.refactor("change-value-to-reference", target="Customer")
 
+    def test_with_instance_vars(self) -> None:
+        """Test change-value-to-reference with instance variables."""
+        self.refactor("change-value-to-reference", target="Product")
+
 
 class TestChangeReferenceToValue(RefactoringTestBase):
     """Tests for Change Reference to Value refactoring."""
