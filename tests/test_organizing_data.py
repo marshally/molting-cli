@@ -92,6 +92,10 @@ class TestChangeReferenceToValue(RefactoringTestBase):
         """Turn a reference object into a value object."""
         self.refactor("change-reference-to-value", target="Currency")
 
+    def test_with_instance_vars(self) -> None:
+        """Test change-reference-to-value with instance variables."""
+        self.refactor("change-reference-to-value", target="Money")
+
 
 class TestReplaceArrayWithObject(RefactoringTestBase):
     """Tests for Replace Array with Object refactoring."""
