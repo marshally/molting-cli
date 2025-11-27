@@ -156,6 +156,16 @@ class TestIntroduceExplainingVariable(RefactoringTestBase):
         )
         self.assert_matches_expected()
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict")
+    def test_name_conflict(self) -> None:
+        """Test introduce explaining variable when variable name already exists."""
+        # Try to introduce base_price but it already exists
+        self.refactor(
+            "introduce-explaining-variable",
+            target="calculate_total#L7",
+            name="base_price",
+        )
+
 
 class TestIntroduceExplainingVariableReplaceAll(RefactoringTestBase):
     """Tests for Introduce Explaining Variable with replace_all option."""
