@@ -33,6 +33,11 @@ class TestDecomposeConditional(RefactoringTestBase):
         """Test decompose conditional with multiple call sites."""
         self.refactor("decompose-conditional", target="calculate_shipping_charge#L5-L8")
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test decompose conditional with decorated methods."""
+        self.refactor("decompose-conditional", target="PriceCalculator::charge#L14-L17")
+
 
 class TestConsolidateConditionalExpression(RefactoringTestBase):
     """Tests for Consolidate Conditional Expression refactoring."""
