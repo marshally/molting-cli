@@ -127,6 +127,15 @@ class TestFormTemplateMethod(RefactoringTestBase):
             name="get_bill_amount",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    def test_with_locals(self) -> None:
+        """Test form template method with local variables."""
+        self.refactor(
+            "form-template-method",
+            targets="ResidentialSite::get_bill_amount,LifelineSite::get_bill_amount",
+            name="get_bill_amount",
+        )
+
 
 class TestReplaceInheritanceWithDelegation(RefactoringTestBase):
     """Tests for Replace Inheritance with Delegation refactoring."""
