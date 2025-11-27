@@ -210,6 +210,16 @@ class TestIntroduceParameterObject(RefactoringTestBase):
             name="ReportConfig",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for name_conflict detection")
+    def test_name_conflict(self) -> None:
+        """Test introduce parameter object when class name already exists."""
+        self.refactor(
+            "introduce-parameter-object",
+            target="flow_between",
+            params="start_date,end_date",
+            name="DateRange",
+        )
+
 
 class TestRemoveSettingMethod(RefactoringTestBase):
     """Tests for Remove Setting Method refactoring."""
