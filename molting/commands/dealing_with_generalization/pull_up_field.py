@@ -101,14 +101,20 @@ class FieldCaptureTransformer(cst.CSTTransformer):
                 if isinstance(stmt, cst.FunctionDef):
                     # Check if it has property decorator on the field_name
                     for decorator in stmt.decorators:
-                        if isinstance(decorator.decorator, cst.Name) and decorator.decorator.value == "property":
+                        if (
+                            isinstance(decorator.decorator, cst.Name)
+                            and decorator.decorator.value == "property"
+                        ):
                             if stmt.name.value == self.field_name:
                                 self.is_property = True
                                 self.property_methods.append(stmt)
                         elif isinstance(decorator.decorator, cst.Attribute):
                             # Handle @property_name.setter, @property_name.deleter
                             if isinstance(decorator.decorator.value, cst.Name):
-                                if decorator.decorator.value.value == self.field_name and stmt.name.value == self.field_name:
+                                if (
+                                    decorator.decorator.value.value == self.field_name
+                                    and stmt.name.value == self.field_name
+                                ):
                                     self.is_property = True
                                     self.property_methods.append(stmt)
 
@@ -139,7 +145,10 @@ class FieldCaptureTransformer(cst.CSTTransformer):
             for stmt in node.body.body:
                 if isinstance(stmt, cst.FunctionDef) and stmt.name.value == self.field_name:
                     for decorator in stmt.decorators:
-                        if isinstance(decorator.decorator, cst.Name) and decorator.decorator.value == "property":
+                        if (
+                            isinstance(decorator.decorator, cst.Name)
+                            and decorator.decorator.value == "property"
+                        ):
                             self.parent_existing_fields.add(self.field_name)
 
 
@@ -267,7 +276,10 @@ class PullUpFieldTransformer(cst.CSTTransformer):
                 # Check if it has property-related decorators
                 is_property_method = False
                 for decorator in stmt.decorators:
-                    if isinstance(decorator.decorator, cst.Name) and decorator.decorator.value == "property":
+                    if (
+                        isinstance(decorator.decorator, cst.Name)
+                        and decorator.decorator.value == "property"
+                    ):
                         is_property_method = True
                         break
                     elif isinstance(decorator.decorator, cst.Attribute):
