@@ -286,7 +286,6 @@ class TestIntroduceParameterObject(RefactoringTestBase):
             name="DateRange",
         )
 
-    @pytest.mark.skip(reason="Test fixture logic mismatch - implementation correct")
     def test_with_locals(self) -> None:
         """Test introduce parameter object with local variables."""
         self.refactor(
@@ -315,7 +314,6 @@ class TestRemoveSettingMethod(RefactoringTestBase):
         """Make the field immutable by removing the setter."""
         self.refactor("remove-setting-method", target="Account::_id")
 
-    @pytest.mark.skip(reason="Test fixture logic mismatch - implementation correct")
     def test_multiple_calls(self) -> None:
         """Test remove setting method with multiple call sites."""
         self.refactor("remove-setting-method", target="Account::_id")
@@ -352,7 +350,6 @@ class TestReplaceConstructorWithFactoryFunction(RefactoringTestBase):
         """Replace the constructor with a factory function."""
         self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
 
-    @pytest.mark.skip(reason="Test fixture logic mismatch - implementation correct")
     def test_multiple_calls(self) -> None:
         """Test replace constructor with factory function with multiple call sites."""
         self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
@@ -371,12 +368,10 @@ class TestReplaceErrorCodeWithException(RefactoringTestBase):
         """Throw an exception instead of returning an error code."""
         self.refactor("replace-error-code-with-exception", target="withdraw")
 
-    @pytest.mark.skip(reason="Test fixture logic mismatch - implementation correct")
     def test_multiple_calls(self) -> None:
         """Test replace error code with exception with multiple call sites."""
         self.refactor("replace-error-code-with-exception", target="withdraw")
 
-    @pytest.mark.skip(reason="Test fixture logic mismatch - implementation correct")
     def test_with_instance_vars(self) -> None:
         """Test replace error code with exception with instance variables."""
         self.refactor("replace-error-code-with-exception", target="process_withdrawal")
