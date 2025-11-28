@@ -41,7 +41,8 @@ class DecomposeConditionalCommand(BaseCommand):
         parts = target.split("#")
         if len(parts) != 2:
             raise ValueError(
-                f"Invalid target format '{target}'. Expected 'function_name#L2-L5' or 'ClassName::function_name#L2-L5'"
+                f"Invalid target format '{target}'. Expected 'function_name#L2-L5' or "
+                f"'ClassName::function_name#L2-L5'"
             )
 
         path_part = parts[0]
