@@ -340,7 +340,7 @@ class ExtractMethodTransformer(cst.CSTTransformer):
 
         # Analyze extracted statements BEFORE creating the method call
         # This ensures return_vars is populated for _create_method_call_statement()
-        self._analyze_extracted_statements(extracted_stmts, updated_node.body.body)
+        self._analyze_extracted_statements(extracted_stmts, list(updated_node.body.body))
 
         # Now create the method call with proper return assignment
         new_body: list[cst.BaseStatement] = []
@@ -364,7 +364,7 @@ class ExtractMethodTransformer(cst.CSTTransformer):
         return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body)))
 
     def _analyze_extracted_statements(
-        self, extracted_stmts: list[cst.BaseStatement], all_stmts: list[cst.BaseStatement]
+        self, extracted_stmts: list[cst.BaseStatement], all_stmts: list[cst.BaseStatement | cst.BaseSmallStatement]
     ) -> None:
         """Analyze extracted statements to determine what variables need to be returned.
 
@@ -391,7 +391,7 @@ class ExtractMethodTransformer(cst.CSTTransformer):
         used_after = set()
         if next_stmt_idx < len(all_stmts):
             post_analyzer = VariableUsageAnalyzer()
-            for stmt in all_stmts[next_stmt_idx:]:
+            for stmt in all_stmts[next_stmt_idx:]:  # type: ignore[assignment]
                 stmt.visit(post_analyzer)
             used_after = post_analyzer.used_vars
 
