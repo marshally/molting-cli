@@ -74,13 +74,33 @@ class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
     ) -> cst.Module:
         """Add the new class to the module and modify the target class."""
         new_class = self._create_new_class()
-        modified_statements: list[cst.BaseStatement] = [
-            new_class,
-            cast(cst.BaseStatement, cst.EmptyLine()),
-        ]
-
+        modified_statements: list[cst.BaseStatement] = []
         target_class = find_class_in_module(updated_node, self.class_name)
-        for stmt in updated_node.body:
+
+        # Check if the first statement is a module docstring
+        has_docstring = False
+        if (
+            updated_node.body
+            and isinstance(updated_node.body[0], cst.SimpleStatementLine)
+            and updated_node.body[0].body
+            and isinstance(updated_node.body[0].body[0], cst.Expr)
+            and isinstance(
+                updated_node.body[0].body[0].value, (cst.SimpleString, cst.ConcatenatedString)
+            )
+        ):
+            has_docstring = True
+            # Add the docstring first
+            modified_statements.append(updated_node.body[0])
+            # Add blank lines after docstring
+            modified_statements.append(cast(cst.BaseStatement, cst.EmptyLine()))
+            modified_statements.append(cast(cst.BaseStatement, cst.EmptyLine()))
+
+        # Add the new class
+        modified_statements.append(new_class)
+
+        # Add the rest of the statements, skipping the docstring and inserting modified target class
+        start_idx = 1 if has_docstring else 0
+        for stmt in updated_node.body[start_idx:]:
             if stmt is target_class and isinstance(stmt, cst.ClassDef):
                 modified_statements.append(self._modify_class(stmt))
             else:
