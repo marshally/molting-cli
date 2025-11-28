@@ -30,20 +30,20 @@ def flow_between(date_range, account):
 
 class FinancialReport:
     def calculate_period_total(self, account, start, end):
-        return flow_between(DateRange(start, end), account)
+        return flow_between(start, end, account)
 
     def generate_summary(self, account, start, end):
-        total = flow_between(DateRange(start, end), account)
+        total = flow_between(start, end, account)
         return f"Total for period: ${total}"
 
 
 def audit_account(account, period_start, period_end):
-    total = flow_between(DateRange(period_start, period_end), account)
+    total = flow_between(period_start, period_end, account)
     print(f"Audit: ${total}")
     return total
 
 
 def compare_periods(account, start1, end1, start2, end2):
-    period1 = flow_between(DateRange(start1, end1), account)
-    period2 = flow_between(DateRange(start2, end2), account)
+    period1 = flow_between(start1, end1, account)
+    period2 = flow_between(start2, end2, account)
     return period1 - period2
