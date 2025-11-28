@@ -88,6 +88,15 @@ class IntroduceExplainingVariableCommand(BaseCommand):
             target_expression = string_collector.found_expression
             expression_line = string_collector.found_line
 
+        # Check for name conflicts before applying transformation
+        name_checker = NameConflictChecker(function_name, variable_name)
+        module.visit(name_checker)
+
+        if name_checker.has_conflict:
+            raise ValueError(
+                f"Variable '{variable_name}' already exists in function '{function_name}'"
+            )
+
         # Apply transformation
         wrapper = metadata.MetadataWrapper(module)
         transformer = IntroduceExplainingVariableTransformer(
@@ -101,6 +110,52 @@ class IntroduceExplainingVariableCommand(BaseCommand):
 
         # Write back
         self.file_path.write_text(modified_tree.code)
+
+
+class NameConflictChecker(cst.CSTVisitor):
+    """Visitor to check if a variable name already exists in a function."""
+
+    def __init__(self, function_name: str, variable_name: str) -> None:
+        """Initialize the checker.
+
+        Args:
+            function_name: Name of the function to check
+            variable_name: Name to check for conflicts
+        """
+        self.function_name = function_name
+        self.variable_name = variable_name
+        self.has_conflict = False
+        self.in_target_function = False
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Visit function definition to track if we're in the target function."""
+        if node.name.value == self.function_name:
+            self.in_target_function = True
+        return True
+
+    def leave_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
+        """Leave function definition."""
+        if node.name.value == self.function_name:
+            self.in_target_function = False
+
+    def visit_Assign(self, node: cst.Assign) -> bool:  # noqa: N802
+        """Check if this assignment creates the conflicting variable."""
+        if not self.in_target_function:
+            return True
+
+        for target in node.targets:
+            if isinstance(target.target, cst.Name) and target.target.value == self.variable_name:
+                self.has_conflict = True
+        return True
+
+    def visit_AnnAssign(self, node: cst.AnnAssign) -> bool:  # noqa: N802
+        """Check annotated assignments for conflicts."""
+        if not self.in_target_function:
+            return True
+
+        if isinstance(node.target, cst.Name) and node.target.value == self.variable_name:
+            self.has_conflict = True
+        return True
 
 
 class ExpressionCollector(cst.CSTVisitor):

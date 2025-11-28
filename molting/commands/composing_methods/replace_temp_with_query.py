@@ -47,6 +47,13 @@ class ReplaceTempWithQueryCommand(BaseCommand):
                 "or does not have a simple assignment"
             )
 
+        # Check for name conflicts - method name should not already exist
+        conflict_checker = MethodNameConflictChecker(class_name, variable_name)
+        module.visit(conflict_checker)
+
+        if conflict_checker.has_conflict:
+            raise ValueError(f"Method '{variable_name}' already exists in class '{class_name}'")
+
         # Second pass: transform the code
         wrapper = cst.MetadataWrapper(module)
         transformer = ReplaceTempWithQueryTransformer(
@@ -56,6 +63,39 @@ class ReplaceTempWithQueryCommand(BaseCommand):
 
         # Write back
         self.file_path.write_text(modified_tree.code)
+
+
+class MethodNameConflictChecker(cst.CSTVisitor):
+    """Visitor to check if a method name already exists in a class."""
+
+    def __init__(self, class_name: str, method_name: str) -> None:
+        """Initialize the checker.
+
+        Args:
+            class_name: Name of the class to check
+            method_name: Name to check for conflicts
+        """
+        self.class_name = class_name
+        self.method_name = method_name
+        self.has_conflict = False
+        self.in_target_class = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Visit class definition to track if we're in the target class."""
+        if node.name.value == self.class_name:
+            self.in_target_class = True
+        return True
+
+    def leave_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Leave class definition."""
+        if node.name.value == self.class_name:
+            self.in_target_class = False
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Check if this method has the conflicting name."""
+        if self.in_target_class and node.name.value == self.method_name:
+            self.has_conflict = True
+        return True
 
 
 class TempVariableCollector(cst.CSTVisitor):

@@ -1,4 +1,4 @@
-"""Expected output after inline temp with local variables."""
+"""Example code for inline temp with local variables."""
 
 
 def calculate_price(order):

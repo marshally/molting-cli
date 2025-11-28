@@ -1,4 +1,4 @@
-"""Expected output after inline-method with instance variables."""
+"""Example code for inline-method with instance variables."""
 
 
 class ShoppingCart:
