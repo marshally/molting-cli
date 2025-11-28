@@ -1,4 +1,4 @@
-"""Expected output after consolidate conditional expression with decorators."""
+"""Example code for consolidate conditional expression with decorators."""
 
 
 class EmployeeBenefits:

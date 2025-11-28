@@ -1,4 +1,4 @@
-"""Expected output after replace-parameter-with-method-call with multiple call sites."""
+"""Example code for replace-parameter-with-method-call with multiple call sites."""
 
 
 class Order:

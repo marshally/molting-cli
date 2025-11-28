@@ -1,4 +1,4 @@
-"""Expected output after replace-parameter-with-explicit-methods with multiple call sites."""
+"""Example code for replace-parameter-with-explicit-methods with multiple call sites."""
 
 
 class Employee:

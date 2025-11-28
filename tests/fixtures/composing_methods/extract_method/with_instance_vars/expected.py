@@ -1,4 +1,4 @@
-"""Expected output after extract-method with instance variables."""
+"""Example code for extract-method with instance variables."""
 
 
 class Order:

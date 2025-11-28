@@ -1,4 +1,4 @@
-"""Expected output after remove-setting-method with multiple call sites."""
+"""Example code for remove-setting-method with multiple call sites."""
 
 
 class Account:

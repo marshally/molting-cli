@@ -1,4 +1,4 @@
-"""Expected output after separate query from modifier with local variables."""
+"""Example code for separate query from modifier with local variables."""
 
 
 class TaskQueue:

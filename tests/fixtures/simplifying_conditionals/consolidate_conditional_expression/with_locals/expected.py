@@ -1,4 +1,4 @@
-"""Expected output after consolidate conditional expression with local variables."""
+"""Example code for consolidate conditional expression with local variables."""
 
 
 def calculate_bonus(employee, performance_score):

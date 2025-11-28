@@ -1,4 +1,4 @@
-"""Expected output after consolidate-duplicate-conditional-fragments with instance variables."""
+"""Example code for consolidate-duplicate-conditional-fragments with instance variables."""
 
 
 class OrderProcessor:

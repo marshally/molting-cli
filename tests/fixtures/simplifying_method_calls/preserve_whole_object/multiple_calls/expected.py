@@ -1,4 +1,4 @@
-"""Expected output after preserve-whole-object with multiple call sites."""
+"""Example code for preserve-whole-object with multiple call sites."""
 
 
 class HeatingPlan:

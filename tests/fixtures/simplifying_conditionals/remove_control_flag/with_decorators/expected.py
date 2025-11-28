@@ -1,4 +1,4 @@
-"""Expected output after remove control flag with decorators."""
+"""Example code for remove control flag with decorators."""
 
 
 class SecurityChecker:

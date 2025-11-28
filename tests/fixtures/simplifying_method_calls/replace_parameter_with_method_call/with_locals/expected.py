@@ -1,4 +1,4 @@
-"""Expected output after replace parameter with method call with local variables."""
+"""Example code for replace parameter with method call with local variables."""
 
 
 class ShoppingCart:

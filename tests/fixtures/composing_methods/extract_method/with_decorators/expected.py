@@ -1,4 +1,4 @@
-"""Expected output after extract-method with decorators."""
+"""Example code for extract-method with decorators."""
 
 
 def log_call(func):

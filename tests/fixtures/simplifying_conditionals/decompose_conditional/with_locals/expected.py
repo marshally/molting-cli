@@ -1,4 +1,4 @@
-"""Expected output after decompose conditional with local variables."""
+"""Example code for decompose conditional with local variables."""
 
 
 def process_order(order, customer_type, base_price):

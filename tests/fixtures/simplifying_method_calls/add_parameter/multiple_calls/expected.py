@@ -1,4 +1,4 @@
-"""Expected output after add-parameter with multiple call sites."""
+"""Example code for add-parameter with multiple call sites."""
 
 
 class Contact:

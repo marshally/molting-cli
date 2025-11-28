@@ -1,4 +1,4 @@
-"""Expected output after replace-constructor-with-factory-function with multiple call sites."""
+"""Example code for replace-constructor-with-factory-function with multiple call sites."""
 
 
 class Employee:
