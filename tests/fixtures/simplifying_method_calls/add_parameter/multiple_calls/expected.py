@@ -8,9 +8,10 @@ class Contact:
         self.email = f"{name.lower()}@example.com"
 
     def get_contact_info(self, include_email=False):
+        result = f"{self.name}\n{self.phone}"
         if include_email:
-            return f"{self.name}: {self.phone} ({self.email})"
-        return f"{self.name}: {self.phone}"
+            result += f"\n{self.email}"
+        return result
 
 
 class ContactManager:

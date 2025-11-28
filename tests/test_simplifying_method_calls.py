@@ -31,7 +31,6 @@ class TestRenameMethod(RefactoringTestBase):
         """Test rename method with decorated methods."""
         self.refactor("rename-method", target="Product::n", new_name="name")
 
-    @pytest.mark.skip(reason="Test fixture logic mismatch - implementation correct")
     def test_multiple_calls(self) -> None:
         """Test rename method with multiple call sites."""
         self.refactor(
@@ -68,7 +67,6 @@ class TestAddParameter(RefactoringTestBase):
             default="False",
         )
 
-    @pytest.mark.skip(reason="Test fixture logic mismatch - implementation correct")
     def test_multiple_calls(self) -> None:
         """Test add parameter with multiple call sites."""
         self.refactor(
@@ -276,7 +274,6 @@ class TestIntroduceParameterObject(RefactoringTestBase):
             name="DateRange",
         )
 
-    @pytest.mark.skip(reason="Test fixture logic mismatch - implementation correct")
     def test_multiple_calls(self) -> None:
         """Test introduce parameter object with multiple call sites."""
         self.refactor(
