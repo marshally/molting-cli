@@ -98,7 +98,7 @@ class RemoveArgumentTransformer(ast.NodeTransformer):
         self.method_name = method_name
         self.param_index = param_index
 
-    def visit_Call(self, node: ast.Call) -> ast.Call:
+    def visit_Call(self, node: ast.Call) -> ast.Call:  # noqa: N802
         """Visit a Call node and remove argument at param_index.
 
         This removes the argument at param_index if the call is to the
