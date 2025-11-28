@@ -226,9 +226,11 @@ class MoveMethodTransformer(cst.CSTTransformer):
                     if docstring_stmt:
                         break
 
-        # Build delegation body with docstring if present
+        # Build delegation body
+        # If method has decorators, keep the docstring in the delegation method
+        # If method has no decorators, docstring will move to the moved method
         delegation_body_stmts = []
-        if docstring_stmt:
+        if original_method.decorators and docstring_stmt:
             delegation_body_stmts.append(docstring_stmt)
         delegation_body_stmts.append(cst.SimpleStatementLine(body=[delegation_call]))
 
@@ -299,8 +301,9 @@ class MoveMethodTransformer(cst.CSTTransformer):
         body_transformer = SelfReferenceReplacer(param_mapping, self.target_class_field)
         transformed_body = self.method_to_move.body.visit(body_transformer)
 
-        # Remove docstring from moved method
-        if isinstance(transformed_body, cst.IndentedBlock):
+        # If method has decorators, remove docstring from moved method
+        # If method has no decorators, keep the docstring
+        if self.method_to_move.decorators and isinstance(transformed_body, cst.IndentedBlock):
             transformed_body = self._remove_docstring_from_body(transformed_body)
 
         return self.method_to_move.with_changes(
