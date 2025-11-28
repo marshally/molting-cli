@@ -44,8 +44,41 @@ class PushDownMethodCommand(BaseCommand):
         # Parse target to get class and method names
         class_name, method_name = parse_target(target, expected_parts=2)
 
+        # First pass: check for conflicts in target class
+        source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+        capture_transformer = MethodCaptureTransformer(method_name, to_class)
+        module.visit(capture_transformer)
+
+        # Check for name conflicts
+        if capture_transformer.target_has_method:
+            # Method already exists in target, skip the refactoring
+            return
+
         # Apply transformation
         self.apply_libcst_transform(PushDownMethodTransformer, class_name, method_name, to_class)
+
+
+class MethodCaptureTransformer(cst.CSTTransformer):
+    """Visitor to capture method information from target class."""
+
+    def __init__(self, method_name: str, target_class: str) -> None:
+        """Initialize the capture transformer.
+
+        Args:
+            method_name: Name of the method to push down
+            target_class: Name of the target class
+        """
+        self.method_name = method_name
+        self.target_class = target_class
+        self.target_has_method = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Check if target class has the method."""
+        if node.name.value == self.target_class:
+            method = find_method_in_class(node, self.method_name)
+            if method:
+                self.target_has_method = True
 
 
 class PushDownMethodTransformer(cst.CSTTransformer):
