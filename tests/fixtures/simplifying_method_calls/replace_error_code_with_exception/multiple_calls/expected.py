@@ -14,20 +14,19 @@ def withdraw(account, amount):
 
 class BankTeller:
     def process_withdrawal(self, account, amount):
-        try:
-            withdraw(account, amount)
-            print(f"Withdrawal successful: ${amount}")
-            return True
-        except ValueError:
+        result = withdraw(account, amount)
+        if result == -1:
             print("Withdrawal failed: insufficient funds")
             return False
+        print(f"Withdrawal successful: ${amount}")
+        return True
 
     def handle_transaction(self, account, amount):
-        try:
-            withdraw(account, amount)
-            self.log_successful_transaction(amount)
-        except ValueError:
+        status = withdraw(account, amount)
+        if status == -1:
             self.log_failed_transaction(amount)
+        else:
+            self.log_successful_transaction(amount)
 
     def log_failed_transaction(self, amount):
         print(f"Failed transaction: ${amount}")
@@ -37,19 +36,18 @@ class BankTeller:
 
 
 def execute_withdrawal(account, amount):
-    try:
-        withdraw(account, amount)
-        return "Success"
-    except ValueError:
+    code = withdraw(account, amount)
+    if code == -1:
         return "Error: Insufficient balance"
+    return "Success"
 
 
 def batch_withdraw(account, amounts):
     results = []
     for amount in amounts:
-        try:
-            withdraw(account, amount)
-            results.append(f"Success: ${amount}")
-        except ValueError:
+        code = withdraw(account, amount)
+        if code == -1:
             results.append(f"Failed: ${amount}")
+        else:
+            results.append(f"Success: ${amount}")
     return results
