@@ -1,4 +1,4 @@
-"""Expected output after move-method with multiple call sites."""
+"""Example code for move-method with multiple call sites."""
 
 
 class Account:
