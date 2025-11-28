@@ -19,12 +19,10 @@ class TestMoveMethod(RefactoringTestBase):
         """Move a method to the class that uses it most."""
         self.refactor("move-method", source="Account::overdraft_charge", to="AccountType")
 
-    @pytest.mark.skip(reason="Added to wrong branch during rebase")
     def test_with_locals(self) -> None:
         """Test move method with local variables."""
         self.refactor("move-method", source="Account::calculate_fees", to="AccountType")
 
-    @pytest.mark.skip(reason="Added to wrong branch during rebase")
     def test_with_instance_vars(self) -> None:
         """Test move method with instance variables."""
         self.refactor("move-method", source="Account::calculate_interest", to="AccountType")
@@ -86,7 +84,6 @@ class TestExtractClass(RefactoringTestBase):
             name="TelephoneNumber",
         )
 
-    @pytest.mark.skip(reason="Added to wrong branch during rebase")
     def test_with_instance_vars(self) -> None:
         """Test extract class with instance variables."""
         self.refactor(
@@ -141,7 +138,6 @@ class TestInlineClass(RefactoringTestBase):
         """Move all features from one class into another."""
         self.refactor("inline-class", source_class="TelephoneNumber", into="Person")
 
-    @pytest.mark.skip(reason="Added to wrong branch during rebase")
     def test_with_instance_vars(self) -> None:
         """Test inline class with instance variables."""
         self.refactor("inline-class", source_class="Compensation", into="Employee")

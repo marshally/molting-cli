@@ -51,7 +51,6 @@ class TestPullUpMethod(RefactoringTestBase):
         """Move identical methods from subclasses to the superclass."""
         self.refactor("pull-up-method", target="Salesman::get_annual_cost", to="Employee")
 
-    @pytest.mark.skip(reason="Added to wrong branch during rebase")
     def test_with_instance_vars(self) -> None:
         """Test pull-up-method with instance variables."""
         self.refactor("pull-up-method", target="Salesman::get_employee_info", to="Employee")
@@ -99,7 +98,6 @@ class TestPushDownMethod(RefactoringTestBase):
         """Move a method from superclass to those subclasses that need it."""
         self.refactor("push-down-method", target="Employee::get_quota", to="Salesman")
 
-    @pytest.mark.skip(reason="Added to wrong branch during rebase")
     def test_with_instance_vars(self) -> None:
         """Test push-down-method with instance variables."""
         self.refactor("push-down-method", target="Employee::calculate_bonus", to="Salesman")
@@ -127,7 +125,6 @@ class TestPushDownField(RefactoringTestBase):
         """Move a field from superclass to those subclasses that need it."""
         self.refactor("push-down-field", target="Employee::quota", to="Salesman")
 
-    @pytest.mark.skip(reason="Added to wrong branch during rebase")
     def test_with_instance_vars(self) -> None:
         """Test push-down-field with instance variables."""
         self.refactor("push-down-field", target="Employee::commission_rate", to="Salesman")
