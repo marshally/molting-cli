@@ -33,10 +33,14 @@ class TestSelfEncapsulateField(RefactoringTestBase):
         refactor_file("self-encapsulate-field", self.test_file, target="Range::high")
         self.assert_matches_expected()
 
-    @pytest.mark.skip(reason="Fixture loading broken for with_instance_vars tests")
-    def test_with_instance_vars(self) -> None:
-        """Test self-encapsulate-field with instance variables."""
-        self.refactor("self-encapsulate-field", target="Account::balance")
+    def test_multiple_calls(self) -> None:
+        """Test self-encapsulate-field with multiple call sites."""
+        from molting.cli import refactor_file
+
+        assert self.test_file is not None
+        refactor_file("self-encapsulate-field", self.test_file, target="Range::low")
+        refactor_file("self-encapsulate-field", self.test_file, target="Range::high")
+        self.assert_matches_expected()
 
 
 class TestReplaceDataValueWithObject(RefactoringTestBase):
@@ -59,6 +63,13 @@ class TestReplaceDataValueWithObject(RefactoringTestBase):
         self.refactor(
             "replace-data-value-with-object", target="Invoice::customer_name", name="CustomerInfo"
         )
+
+    @pytest.mark.skip(
+        reason="Implementation needed for multiple_calls - doesn't update all call sites"
+    )
+    def test_multiple_calls(self) -> None:
+        """Test replace-data-value-with-object with multiple call sites."""
+        self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
 
     @pytest.mark.skip(
         reason="Implementation needed for name_conflict - should detect existing class"
@@ -242,10 +253,9 @@ class TestEncapsulateField(RefactoringTestBase):
         """Test encapsulate-field with decorated methods."""
         self.refactor("encapsulate-field", target="Person::name")
 
-    @pytest.mark.skip(reason="Fixture loading broken for with_instance_vars tests")
-    def test_with_instance_vars(self) -> None:
-        """Test encapsulate-field with instance variables."""
-        self.refactor("encapsulate-field", target="BankAccount::balance")
+    def test_multiple_calls(self) -> None:
+        """Test encapsulate-field with multiple call sites."""
+        self.refactor("encapsulate-field", target="Person::name")
 
 
 class TestEncapsulateCollection(RefactoringTestBase):
@@ -261,10 +271,12 @@ class TestEncapsulateCollection(RefactoringTestBase):
         """Test encapsulate-collection with decorated methods."""
         self.refactor("encapsulate-collection", target="Person::courses")
 
-    @pytest.mark.skip(reason="Fixture loading broken for with_instance_vars tests")
-    def test_with_instance_vars(self) -> None:
-        """Test encapsulate-collection with instance variables."""
-        self.refactor("encapsulate-collection", target="Library::books")
+    @pytest.mark.skip(
+        reason="Implementation needed for multiple_calls - doesn't update external call sites"
+    )
+    def test_multiple_calls(self) -> None:
+        """Test encapsulate-collection with multiple call sites."""
+        self.refactor("encapsulate-collection", target="Person::courses")
 
 
 class TestReplaceTypeCodeWithClass(RefactoringTestBase):
@@ -282,6 +294,15 @@ class TestReplaceTypeCodeWithClass(RefactoringTestBase):
     def test_with_instance_vars(self) -> None:
         """Test replace-type-code-with-class with instance variables."""
         self.refactor("replace-type-code-with-class", target="Task::priority", name="Priority")
+
+    @pytest.mark.skip(
+        reason="Implementation needed for multiple_calls - doesn't update type code references"
+    )
+    def test_multiple_calls(self) -> None:
+        """Test replace-type-code-with-class with multiple call sites."""
+        self.refactor(
+            "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
+        )
 
     @pytest.mark.skip(
         reason="Implementation needed for name_conflict - should detect existing class"

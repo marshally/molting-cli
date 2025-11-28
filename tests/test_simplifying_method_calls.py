@@ -31,6 +31,13 @@ class TestRenameMethod(RefactoringTestBase):
         """Test rename method with decorated methods."""
         self.refactor("rename-method", target="Product::n", new_name="name")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test rename method with multiple call sites."""
+        self.refactor(
+            "rename-method", target="Customer::get_inv_cdtlmt", new_name="get_invoice_credit_limit"
+        )
+
     @pytest.mark.skip(reason="Implementation needed for name_conflict detection")
     def test_name_conflict(self) -> None:
         """Test rename method when target name already exists."""
@@ -63,6 +70,16 @@ class TestAddParameter(RefactoringTestBase):
             default="False",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test add parameter with multiple call sites."""
+        self.refactor(
+            "add-parameter",
+            target="Contact::get_contact_info",
+            name="include_email",
+            default="False",
+        )
+
     @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test add parameter with instance variables."""
@@ -87,6 +104,11 @@ class TestRemoveParameter(RefactoringTestBase):
         """Test remove parameter with decorated methods."""
         self.refactor("remove-parameter", target="ReportGenerator::generate_report::unused_param")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test remove parameter with multiple call sites."""
+        self.refactor("remove-parameter", target="Order::calculate_total::discount_code")
+
     def test_with_instance_vars(self) -> None:
         """Test remove parameter with instance variables."""
         self.refactor("remove-parameter", target="EmailService::send_email::priority")
@@ -104,6 +126,11 @@ class TestSeparateQueryFromModifier(RefactoringTestBase):
     def test_with_decorators(self) -> None:
         """Test separate query from modifier with decorated methods."""
         self.refactor("separate-query-from-modifier", target="TaskQueue::get_and_remove_next")
+
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test separate query from modifier with multiple call sites."""
+        self.refactor("separate-query-from-modifier", target="Security::get_and_remove_intruder")
 
     @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
@@ -185,6 +212,11 @@ class TestReplaceParameterWithExplicitMethods(RefactoringTestBase):
             "replace-parameter-with-explicit-methods", target="Configuration::set_value::name"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test replace parameter with explicit methods with multiple call sites."""
+        self.refactor("replace-parameter-with-explicit-methods", target="Employee::set_value::name")
+
     @pytest.mark.skip(reason="Implementation needed for name_conflict detection")
     def test_name_conflict(self) -> None:
         """Test replace parameter with explicit methods when target name already exists."""
@@ -198,6 +230,11 @@ class TestPreserveWholeObject(RefactoringTestBase):
 
     def test_simple(self) -> None:
         """Send the whole object instead of extracting values from it."""
+        self.refactor("preserve-whole-object", target="within_plan")
+
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test preserve whole object with multiple call sites."""
         self.refactor("preserve-whole-object", target="within_plan")
 
     @pytest.mark.skip(reason="Implementation needed for with_locals")
@@ -217,6 +254,13 @@ class TestReplaceParameterWithMethodCall(RefactoringTestBase):
             "replace-parameter-with-method-call", target="Order::discounted_price::discount_level"
         )
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test replace parameter with method call with multiple call sites."""
+        self.refactor(
+            "replace-parameter-with-method-call", target="Order::discounted_price::discount_level"
+        )
+
     @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test replace parameter with method call with local variables."""
@@ -232,6 +276,16 @@ class TestIntroduceParameterObject(RefactoringTestBase):
 
     def test_simple(self) -> None:
         """Replace parameters with a parameter object."""
+        self.refactor(
+            "introduce-parameter-object",
+            target="flow_between",
+            params="start_date,end_date",
+            name="DateRange",
+        )
+
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test introduce parameter object with multiple call sites."""
         self.refactor(
             "introduce-parameter-object",
             target="flow_between",
@@ -269,6 +323,11 @@ class TestRemoveSettingMethod(RefactoringTestBase):
         """Make the field immutable by removing the setter."""
         self.refactor("remove-setting-method", target="Account::_id")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test remove setting method with multiple call sites."""
+        self.refactor("remove-setting-method", target="Account::_id")
+
     def test_with_instance_vars(self) -> None:
         """Test remove setting method with instance variables."""
         self.refactor("remove-setting-method", target="User::_user_id")
@@ -301,6 +360,11 @@ class TestReplaceConstructorWithFactoryFunction(RefactoringTestBase):
         """Replace the constructor with a factory function."""
         self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test replace constructor with factory function with multiple call sites."""
+        self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
+
     @pytest.mark.skip(reason="Implementation needed for name_conflict detection")
     def test_name_conflict(self) -> None:
         """Test replace constructor with factory function when factory name already exists."""
@@ -316,6 +380,11 @@ class TestReplaceErrorCodeWithException(RefactoringTestBase):
         """Throw an exception instead of returning an error code."""
         self.refactor("replace-error-code-with-exception", target="withdraw")
 
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test replace error code with exception with multiple call sites."""
+        self.refactor("replace-error-code-with-exception", target="withdraw")
+
     @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test replace error code with exception with instance variables."""
@@ -329,6 +398,11 @@ class TestReplaceExceptionWithTest(RefactoringTestBase):
 
     def test_simple(self) -> None:
         """Change the caller to test first instead of catching exception."""
+        self.refactor("replace-exception-with-test", target="get_value_for_period")
+
+    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    def test_multiple_calls(self) -> None:
+        """Test replace exception with test with multiple call sites."""
         self.refactor("replace-exception-with-test", target="get_value_for_period")
 
     def test_with_instance_vars(self) -> None:
