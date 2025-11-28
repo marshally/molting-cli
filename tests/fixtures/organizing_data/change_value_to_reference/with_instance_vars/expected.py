@@ -1,4 +1,4 @@
-"""Expected output after change-value-to-reference with instance variables."""
+"""Example code for change-value-to-reference with instance variables."""
 
 
 class ShoppingCart:

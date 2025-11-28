@@ -1,4 +1,4 @@
-"""Expected output after change-reference-to-value with instance variables."""
+"""Example code for change-reference-to-value with instance variables."""
 
 
 class Money:

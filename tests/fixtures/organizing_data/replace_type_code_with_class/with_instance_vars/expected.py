@@ -1,4 +1,4 @@
-"""Expected output after replace-type-code-with-class with instance variables."""
+"""Example code for replace-type-code-with-class with instance variables."""
 
 
 class Priority:

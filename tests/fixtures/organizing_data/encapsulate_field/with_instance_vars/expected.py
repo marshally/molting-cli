@@ -1,4 +1,4 @@
-"""Expected output after encapsulate-field with instance variables."""
+"""Example code for encapsulate-field with instance variables."""
 
 
 class BankAccount:
