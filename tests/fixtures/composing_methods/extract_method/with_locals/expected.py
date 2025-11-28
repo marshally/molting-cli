@@ -21,7 +21,6 @@ class Order:
         print(f"amount: {outstanding}")
 
     def calculate_outstanding(self):
-        """Calculate the outstanding amount."""
         outstanding = 0
         for order in self.orders:
             outstanding += order.amount

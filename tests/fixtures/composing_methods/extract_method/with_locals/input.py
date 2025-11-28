@@ -1,4 +1,4 @@
-"""Example code for extract method with local variables."""
+"""Expected output after extract method with local variables."""
 
 
 class Order:
