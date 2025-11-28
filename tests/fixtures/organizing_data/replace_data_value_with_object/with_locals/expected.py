@@ -1,4 +1,4 @@
-"""Expected output after replace data value with object with local variables."""
+"""Example code for replace data value with object with local variables."""
 
 
 class Customer:
