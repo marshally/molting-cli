@@ -1,4 +1,4 @@
-"""Expected output after remove-middle-man with multiple call sites."""
+"""Example code for remove-middle-man with multiple call sites."""
 
 
 class Person:

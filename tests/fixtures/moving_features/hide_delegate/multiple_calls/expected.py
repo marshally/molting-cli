@@ -1,4 +1,4 @@
-"""Expected output after hide-delegate with multiple call sites."""
+"""Example code for hide-delegate with multiple call sites."""
 
 
 class Person:
