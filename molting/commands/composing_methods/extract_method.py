@@ -364,7 +364,9 @@ class ExtractMethodTransformer(cst.CSTTransformer):
         return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body)))
 
     def _analyze_extracted_statements(
-        self, extracted_stmts: list[cst.BaseStatement], all_stmts: list[cst.BaseStatement | cst.BaseSmallStatement]
+        self,
+        extracted_stmts: list[cst.BaseStatement],
+        all_stmts: list[cst.BaseStatement | cst.BaseSmallStatement],
     ) -> None:
         """Analyze extracted statements to determine what variables need to be returned.
 
