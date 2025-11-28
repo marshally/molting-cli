@@ -21,7 +21,6 @@ class TestPullUpField(RefactoringTestBase):
         """Move a field from subclasses to the superclass."""
         self.refactor("pull-up-field", target="Salesman::name", to="Employee")
 
-    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test pull-up-field with instance variables."""
         self.refactor("pull-up-field", target="Salesman::name", to="Employee")
