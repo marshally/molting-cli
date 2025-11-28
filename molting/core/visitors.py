@@ -211,6 +211,71 @@ class MethodConflictChecker(cst.CSTVisitor):
         return True
 
 
+class FieldConflictChecker(cst.CSTVisitor):
+    """Check if a field name already exists in a class.
+
+    Use this before moving or creating fields via refactoring.
+    Checks for self.field_name assignments in __init__.
+
+    Example:
+        checker = FieldConflictChecker("AccountType", "interest_rate")
+        module.visit(checker)
+        if checker.has_conflict:
+            raise ValueError(f"Field 'interest_rate' already exists in class 'AccountType'")
+    """
+
+    def __init__(self, class_name: str, field_name: str) -> None:
+        """Initialize the checker.
+
+        Args:
+            class_name: Name of the class to check
+            field_name: Field name to check for conflicts
+        """
+        self.class_name = class_name
+        self.field_name = field_name
+        self.has_conflict = False
+        self._in_target_class = False
+        self._in_init = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track entry into target class."""
+        if node.name.value == self.class_name:
+            self._in_target_class = True
+        return True
+
+    def leave_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Track exit from target class."""
+        if node.name.value == self.class_name:
+            self._in_target_class = False
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Track entry into __init__ method."""
+        if self._in_target_class and node.name.value == "__init__":
+            self._in_init = True
+        return True
+
+    def leave_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
+        """Track exit from __init__ method."""
+        if self._in_target_class and node.name.value == "__init__":
+            self._in_init = False
+
+    def visit_Assign(self, node: cst.Assign) -> bool:  # noqa: N802
+        """Check for self.field_name assignments."""
+        if not self._in_init:
+            return True
+
+        for target in node.targets:
+            if isinstance(target.target, cst.Attribute):
+                attr = target.target
+                if (
+                    isinstance(attr.value, cst.Name)
+                    and attr.value.value == "self"
+                    and attr.attr.value == self.field_name
+                ):
+                    self.has_conflict = True
+        return True
+
+
 class ClassConflictChecker(cst.CSTVisitor):
     """Check if a class name already exists at module level.
 
@@ -280,3 +345,124 @@ class FunctionConflictChecker(cst.CSTVisitor):
     def leave_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
         """Track exit from function."""
         self._depth -= 1
+
+
+class DelegatingMethodChecker(cst.CSTVisitor):
+    """Check if a method in a class is a delegating method.
+
+    A delegating method is one that simply calls through to another object's
+    method of the same name (e.g., `return self.delegate.method()`).
+
+    This is useful for inline-class refactoring to distinguish between:
+    - Delegating methods (should be replaced, not a conflict)
+    - Independent methods with same name (true conflict)
+
+    Example:
+        checker = DelegatingMethodChecker("Person", "get_telephone_number", "office_telephone")
+        module.visit(checker)
+        if checker.is_delegating:
+            # Method just delegates to self.office_telephone.get_telephone_number()
+            pass
+    """
+
+    def __init__(self, class_name: str, method_name: str, delegate_field: str) -> None:
+        """Initialize the checker.
+
+        Args:
+            class_name: Name of the class containing the method
+            method_name: Name of the method to check
+            delegate_field: Field name that delegates to the source class
+        """
+        self.class_name = class_name
+        self.method_name = method_name
+        self.delegate_field = delegate_field
+        self.is_delegating = False
+        self._in_target_class = False
+        self._in_target_method = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track entry into target class."""
+        if node.name.value == self.class_name:
+            self._in_target_class = True
+        return True
+
+    def leave_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Track exit from target class."""
+        if node.name.value == self.class_name:
+            self._in_target_class = False
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Track entry into target method and check for delegation."""
+        if self._in_target_class and node.name.value == self.method_name:
+            self._in_target_method = True
+            self._check_is_delegating(node)
+        return True
+
+    def leave_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
+        """Track exit from target method."""
+        if self._in_target_class and node.name.value == self.method_name:
+            self._in_target_method = False
+
+    def _check_is_delegating(self, method: cst.FunctionDef) -> None:
+        """Check if the method body is just a delegation call.
+
+        Delegation patterns we recognize:
+        - return self.delegate.method(...)
+        - return self.delegate.method  (for properties)
+        - self.delegate.method(...)  (void delegation)
+        """
+        if not isinstance(method.body, cst.IndentedBlock):
+            return
+
+        body = method.body.body
+        if len(body) != 1:
+            return
+
+        stmt = body[0]
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return
+
+        if len(stmt.body) != 1:
+            return
+
+        inner = stmt.body[0]
+
+        # Check for: return self.delegate.method(...) or return self.delegate.method
+        if isinstance(inner, cst.Return) and inner.value is not None:
+            self._check_delegation_expression(inner.value)
+        # Check for: self.delegate.method(...)
+        elif isinstance(inner, cst.Expr):
+            self._check_delegation_expression(inner.value)
+
+    def _check_delegation_expression(self, expr: cst.BaseExpression) -> None:
+        """Check if expression is a delegation to the delegate field."""
+        # Handle: self.delegate.method(...)
+        if isinstance(expr, cst.Call):
+            func = expr.func
+            if self._is_delegate_attribute(func):
+                self.is_delegating = True
+        # Handle: self.delegate.method (property access)
+        elif self._is_delegate_attribute(expr):
+            self.is_delegating = True
+
+    def _is_delegate_attribute(self, node: cst.BaseExpression) -> bool:
+        """Check if node is self.delegate_field.method_name."""
+        if not isinstance(node, cst.Attribute):
+            return False
+
+        # Check the attribute name matches the method name
+        if node.attr.value != self.method_name:
+            return False
+
+        # Check the value is self.delegate_field
+        value = node.value
+        if not isinstance(value, cst.Attribute):
+            return False
+
+        if not isinstance(value.value, cst.Name) or value.value.value != "self":
+            return False
+
+        if value.attr.value != self.delegate_field:
+            return False
+
+        return True

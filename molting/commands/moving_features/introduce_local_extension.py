@@ -1,7 +1,10 @@
 """Introduce Local Extension refactoring command."""
 
+import libcst as cst
+
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.visitors import ClassConflictChecker
 
 
 class IntroduceLocalExtensionCommand(BaseCommand):
@@ -46,6 +49,15 @@ class IntroduceLocalExtensionCommand(BaseCommand):
         """
         target_class = self.params["target_class"]
         new_class_name = self.params["name"]
+
+        # Check if the new class name already exists
+        source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+        conflict_checker = ClassConflictChecker(new_class_name)
+        module.visit(conflict_checker)
+
+        if conflict_checker.has_conflict:
+            raise ValueError(f"Class '{new_class_name}' already exists in the module")
 
         # Build the new code entirely from scratch
         new_code = self._generate_extension_code(target_class, new_class_name)

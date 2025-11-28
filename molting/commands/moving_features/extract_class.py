@@ -8,6 +8,7 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import is_assignment_to_field, parse_comma_separated_list
 from molting.core.code_generation_utils import create_parameter
+from molting.core.visitors import ClassConflictChecker
 
 
 class ExtractClassCommand(BaseCommand):
@@ -36,6 +37,15 @@ class ExtractClassCommand(BaseCommand):
 
         fields = parse_comma_separated_list(fields_str)
         methods = parse_comma_separated_list(methods_str)
+
+        # Check if new class name already exists
+        source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+        conflict_checker = ClassConflictChecker(new_class_name)
+        module.visit(conflict_checker)
+
+        if conflict_checker.has_conflict:
+            raise ValueError(f"Class '{new_class_name}' already exists in the module")
 
         self.apply_libcst_transform(
             ExtractClassTransformer, source_class, fields, methods, new_class_name

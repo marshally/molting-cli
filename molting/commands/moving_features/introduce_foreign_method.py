@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.code_generation_utils import create_parameter
+from molting.core.visitors import MethodConflictChecker
 
 
 class IntroduceForeignMethodCommand(BaseCommand):
@@ -64,6 +65,13 @@ class IntroduceForeignMethodCommand(BaseCommand):
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
+
+        # Check if the new method name already exists in the class
+        conflict_checker = MethodConflictChecker(class_name, method_name)
+        module.visit(conflict_checker)
+
+        if conflict_checker.has_conflict:
+            raise ValueError(f"Class '{class_name}' already has a method named '{method_name}'")
 
         transformer = IntroduceForeignMethodTransformer(
             class_name, method_name_to_find, target_line, for_class, method_name

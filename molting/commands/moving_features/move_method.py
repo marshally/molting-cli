@@ -8,7 +8,7 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import find_self_field_assignment, is_self_attribute, parse_target
 from molting.core.code_generation_utils import create_parameter
-from molting.core.visitors import SelfFieldCollector
+from molting.core.visitors import MethodConflictChecker, SelfFieldCollector
 
 
 class MoveMethodCommand(BaseCommand):
@@ -34,6 +34,16 @@ class MoveMethodCommand(BaseCommand):
         to_class = self.params["to"]
 
         source_class, method_name = parse_target(source, expected_parts=2)
+
+        # Check if target class already has a method with the same name
+        source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+        conflict_checker = MethodConflictChecker(to_class, method_name)
+        module.visit(conflict_checker)
+
+        if conflict_checker.has_conflict:
+            raise ValueError(f"Class '{to_class}' already has a method named '{method_name}'")
+
         self.apply_libcst_transform(MoveMethodTransformer, source_class, method_name, to_class)
 
 
