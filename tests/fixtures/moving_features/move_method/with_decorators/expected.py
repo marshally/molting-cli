@@ -1,4 +1,4 @@
-"""Expected output after move-method with decorators."""
+"""Example code for move-method with decorators."""
 
 
 class Account:
