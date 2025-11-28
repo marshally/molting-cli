@@ -13,6 +13,7 @@ from molting.core.code_generation_utils import (
     create_init_method,
     create_parameter,
 )
+from molting.core.visitors import FieldConflictChecker
 
 
 class MoveFieldCommand(BaseCommand):
@@ -51,6 +52,13 @@ class MoveFieldCommand(BaseCommand):
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
+
+        # Check if target class already has a field with the same name
+        conflict_checker = FieldConflictChecker(target_class, field_name)
+        module.visit(conflict_checker)
+
+        if conflict_checker.has_conflict:
+            raise ValueError(f"Class '{target_class}' already has a field named '{field_name}'")
 
         transformer = MoveFieldTransformer(source_class, field_name, target_class)
         modified_tree = module.visit(transformer)

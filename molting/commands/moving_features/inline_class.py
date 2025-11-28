@@ -11,6 +11,7 @@ from molting.core.ast_utils import (
     find_class_in_module,
     find_self_field_assignment,
 )
+from molting.core.visitors import DelegatingMethodChecker, MethodConflictChecker
 
 INIT_METHOD_NAME = "__init__"
 
@@ -37,7 +38,86 @@ class InlineClassCommand(BaseCommand):
         source_class = self.params["source_class"]
         target_class = self.params["into"]
 
+        # Check for method name conflicts between source and target classes
+        source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+
+        # Find the delegate field name in the target class
+        delegate_field = self._find_delegate_field(module, target_class, source_class)
+
+        # Find source class and get its method names (excluding __init__)
+        source_class_def = find_class_in_module(module, source_class)
+        if source_class_def:
+            for stmt in source_class_def.body.body:
+                if isinstance(stmt, cst.FunctionDef) and stmt.name.value != "__init__":
+                    method_name = stmt.name.value
+                    # Check if this method exists in target class
+                    conflict_checker = MethodConflictChecker(target_class, method_name)
+                    module.visit(conflict_checker)
+                    if conflict_checker.has_conflict:
+                        # Check if it's just a delegating method (not a true conflict)
+                        if delegate_field:
+                            delegating_checker = DelegatingMethodChecker(
+                                target_class, method_name, delegate_field
+                            )
+                            module.visit(delegating_checker)
+                            if delegating_checker.is_delegating:
+                                # Not a true conflict - method just delegates
+                                continue
+                        raise ValueError(
+                            f"Class '{target_class}' already has a method named " f"'{method_name}'"
+                        )
+
         self.apply_libcst_transform(InlineClassTransformer, source_class, target_class)
+
+    def _find_delegate_field(
+        self, module: cst.Module, target_class: str, source_class: str
+    ) -> str | None:
+        """Find the field in target class that holds a reference to source class.
+
+        Args:
+            module: The parsed module
+            target_class: Name of the target class
+            source_class: Name of the source class being inlined
+
+        Returns:
+            The field name if found, None otherwise
+        """
+        target_class_def = find_class_in_module(module, target_class)
+        if not target_class_def:
+            return None
+
+        for stmt in target_class_def.body.body:
+            if not isinstance(stmt, cst.FunctionDef):
+                continue
+            if stmt.name.value != INIT_METHOD_NAME:
+                continue
+            if not isinstance(stmt.body, cst.IndentedBlock):
+                continue
+
+            for body_stmt in stmt.body.body:
+                if isinstance(body_stmt, cst.SimpleStatementLine):
+                    result = find_self_field_assignment(body_stmt)
+                    if result:
+                        field_name, value = result
+                        if self._is_source_class_instantiation(value, source_class):
+                            return field_name
+        return None
+
+    def _is_source_class_instantiation(self, value: cst.BaseExpression, source_class: str) -> bool:
+        """Check if a value is an instantiation of the source class.
+
+        Args:
+            value: The expression to check
+            source_class: Name of the source class
+
+        Returns:
+            True if the value is a Call to the source class constructor
+        """
+        if isinstance(value, cst.Call):
+            if isinstance(value.func, cst.Name):
+                return value.func.value == source_class
+        return False
 
 
 class InlineClassTransformer(cst.CSTTransformer):
