@@ -1,4 +1,4 @@
-"""Expected output after form template method with local variables."""
+"""Example code for form template method with local variables."""
 
 
 class Site:
