@@ -63,6 +63,8 @@ class PullUpConstructorBodyCommand(BaseCommand):
             to_class,
             capture_transformer.common_params,
             capture_transformer.common_assignments,
+            source_init_body=capture_transformer.source_init_body,
+            source_init_params=capture_transformer.source_init_params,
         )
         modified_tree = module.visit(move_transformer)
         self.file_path.write_text(modified_tree.code)
@@ -83,9 +85,23 @@ class ConstructorCaptureTransformer(cst.CSTVisitor):
         self.common_params: list[str] = []
         self.common_assignments: dict[str, cst.BaseExpression] = {}
         self.all_subclass_assignments: list[dict[str, cst.BaseExpression]] = []
+        self.source_init_body: cst.IndentedBlock | None = None  # Full body of source class __init__
+        self.source_init_params: list[str] = []  # Parameters of source class __init__
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Capture constructor parameters from all subclasses of target."""
+        # First, capture the source class's __init__ body if this is the source class
+        if node.name.value == self.source_class:
+            init_method = find_method_in_class(node, "__init__")
+            if init_method:
+                # Capture the full body
+                self.source_init_body = init_method.body
+                # Capture parameters
+                if isinstance(init_method.params, cst.Parameters):
+                    for param in init_method.params.params:
+                        if param.name.value != "self":
+                            self.source_init_params.append(param.name.value)
+
         # Check if this is a subclass of the target class
         if self._is_subclass_of_target(node):
             init_method = find_method_in_class(node, "__init__")
@@ -136,6 +152,8 @@ class PullUpConstructorBodyTransformer(cst.CSTTransformer):
         target_class: str,
         common_params: list[str],
         common_assignments: dict[str, cst.BaseExpression],
+        source_init_body: cst.IndentedBlock | None = None,
+        source_init_params: list[str] | None = None,
     ) -> None:
         """Initialize the transformer.
 
@@ -144,11 +162,62 @@ class PullUpConstructorBodyTransformer(cst.CSTTransformer):
             target_class: Name of the superclass to pull constructor body to
             common_params: Common parameters to pull up (field names)
             common_assignments: Common field assignments to pull up
+            source_init_body: Full body of the source class's __init__ method
+            source_init_params: Parameters of the source class's __init__ method
         """
         self.source_class = source_class
         self.target_class = target_class
         self.common_params = common_params  # These are field names that are common
         self.common_assignments = common_assignments
+        self.source_init_body = source_init_body
+        self.source_init_params = source_init_params or []
+        self.has_name_conflict = False  # Will be set if target class already has __init__
+
+    def _filter_init_body_for_common_params(
+        self,
+        source_body: cst.IndentedBlock,
+        common_params: list[str],
+    ) -> list[cst.BaseStatement]:
+        """Filter the source __init__ body to only include statements related to common parameters.
+
+        Args:
+            source_body: The full body of the source __init__ method
+            common_params: List of common field/parameter names
+
+        Returns:
+            Filtered list of statements
+        """
+        filtered_stmts: list[cst.BaseStatement] = []
+
+        for stmt in source_body.body:
+            # Keep all non-assignment statements (like comments, local variable assignments)
+            if isinstance(stmt, cst.SimpleStatementLine):
+                # Check if this is a field assignment (self.field = ...)
+                is_field_assignment = False
+                is_common_field = False
+
+                for inner_stmt in stmt.body:
+                    if isinstance(inner_stmt, cst.Assign):
+                        # Check if target is self.something
+                        for target in inner_stmt.targets:
+                            if isinstance(target.target, cst.Attribute):
+                                if isinstance(target.target.value, cst.Name) and target.target.value.value == "self":
+                                    field_name = target.target.attr.value
+                                    is_field_assignment = True
+                                    if field_name in common_params:
+                                        is_common_field = True
+
+                # If it's not a field assignment, or it's a common field assignment, keep it
+                if not is_field_assignment or is_common_field:
+                    filtered_stmts.append(stmt)
+            elif isinstance(stmt, cst.FunctionDef):
+                # Skip nested function definitions
+                pass
+            else:
+                # Keep other statements (like if, for, etc.)
+                filtered_stmts.append(stmt)
+
+        return filtered_stmts
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -193,6 +262,8 @@ class PullUpConstructorBodyTransformer(cst.CSTTransformer):
         init_method = find_method_in_class(class_node, "__init__")
         if init_method:
             # Superclass already has a constructor, don't modify
+            # Mark that there's a name conflict so we don't update subclasses
+            self.has_name_conflict = True
             return class_node
 
         new_body_stmts: list[cst.BaseStatement] = []
@@ -203,12 +274,27 @@ class PullUpConstructorBodyTransformer(cst.CSTTransformer):
             if not is_pass_statement(stmt):
                 new_body_stmts.append(stmt)
 
-        # Create new __init__ with common parameters
-        # common_params contains the field names, which match the parameter names
-        new_init = create_init_method(
-            params=self.common_params,
-            field_assignments=None,  # Will create self.param = param for each
-        )
+        # Create new __init__ method
+        if self.source_init_body is not None and self.common_params:
+            # Filter the source body to only include statements relevant to common_params
+            filtered_body_stmts = self._filter_init_body_for_common_params(
+                self.source_init_body, self.common_params
+            )
+
+            new_init_params = [cst.Param(name=cst.Name(param)) for param in self.common_params]
+            new_init = cst.FunctionDef(
+                name=cst.Name("__init__"),
+                params=cst.Parameters(
+                    params=(cst.Param(name=cst.Name("self")),) + tuple(new_init_params)
+                ),
+                body=cst.IndentedBlock(body=tuple(filtered_body_stmts)),
+            )
+        else:
+            # Fallback: create simple field assignments
+            new_init = create_init_method(
+                params=self.common_params,
+                field_assignments=None,  # Will create self.param = param for each
+            )
         new_body_stmts.insert(0, new_init)
 
         return class_node.with_changes(
@@ -224,6 +310,10 @@ class PullUpConstructorBodyTransformer(cst.CSTTransformer):
         Returns:
             Modified class definition
         """
+        # If there's a name conflict in the superclass, don't modify subclasses
+        if self.has_name_conflict:
+            return class_node
+
         init_method = find_method_in_class(class_node, "__init__")
         if not init_method:
             return class_node
@@ -238,12 +328,8 @@ class PullUpConstructorBodyTransformer(cst.CSTTransformer):
         assignments = extract_init_field_assignments(init_method)
 
         # Determine which params should be passed to super()
-        # common_params are field names - we pass the corresponding parameter values
-        super_args = []
-        for field_name in self.common_params:
-            if field_name in assignments:
-                # Use the value from the assignment
-                super_args.append(cst.Arg(value=assignments[field_name]))
+        # Always use common_params - these are the only ones we're pulling up
+        super_args = [cst.Arg(value=cst.Name(param)) for param in self.common_params]
 
         # Determine remaining field assignments (those not pulled up)
         remaining_assignments = {
