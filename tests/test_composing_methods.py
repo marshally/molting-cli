@@ -20,7 +20,6 @@ class TestExtractMethod(RefactoringTestBase):
         # Extract print banner (lines 9-12: comment + 3 print statements)
         self.refactor("extract-method", target="Order::print_owing#L9-L12", name="print_banner")
 
-    @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test extract method with local variables."""
         # Extract calculation that uses and modifies local variable 'outstanding'

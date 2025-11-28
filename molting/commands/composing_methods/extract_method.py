@@ -7,6 +7,7 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
 from molting.core.code_generation_utils import create_parameter
+from molting.core.visitors import MethodConflictChecker
 
 # Target format constants
 TARGET_SEPARATOR = "#"
@@ -108,8 +109,16 @@ class ExtractMethodCommand(BaseCommand):
         # Read file
         source_code = self.file_path.read_text()
 
+        # Check for name conflicts - method should not already exist
+        module = cst.parse_module(source_code)
+        conflict_checker = MethodConflictChecker(class_name, new_method_name)
+        module.visit(conflict_checker)
+
+        if conflict_checker.has_conflict:
+            raise ValueError(f"Method '{new_method_name}' already exists in class '{class_name}'")
+
         # First pass: collect line number information
-        wrapper = metadata.MetadataWrapper(cst.parse_module(source_code))
+        wrapper = metadata.MetadataWrapper(module)
         line_collector = LineCollector(class_name, method_name, start_line, end_line)
         wrapper.visit(line_collector)
 
@@ -203,8 +212,45 @@ class LineCollector(cst.CSTVisitor):
             return None
 
 
+class VariableUsageAnalyzer(cst.CSTVisitor):
+    """Analyzes variable usage in statements to determine what needs to be returned."""
+
+    def __init__(self) -> None:
+        """Initialize the analyzer."""
+        self.assigned_vars: set[str] = set()
+        self.used_vars: set[str] = set()
+        self.uninitialized_uses: set[str] = set()
+        self.augmented_assigned_vars: set[str] = set()
+
+    def visit_Assign(self, node: cst.Assign) -> None:  # noqa: N802
+        """Visit assignment to track assigned variables."""
+        for target in node.targets:
+            if isinstance(target.target, cst.Name):
+                self.assigned_vars.add(target.target.value)
+
+    def visit_Name(self, node: cst.Name) -> None:  # noqa: N802
+        """Visit name to track variable usage."""
+        # Only track non-builtin names
+        self.used_vars.add(node.value)
+
+    def visit_AugAssign(self, node: cst.AugAssign) -> None:  # noqa: N802
+        """Visit augmented assignment (e.g., x += 1)."""
+        if isinstance(node.target, cst.Name):
+            # For augmented assignment, the variable is both used and assigned
+            self.used_vars.add(node.target.value)
+            self.assigned_vars.add(node.target.value)
+            # Track that this variable needs initialization
+            self.augmented_assigned_vars.add(node.target.value)
+
+    def analyze_uninitialized(self) -> None:
+        """Find variables that are used but not explicitly initialized."""
+        self.uninitialized_uses = self.used_vars - self.assigned_vars
+
+
 class ExtractMethodTransformer(cst.CSTTransformer):
     """Transforms a class by extracting a method."""
+
+    METADATA_DEPENDENCIES = (metadata.ParentNodeProvider,)
 
     def __init__(
         self,
@@ -232,6 +278,8 @@ class ExtractMethodTransformer(cst.CSTTransformer):
         self.end_line = end_line
         self.extracted_stmt_indices = extracted_stmt_indices
         self.new_method: cst.FunctionDef | None = None
+        self.return_vars: list[str] = []
+        self.vars_needing_init: set[str] = set()
 
     def _create_method_call_statement(self) -> cst.SimpleStatementLine:
         """Create a method call statement that invokes the extracted method.
@@ -239,18 +287,40 @@ class ExtractMethodTransformer(cst.CSTTransformer):
         Returns:
             A SimpleStatementLine containing the method call
         """
-        return cst.SimpleStatementLine(
-            body=[
-                cst.Expr(
-                    value=cst.Call(
-                        func=cst.Attribute(
-                            value=cst.Name("self"),
-                            attr=cst.Name(self.new_method_name),
-                        )
-                    )
-                )
-            ]
+        method_call = cst.Call(
+            func=cst.Attribute(
+                value=cst.Name("self"),
+                attr=cst.Name(self.new_method_name),
+            )
         )
+
+        # If there are return variables, assign them
+        if self.return_vars:
+            if len(self.return_vars) == 1:
+                # Single return: var = self.method()
+                assignment = cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(self.return_vars[0]))],
+                    value=method_call,
+                )
+                return cst.SimpleStatementLine(body=[assignment])
+            else:
+                # Multiple returns: var1, var2 = self.method()
+                assignment = cst.Assign(
+                    targets=[
+                        cst.AssignTarget(
+                            target=cst.Tuple(
+                                elements=[
+                                    cst.Element(value=cst.Name(var)) for var in self.return_vars
+                                ]
+                            )
+                        )
+                    ],
+                    value=method_call,
+                )
+                return cst.SimpleStatementLine(body=[assignment])
+        else:
+            # No return: just call the method
+            return cst.SimpleStatementLine(body=[cst.Expr(value=method_call)])
 
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
@@ -264,20 +334,27 @@ class ExtractMethodTransformer(cst.CSTTransformer):
 
         # Collect extracted statements
         extracted_stmts: list[cst.BaseStatement] = []
-        new_body: list[cst.BaseStatement] = []
-
         for i, stmt in enumerate(updated_node.body.body):
             if i in self.extracted_stmt_indices:
                 extracted_stmts.append(stmt)  # type: ignore[arg-type]
+
+        # Analyze extracted statements BEFORE creating the method call
+        # This ensures return_vars is populated for _create_method_call_statement()
+        self._analyze_extracted_statements(extracted_stmts, updated_node.body.body)
+
+        # Now create the method call with proper return assignment
+        new_body: list[cst.BaseStatement] = []
+        for i, stmt in enumerate(updated_node.body.body):
+            if i in self.extracted_stmt_indices:
                 # Insert method call at the first extracted statement position
-                if len(extracted_stmts) == 1:
+                if len([j for j in self.extracted_stmt_indices if j <= i]) == 1:
                     method_call = self._create_method_call_statement()
                     new_body.append(method_call)
             else:
                 new_body.append(stmt)  # type: ignore[arg-type]
 
-        # Create the new extracted method with self parameter
-        new_method_body = cst.IndentedBlock(body=tuple(extracted_stmts))
+        # Create the new extracted method with self parameter and return statement
+        new_method_body = self._create_new_method_body(extracted_stmts)
         self.new_method = cst.FunctionDef(
             name=cst.Name(self.new_method_name),
             params=cst.Parameters(params=[create_parameter("self")]),
@@ -285,6 +362,99 @@ class ExtractMethodTransformer(cst.CSTTransformer):
         )
 
         return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body)))
+
+    def _analyze_extracted_statements(
+        self, extracted_stmts: list[cst.BaseStatement], all_stmts: list[cst.BaseStatement]
+    ) -> None:
+        """Analyze extracted statements to determine what variables need to be returned.
+
+        Args:
+            extracted_stmts: Statements being extracted
+            all_stmts: All statements in the original method
+        """
+        # Analyze variable usage in extracted code
+        analyzer = VariableUsageAnalyzer()
+        for stmt in extracted_stmts:
+            stmt.visit(analyzer)
+
+        analyzer.analyze_uninitialized()
+
+        # Track variables that need initialization:
+        # Variables that are only augmented assigned (+=, -=, etc.) need initialization
+        augmented_only = analyzer.augmented_assigned_vars
+
+        # Determine which variables are assigned in extracted code and used afterwards
+        assigned_in_extracted = analyzer.assigned_vars
+        next_stmt_idx = max(self.extracted_stmt_indices) + 1
+
+        # Check if assigned variables are used after extraction
+        used_after = set()
+        if next_stmt_idx < len(all_stmts):
+            post_analyzer = VariableUsageAnalyzer()
+            for stmt in all_stmts[next_stmt_idx:]:
+                stmt.visit(post_analyzer)
+            used_after = post_analyzer.used_vars
+
+        # Variables to return are those assigned in extracted code and used after
+        potential_returns = assigned_in_extracted & used_after
+        self.return_vars = [v for v in potential_returns if v != "self"]
+
+        # Variables needing initialization: returned vars that are augmented-assigned
+        self.vars_needing_init = set(self.return_vars) & augmented_only
+
+    def _create_new_method_body(
+        self, extracted_stmts: list[cst.BaseStatement]
+    ) -> cst.IndentedBlock:
+        """Create the body for the new extracted method.
+
+        Args:
+            extracted_stmts: Statements to include in the new method
+
+        Returns:
+            An IndentedBlock for the new method
+        """
+        body_stmts: list[cst.BaseStatement] = []
+
+        # Add initializations for returned variables that need it
+        # (e.g., only modified with +=, which requires initialization)
+        for var in sorted(self.vars_needing_init):  # Sort for deterministic order
+            # Initialize with 0 for numeric-looking variables
+            init_stmt = cst.SimpleStatementLine(
+                body=[
+                    cst.Assign(
+                        targets=[cst.AssignTarget(target=cst.Name(var))],
+                        value=cst.Integer("0"),
+                    )
+                ]
+            )
+            body_stmts.append(init_stmt)
+
+        # Add the extracted statements
+        body_stmts.extend(extracted_stmts)
+
+        # Add return statement if there are variables to return
+        if self.return_vars:
+            if len(self.return_vars) == 1:
+                # Single return: return var
+                return_stmt = cst.SimpleStatementLine(
+                    body=[cst.Return(value=cst.Name(self.return_vars[0]))]
+                )
+            else:
+                # Multiple returns: return var1, var2
+                return_stmt = cst.SimpleStatementLine(
+                    body=[
+                        cst.Return(
+                            value=cst.Tuple(
+                                elements=[
+                                    cst.Element(value=cst.Name(var)) for var in self.return_vars
+                                ]
+                            )
+                        )
+                    ]
+                )
+            body_stmts.append(return_stmt)
+
+        return cst.IndentedBlock(body=tuple(body_stmts))
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
