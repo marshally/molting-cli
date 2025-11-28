@@ -1,4 +1,4 @@
-"""Expected output after pull-up-field with decorators."""
+"""Example code for pull-up-field with decorators."""
 
 
 class Employee:

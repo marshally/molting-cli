@@ -1,4 +1,4 @@
-"""Expected output after pull up constructor body with local variables."""
+"""Example code for pull up constructor body with local variables."""
 
 
 class Employee:
