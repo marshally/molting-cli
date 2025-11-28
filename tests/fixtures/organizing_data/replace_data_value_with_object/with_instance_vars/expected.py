@@ -1,4 +1,4 @@
-"""Expected output after replace-data-value-with-object with instance variables."""
+"""Example code for replace-data-value-with-object with instance variables."""
 
 
 class CustomerInfo:
