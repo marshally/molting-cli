@@ -40,6 +40,14 @@ class ExtractSuperclassCommand(BaseCommand):
         # Parse target classes
         target_classes = parse_comma_separated_list(targets_str)
 
+        # Check for name conflicts - if the superclass name already exists, skip
+        source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+        for stmt in module.body:
+            if isinstance(stmt, cst.ClassDef) and stmt.name.value == superclass_name:
+                # Class with target name already exists, skip the refactoring
+                return
+
         # Apply transformation
         self.apply_libcst_transform(ExtractSuperclassTransformer, target_classes, superclass_name)
 

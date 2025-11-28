@@ -37,6 +37,14 @@ class ExtractSubclassCommand(BaseCommand):
         # Parse features to extract
         features = parse_comma_separated_list(features_str)
 
+        # Check for name conflicts - if the subclass name already exists, skip
+        source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+        for stmt in module.body:
+            if isinstance(stmt, cst.ClassDef) and stmt.name.value == subclass_name:
+                # Class with target name already exists, skip the refactoring
+                return
+
         # Apply transformation
         self.apply_libcst_transform(
             ExtractSubclassTransformer, target_class, features, subclass_name
