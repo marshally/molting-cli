@@ -33,10 +33,14 @@ class ReplaceErrorCodeWithExceptionCommand(BaseCommand):
         # Read file
         source_code = self.file_path.read_text()
 
-        # Apply transformation
+        # First pass: Transform the function itself
         wrapper = metadata.MetadataWrapper(cst.parse_module(source_code))
         transformer = ReplaceErrorCodeTransformer(function_name, exception_message)
         modified_tree = wrapper.visit(transformer)
+
+        # Second pass: Transform call sites
+        call_site_transformer = CallSiteTransformer(function_name)
+        modified_tree = modified_tree.visit(call_site_transformer)
 
         # Write back
         self.file_path.write_text(modified_tree.code)
@@ -65,9 +69,15 @@ class ReplaceErrorCodeTransformer(cst.CSTTransformer):
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
-        """Leave function definition."""
+        """Leave function definition and remove success return statements."""
         if original_node.name.value == self.function_name:
             self.in_target_function = False
+            # Remove return 0 statements from the function body
+            if isinstance(updated_node.body, cst.IndentedBlock):
+                new_body = [
+                    stmt for stmt in updated_node.body.body if not self._is_success_return(stmt)
+                ]
+                return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
         return updated_node
 
     def leave_If(  # noqa: N802
@@ -120,7 +130,8 @@ class ReplaceErrorCodeTransformer(cst.CSTTransformer):
 
             return cst.FlattenSentinel([new_if] + success_body)
 
-        return if_node
+        # No else clause - just replace the body with raise
+        return if_node.with_changes(body=cst.IndentedBlock(body=[raise_stmt]))
 
     def _create_raise_statement(self) -> cst.SimpleStatementLine:
         """Create a raise statement with the configured exception message.
@@ -214,6 +225,217 @@ class ReplaceErrorCodeTransformer(cst.CSTTransformer):
         if isinstance(value, cst.Integer):
             return value.value == "0"
         return False
+
+
+class CallSiteTransformer(cst.CSTTransformer):
+    """Transforms call sites to use try/except instead of error code checking."""
+
+    def __init__(self, function_name: str) -> None:
+        """Initialize the transformer.
+
+        Args:
+            function_name: Name of the function whose call sites to transform
+        """
+        self.function_name = function_name
+
+    def leave_IndentedBlock(  # noqa: N802
+        self, original_node: cst.IndentedBlock, updated_node: cst.IndentedBlock
+    ) -> cst.IndentedBlock:
+        """Transform call sites in an indented block."""
+        new_body = self._transform_statement_list(list(updated_node.body))
+        return updated_node.with_changes(body=new_body)
+
+    def leave_Module(  # noqa: N802
+        self, original_node: cst.Module, updated_node: cst.Module
+    ) -> cst.Module:
+        """Transform call sites at module level."""
+        new_body = self._transform_statement_list(list(updated_node.body))
+        return updated_node.with_changes(body=new_body)
+
+    def _transform_statement_list(
+        self, statements: list[cst.BaseStatement]
+    ) -> list[cst.BaseStatement]:
+        """Transform a list of statements, combining assignment + if into try/except.
+
+        Args:
+            statements: List of statements to transform
+
+        Returns:
+            Transformed list of statements
+        """
+        new_statements: list[cst.BaseStatement] = []
+        i = 0
+
+        while i < len(statements):
+            stmt = statements[i]
+
+            # Check for pattern: assignment followed by if checking error code
+            if i + 1 < len(statements):
+                next_stmt = statements[i + 1]
+                # Gather remaining statements after the if (for case with no else)
+                remaining = statements[i + 2 :] if i + 2 < len(statements) else []
+                result, consumed = self._try_transform_call_site(stmt, next_stmt, remaining)
+                if result is not None:
+                    new_statements.append(result)
+                    i += 2 + consumed  # Skip assignment, if, and consumed success stmts
+                    continue
+
+            new_statements.append(stmt)
+            i += 1
+
+        return new_statements
+
+    def _try_transform_call_site(
+        self,
+        assign_stmt: cst.BaseStatement,
+        if_stmt: cst.BaseStatement,
+        remaining: list[cst.BaseStatement],
+    ) -> tuple[cst.Try | None, int]:
+        """Try to transform an assignment + if pair into a try/except.
+
+        Args:
+            assign_stmt: The assignment statement
+            if_stmt: The if statement
+            remaining: Statements after the if (for cases with no else)
+
+        Returns:
+            Tuple of (Try statement or None, number of remaining statements consumed)
+        """
+        # Check if first statement is an assignment calling our function
+        if not isinstance(assign_stmt, cst.SimpleStatementLine):
+            return None, 0
+
+        if len(assign_stmt.body) != 1:
+            return None, 0
+
+        assign = assign_stmt.body[0]
+        if not isinstance(assign, cst.Assign):
+            return None, 0
+
+        if len(assign.targets) != 1:
+            return None, 0
+
+        target = assign.targets[0].target
+        if not isinstance(target, cst.Name):
+            return None, 0
+
+        var_name = target.value
+
+        # Check if RHS is a call to our function
+        if not isinstance(assign.value, cst.Call):
+            return None, 0
+
+        call = assign.value
+        if not isinstance(call.func, cst.Name):
+            return None, 0
+
+        if call.func.value != self.function_name:
+            return None, 0
+
+        # Now check if the if statement checks var_name == -1
+        if not isinstance(if_stmt, cst.If):
+            return None, 0
+
+        if not self._is_error_check(if_stmt.test, var_name):
+            return None, 0
+
+        # Transform to try/except
+        return self._create_try_except(call, if_stmt, remaining)
+
+    def _is_error_check(self, test: cst.BaseExpression, var_name: str) -> bool:
+        """Check if a test expression is checking for error code.
+
+        Args:
+            test: The test expression
+            var_name: The variable name to check
+
+        Returns:
+            True if it's checking var_name == -1
+        """
+        if not isinstance(test, cst.Comparison):
+            return False
+
+        if not isinstance(test.left, cst.Name):
+            return False
+
+        if test.left.value != var_name:
+            return False
+
+        if len(test.comparisons) != 1:
+            return False
+
+        cmp = test.comparisons[0]
+        if not isinstance(cmp.operator, cst.Equal):
+            return False
+
+        # Check for -1
+        if isinstance(cmp.comparator, cst.UnaryOperation):
+            if isinstance(cmp.comparator.operator, cst.Minus):
+                if isinstance(cmp.comparator.expression, cst.Integer):
+                    return cmp.comparator.expression.value == "1"
+
+        return False
+
+    def _create_try_except(
+        self, call: cst.Call, if_stmt: cst.If, remaining: list[cst.BaseStatement]
+    ) -> tuple[cst.Try, int]:
+        """Create a try/except statement from a call and if statement.
+
+        Args:
+            call: The function call
+            if_stmt: The if statement with error handling
+            remaining: Statements after the if (consumed when no else)
+
+        Returns:
+            Tuple of (Try statement, number of remaining statements consumed)
+        """
+        # The error handling is in the if body
+        error_body = self._get_block_body(if_stmt.body)
+
+        # The success handling is in the else body, or statements after the if
+        consumed = 0
+        if if_stmt.orelse and isinstance(if_stmt.orelse, cst.Else):
+            success_body = self._get_block_body(if_stmt.orelse.body)
+        else:
+            # No else - success statements come after the if
+            # Consume all remaining statements in this block
+            success_body = remaining
+            consumed = len(remaining)
+
+        # Create the try body: call the function, then success statements
+        call_stmt = cst.SimpleStatementLine(body=[cst.Expr(value=call)])
+        try_body = [call_stmt] + success_body
+
+        # Create except handler
+        except_handler = cst.ExceptHandler(
+            type=cst.Name("ValueError"),
+            body=(
+                cst.IndentedBlock(body=error_body)
+                if error_body
+                else cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[cst.Pass()])])
+            ),
+        )
+
+        return (
+            cst.Try(
+                body=cst.IndentedBlock(body=try_body),
+                handlers=[except_handler],
+            ),
+            consumed,
+        )
+
+    def _get_block_body(self, block: cst.BaseSuite) -> list[cst.BaseStatement]:
+        """Extract statements from a code block.
+
+        Args:
+            block: The code block to extract statements from
+
+        Returns:
+            List of statements in the block
+        """
+        if isinstance(block, cst.IndentedBlock):
+            return list(block.body)
+        return []
 
 
 # Register the command

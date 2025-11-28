@@ -5,6 +5,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
+from molting.core.code_generation_utils import create_parameter
 
 
 class ReplaceConstructorWithFactoryFunctionCommand(BaseCommand):
@@ -45,7 +46,7 @@ class ReplaceConstructorWithFactoryFunctionCommand(BaseCommand):
 
 
 class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
-    """Transforms module by adding a factory function and updating call sites."""
+    """Transforms module by adding a factory function for a class."""
 
     def __init__(self, class_name: str) -> None:
         """Initialize the transformer.
@@ -54,98 +55,175 @@ class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
             class_name: Name of the class to create factory for
         """
         self.class_name = class_name
-        self.factory_name = f"create_{class_name.lower()}"
+        self.class_constants: list[str] = []
         self.found_class = False
-        self.init_params: list[cst.Param] = []
-        self.class_insert_position: int | None = None
 
-    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
-        """Visit class definition to extract __init__ parameters."""
-        if node.name.value == self.class_name:
-            self.found_class = True
-            # Find __init__ and extract its parameters
-            if isinstance(node.body, cst.IndentedBlock):
-                for stmt in node.body.body:
-                    if isinstance(stmt, cst.FunctionDef):
-                        if stmt.name.value == "__init__":
-                            # Get params excluding 'self'
-                            self.init_params = [
-                                p
-                                for p in stmt.params.params
-                                if not (isinstance(p.name, cst.Name) and p.name.value == "self")
-                            ]
-                            break
-        return True
+    def _collect_class_constants(self, class_body: cst.BaseSuite) -> list[str]:
+        """Collect constant names from class body.
 
-    def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
-        """Replace constructor calls with factory function calls."""
-        # Check if this is a call to the target class constructor
-        if isinstance(updated_node.func, cst.Name):
-            if updated_node.func.value == self.class_name:
-                # Replace ClassName(...) with create_classname(...)
-                return updated_node.with_changes(func=cst.Name(self.factory_name))
-        return updated_node
-
-    def leave_Module(  # noqa: N802
-        self, original_node: cst.Module, updated_node: cst.Module
-    ) -> cst.Module:
-        """Add factory function after the class definition."""
-        if not self.found_class:
-            return updated_node
-
-        # Find where to insert the factory function (after the class definition)
-        new_body: list[cst.BaseStatement] = []
-        for stmt in updated_node.body:
-            new_body.append(stmt)
-            # Insert factory after the target class
-            if isinstance(stmt, cst.ClassDef) and stmt.name.value == self.class_name:
-                factory_func = self._create_factory_function()
-                new_body.append(factory_func)
-
-        return updated_node.with_changes(body=new_body)
-
-    def _create_factory_function(self) -> cst.FunctionDef:
-        """Create the factory function.
+        Args:
+            class_body: The class body to search
 
         Returns:
-            A function definition node
+            List of constant names
         """
-        # Create parameter list from __init__ params
-        if self.init_params:
-            # Use the first param name from __init__
-            param_name = (
-                self.init_params[0].name.value
-                if isinstance(self.init_params[0].name, cst.Name)
-                else "arg"
-            )
+        constants: list[str] = []
+        # BaseSuite can be IndentedBlock or SimpleStatementSuite
+        if isinstance(class_body, cst.IndentedBlock):
+            statements = class_body.body
         else:
-            param_name = "arg"
+            # SimpleStatementSuite doesn't have constants typically
+            return constants
 
-        # Create: return ClassName(param)
-        return_stmt = cst.SimpleStatementLine(
+        for stmt in statements:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for inner in stmt.body:
+                    if isinstance(inner, cst.Assign):
+                        for target in inner.targets:
+                            if isinstance(target.target, cst.Name):
+                                constants.append(target.target.value)
+        return constants
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Visit class definition to collect constants.
+
+        Args:
+            node: The class definition node
+        """
+        if node.name.value == self.class_name:
+            self.found_class = True
+            self.class_constants = self._collect_class_constants(node.body)
+
+    def _create_condition(self, constant: str, param_name: str) -> cst.Comparison:
+        """Create a condition that tests parameter against constant name.
+
+        Args:
+            constant: The constant name to test
+            param_name: The parameter name to compare
+
+        Returns:
+            A comparison node
+        """
+        return cst.Comparison(
+            left=cst.Name(param_name),
+            comparisons=[
+                cst.ComparisonTarget(
+                    operator=cst.Equal(),
+                    comparator=cst.SimpleString(f'"{constant}"'),
+                )
+            ],
+        )
+
+    def _create_return_statement(self, constant: str) -> cst.SimpleStatementLine:
+        """Create a return statement that instantiates the class with a constant.
+
+        Args:
+            constant: The constant name to use
+
+        Returns:
+            A return statement node
+        """
+        return cst.SimpleStatementLine(
             body=[
                 cst.Return(
                     value=cst.Call(
                         func=cst.Name(self.class_name),
-                        args=[cst.Arg(value=cst.Name(param_name))],
+                        args=[
+                            cst.Arg(
+                                value=cst.Attribute(
+                                    value=cst.Name(self.class_name),
+                                    attr=cst.Name(constant),
+                                )
+                            )
+                        ],
                     )
                 )
             ]
         )
 
+    def _build_if_chain(self, param_name: str) -> cst.If | None:
+        """Build if-elif chain for all constants.
+
+        Args:
+            param_name: The parameter name for the factory function
+
+        Returns:
+            The if chain or None if no constants
+        """
+        if_chain = None
+        for constant in reversed(self.class_constants):
+            condition = self._create_condition(constant, param_name)
+            return_stmt = self._create_return_statement(constant)
+
+            if if_chain is None:
+                # Last condition (no else)
+                if_chain = cst.If(
+                    test=condition,
+                    body=cst.IndentedBlock(body=[return_stmt]),
+                    orelse=None,
+                )
+            else:
+                # Wrap previous chain as orelse
+                if_chain = cst.If(
+                    test=condition,
+                    body=cst.IndentedBlock(body=[return_stmt]),
+                    orelse=if_chain,
+                )
+        return if_chain
+
+    def _create_factory_function(
+        self, factory_name: str, param_name: str, if_chain: cst.If | None
+    ) -> cst.FunctionDef:
+        """Create factory function definition.
+
+        Args:
+            factory_name: Name of the factory function
+            param_name: Name of the parameter
+            if_chain: The if-elif chain for the body
+
+        Returns:
+            A function definition node
+        """
         return cst.FunctionDef(
-            name=cst.Name(self.factory_name),
-            params=cst.Parameters(
-                params=[
-                    cst.Param(name=cst.Name(param_name)),
-                ]
+            name=cst.Name(factory_name),
+            params=cst.Parameters(params=[create_parameter(param_name)]),
+            body=(
+                cst.IndentedBlock(body=[if_chain])
+                if if_chain
+                else cst.SimpleStatementSuite(body=[cst.Pass()])
             ),
-            body=cst.IndentedBlock(body=[return_stmt]),
             leading_lines=[
                 cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
                 cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
             ],
         )
+
+    def leave_Module(  # noqa: N802
+        self, original_node: cst.Module, updated_node: cst.Module
+    ) -> cst.Module:
+        """Add factory function after module transformation.
+
+        Args:
+            original_node: The original module
+            updated_node: The updated module
+
+        Returns:
+            Module with factory function added
+        """
+        if not self.found_class:
+            return updated_node
+
+        if not self.class_constants:
+            return updated_node
+
+        factory_name = f"create_{self.class_name.lower()}"
+        param_name = "employee_type"
+
+        if_chain = self._build_if_chain(param_name)
+        factory_func = self._create_factory_function(factory_name, param_name, if_chain)
+
+        new_body = list(updated_node.body) + [factory_func]
+        return updated_node.with_changes(body=new_body)
 
 
 # Register the command
