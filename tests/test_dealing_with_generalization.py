@@ -7,7 +7,6 @@ superclasses and subclasses, collapsing hierarchies, and converting between
 inheritance and delegation patterns.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -25,17 +24,14 @@ class TestPullUpField(RefactoringTestBase):
         """Test pull-up-field with instance variables."""
         self.refactor("pull-up-field", target="Salesman::name", to="Employee")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test pull-up-field when target field already exists in parent."""
         self.refactor("pull-up-field", target="Salesman::name", to="Employee")
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test pull-up-field with decorated property methods."""
         self.refactor("pull-up-field", target="Salesman::commission_rate", to="Employee")
 
-    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
     def test_multiple_calls(self) -> None:
         """Test pull-up-field with multiple call sites."""
         self.refactor("pull-up-field", target="Salesman::name", to="Employee")
@@ -54,7 +50,6 @@ class TestPullUpMethod(RefactoringTestBase):
         """Test pull-up-method with instance variables."""
         self.refactor("pull-up-method", target="Salesman::get_employee_info", to="Employee")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test pull-up-method when target method already exists in parent."""
         self.refactor("pull-up-method", target="Salesman::get_annual_cost", to="Employee")
@@ -77,12 +72,10 @@ class TestPullUpConstructorBody(RefactoringTestBase):
         """Create a superclass constructor and call it from subclass constructors."""
         self.refactor("pull-up-constructor-body", target="Manager::__init__", to="Employee")
 
-    @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test pull up constructor body with local variables."""
         self.refactor("pull-up-constructor-body", target="Manager::__init__", to="Employee")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test pull-up-constructor-body when parent already has incompatible constructor."""
         self.refactor("pull-up-constructor-body", target="Manager::__init__", to="Employee")
@@ -101,7 +94,6 @@ class TestPushDownMethod(RefactoringTestBase):
         """Test push-down-method with instance variables."""
         self.refactor("push-down-method", target="Employee::calculate_bonus", to="Salesman")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test push-down-method when target subclass already has method."""
         self.refactor("push-down-method", target="Employee::get_quota", to="Salesman")
@@ -128,12 +120,10 @@ class TestPushDownField(RefactoringTestBase):
         """Test push-down-field with instance variables."""
         self.refactor("push-down-field", target="Employee::commission_rate", to="Salesman")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test push-down-field when target subclass already has field."""
         self.refactor("push-down-field", target="Employee::quota", to="Salesman")
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test push-down-field with decorated property methods."""
         self.refactor("push-down-field", target="Employee::sales_target", to="Salesman")
@@ -154,7 +144,6 @@ class TestExtractSubclass(RefactoringTestBase):
             "extract-subclass", target="JobItem", features="is_labor,employee", name="LaborItem"
         )
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test extract-subclass when target subclass name already exists."""
         self.refactor(
@@ -171,7 +160,6 @@ class TestExtractSuperclass(RefactoringTestBase):
         """Create a superclass and move common features to it."""
         self.refactor("extract-superclass", targets="Employee,Department", name="Party")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test extract-superclass when target superclass name already exists."""
         self.refactor("extract-superclass", targets="Employee,Department", name="Party")
@@ -191,7 +179,6 @@ class TestExtractInterface(RefactoringTestBase):
             name="Billable",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test extract-interface when target interface name already exists."""
         self.refactor(
@@ -225,7 +212,6 @@ class TestFormTemplateMethod(RefactoringTestBase):
             name="get_bill_amount",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test form template method with local variables."""
         self.refactor(
@@ -244,7 +230,6 @@ class TestReplaceInheritanceWithDelegation(RefactoringTestBase):
         """Create a field for the superclass and remove the subclassing."""
         self.refactor("replace-inheritance-with-delegation", target="Stack")
 
-    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test replace-inheritance-with-delegation with instance variables."""
         self.refactor("replace-inheritance-with-delegation", target="DataStore")
@@ -259,7 +244,6 @@ class TestReplaceDelegationWithInheritance(RefactoringTestBase):
         """Make the delegating class a subclass of the delegate."""
         self.refactor("replace-delegation-with-inheritance", target="Employee", delegate="_person")
 
-    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test replace-delegation-with-inheritance with instance variables."""
         self.refactor("replace-delegation-with-inheritance", target="Employee", delegate="_contact")

@@ -53,6 +53,11 @@ class PullUpFieldCommand(BaseCommand):
         capture_transformer = FieldCaptureTransformer(class_name, field_name, to_class)
         module.visit(capture_transformer)
 
+        # Check for name conflicts
+        if field_name in capture_transformer.parent_existing_fields:
+            # Field already exists in parent, skip the refactoring
+            return
+
         # Second pass: apply transformation with captured field info
         pull_up_transformer = PullUpFieldTransformer(
             class_name,
@@ -81,6 +86,7 @@ class FieldCaptureTransformer(cst.CSTTransformer):
         self.target_class = target_class
         self.field_param_name: str | None = None
         self.parent_existing_params: list[str] = []
+        self.parent_existing_fields: set[str] = set()
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Capture field information when visiting classes."""
@@ -95,12 +101,16 @@ class FieldCaptureTransformer(cst.CSTTransformer):
                     if isinstance(value, cst.Name):
                         self.field_param_name = value.value
         elif node.name.value == self.target_class:
-            # Capture existing parameters in parent __init__
+            # Capture existing parameters and fields in parent __init__
             init_method = find_method_in_class(node, "__init__")
-            if init_method and isinstance(init_method.params, cst.Parameters):
-                for param in init_method.params.params:
-                    if param.name.value != "self":
-                        self.parent_existing_params.append(param.name.value)
+            if init_method:
+                if isinstance(init_method.params, cst.Parameters):
+                    for param in init_method.params.params:
+                        if param.name.value != "self":
+                            self.parent_existing_params.append(param.name.value)
+                # Also capture existing field assignments in parent __init__
+                field_assignments = extract_init_field_assignments(init_method)
+                self.parent_existing_fields = set(field_assignments.keys())
 
 
 class PullUpFieldTransformer(cst.CSTTransformer):
