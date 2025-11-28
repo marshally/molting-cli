@@ -274,7 +274,6 @@ class TestIntroduceParameterObject(RefactoringTestBase):
             name="DateRange",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for call site updates")
     def test_multiple_calls(self) -> None:
         """Test introduce parameter object with multiple call sites."""
         self.refactor(

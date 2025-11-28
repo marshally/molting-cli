@@ -119,6 +119,40 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
 
         return updated_node
 
+    def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
+        """Leave call and update calls to the target function."""
+        # Check if this is a call to our target function
+        if not (isinstance(updated_node.func, cst.Name) and updated_node.func.value == self.target):
+            return updated_node
+
+        # Find the arguments that correspond to our parameters
+        args = list(updated_node.args)
+        if len(args) < len(self.param_names):
+            return updated_node
+
+        # Collect the arguments to replace
+        args_to_replace = []
+        remaining_args = []
+        replaced_count = 0
+
+        for i, arg in enumerate(args):
+            if replaced_count < len(self.param_names):
+                args_to_replace.append(arg.value)
+                replaced_count += 1
+            else:
+                remaining_args.append(arg)
+
+        # Create the constructor call for the parameter object
+        constructor_call = cst.Call(
+            func=cst.Name(self.class_name),
+            args=[cst.Arg(value=arg) for arg in args_to_replace],
+        )
+
+        # Build the new argument list
+        new_args = [cst.Arg(value=constructor_call)] + remaining_args
+
+        return updated_node.with_changes(args=new_args)
+
     def leave_Comparison(  # noqa: N802
         self, original_node: cst.Comparison, updated_node: cst.Comparison
     ) -> cst.BaseExpression:
