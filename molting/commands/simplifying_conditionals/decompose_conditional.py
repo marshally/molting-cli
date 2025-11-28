@@ -40,7 +40,9 @@ class DecomposeConditionalCommand(BaseCommand):
         """
         parts = target.split("#")
         if len(parts) != 2:
-            raise ValueError(f"Invalid target format '{target}'. Expected 'function_name#L2-L5' or 'ClassName::function_name#L2-L5'")
+            raise ValueError(
+                f"Invalid target format '{target}'. Expected 'function_name#L2-L5' or 'ClassName::function_name#L2-L5'"
+            )
 
         path_part = parts[0]
         line_range = parts[1]
@@ -69,7 +71,9 @@ class DecomposeConditionalCommand(BaseCommand):
         # Parse and transform with metadata
         module = cst.parse_module(source_code)
         wrapper = metadata.MetadataWrapper(module)
-        transformer = DecomposeConditionalTransformer(class_name, function_name, start_line, end_line)
+        transformer = DecomposeConditionalTransformer(
+            class_name, function_name, start_line, end_line
+        )
         modified_tree = wrapper.visit(transformer)
 
         # Write back
@@ -81,7 +85,9 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
     METADATA_DEPENDENCIES = (metadata.PositionProvider,)
 
-    def __init__(self, class_name: str | None, function_name: str, start_line: int, end_line: int) -> None:
+    def __init__(
+        self, class_name: str | None, function_name: str, start_line: int, end_line: int
+    ) -> None:
         """Initialize the transformer.
 
         Args:
