@@ -1,6 +1,5 @@
 """Remove Setting Method refactoring command."""
 
-from typing import cast
 
 import libcst as cst
 
@@ -45,9 +44,7 @@ class RemoveSettingMethodCommand(BaseCommand):
         setter_name = self._derive_setter_name(field_name)
 
         # Apply the transformation
-        self.apply_libcst_transform(
-            RemoveSettingMethodTransformer, class_name, setter_name
-        )
+        self.apply_libcst_transform(RemoveSettingMethodTransformer, class_name, setter_name)
 
 
 class RemoveSettingMethodTransformer(cst.CSTTransformer):
@@ -88,10 +85,7 @@ class RemoveSettingMethodTransformer(cst.CSTTransformer):
                 setter_found = False
 
                 for stmt in updated_node.body.body:
-                    if (
-                        isinstance(stmt, cst.FunctionDef)
-                        and stmt.name.value == self.setter_name
-                    ):
+                    if isinstance(stmt, cst.FunctionDef) and stmt.name.value == self.setter_name:
                         setter_found = True
                         continue  # Skip this method
                     new_body.append(stmt)
@@ -103,15 +97,11 @@ class RemoveSettingMethodTransformer(cst.CSTTransformer):
                     )
 
                 # Return the class with updated body
-                return updated_node.with_changes(
-                    body=cst.IndentedBlock(body=new_body)
-                )
+                return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
 
         return updated_node
 
-    def visit_SimpleStatementLine(  # noqa: N802
-        self, node: cst.SimpleStatementLine
-    ) -> bool:
+    def visit_SimpleStatementLine(self, node: cst.SimpleStatementLine) -> bool:  # noqa: N802
         """Visit simple statements to find variable assignments and setter calls."""
         for stmt in node.body:
             # Check for assignment: var = ClassName(...)
@@ -131,19 +121,11 @@ class RemoveSettingMethodTransformer(cst.CSTTransformer):
                 if isinstance(call, cst.Call):
                     if isinstance(call.func, cst.Attribute):
                         attr = call.func
-                        if (
-                            isinstance(attr.value, cst.Name)
-                            and attr.attr.value == self.setter_name
-                        ):
+                        if isinstance(attr.value, cst.Name) and attr.attr.value == self.setter_name:
                             var_name = attr.value.value
-                            if (
-                                var_name in self.vars_from_target_class
-                                and call.args
-                            ):
+                            if var_name in self.vars_from_target_class and call.args:
                                 # Store the setter value for this variable
-                                self.var_to_setter_value[var_name] = call.args[
-                                    0
-                                ].value
+                                self.var_to_setter_value[var_name] = call.args[0].value
         return True
 
     def leave_SimpleStatementLine(  # noqa: N802
@@ -167,9 +149,7 @@ class RemoveSettingMethodTransformer(cst.CSTTransformer):
                             return cst.RemovalSentinel.REMOVE
         return updated_node
 
-    def leave_Call(  # noqa: N802
-        self, original_node: cst.Call, updated_node: cst.Call
-    ) -> cst.Call:
+    def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
         """Update constructor calls to include the setter value."""
         # Check if this is a call to our target class constructor
         if isinstance(updated_node.func, cst.Name):

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\n📝 Add Python-over-LLM principle and customizable assets system\n\nNew sections:\n- Design Principle: Python Over LLM - deterministic Python code\n  conserves context and ensures precision over LLM operations\n- Customizable Assets - prompts, templates, and scripts bundled\n  in package but overridable at local/project/global levels\n\nNew CLI commands:\n- jiro assets list\n- jiro assets which <path>\n- jiro assets customize <path>\n\nUpdated package structure to include assets/ directory with\ndefault prompts and commit templates.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:cli-guide.readthedocs.io)",
+      "Bash(git commit -m \"$(cat <<''EOF''\n📝 Add CLI style guide with output format requirements\n\nNew section: CLI Style Guide covering:\n- Command naming convention (verb-noun pattern like git/docker/kubectl)\n- Naming rules (lowercase, short, imperative verbs, plural nouns)\n- Standard verbs (list, show, create, update, delete)\n- Output formats: human-readable, --json, --toon (TOON format for\n  LLM token efficiency - ~40% fewer tokens than JSON)\n- Option naming conventions with standard options table\n- Help text standards with examples\n- Exit codes specification\n\nAll commands producing output must support all three formats.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(python -m src.jiro.cli.main:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd initial project scaffolding\n\nCreate complete project structure with:\n- pyproject.toml with dependencies, ruff, mypy, and pytest config\n- src/jiro package with all core modules (cli, core, agents, trackers, web, db, config, assets)\n- CLI with Typer app and all subcommands as stubs (init, doctor, dream, plan, tasks, execute, status, config, mode, logs, web, assets)\n- Asset loading system with placeholder files\n- Test structure (unit, integration, e2e)\n- .gitignore for Python projects\n- .pre-commit-config.yaml with ruff and mypy hooks\n- README.md with project description\n\nAll commands show \"Not implemented yet\" with helpful descriptions of what they will do.\nEntry point configured as: jiro = \"jiro.cli.main:app\"\n\nThis provides the foundation for implementing the full system per TECHNICAL_SPEC.md.\nEOF\n)\")",
+      "Bash(tree:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
