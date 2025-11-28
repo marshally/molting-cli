@@ -57,7 +57,9 @@ class TestReplaceDataValueWithObject(RefactoringTestBase):
         """Test replace data value with object with local variables."""
         self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
 
-    @pytest.mark.skip(reason="Implementation needed for multiple_calls - doesn't update all call sites")
+    @pytest.mark.skip(
+        reason="Implementation needed for multiple_calls - doesn't update all call sites"
+    )
     def test_multiple_calls(self) -> None:
         """Test replace-data-value-with-object with multiple call sites."""
         self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
@@ -236,7 +238,9 @@ class TestEncapsulateCollection(RefactoringTestBase):
         """Test encapsulate-collection with decorated methods."""
         self.refactor("encapsulate-collection", target="Person::courses")
 
-    @pytest.mark.skip(reason="Implementation needed for multiple_calls - doesn't update external call sites")
+    @pytest.mark.skip(
+        reason="Implementation needed for multiple_calls - doesn't update external call sites"
+    )
     def test_multiple_calls(self) -> None:
         """Test encapsulate-collection with multiple call sites."""
         self.refactor("encapsulate-collection", target="Person::courses")
@@ -253,7 +257,9 @@ class TestReplaceTypeCodeWithClass(RefactoringTestBase):
             "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
         )
 
-    @pytest.mark.skip(reason="Implementation needed for multiple_calls - doesn't update type code references")
+    @pytest.mark.skip(
+        reason="Implementation needed for multiple_calls - doesn't update type code references"
+    )
     def test_multiple_calls(self) -> None:
         """Test replace-type-code-with-class with multiple call sites."""
         self.refactor(
