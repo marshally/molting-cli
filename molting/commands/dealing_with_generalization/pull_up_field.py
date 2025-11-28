@@ -252,7 +252,7 @@ class PullUpFieldTransformer(cst.CSTTransformer):
                 if len(stmt.body) == 1 and isinstance(stmt.body[0], cst.Pass):
                     # Skip this pass statement since we have property methods now
                     continue
-            new_body_stmts.append(stmt)
+            new_body_stmts.append(cast(cst.BaseStatement, stmt))
 
         return class_node.with_changes(
             body=class_node.body.with_changes(body=tuple(new_body_stmts))
@@ -291,9 +291,9 @@ class PullUpFieldTransformer(cst.CSTTransformer):
 
                 # If it's not a property-related method, keep it
                 if not is_property_method:
-                    new_body_stmts.append(stmt)
+                    new_body_stmts.append(cast(cst.BaseStatement, stmt))
             else:
-                new_body_stmts.append(stmt)
+                new_body_stmts.append(cast(cst.BaseStatement, stmt))
 
         return class_node.with_changes(
             body=class_node.body.with_changes(body=tuple(new_body_stmts))
@@ -350,7 +350,9 @@ class PullUpFieldTransformer(cst.CSTTransformer):
         new_params.append(cst.Param(name=cst.Name(self.field_param_name)))
 
         # Add the field assignment to the body
-        new_body_stmts: list[cst.BaseStatement] = list(init_node.body.body)
+        new_body_stmts: list[cst.BaseStatement] = [
+            cast(cst.BaseStatement, stmt) for stmt in init_node.body.body
+        ]
         field_assignment = cst.SimpleStatementLine(
             body=[
                 cst.Assign(
@@ -395,9 +397,9 @@ class PullUpFieldTransformer(cst.CSTTransformer):
         # Extract parameters from current __init__
         params = []
         if isinstance(init_method.params, cst.Parameters):
-            for param in init_method.params.params:
-                if param.name.value != "self":
-                    params.append(param.name.value)
+            for param_obj in init_method.params.params:
+                if param_obj.name.value != "self":
+                    params.append(param_obj.name.value)
 
         # Build super() arguments: existing parent params in order, then the field parameter
         super_args = []
@@ -450,9 +452,9 @@ class PullUpFieldTransformer(cst.CSTTransformer):
         # Extract parameters from current __init__
         params = []
         if isinstance(init_method.params, cst.Parameters):
-            for param in init_method.params.params:
-                if param.name.value != "self":
-                    params.append(param.name.value)
+            for param_obj in init_method.params.params:
+                if param_obj.name.value != "self":
+                    params.append(param_obj.name.value)
 
         # Build super() arguments: existing parent params in order, then the field parameter
         super_args = []

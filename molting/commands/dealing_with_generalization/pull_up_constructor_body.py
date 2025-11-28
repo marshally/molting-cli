@@ -95,7 +95,8 @@ class ConstructorCaptureTransformer(cst.CSTVisitor):
             init_method = find_method_in_class(node, "__init__")
             if init_method:
                 # Capture the full body
-                self.source_init_body = init_method.body
+                if isinstance(init_method.body, cst.IndentedBlock):
+                    self.source_init_body = init_method.body
                 # Capture parameters
                 if isinstance(init_method.params, cst.Parameters):
                     for param in init_method.params.params:
