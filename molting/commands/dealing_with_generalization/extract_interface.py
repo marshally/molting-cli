@@ -39,6 +39,13 @@ class ExtractInterfaceCommand(BaseCommand):
         # Read file
         source_code = self.file_path.read_text()
 
+        # Check for name conflicts - if the interface name already exists, skip
+        module = cst.parse_module(source_code)
+        for stmt in module.body:
+            if isinstance(stmt, cst.ClassDef) and stmt.name.value == interface_name:
+                # Class with target name already exists, skip the refactoring
+                return
+
         # First, parse with ast to find return types
         try:
             tree = ast.parse(source_code)
