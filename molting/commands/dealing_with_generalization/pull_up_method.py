@@ -44,11 +44,16 @@ class PullUpMethodCommand(BaseCommand):
         # Parse target to get class and method names
         class_name, method_name = parse_target(target, expected_parts=2)
 
-        # First pass: capture the method
+        # First pass: capture the method and check for conflicts
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
-        capture_transformer = MethodCaptureTransformer(class_name, method_name)
+        capture_transformer = MethodCaptureTransformer(class_name, method_name, to_class)
         module.visit(capture_transformer)
+
+        # Check for name conflicts
+        if capture_transformer.method_exists_in_target:
+            # Method already exists in target, skip the refactoring
+            return
 
         # Second pass: apply transformation with captured method
         move_transformer = PullUpMethodTransformer(
@@ -59,25 +64,33 @@ class PullUpMethodCommand(BaseCommand):
 
 
 class MethodCaptureTransformer(cst.CSTTransformer):
-    """Visitor to capture a method from a class."""
+    """Visitor to capture method information from source and target classes."""
 
-    def __init__(self, source_class: str, method_name: str) -> None:
+    def __init__(self, source_class: str, method_name: str, target_class: str) -> None:
         """Initialize the capture transformer.
 
         Args:
             source_class: Name of the class containing the method
             method_name: Name of the method to capture
+            target_class: Name of the target class
         """
         self.source_class = source_class
         self.method_name = method_name
+        self.target_class = target_class
         self.method_to_pull_up: cst.FunctionDef | None = None
+        self.method_exists_in_target = False
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
-        """Capture the method when visiting the source class."""
+        """Capture method information when visiting classes."""
         if node.name.value == self.source_class:
             method = find_method_in_class(node, self.method_name)
             if method:
                 self.method_to_pull_up = method
+        elif node.name.value == self.target_class:
+            # Check if method already exists in target
+            method = find_method_in_class(node, self.method_name)
+            if method:
+                self.method_exists_in_target = True
 
 
 class PullUpMethodTransformer(cst.CSTTransformer):
