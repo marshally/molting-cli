@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import (
+    extract_init_field_assignments,
     find_method_in_class,
     is_pass_statement,
     parse_target,
@@ -49,8 +50,44 @@ class PushDownFieldCommand(BaseCommand):
         # Parse target to get class and field names
         class_name, field_name = parse_target(target, expected_parts=2)
 
+        # First pass: check for conflicts in target class
+        source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+        capture_transformer = FieldCaptureTransformer(class_name, field_name, to_class)
+        module.visit(capture_transformer)
+
+        # Check for name conflicts
+        if capture_transformer.target_has_field:
+            # Field already exists in target, skip the refactoring
+            return
+
         # Apply transformation
         self.apply_libcst_transform(PushDownFieldTransformer, class_name, field_name, to_class)
+
+
+class FieldCaptureTransformer(cst.CSTTransformer):
+    """Visitor to capture field information from target class."""
+
+    def __init__(self, source_class: str, field_name: str, target_class: str) -> None:
+        """Initialize the capture transformer.
+
+        Args:
+            source_class: Name of the source class (not used here)
+            field_name: Name of the field to push down
+            target_class: Name of the target class
+        """
+        self.field_name = field_name
+        self.target_class = target_class
+        self.target_has_field = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Check if target class has the field."""
+        if node.name.value == self.target_class:
+            init_method = find_method_in_class(node, "__init__")
+            if init_method:
+                field_assignments = extract_init_field_assignments(init_method)
+                if self.field_name in field_assignments:
+                    self.target_has_field = True
 
 
 class PushDownFieldTransformer(cst.CSTTransformer):
