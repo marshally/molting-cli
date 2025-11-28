@@ -1,4 +1,4 @@
-"""Expected output after pull-up-field with multiple call sites."""
+"""Example code for pull-up-field with multiple call sites."""
 
 
 class Employee:
