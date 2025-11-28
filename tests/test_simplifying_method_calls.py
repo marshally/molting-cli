@@ -315,7 +315,6 @@ class TestRemoveSettingMethod(RefactoringTestBase):
         """Make the field immutable by removing the setter."""
         self.refactor("remove-setting-method", target="Account::_id")
 
-    @pytest.mark.skip(reason="Test fixture logic mismatch - implementation correct")
     def test_multiple_calls(self) -> None:
         """Test remove setting method with multiple call sites."""
         self.refactor("remove-setting-method", target="Account::_id")
