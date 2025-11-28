@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.visitors import MultiVariableConflictChecker
 
 
 @register_command
@@ -42,7 +43,9 @@ class SplitTemporaryVariableCommand(BaseCommand):
         module = cst.parse_module(source_code)
 
         # Check for name conflicts with generated variable names
-        conflict_checker = NameConflictChecker(function_name, ["primary_acc", "secondary_acc"])
+        conflict_checker = MultiVariableConflictChecker(
+            function_name, ["primary_acc", "secondary_acc"]
+        )
         module.visit(conflict_checker)
 
         if conflict_checker.conflicting_name:
@@ -54,43 +57,6 @@ class SplitTemporaryVariableCommand(BaseCommand):
         transformer = SplitTemporaryVariableTransformer(function_name, variable_name)
         modified_tree = module.visit(transformer)
         self.file_path.write_text(modified_tree.code)
-
-
-class NameConflictChecker(cst.CSTVisitor):
-    """Visitor to check if any of the given variable names already exist in a function."""
-
-    def __init__(self, function_name: str, variable_names: list[str]) -> None:
-        """Initialize the checker.
-
-        Args:
-            function_name: Name of the function to check
-            variable_names: List of names to check for conflicts
-        """
-        self.function_name = function_name
-        self.variable_names = set(variable_names)
-        self.conflicting_name: str | None = None
-        self.in_target_function = False
-
-    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
-        """Visit function definition to track if we're in the target function."""
-        if node.name.value == self.function_name:
-            self.in_target_function = True
-        return True
-
-    def leave_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
-        """Leave function definition."""
-        if node.name.value == self.function_name:
-            self.in_target_function = False
-
-    def visit_Assign(self, node: cst.Assign) -> bool:  # noqa: N802
-        """Check if this assignment creates a conflicting variable."""
-        if not self.in_target_function:
-            return True
-
-        for target in node.targets:
-            if isinstance(target.target, cst.Name) and target.target.value in self.variable_names:
-                self.conflicting_name = target.target.value
-        return True
 
 
 class SplitTemporaryVariableTransformer(cst.CSTTransformer):
