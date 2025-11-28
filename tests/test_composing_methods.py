@@ -96,7 +96,6 @@ class TestInlineMethod(RefactoringTestBase):
         """Inline a simple method whose body is as clear as its name."""
         self.refactor("inline-method", target="Person::more_than_five_late_deliveries")
 
-    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test inline method with instance variables."""
         # Inline get_subtotal which uses self.items
@@ -122,7 +121,6 @@ class TestInlineTemp(RefactoringTestBase):
         """Replace a temp variable with its expression."""
         self.refactor("inline-temp", target="calculate_total::base_price")
 
-    @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test inline temp with local variables used in multiple places."""
         self.refactor("inline-temp", target="calculate_price::base_price")
@@ -137,12 +135,10 @@ class TestReplaceTempWithQuery(RefactoringTestBase):
         """Extract expression into a method and replace temp."""
         self.refactor("replace-temp-with-query", target="Order::get_price::base_price")
 
-    @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test replace temp with query with local variables used multiple times."""
         self.refactor("replace-temp-with-query", target="Invoice::calculate_total::base_price")
 
-    @pytest.mark.skip(reason="Added to wrong branch during rebase")
     def test_with_instance_vars(self) -> None:
         """Test replace temp with query with instance variables."""
         # Replace discounted_price temp with a query method that uses instance vars
@@ -150,11 +146,16 @@ class TestReplaceTempWithQuery(RefactoringTestBase):
             "replace-temp-with-query", target="Product::get_final_price::discounted_price"
         )
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test replace temp with query when method name already exists."""
+        from molting.cli import refactor_file
+
+        assert self.test_file is not None  # Type guard
         # Try to replace base_price temp with a method but the method already exists
-        self.refactor("replace-temp-with-query", target="Order::get_price::base_price")
+        with pytest.raises(ValueError, match="already exists"):
+            refactor_file(
+                "replace-temp-with-query", self.test_file, target="Order::get_price::base_price"
+            )
 
     @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
@@ -199,15 +200,19 @@ class TestIntroduceExplainingVariable(RefactoringTestBase):
         )
         self.assert_matches_expected()
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test introduce explaining variable when variable name already exists."""
-        # Try to introduce base_price but it already exists
-        self.refactor(
-            "introduce-explaining-variable",
-            target="calculate_total#L7",
-            name="base_price",
-        )
+        from molting.cli import refactor_file
+
+        assert self.test_file is not None  # Type guard
+        # Try to introduce base_price but it already exists - should raise ValueError
+        with pytest.raises(ValueError, match="already exists"):
+            refactor_file(
+                "introduce-explaining-variable",
+                self.test_file,
+                target="calculate_total#L7",
+                name="base_price",
+            )
 
 
 class TestIntroduceExplainingVariableReplaceAll(RefactoringTestBase):
@@ -301,11 +306,16 @@ class TestSplitTemporaryVariable(RefactoringTestBase):
         """Split a temp variable assigned multiple times."""
         self.refactor("split-temporary-variable", target="calculate_distance::temp")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test split temporary variable when new variable name already exists."""
-        # Try to split temp to primary_acc but it already exists
-        self.refactor("split-temporary-variable", target="calculate_distance::temp")
+        from molting.cli import refactor_file
+
+        assert self.test_file is not None  # Type guard
+        # Try to split temp to primary_acc but it already exists - should raise ValueError
+        with pytest.raises(ValueError, match="already exists"):
+            refactor_file(
+                "split-temporary-variable", self.test_file, target="calculate_distance::temp"
+            )
 
 
 class TestRemoveAssignmentsToParameters(RefactoringTestBase):
@@ -327,17 +337,21 @@ class TestReplaceMethodWithMethodObject(RefactoringTestBase):
         """Turn a long method into its own object."""
         self.refactor("replace-method-with-method-object", target="Account::gamma")
 
-    @pytest.mark.skip(reason="Added to wrong branch during rebase")
     def test_with_instance_vars(self) -> None:
         """Test replace method with method object with instance variables."""
         # Convert method that uses multiple instance vars to method object
         self.refactor("replace-method-with-method-object", target="Order::calculate_total")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test replace method with method object when class name already exists."""
-        # Try to create Gamma class but it already exists
-        self.refactor("replace-method-with-method-object", target="Account::gamma")
+        from molting.cli import refactor_file
+
+        assert self.test_file is not None  # Type guard
+        # Try to create Gamma class but it already exists - should raise ValueError
+        with pytest.raises(ValueError, match="already exists"):
+            refactor_file(
+                "replace-method-with-method-object", self.test_file, target="Account::gamma"
+            )
 
     def test_with_decorators(self) -> None:
         """Test replace method with method object with decorated methods."""

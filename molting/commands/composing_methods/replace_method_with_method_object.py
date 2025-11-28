@@ -38,6 +38,16 @@ class ReplaceMethodWithMethodObjectCommand(BaseCommand):
         # Apply transformation in two passes
         module = cst.parse_module(source_code)
 
+        # Generate the method object class name
+        method_object_class_name = method_name.capitalize()
+
+        # Check for name conflicts - class name should not already exist
+        conflict_checker = ClassNameConflictChecker(method_object_class_name)
+        module.visit(conflict_checker)
+
+        if conflict_checker.has_conflict:
+            raise ValueError(f"Class '{method_object_class_name}' already exists in the module")
+
         # First pass: collect helper methods and method info
         collector = HelperMethodCollector(class_name, method_name)
         module.visit(collector)
@@ -50,6 +60,25 @@ class ReplaceMethodWithMethodObjectCommand(BaseCommand):
 
         # Write back
         self.file_path.write_text(modified_tree.code)
+
+
+class ClassNameConflictChecker(cst.CSTVisitor):
+    """Visitor to check if a class name already exists in the module."""
+
+    def __init__(self, class_name: str) -> None:
+        """Initialize the checker.
+
+        Args:
+            class_name: Name to check for conflicts
+        """
+        self.class_name = class_name
+        self.has_conflict = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Check if this class has the conflicting name."""
+        if node.name.value == self.class_name:
+            self.has_conflict = True
+        return True
 
 
 class HelperMethodCollector(cst.CSTVisitor):

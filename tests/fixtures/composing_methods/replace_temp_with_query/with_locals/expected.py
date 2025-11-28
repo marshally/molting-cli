@@ -1,4 +1,4 @@
-"""Expected output after replace temp with query with local variables."""
+"""Example code for replace temp with query with local variables."""
 
 
 class Invoice:
@@ -17,5 +17,4 @@ class Invoice:
         return total
 
     def base_price(self):
-        """Calculate base price."""
         return self.quantity * self.item_price
