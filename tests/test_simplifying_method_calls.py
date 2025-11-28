@@ -31,7 +31,6 @@ class TestRenameMethod(RefactoringTestBase):
         """Test rename method with decorated methods."""
         self.refactor("rename-method", target="Product::n", new_name="name")
 
-    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
     def test_multiple_calls(self) -> None:
         """Test rename method with multiple call sites."""
         self.refactor(

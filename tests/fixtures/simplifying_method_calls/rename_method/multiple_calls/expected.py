@@ -1,4 +1,4 @@
-"""Expected output after rename-method with multiple call sites."""
+"""Example code for rename-method with multiple call sites."""
 
 
 class Customer:
