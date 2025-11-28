@@ -1,4 +1,4 @@
-"""Example code for introduce-null-object with instance variables."""
+"""Expected output after introduce-null-object with instance variables."""
 
 
 class OrderManager:

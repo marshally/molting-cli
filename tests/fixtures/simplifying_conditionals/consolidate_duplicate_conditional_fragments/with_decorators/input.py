@@ -1,4 +1,4 @@
-"""Example code for consolidate duplicate conditional fragments with decorators."""
+"""Expected output after consolidate duplicate conditional fragments with decorators."""
 
 
 class OrderProcessor:

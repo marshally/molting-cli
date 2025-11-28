@@ -1,4 +1,4 @@
-"""Example code for introduce null object with decorators."""
+"""Expected output after introduce null object with decorators."""
 
 
 class Site:

@@ -1,4 +1,4 @@
-"""Example code for replace conditional with polymorphism with decorators."""
+"""Expected output after replace conditional with polymorphism with decorators."""
 
 
 class Employee:

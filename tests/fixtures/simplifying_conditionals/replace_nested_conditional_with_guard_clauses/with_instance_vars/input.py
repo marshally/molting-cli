@@ -1,4 +1,4 @@
-"""Example code for replace-nested-conditional-with-guard-clauses with instance variables."""
+"""Expected output after replace-nested-conditional-with-guard-clauses with instance variables."""
 
 
 class PaymentCalculator:

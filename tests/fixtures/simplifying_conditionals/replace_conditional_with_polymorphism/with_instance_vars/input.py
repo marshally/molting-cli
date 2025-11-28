@@ -1,4 +1,4 @@
-"""Example code for replace-conditional-with-polymorphism with instance variables."""
+"""Expected output after replace-conditional-with-polymorphism with instance variables."""
 
 
 class ShippingCalculator:

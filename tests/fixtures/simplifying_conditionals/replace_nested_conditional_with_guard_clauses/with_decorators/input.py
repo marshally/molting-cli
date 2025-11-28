@@ -1,4 +1,4 @@
-"""Example code for replace nested conditional with guard clauses with decorators."""
+"""Expected output after replace nested conditional with guard clauses with decorators."""
 
 
 class PaymentCalculator:

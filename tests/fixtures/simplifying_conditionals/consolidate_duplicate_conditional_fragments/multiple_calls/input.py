@@ -1,4 +1,4 @@
-"""Example code for consolidate-duplicate-conditional-fragments with multiple call sites."""
+"""Expected output after consolidate-duplicate-conditional-fragments with multiple call sites."""
 
 
 def process_order(is_special, price):
