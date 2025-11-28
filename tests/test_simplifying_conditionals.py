@@ -264,5 +264,8 @@ class TestIntroduceAssertion(RefactoringTestBase):
         self.refactor(
             "introduce-assertion",
             target="ExpenseManager::expense_limit#L10",
-            condition="self.project.expense_limit is not None or self.project.primary_project is not None",
+            condition=(
+                "self.project.expense_limit is not None "
+                "or self.project.primary_project is not None"
+            ),
         )
