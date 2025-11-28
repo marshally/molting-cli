@@ -33,6 +33,11 @@ class TestDecomposeConditional(RefactoringTestBase):
         """Test decompose conditional with multiple call sites."""
         self.refactor("decompose-conditional", target="calculate_shipping_charge#L5-L8")
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test decompose conditional with decorated methods."""
+        self.refactor("decompose-conditional", target="PriceCalculator::charge#L14-L17")
+
 
 class TestConsolidateConditionalExpression(RefactoringTestBase):
     """Tests for Consolidate Conditional Expression refactoring."""
@@ -83,6 +88,15 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             name="is_not_eligible_for_disability",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test consolidate conditional expression with decorated methods."""
+        self.refactor(
+            "consolidate-conditional-expression",
+            target="EmployeeBenefits::disability_amount#L10-L15",
+            name="is_not_eligible_for_disability",
+        )
+
 
 class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
     """Tests for Consolidate Duplicate Conditional Fragments refactoring."""
@@ -113,6 +127,14 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
         """Test consolidate duplicate conditional fragments with multiple call sites."""
         self.refactor("consolidate-duplicate-conditional-fragments", target="process_order#L4-L9")
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test consolidate duplicate conditional fragments with decorated methods."""
+        self.refactor(
+            "consolidate-duplicate-conditional-fragments",
+            target="OrderProcessor::total#L10-L15",
+        )
+
 
 class TestRemoveControlFlag(RefactoringTestBase):
     """Tests for Remove Control Flag refactoring."""
@@ -133,6 +155,11 @@ class TestRemoveControlFlag(RefactoringTestBase):
         """Test remove control flag with instance variables."""
         self.refactor("remove-control-flag", target="SecurityChecker::check_security::found")
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test remove control flag with decorated methods."""
+        self.refactor("remove-control-flag", target="SecurityChecker::is_secure::found")
+
 
 class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
     """Tests for Replace Nested Conditional with Guard Clauses refactoring."""
@@ -151,6 +178,14 @@ class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
         self.refactor(
             "replace-nested-conditional-with-guard-clauses",
             target="PaymentCalculator::get_payment_amount#L10-L19",
+        )
+
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test replace nested conditional with guard clauses with decorated methods."""
+        self.refactor(
+            "replace-nested-conditional-with-guard-clauses",
+            target="PaymentCalculator::payment_amount#L10-L19",
         )
 
 
@@ -173,6 +208,13 @@ class TestReplaceConditionalWithPolymorphism(RefactoringTestBase):
             target="ShippingCalculator::calculate_cost#L16-L27",
         )
 
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test replace conditional with polymorphism with decorated methods."""
+        self.refactor(
+            "replace-conditional-with-polymorphism", target="Employee::pay_amount#L17-L24"
+        )
+
 
 class TestIntroduceNullObject(RefactoringTestBase):
     """Tests for Introduce Null Object refactoring."""
@@ -186,6 +228,11 @@ class TestIntroduceNullObject(RefactoringTestBase):
     @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test introduce null object with instance variables."""
+        self.refactor("introduce-null-object", target_class="Customer")
+
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test introduce null object with decorated methods."""
         self.refactor("introduce-null-object", target_class="Customer")
 
 
@@ -209,4 +256,16 @@ class TestIntroduceAssertion(RefactoringTestBase):
             "introduce-assertion",
             target="ExpenseManager::get_expense_limit#L10",
             condition="project.expense_limit is not None or project.primary_project is not None",
+        )
+
+    @pytest.mark.skip(reason="Implementation needed for with_decorators")
+    def test_with_decorators(self) -> None:
+        """Test introduce assertion with decorated methods."""
+        self.refactor(
+            "introduce-assertion",
+            target="ExpenseManager::expense_limit#L10",
+            condition=(
+                "self.project.expense_limit is not None "
+                "or self.project.primary_project is not None"
+            ),
         )
