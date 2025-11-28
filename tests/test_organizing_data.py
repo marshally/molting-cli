@@ -33,6 +33,15 @@ class TestSelfEncapsulateField(RefactoringTestBase):
         refactor_file("self-encapsulate-field", self.test_file, target="Range::high")
         self.assert_matches_expected()
 
+    def test_multiple_calls(self) -> None:
+        """Test self-encapsulate-field with multiple call sites."""
+        from molting.cli import refactor_file
+
+        assert self.test_file is not None
+        refactor_file("self-encapsulate-field", self.test_file, target="Range::low")
+        refactor_file("self-encapsulate-field", self.test_file, target="Range::high")
+        self.assert_matches_expected()
+
 
 class TestReplaceDataValueWithObject(RefactoringTestBase):
     """Tests for Replace Data Value with Object refactoring."""
@@ -46,6 +55,13 @@ class TestReplaceDataValueWithObject(RefactoringTestBase):
     @pytest.mark.skip(reason="Implementation needed for with_locals - docstring placement issue")
     def test_with_locals(self) -> None:
         """Test replace data value with object with local variables."""
+        self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
+
+    @pytest.mark.skip(
+        reason="Implementation needed for multiple_calls - doesn't update all call sites"
+    )
+    def test_multiple_calls(self) -> None:
+        """Test replace-data-value-with-object with multiple call sites."""
         self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
 
     @pytest.mark.skip(
@@ -204,6 +220,10 @@ class TestEncapsulateField(RefactoringTestBase):
         """Test encapsulate-field with decorated methods."""
         self.refactor("encapsulate-field", target="Person::name")
 
+    def test_multiple_calls(self) -> None:
+        """Test encapsulate-field with multiple call sites."""
+        self.refactor("encapsulate-field", target="Person::name")
+
 
 class TestEncapsulateCollection(RefactoringTestBase):
     """Tests for Encapsulate Collection refactoring."""
@@ -218,6 +238,13 @@ class TestEncapsulateCollection(RefactoringTestBase):
         """Test encapsulate-collection with decorated methods."""
         self.refactor("encapsulate-collection", target="Person::courses")
 
+    @pytest.mark.skip(
+        reason="Implementation needed for multiple_calls - doesn't update external call sites"
+    )
+    def test_multiple_calls(self) -> None:
+        """Test encapsulate-collection with multiple call sites."""
+        self.refactor("encapsulate-collection", target="Person::courses")
+
 
 class TestReplaceTypeCodeWithClass(RefactoringTestBase):
     """Tests for Replace Type Code with Class refactoring."""
@@ -226,6 +253,15 @@ class TestReplaceTypeCodeWithClass(RefactoringTestBase):
 
     def test_simple(self) -> None:
         """Replace the type code with a new class."""
+        self.refactor(
+            "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
+        )
+
+    @pytest.mark.skip(
+        reason="Implementation needed for multiple_calls - doesn't update type code references"
+    )
+    def test_multiple_calls(self) -> None:
+        """Test replace-type-code-with-class with multiple call sites."""
         self.refactor(
             "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
         )
