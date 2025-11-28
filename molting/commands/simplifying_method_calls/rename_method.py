@@ -1,7 +1,6 @@
 """Rename Method refactoring command."""
 
-from rope.base.project import Project  # type: ignore[import-untyped]
-from rope.refactor.rename import Rename  # type: ignore[import-untyped]
+import re
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
@@ -22,7 +21,7 @@ class RenameMethodCommand(BaseCommand):
         self.validate_required_params("target", "new_name")
 
     def execute(self) -> None:
-        """Apply rename-method refactoring using rope library.
+        """Apply rename-method refactoring.
 
         Raises:
             ValueError: If method not found or target format is invalid
@@ -32,20 +31,30 @@ class RenameMethodCommand(BaseCommand):
 
         _, method_name = parse_target(target)
 
-        project = Project(str(self.file_path.parent))
-        try:
-            resource = project.get_file(str(self.file_path.name))
-            source = resource.read()
+        # Read the source file
+        source = self.file_path.read_text()
 
-            offset = source.find(f"def {method_name}")
-            if offset == -1:
-                raise ValueError(f"Method '{method_name}' not found in {self.file_path}")
+        # Verify method exists
+        if f"def {method_name}" not in source:
+            raise ValueError(f"Method '{method_name}' not found in {self.file_path}")
 
-            rename_refactoring = Rename(project, resource, offset + len("def "))
-            changes = rename_refactoring.get_changes(new_name)
-            project.do(changes)
-        finally:
-            project.close()
+        # Use regex to replace all method calls and definitions
+        # This handles:
+        # 1. Method definitions: def method_name(
+        # 2. Method calls with self: self.method_name(
+        # 3. Method calls with variables: var.method_name(
+        # 4. Method calls with attributes: obj.attr.method_name(
+
+        # Replace method definition
+        pattern = rf"\bdef {re.escape(method_name)}\("
+        result = re.sub(pattern, f"def {new_name}(", source)
+
+        # Replace all method calls with dot notation
+        pattern = rf"\.{re.escape(method_name)}\("
+        result = re.sub(pattern, f".{new_name}(", result)
+
+        # Write the updated source back
+        self.file_path.write_text(result)
 
 
 # Register the command
