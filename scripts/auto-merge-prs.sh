@@ -22,6 +22,18 @@ error() {
     echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] ERROR:${NC} $*"
 }
 
+# Mark PR as having automerge error - removes automerge label and adds automerge-error
+mark_automerge_error() {
+    local pr_number="$1"
+    local repo="$2"
+    local has_label="$3"
+
+    if [ "$has_label" = "true" ]; then
+        log "Changing label from '$AUTOMERGE_LABEL' to 'automerge-error' for PR #$pr_number"
+        gh pr edit "$pr_number" --repo "$repo" --remove-label "$AUTOMERGE_LABEL" --add-label "automerge-error" 2>/dev/null || true
+    fi
+}
+
 # Lock file to prevent concurrent runs
 LOCK_FILE="/tmp/auto-merge-prs.lock"
 
@@ -153,6 +165,9 @@ echo "$prs" | jq -c '.[]' | while read -r pr; do
             else
                 error "Failed to fix build failures for PR #$number"
 
+                # Mark as automerge-error so we don't keep retrying
+                mark_automerge_error "$number" "$pr_repo" "$has_automerge_label"
+
                 # Strip ANSI color codes from the log
                 CLEAN_LOG=$(cat "$ERROR_LOG" | sed 's/\x1b\[[0-9;]*m//g')
 
@@ -187,6 +202,7 @@ Please fix the build failures manually."
         else
             warn "Build failure fix script not found: $SCRIPT_DIR/fix-build-failures.sh"
             warn "PR #$number has failing status checks. Skipping."
+            mark_automerge_error "$number" "$pr_repo" "$has_automerge_label"
             continue
         fi
     fi
@@ -205,6 +221,7 @@ Please fix the build failures manually."
                 log "Successfully merged PR #$number with squash"
             else
                 error "Failed to merge PR #$number with both rebase and squash"
+                mark_automerge_error "$number" "$pr_repo" "$has_automerge_label"
             fi
         fi
     elif [ "$mergeable" = "CONFLICTING" ]; then
@@ -232,10 +249,7 @@ Please fix the build failures manually."
                 LAST_COMMAND=$(echo "$CLEAN_LOG" | grep -B 2 -E "ERROR:|fatal:|error:" | grep -v "ERROR:" | grep -v "fatal:" | grep -v "error:" | tail -1 || echo "Command not captured")
 
                 # Change label from automerge to automerge-error
-                if [ "$has_automerge_label" = "true" ]; then
-                    log "Changing label from '$AUTOMERGE_LABEL' to 'automerge-error'"
-                    gh pr edit "$number" --repo "$pr_repo" --remove-label "$AUTOMERGE_LABEL" --add-label "automerge-error" 2>/dev/null || true
-                fi
+                mark_automerge_error "$number" "$pr_repo" "$has_automerge_label"
 
                 # Add a detailed comment to the PR
                 COMMENT_BODY="## ⚠️ Automatic Conflict Resolution Failed
@@ -268,6 +282,7 @@ Please resolve the conflicts manually or investigate the error above."
             fi
         else
             error "Conflict resolution script not found: $SCRIPT_DIR/resolve-merge-conflicts.sh"
+            mark_automerge_error "$number" "$pr_repo" "$has_automerge_label"
         fi
     elif [ "$mergeable" = "UNKNOWN" ]; then
         warn "PR #$number mergeable status is still being calculated by GitHub. Will check again next run."
