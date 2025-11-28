@@ -18,7 +18,6 @@ class TestDecomposeConditional(RefactoringTestBase):
         """Extract the condition and each branch into separate methods."""
         self.refactor("decompose-conditional", target="calculate_charge#L2-L5")
 
-    @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test decompose conditional with local variables."""
         self.refactor("decompose-conditional", target="process_order#L8-L13")
