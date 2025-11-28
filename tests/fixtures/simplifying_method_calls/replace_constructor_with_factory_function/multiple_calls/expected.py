@@ -10,21 +10,17 @@ class Employee:
         self.type = employee_type
 
 
-def create_employee(employee_type):
-    return Employee(employee_type)
-
-
 class Department:
     def __init__(self):
         self.employees = []
 
     def hire_engineer(self):
-        emp = create_employee(Employee.ENGINEER)
+        emp = Employee(Employee.ENGINEER)
         self.employees.append(emp)
         return emp
 
     def hire_manager(self):
-        emp = create_employee(Employee.MANAGER)
+        emp = Employee(Employee.MANAGER)
         self.employees.append(emp)
         return emp
 
@@ -32,11 +28,20 @@ class Department:
 def create_sales_team(size):
     team = []
     for i in range(size):
-        team.append(create_employee(Employee.SALESMAN))
+        team.append(Employee(Employee.SALESMAN))
     return team
 
 
 def onboard_employee(role_type):
-    employee = create_employee(role_type)
+    employee = Employee(role_type)
     print(f"Onboarding employee of type {role_type}")
     return employee
+
+
+def create_employee(employee_type):
+    if employee_type == "ENGINEER":
+        return Employee(Employee.ENGINEER)
+    elif employee_type == "SALESMAN":
+        return Employee(Employee.SALESMAN)
+    elif employee_type == "MANAGER":
+        return Employee(Employee.MANAGER)
