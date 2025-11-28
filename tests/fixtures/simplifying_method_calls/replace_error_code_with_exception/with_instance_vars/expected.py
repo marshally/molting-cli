@@ -8,6 +8,7 @@ class BankAccount:
 def process_withdrawal(account, amount):
     max_withdrawal = account.balance + account.overdraft_limit
     if amount > max_withdrawal:
-        raise ValueError("Amount exceeds withdrawal limit")
+        return -1  # Error: exceeds limit
     account.balance -= amount
     account.transaction_count += 1
+    return 0  # Success
