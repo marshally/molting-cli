@@ -27,7 +27,6 @@ class TestMoveMethod(RefactoringTestBase):
         """Test move method with instance variables."""
         self.refactor("move-method", source="Account::calculate_interest", to="AccountType")
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test move method with decorated methods."""
         self.refactor("move-method", source="Account::balance", to="AccountType")

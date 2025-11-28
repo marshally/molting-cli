@@ -93,6 +93,8 @@ class MoveMethodTransformer(cst.CSTTransformer):
                 method_found = True
                 self.method_to_move = item
                 self.target_class_field = self._find_target_class_field(node)
+                # Pre-compute parameter mapping for use in delegation method
+                self._param_mapping = self._compute_param_mapping(item)
                 delegation_method = self._create_delegation_method(item)
                 updated_class_members.append(delegation_method)
             else:
@@ -158,6 +160,22 @@ class MoveMethodTransformer(cst.CSTTransformer):
                         return field_name
         return None
 
+    def _compute_param_mapping(self, method: cst.FunctionDef) -> dict[str, str]:
+        """Compute the mapping from field names to clean parameter names.
+
+        Args:
+            method: The method being moved
+
+        Returns:
+            Dict mapping field names to clean parameter names
+        """
+        params_needed = self._collect_self_references(method)
+        param_mapping = {}
+        for param_name in params_needed:
+            clean_name = param_name.lstrip("_") if param_name.startswith("_") else param_name
+            param_mapping[param_name] = clean_name
+        return param_mapping
+
     def _create_delegation_method(self, original_method: cst.FunctionDef) -> cst.FunctionDef:
         """Create a delegation method that calls the moved method.
 
@@ -167,7 +185,11 @@ class MoveMethodTransformer(cst.CSTTransformer):
         Returns:
             A new method that delegates to the target class
         """
+        if not hasattr(self, "_param_mapping"):
+            self._param_mapping = self._compute_param_mapping(original_method)
+
         params_to_pass = self._collect_self_references(original_method)
+        # Use the clean parameter names in the delegation call
         args = [
             cst.Arg(value=cst.Attribute(value=cst.Name("self"), attr=cst.Name(param)))
             for param in params_to_pass
@@ -192,7 +214,25 @@ class MoveMethodTransformer(cst.CSTTransformer):
             )
         )
 
-        delegation_body = cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[delegation_call])])
+        # Extract docstring from original method body if present
+        docstring_stmt = None
+        if original_method.body and isinstance(original_method.body, cst.IndentedBlock):
+            for stmt in original_method.body.body:
+                if isinstance(stmt, cst.SimpleStatementLine):
+                    for item in stmt.body:
+                        if isinstance(item, cst.Expr) and isinstance(item.value, cst.SimpleString):
+                            docstring_stmt = stmt
+                            break
+                    if docstring_stmt:
+                        break
+
+        # Build delegation body with docstring if present
+        delegation_body_stmts = []
+        if docstring_stmt:
+            delegation_body_stmts.append(docstring_stmt)
+        delegation_body_stmts.append(cst.SimpleStatementLine(body=[delegation_call]))
+
+        delegation_body = cst.IndentedBlock(body=delegation_body_stmts)
         return original_method.with_changes(body=delegation_body)
 
     def _collect_self_references(self, method: cst.FunctionDef) -> list[str]:
@@ -209,6 +249,34 @@ class MoveMethodTransformer(cst.CSTTransformer):
         method.visit(collector)
         return collector.collected_fields
 
+    def _remove_docstring_from_body(self, body: cst.IndentedBlock) -> cst.IndentedBlock:
+        """Remove the docstring from a method body.
+
+        Args:
+            body: The method body
+
+        Returns:
+            The body without docstring
+        """
+        new_body_stmts = []
+        docstring_found = False
+
+        for stmt in body.body:
+            # Skip the first string expression (docstring)
+            if (
+                not docstring_found
+                and isinstance(stmt, cst.SimpleStatementLine)
+                and len(stmt.body) == 1
+            ):
+                item = stmt.body[0]
+                if isinstance(item, cst.Expr) and isinstance(item.value, cst.SimpleString):
+                    docstring_found = True
+                    continue
+
+            new_body_stmts.append(stmt)
+
+        return body.with_changes(body=tuple(new_body_stmts))
+
     def _transform_method_for_target(self) -> cst.FunctionDef:
         """Transform the method to work in the target class.
 
@@ -220,29 +288,47 @@ class MoveMethodTransformer(cst.CSTTransformer):
 
         params_needed = self._collect_self_references(self.method_to_move)
 
+        # Create clean parameter names (strip leading underscores)
+        param_mapping = {}
         new_params = [create_parameter("self")]
         for param_name in params_needed:
-            new_params.append(create_parameter(param_name))
+            clean_name = param_name.lstrip("_") if param_name.startswith("_") else param_name
+            param_mapping[param_name] = clean_name
+            new_params.append(create_parameter(clean_name))
 
-        body_transformer = SelfReferenceReplacer(params_needed, self.target_class_field)
+        body_transformer = SelfReferenceReplacer(param_mapping, self.target_class_field)
         transformed_body = self.method_to_move.body.visit(body_transformer)
 
+        # Remove docstring from moved method
+        if isinstance(transformed_body, cst.IndentedBlock):
+            transformed_body = self._remove_docstring_from_body(transformed_body)
+
         return self.method_to_move.with_changes(
-            params=cst.Parameters(params=new_params), body=transformed_body
+            params=cst.Parameters(params=new_params), body=transformed_body, decorators=()
         )
 
 
 class SelfReferenceReplacer(cst.CSTTransformer):
     """Replaces self.field with parameter references and self.target_field.x with self.x."""
 
-    def __init__(self, fields_to_replace: list[str], target_class_field: str | None = None) -> None:
+    def __init__(
+        self,
+        field_mapping: dict[str, str] | list[str],
+        target_class_field: str | None = None,
+    ) -> None:
         """Initialize the replacer.
 
         Args:
-            fields_to_replace: List of field names to replace with parameters
+            field_mapping: Dict mapping field names to parameter names, or list of field names
             target_class_field: The field that holds the target class (to be replaced with self)
         """
-        self.fields_to_replace = fields_to_replace
+        # Support both dict and list for backward compatibility
+        if isinstance(field_mapping, dict):
+            self.field_mapping = field_mapping
+            self.fields_to_replace = list(field_mapping.keys())
+        else:
+            self.field_mapping = {name: name for name in field_mapping}
+            self.fields_to_replace = field_mapping
         self.target_class_field = target_class_field
 
     def leave_Attribute(  # noqa: N802
@@ -259,8 +345,9 @@ class SelfReferenceReplacer(cst.CSTTransformer):
 
         if is_self_attribute(updated_node):
             field_name = updated_node.attr.value
-            if field_name in self.fields_to_replace:
-                return cst.Name(field_name)
+            if field_name in self.field_mapping:
+                param_name = self.field_mapping[field_name]
+                return cst.Name(param_name)
         return updated_node
 
 
