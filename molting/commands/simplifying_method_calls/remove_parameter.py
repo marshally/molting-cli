@@ -75,9 +75,48 @@ class RemoveParameterCommand(BaseCommand):
                 default_index = param_index - num_args_without_defaults
                 method_node.args.defaults.pop(default_index)
 
+            # Remove arguments from all call sites
+            # Note: param_index in method calls excludes the implicit 'self' parameter
+            call_arg_index = param_index - 1 if param_index > 0 else 0
+            tree = RemoveArgumentTransformer(method_name, call_arg_index).visit(tree)
+
             return tree
 
         self.apply_ast_transform(transform)
+
+
+class RemoveArgumentTransformer(ast.NodeTransformer):
+    """Transformer to remove arguments from method calls."""
+
+    def __init__(self, method_name: str, param_index: int) -> None:
+        """Initialize the transformer.
+
+        Args:
+            method_name: Name of the method being modified
+            param_index: Index of the parameter to remove
+        """
+        self.method_name = method_name
+        self.param_index = param_index
+
+    def visit_Call(self, node: ast.Call) -> ast.Call:
+        """Visit a Call node and remove the argument at param_index if this is a call to method_name.
+
+        Args:
+            node: The Call node to visit
+
+        Returns:
+            The modified Call node
+        """
+        # First, recursively visit child nodes
+        self.generic_visit(node)
+
+        # Check if this is a call to the method we're modifying
+        if isinstance(node.func, ast.Attribute) and node.func.attr == self.method_name:
+            # Remove the argument at param_index if it exists
+            if self.param_index < len(node.args):
+                node.args.pop(self.param_index)
+
+        return node
 
 
 # Register the command
