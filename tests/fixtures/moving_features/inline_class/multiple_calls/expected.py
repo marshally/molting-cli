@@ -1,4 +1,4 @@
-"""Expected output after inline-class with multiple call sites."""
+"""Example code for inline-class with multiple call sites."""
 
 
 class Person:
