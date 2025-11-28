@@ -286,7 +286,6 @@ class TestIntroduceParameterObject(RefactoringTestBase):
             name="DateRange",
         )
 
-    @pytest.mark.skip(reason="Test fixture logic mismatch - implementation correct")
     def test_with_locals(self) -> None:
         """Test introduce parameter object with local variables."""
         self.refactor(
