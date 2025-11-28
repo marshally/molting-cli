@@ -201,7 +201,10 @@ class PullUpConstructorBodyTransformer(cst.CSTTransformer):
                         # Check if target is self.something
                         for target in inner_stmt.targets:
                             if isinstance(target.target, cst.Attribute):
-                                if isinstance(target.target.value, cst.Name) and target.target.value.value == "self":
+                                if (
+                                    isinstance(target.target.value, cst.Name)
+                                    and target.target.value.value == "self"
+                                ):
                                     field_name = target.target.attr.value
                                     is_field_assignment = True
                                     if field_name in common_params:
