@@ -7,6 +7,7 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_line_range, parse_target
 from molting.core.code_generation_utils import create_parameter
 
 
@@ -23,57 +24,35 @@ class DecomposeConditionalCommand(BaseCommand):
         """
         self.validate_required_params("target")
 
-    def _parse_target(self, target: str) -> tuple[str, int, int]:
-        """Parse target format into function name and line range.
+    def _parse_target_and_lines(self, target: str) -> tuple[str | None, str, int, int]:
+        """Parse target format into class name, function name, and line range.
 
         Args:
-            target: Target string in format "function_name#L2-L5"
+            target: Target string in format:
+                - "function_name#L2-L5"
+                - "ClassName::function_name#L2-L5"
 
         Returns:
-            Tuple of (function_name, start_line, end_line)
+            Tuple of (class_name or None, function_name, start_line, end_line)
 
         Raises:
             ValueError: If target format is invalid
         """
         parts = target.split("#")
         if len(parts) != 2:
-            raise ValueError(f"Invalid target format '{target}'. Expected 'function_name#L2-L5'")
+            raise ValueError(f"Invalid target format '{target}'. Expected 'function_name#L2-L5' or 'ClassName::function_name#L2-L5'")
 
-        function_name = parts[0]
+        path_part = parts[0]
         line_range = parts[1]
 
-        start_line, end_line = self._parse_line_range(line_range)
-        return function_name, start_line, end_line
+        start_line, end_line = parse_line_range(line_range)
 
-    def _parse_line_range(self, line_range: str) -> tuple[int, int]:
-        """Parse line range string into start and end line numbers.
-
-        Args:
-            line_range: Line range in format "L2-L5"
-
-        Returns:
-            Tuple of (start_line, end_line)
-
-        Raises:
-            ValueError: If line range format is invalid
-        """
-        if not line_range.startswith("L"):
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L5'")
-
-        if "-" not in line_range:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L5'")
-
-        range_parts = line_range.split("-")
-        if len(range_parts) != 2:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L5'")
-
-        try:
-            start_line = int(range_parts[0][1:])
-            end_line = int(range_parts[1][1:])
-        except ValueError as e:
-            raise ValueError(f"Invalid line numbers in '{line_range}': {e}") from e
-
-        return start_line, end_line
+        # Parse the path part (class_name::function_name or just function_name)
+        if "::" in path_part:
+            class_name, function_name = parse_target(path_part, expected_parts=2)
+            return class_name, function_name, start_line, end_line
+        else:
+            return None, path_part, start_line, end_line
 
     def execute(self) -> None:
         """Apply decompose-conditional refactoring using libCST.
@@ -82,7 +61,7 @@ class DecomposeConditionalCommand(BaseCommand):
             ValueError: If function not found or target format is invalid
         """
         target = self.params["target"]
-        function_name, start_line, end_line = self._parse_target(target)
+        class_name, function_name, start_line, end_line = self._parse_target_and_lines(target)
 
         # Read file
         source_code = self.file_path.read_text()
@@ -90,7 +69,7 @@ class DecomposeConditionalCommand(BaseCommand):
         # Parse and transform with metadata
         module = cst.parse_module(source_code)
         wrapper = metadata.MetadataWrapper(module)
-        transformer = DecomposeConditionalTransformer(function_name, start_line, end_line)
+        transformer = DecomposeConditionalTransformer(class_name, function_name, start_line, end_line)
         modified_tree = wrapper.visit(transformer)
 
         # Write back
@@ -102,14 +81,16 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
     METADATA_DEPENDENCIES = (metadata.PositionProvider,)
 
-    def __init__(self, function_name: str, start_line: int, end_line: int) -> None:
+    def __init__(self, class_name: str | None, function_name: str, start_line: int, end_line: int) -> None:
         """Initialize the transformer.
 
         Args:
+            class_name: Name of the class containing the function (or None if top-level)
             function_name: Name of the function containing the conditional
             start_line: Start line of the conditional
             end_line: End line of the conditional
         """
+        self.class_name = class_name
         self.function_name = function_name
         self.start_line = start_line
         self.end_line = end_line
@@ -121,32 +102,55 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         self.else_params: list[str] = []
         self.new_functions: list[cst.FunctionDef] = []
         self.current_function: str | None = None
+        self.current_class: str | None = None
         self.function_params: list[str] = []
         self.assignment_target: str = ""
+        self.is_target_matched = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Track current class being visited."""
+        self.current_class = node.name.value
+
+    def leave_ClassDef(  # noqa: N802
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
+        """Leave class definition."""
+        self.current_class = None
+        return updated_node
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
         """Track current function being visited."""
         self.current_function = node.name.value
         if self.current_function == self.function_name:
-            # Collect function parameter names
-            for param in node.params.params:
-                self.function_params.append(param.name.value)
+            # Check if this is the target function
+            if self.class_name is not None:
+                if self.current_class == self.class_name:
+                    self.is_target_matched = True
+            else:
+                # If no class specified, match any function with this name
+                self.is_target_matched = True
+
+            if self.is_target_matched:
+                # Collect function parameter names
+                for param in node.params.params:
+                    self.function_params.append(param.name.value)
 
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef | cst.FlattenSentinel[cst.FunctionDef]:
         """Process function definition after visiting."""
-        if self.current_function == self.function_name:
+        if self.is_target_matched:
             # Return the updated function along with new helper functions
             if self.new_functions:
                 return cst.FlattenSentinel([updated_node] + self.new_functions)
+            self.is_target_matched = False
 
         self.current_function = None
         return updated_node
 
     def leave_If(self, original_node: cst.If, updated_node: cst.If) -> Any:  # noqa: N802
         """Transform if statement by decomposing conditional."""
-        if self.current_function != self.function_name:
+        if not self.is_target_matched or self.current_function != self.function_name:
             return updated_node
 
         # Check if this if statement is in the target line range
