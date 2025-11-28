@@ -14,12 +14,14 @@ class AccountManager:
         self.accounts = []
 
     def create_account(self):
-        account = Account(self.generate_id())
+        account = Account(None)
+        account.set_id(self.generate_id())
         self.accounts.append(account)
         return account
 
     def migrate_account(self, old_account):
-        new_account = Account(old_account.get_id())
+        new_account = Account(None)
+        new_account.set_id(old_account.get_id())
         return new_account
 
     def generate_id(self):
@@ -27,10 +29,12 @@ class AccountManager:
 
 
 def initialize_account():
-    account = Account(12345)
+    account = Account(None)
+    account.set_id(12345)
     return account
 
 
 def clone_account(source):
-    new_account = Account(source.get_id())
+    new_account = Account(None)
+    new_account.set_id(source.get_id())
     return new_account
