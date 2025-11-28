@@ -36,7 +36,6 @@ class TestMoveMethod(RefactoringTestBase):
         """Test move method with multiple call sites."""
         self.refactor("move-method", source="Account::overdraft_charge", to="AccountType")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test move method when target class already has method with same name."""
         with pytest.raises(ValueError, match="already has a method"):
@@ -62,7 +61,6 @@ class TestMoveField(RefactoringTestBase):
         """Test move field with instance variables."""
         self.refactor("move-field", source="Account::interest_rate", to="AccountType")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test move field when target class already has field with same name."""
         with pytest.raises(ValueError, match="already has a field"):
@@ -116,7 +114,6 @@ class TestExtractClass(RefactoringTestBase):
             name="Address",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test extract class when target class name already exists."""
         with pytest.raises(ValueError, match="Class .* already exists"):
@@ -151,7 +148,6 @@ class TestInlineClass(RefactoringTestBase):
         """Test inline class with multiple call sites."""
         self.refactor("inline-class", source_class="TelephoneNumber", into="Person")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test inline class when target class already has method with same name."""
         with pytest.raises(ValueError, match="already has a method"):
@@ -182,7 +178,6 @@ class TestHideDelegate(RefactoringTestBase):
         """Test hide delegate with decorated properties."""
         self.refactor("hide-delegate", target="Employee::compensation")
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test hide delegate when delegating method name already exists."""
         with pytest.raises(ValueError, match="already has a method"):
@@ -233,7 +228,6 @@ class TestIntroduceForeignMethod(RefactoringTestBase):
             name="add_days",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test introduce foreign method when method name already exists."""
         with pytest.raises(ValueError, match="already has a method"):
@@ -263,7 +257,6 @@ class TestIntroduceLocalExtension(RefactoringTestBase):
             "introduce-local-extension", target_class="list", name="EnhancedList", type="subclass"
         )
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test introduce local extension when class name already exists."""
         with pytest.raises(ValueError, match="Class .* already exists"):

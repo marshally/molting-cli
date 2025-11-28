@@ -7,6 +7,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.code_generation_utils import create_parameter
+from molting.core.visitors import MethodConflictChecker
 
 
 class HideDelegateCommand(BaseCommand):
@@ -42,6 +43,14 @@ class HideDelegateCommand(BaseCommand):
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
+
+        # Check if the delegating method name already exists
+        # The transformer creates a method named "get_manager"
+        conflict_checker = MethodConflictChecker(class_name, "get_manager")
+        module.visit(conflict_checker)
+
+        if conflict_checker.has_conflict:
+            raise ValueError(f"Class '{class_name}' already has a method named 'get_manager'")
 
         transformer = HideDelegateTransformer(class_name, field_name)
         modified_tree = module.visit(transformer)
