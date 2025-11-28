@@ -1,6 +1,5 @@
 """Remove Setting Method refactoring command."""
 
-
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -61,6 +60,7 @@ class RemoveSettingMethodTransformer(cst.CSTTransformer):
         self.setter_name = setter_name
         self.in_target_class = False
         # Track var_name -> setter_value for variables assigned from class constructor
+        # Scoped per function to avoid conflicts
         self.var_to_setter_value: dict[str, cst.BaseExpression] = {}
         # Track which variables are assigned from our target class
         self.vars_from_target_class: set[str] = set()
@@ -101,93 +101,96 @@ class RemoveSettingMethodTransformer(cst.CSTTransformer):
 
         return updated_node
 
-    def visit_SimpleStatementLine(self, node: cst.SimpleStatementLine) -> bool:  # noqa: N802
-        """Visit simple statements to find variable assignments and setter calls."""
-        for stmt in node.body:
-            # Check for assignment: var = ClassName(...)
-            if isinstance(stmt, cst.Assign):
-                for target in stmt.targets:
-                    if isinstance(target.target, cst.Name):
-                        var_name = target.target.value
-                        # Check if RHS is a call to our target class
-                        if isinstance(stmt.value, cst.Call):
-                            if isinstance(stmt.value.func, cst.Name):
-                                if stmt.value.func.value == self.class_name:
-                                    self.vars_from_target_class.add(var_name)
+    def leave_FunctionDef(  # noqa: N802
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
+        """Transform function body to update constructor calls and remove setters."""
+        if not isinstance(updated_node.body, cst.IndentedBlock):
+            return updated_node
 
-            # Check for setter call: var.set_field(value)
-            if isinstance(stmt, cst.Expr):
-                call = stmt.value
-                if isinstance(call, cst.Call):
-                    if isinstance(call.func, cst.Attribute):
-                        attr = call.func
-                        if isinstance(attr.value, cst.Name) and attr.attr.value == self.setter_name:
-                            var_name = attr.value.value
-                            if var_name in self.vars_from_target_class and call.args:
-                                # Store the setter value for this variable
-                                self.var_to_setter_value[var_name] = call.args[0].value
-        return True
+        # First pass: collect var->setter_value mappings and identify variables from target class
+        var_to_setter_value: dict[str, cst.BaseExpression] = {}
+        vars_from_target_class: set[str] = set()
 
-    def leave_SimpleStatementLine(  # noqa: N802
-        self,
-        original_node: cst.SimpleStatementLine,
-        updated_node: cst.SimpleStatementLine,
-    ) -> cst.SimpleStatementLine | cst.RemovalSentinel:
-        """Remove setter call statements."""
-        for stmt in original_node.body:
-            if isinstance(stmt, cst.Expr):
-                call = stmt.value
-                if isinstance(call, cst.Call):
-                    if isinstance(call.func, cst.Attribute):
-                        attr = call.func
-                        if (
-                            isinstance(attr.value, cst.Name)
-                            and attr.attr.value == self.setter_name
-                            and attr.value.value in self.vars_from_target_class
-                        ):
-                            # Remove this setter call statement
-                            return cst.RemovalSentinel.REMOVE
-        return updated_node
+        for stmt in updated_node.body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for inner_stmt in stmt.body:
+                    # Check for assignment: var = ClassName(...)
+                    if isinstance(inner_stmt, cst.Assign):
+                        for target in inner_stmt.targets:
+                            if isinstance(target.target, cst.Name):
+                                var_name = target.target.value
+                                if isinstance(inner_stmt.value, cst.Call):
+                                    if isinstance(inner_stmt.value.func, cst.Name):
+                                        if inner_stmt.value.func.value == self.class_name:
+                                            vars_from_target_class.add(var_name)
 
-    def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
-        """Update constructor calls to include the setter value."""
-        # Check if this is a call to our target class constructor
-        if isinstance(updated_node.func, cst.Name):
-            if updated_node.func.value == self.class_name:
-                # Find what variable this call is assigned to
-                # We need to check if this constructor's result has a setter value
-                # This is tricky - we need to find the variable name
-                # For now, we'll update constructors that have None as first arg
-                if updated_node.args:
-                    first_arg = updated_node.args[0]
-                    if isinstance(first_arg.value, cst.Name):
-                        if first_arg.value.value == "None":
-                            # This is a candidate for update
-                            # Find the matching setter value
-                            # We need context to know which variable
-                            pass
-        return updated_node
+                    # Check for setter call: var.set_field(value)
+                    if isinstance(inner_stmt, cst.Expr):
+                        call = inner_stmt.value
+                        if isinstance(call, cst.Call):
+                            if isinstance(call.func, cst.Attribute):
+                                attr = call.func
+                                if (
+                                    isinstance(attr.value, cst.Name)
+                                    and attr.attr.value == self.setter_name
+                                ):
+                                    var_name = attr.value.value
+                                    if var_name in vars_from_target_class and call.args:
+                                        var_to_setter_value[var_name] = call.args[0].value
 
-    def leave_Assign(  # noqa: N802
-        self, original_node: cst.Assign, updated_node: cst.Assign
-    ) -> cst.Assign:
-        """Update constructor calls in assignments."""
-        for target in original_node.targets:
-            if isinstance(target.target, cst.Name):
-                var_name = target.target.value
-                if var_name in self.var_to_setter_value:
-                    # Check if RHS is a call to our target class
-                    if isinstance(updated_node.value, cst.Call):
-                        call = updated_node.value
-                        if isinstance(call.func, cst.Name):
-                            if call.func.value == self.class_name:
-                                # Replace the first argument with setter value
-                                setter_value = self.var_to_setter_value[var_name]
-                                new_args = [cst.Arg(value=setter_value)]
-                                new_args.extend(call.args[1:])
-                                new_call = call.with_changes(args=new_args)
-                                return updated_node.with_changes(value=new_call)
-        return updated_node
+        # Second pass: transform statements
+        new_body: list[cst.BaseStatement] = []
+        for stmt in updated_node.body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                # Check if this is a setter call to remove
+                should_remove = False
+                for inner_stmt in stmt.body:
+                    if isinstance(inner_stmt, cst.Expr):
+                        call = inner_stmt.value
+                        if isinstance(call, cst.Call):
+                            if isinstance(call.func, cst.Attribute):
+                                attr = call.func
+                                if (
+                                    isinstance(attr.value, cst.Name)
+                                    and attr.attr.value == self.setter_name
+                                    and attr.value.value in vars_from_target_class
+                                ):
+                                    should_remove = True
+                                    break
+
+                if should_remove:
+                    continue  # Skip this statement
+
+                # Check if this is a constructor assignment to update
+                for inner_stmt in stmt.body:
+                    if isinstance(inner_stmt, cst.Assign):
+                        for target in inner_stmt.targets:
+                            if isinstance(target.target, cst.Name):
+                                var_name = target.target.value
+                                if var_name in var_to_setter_value:
+                                    if isinstance(inner_stmt.value, cst.Call):
+                                        call = inner_stmt.value
+                                        if isinstance(call.func, cst.Name):
+                                            if call.func.value == self.class_name:
+                                                # Update the constructor call
+                                                setter_value = var_to_setter_value[var_name]
+                                                new_args = [cst.Arg(value=setter_value)]
+                                                new_args.extend(call.args[1:])
+                                                new_call = call.with_changes(args=new_args)
+                                                new_assign = inner_stmt.with_changes(value=new_call)
+                                                new_stmt = stmt.with_changes(body=[new_assign])
+                                                new_body.append(new_stmt)
+                                                break
+                        else:
+                            continue
+                        break
+                else:
+                    new_body.append(stmt)
+            else:
+                new_body.append(stmt)
+
+        return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
 
 
 # Register the command
