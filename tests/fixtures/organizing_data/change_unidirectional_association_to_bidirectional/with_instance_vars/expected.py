@@ -1,4 +1,4 @@
-"""Expected output after change-unidirectional-association-to-bidirectional with instance variables."""
+"""Example code for change-unidirectional-association-to-bidirectional with instance variables."""
 
 
 class Team:

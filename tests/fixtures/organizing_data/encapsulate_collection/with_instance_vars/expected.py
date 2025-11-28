@@ -1,4 +1,4 @@
-"""Expected output after encapsulate-collection with instance variables."""
+"""Example code for encapsulate-collection with instance variables."""
 
 
 class Library:

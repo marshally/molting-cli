@@ -1,4 +1,4 @@
-"""Expected output after change-bidirectional-association-to-unidirectional with instance variables."""
+"""Example code for change-bidirectional-association-to-unidirectional with instance variables."""
 
 
 class Project:

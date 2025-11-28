@@ -1,4 +1,4 @@
-"""Expected output after self-encapsulate-field with instance variables."""
+"""Example code for self-encapsulate-field with instance variables."""
 
 
 class Account:

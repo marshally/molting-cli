@@ -1,4 +1,4 @@
-"""Expected output after replace magic number with symbolic constant with local variables."""
+"""Example code for replace magic number with symbolic constant with local variables."""
 
 
 GRAVITATIONAL_CONSTANT = 9.81

@@ -1,4 +1,4 @@
-"""Expected output after replace array with object with local variables."""
+"""Example code for replace array with object with local variables."""
 
 
 class Performance:
