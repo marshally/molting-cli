@@ -6,6 +6,7 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import find_class_in_module, is_self_attribute, parse_target
 from molting.core.code_generation_utils import create_parameter
+from molting.core.visitors import ClassConflictChecker
 
 
 class ReplaceMethodWithMethodObjectCommand(BaseCommand):
@@ -42,7 +43,7 @@ class ReplaceMethodWithMethodObjectCommand(BaseCommand):
         method_object_class_name = method_name.capitalize()
 
         # Check for name conflicts - class name should not already exist
-        conflict_checker = ClassNameConflictChecker(method_object_class_name)
+        conflict_checker = ClassConflictChecker(method_object_class_name)
         module.visit(conflict_checker)
 
         if conflict_checker.has_conflict:
@@ -60,25 +61,6 @@ class ReplaceMethodWithMethodObjectCommand(BaseCommand):
 
         # Write back
         self.file_path.write_text(modified_tree.code)
-
-
-class ClassNameConflictChecker(cst.CSTVisitor):
-    """Visitor to check if a class name already exists in the module."""
-
-    def __init__(self, class_name: str) -> None:
-        """Initialize the checker.
-
-        Args:
-            class_name: Name to check for conflicts
-        """
-        self.class_name = class_name
-        self.has_conflict = False
-
-    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
-        """Check if this class has the conflicting name."""
-        if node.name.value == self.class_name:
-            self.has_conflict = True
-        return True
 
 
 class HelperMethodCollector(cst.CSTVisitor):
