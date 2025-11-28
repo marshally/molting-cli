@@ -1,4 +1,4 @@
-"""Expected output after extract method with return value."""
+"""Example code for extract method with return value."""
 
 
 class Calculator:

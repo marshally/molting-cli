@@ -1,4 +1,4 @@
-"""Expected output after remove control flag with local variables."""
+"""Example code for remove control flag with local variables."""
 
 
 def find_matching_product(products, target_price, target_category):

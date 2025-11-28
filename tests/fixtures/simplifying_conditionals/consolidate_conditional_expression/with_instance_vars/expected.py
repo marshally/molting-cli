@@ -1,4 +1,4 @@
-"""Expected output after consolidate-conditional-expression with instance variables."""
+"""Example code for consolidate-conditional-expression with instance variables."""
 
 
 class BenefitsCalculator:

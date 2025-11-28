@@ -1,4 +1,4 @@
-"""Expected output after introduce assertion with decorators."""
+"""Example code for introduce assertion with decorators."""
 
 
 class ExpenseManager:

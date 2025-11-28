@@ -1,4 +1,4 @@
-"""Expected output after decompose-conditional with instance variables."""
+"""Example code for decompose-conditional with instance variables."""
 
 
 class PricingCalculator:

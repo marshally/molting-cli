@@ -1,4 +1,4 @@
-"""Expected output after inline-method with decorators."""
+"""Example code for inline-method with decorators."""
 
 
 class ShoppingCart:

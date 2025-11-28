@@ -1,4 +1,4 @@
-"""Expected output after decompose-conditional with multiple call sites."""
+"""Example code for decompose-conditional with multiple call sites."""
 
 
 def calculate_shipping_charge(quantity, date, winter_rate, summer_rate, winter_service_charge):

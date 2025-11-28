@@ -1,4 +1,4 @@
-"""Expected output after remove-control-flag with instance variables."""
+"""Example code for remove-control-flag with instance variables."""
 
 
 class SecurityChecker:

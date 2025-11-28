@@ -1,4 +1,4 @@
-"""Expected output after replace-error-code-with-exception with multiple call sites."""
+"""Example code for replace-error-code-with-exception with multiple call sites."""
 
 
 class Account:

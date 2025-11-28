@@ -1,4 +1,4 @@
-"""Expected output after preserve whole object with local variables."""
+"""Example code for preserve whole object with local variables."""
 
 
 class Account:

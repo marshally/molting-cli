@@ -1,4 +1,4 @@
-"""Expected output after replace-temp-with-query with decorators."""
+"""Example code for replace-temp-with-query with decorators."""
 
 
 class Rectangle:

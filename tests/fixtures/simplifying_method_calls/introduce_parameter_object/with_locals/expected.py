@@ -1,4 +1,4 @@
-"""Expected output after introduce parameter object with local variables."""
+"""Example code for introduce parameter object with local variables."""
 
 
 class Report:

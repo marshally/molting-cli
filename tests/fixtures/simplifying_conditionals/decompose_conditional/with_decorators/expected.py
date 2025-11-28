@@ -1,4 +1,4 @@
-"""Expected output after decompose conditional with decorators."""
+"""Example code for decompose conditional with decorators."""
 
 
 class PriceCalculator:
