@@ -5,7 +5,6 @@ This refactoring creates a superclass and moves common features from
 multiple classes into it.
 """
 
-
 from tests.conftest import RefactoringTestBase
 
 
