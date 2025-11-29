@@ -5,8 +5,6 @@ This test module verifies the change-unidirectional-association-to-bidirectional
 which adds back pointers and updates modifiers to maintain bidirectional consistency.
 """
 
-import pytest
-
 from tests.conftest import RefactoringTestBase
 
 
