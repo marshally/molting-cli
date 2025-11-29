@@ -146,6 +146,8 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
         self.in_target_class = False
         self.init_params: list[str] = []  # Track all __init__ parameters
         self.type_param_name: str | None = None  # Name of the type parameter
+        self.target_method_params: list[str] = []  # Track target method parameters (excluding self)
+        self._trailing_return: cst.Return | None = None  # Track return statement after if block
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Track when we're in the target class."""
@@ -248,6 +250,10 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
             return self._transform_init_method(updated_node)
 
         if original_node.name.value == self.method_name:
+            # Capture the target method's parameters (excluding self)
+            for param in original_node.params.params[1:]:
+                if isinstance(param.name, cst.Name):
+                    self.target_method_params.append(param.name.value)
             # Extract subclass implementations from conditionals
             self._extract_subclasses(original_node)
             # Make base method abstract
@@ -345,11 +351,23 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
         if not isinstance(body, cst.IndentedBlock):
             return
 
-        for stmt in body.body:
+        # First, try to find a trailing return statement after the if block
+        self._trailing_return = None
+        if_found = False
+        for i, stmt in enumerate(body.body):
             if isinstance(stmt, cst.If):
                 pos = self.get_metadata(metadata.PositionProvider, stmt)
                 # Check if the if statement is within the target range
                 if pos and self.start_line <= pos.start.line <= self.end_line:
+                    if_found = True
+                    # Look for return statement after the if block BEFORE processing chains
+                    if i + 1 < len(body.body):
+                        next_stmt = body.body[i + 1]
+                        if isinstance(next_stmt, cst.SimpleStatementLine):
+                            for s in next_stmt.body:
+                                if isinstance(s, cst.Return):
+                                    self._trailing_return = s
+                    # Now process the if chain
                     self._process_if_chain(stmt)
                     return  # Process only the first matching if statement
 
@@ -379,29 +397,57 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
         if not type_name:
             return
 
-        # Extract return expression from body
-        return_expr = self._extract_return_expression(body)
-        if not return_expr:
+        # Extract the full branch body
+        branch_body = self._extract_branch_body(body)
+        if not branch_body:
             return
 
         # Determine additional parameters needed
-        additional_params = self._determine_additional_params(return_expr)
+        additional_params = self._determine_additional_params_from_body(branch_body)
 
         # Create subclass
-        subclass = self._create_subclass(type_name, additional_params, return_expr)
+        subclass = self._create_subclass(type_name, additional_params, branch_body)
         self.subclasses.append(subclass)
 
     def _extract_type_name(self, test: cst.BaseExpression) -> str | None:
         """Extract type name from comparison expression."""
         if isinstance(test, cst.Comparison):
-            # self.type == self.ENGINEER
+            # self.type == self.ENGINEER or self.shipping_type == self.STANDARD
             if isinstance(test.comparisons[0].comparator, cst.Attribute):
                 attr = test.comparisons[0].comparator
                 if isinstance(attr.attr, cst.Name):
                     type_const = attr.attr.value
                     # Map constant name to class name
-                    return type_const.capitalize()
+                    # Handle patterns like STANDARD -> Standard, EXPRESS -> Express
+                    # Get the type constant name in proper case
+                    type_name = type_const.lower().capitalize()
+                    # If base class name has a suffix (like "Shipping" or "Employee"), append it
+                    # Extract suffix from base class name (e.g., "ShippingCalculator" -> "Shipping")
+                    base_suffix = self._extract_class_suffix()
+                    if base_suffix:
+                        return type_name + base_suffix
+                    return type_name
         return None
+
+    def _extract_class_suffix(self) -> str:
+        """Extract a meaningful suffix from the base class name."""
+        class_name = self.class_name
+        # Remove common prefixes/identifiers
+        # Examples: ShippingCalculator -> Shipping, Employee -> (empty)
+        # For ShippingCalculator: remove "Calculator"
+        if class_name.endswith("Calculator"):
+            return class_name[:-len("Calculator")]
+        elif class_name.endswith("Manager"):
+            return class_name[:-len("Manager")]
+        elif class_name.endswith("Service"):
+            return class_name[:-len("Service")]
+        # Default: remove trailing "s" if it looks like a plural, or just use empty
+        # For Employee, we don't add suffix
+        # Check if this looks like a role/type name
+        if class_name in ["Employee", "Person", "User", "Account"]:
+            return ""
+        # Otherwise try to use the class name as suffix if it makes sense
+        return ""
 
     def _extract_return_expression(self, body: cst.BaseSuite) -> cst.BaseExpression | None:
         """Extract return expression from body."""
@@ -412,6 +458,12 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
                         if isinstance(s, cst.Return):
                             return s.value
         return None
+
+    def _extract_branch_body(self, body: cst.BaseSuite) -> list[cst.BaseStatement]:
+        """Extract all statements from a branch body (excluding the final return)."""
+        if isinstance(body, cst.IndentedBlock):
+            return list(body.body)
+        return []
 
     def _determine_additional_params(self, expr: cst.BaseExpression | None) -> list[str]:
         """Determine additional parameters needed based on expression."""
@@ -427,6 +479,13 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
             params.append("bonus")
         return params
 
+    def _determine_additional_params_from_body(self, body: list[cst.BaseStatement]) -> list[str]:
+        """Determine additional parameters needed based on branch body."""
+        params = []
+        # For now, we don't need to determine additional params from the body
+        # since the base class init will have all parameters
+        return params
+
     def _uses_attribute(self, expr: cst.BaseExpression, attr_name: str) -> bool:
         """Check if expression uses a specific attribute."""
         collector = AttributeCollector(attr_name)
@@ -437,7 +496,7 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
         self,
         type_name: str,
         additional_params: list[str],
-        return_expr: cst.BaseExpression | None,
+        branch_body: list[cst.BaseStatement],
     ) -> cst.ClassDef:
         """Create a subclass for a specific type."""
         # Create __init__ method if there are additional parameters
@@ -447,19 +506,19 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
             init_method = self._create_init_method(additional_params)
             methods.append(init_method)
 
-        # Create pay_amount method with proper spacing before it if there's an __init__
-        pay_method = self._create_pay_method(return_expr)
+        # Create the override method with the branch body
+        override_method = self._create_override_method(branch_body)
         if additional_params:
-            # Add blank line before pay_amount
-            pay_method = pay_method.with_changes(
+            # Add blank line before override method
+            override_method = override_method.with_changes(
                 leading_lines=[cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))]
             )
-        methods.append(pay_method)
+        methods.append(override_method)
 
         # Create class with proper spacing
         return cst.ClassDef(
             name=cst.Name(type_name),
-            bases=[cst.Arg(value=cst.Name("Employee"))],
+            bases=[cst.Arg(value=cst.Name(self.class_name))],
             body=cst.IndentedBlock(body=methods),
             leading_lines=[cst.EmptyLine(), cst.EmptyLine()],
         )
@@ -516,17 +575,33 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
             body=cst.IndentedBlock(body=body_stmts),
         )
 
-    def _create_pay_method(self, return_expr: cst.BaseExpression | None) -> cst.FunctionDef:
-        """Create pay_amount method for subclass."""
-        if not return_expr:
-            return_expr = cst.Name("None")
+    def _create_override_method(self, branch_body: list[cst.BaseStatement]) -> cst.FunctionDef:
+        """Create an override method for subclass with the branch body."""
+        # Use the actual method name from the target
+        method_name = self.method_name
+
+        # Create method params: self + original method params
+        params = [cst.Param(name=cst.Name("self"))]
+        for param_name in self.target_method_params:
+            params.append(cst.Param(name=cst.Name(param_name)))
+
+        # Build the method body with branch statements + optional trailing return
+        method_body = list(branch_body)
+        if self._trailing_return is not None:
+            # Add the trailing return statement
+            # Create a new Return statement to avoid sharing nodes
+            return_value = self._trailing_return.value
+            if return_value:
+                # Clone the return value to avoid sharing the same node
+                return_value = return_value.deep_clone()
+            new_return = cst.Return(value=return_value)
+            return_stmt = cst.SimpleStatementLine(body=[new_return])
+            method_body.append(return_stmt)
 
         return cst.FunctionDef(
-            name=cst.Name("pay_amount"),
-            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
-            body=cst.IndentedBlock(
-                body=[cst.SimpleStatementLine(body=[cst.Return(value=return_expr)])]
-            ),
+            name=cst.Name(method_name),
+            params=cst.Parameters(params=params),
+            body=cst.IndentedBlock(body=method_body),
         )
 
 
