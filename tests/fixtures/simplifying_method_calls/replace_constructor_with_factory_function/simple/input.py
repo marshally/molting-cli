@@ -1,7 +1,4 @@
 class Employee:
-    ENGINEER = 0
-    SALESMAN = 1
-    MANAGER = 2
-
-    def __init__(self, employee_type):
-        self.type = employee_type
+    def __init__(self, name, salary):
+        self.name = name
+        self.salary = salary

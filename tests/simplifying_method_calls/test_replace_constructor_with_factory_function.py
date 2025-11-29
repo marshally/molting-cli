@@ -1,7 +1,5 @@
 """Tests for Replace Constructor with Factory Function refactoring."""
 
-import pytest
-
 from tests.conftest import RefactoringTestBase
 
 
@@ -19,7 +17,6 @@ class TestReplaceConstructorWithFactoryFunction(RefactoringTestBase):
         """
         self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
 
-    @pytest.mark.skip(reason="Implementation needed for call site updates")
     def test_multiple_calls(self) -> None:
         """Test replacing constructor with factory function across multiple call sites.
 
