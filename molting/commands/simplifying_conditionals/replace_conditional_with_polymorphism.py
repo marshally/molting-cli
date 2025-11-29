@@ -148,6 +148,7 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
         self.type_param_name: str | None = None  # Name of the type parameter
         self.target_method_params: list[str] = []  # Track target method parameters (excluding self)
         self._trailing_return: cst.Return | None = None  # Track return statement after if block
+        self.target_method_decorators: list[cst.Decorator] = []  # Track target method decorators
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Track when we're in the target class."""
@@ -254,6 +255,8 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
             for param in original_node.params.params[1:]:
                 if isinstance(param.name, cst.Name):
                     self.target_method_params.append(param.name.value)
+            # Capture decorators from the target method
+            self.target_method_decorators = list(original_node.decorators)
             # Extract subclass implementations from conditionals
             self._extract_subclasses(original_node)
             # Make base method abstract
@@ -608,10 +611,14 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
             return_stmt = cst.SimpleStatementLine(body=[new_return])
             method_body.append(return_stmt)
 
+        # Clone decorators to avoid sharing nodes between subclasses
+        decorators = tuple(d.deep_clone() for d in self.target_method_decorators)
+
         return cst.FunctionDef(
             name=cst.Name(method_name),
             params=cst.Parameters(params=params),
             body=cst.IndentedBlock(body=method_body),
+            decorators=decorators,
         )
 
 

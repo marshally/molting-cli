@@ -38,7 +38,6 @@ class TestReplaceConditionalWithPolymorphism(RefactoringTestBase):
             target="ShippingCalculator::calculate_cost#L16-L27",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test polymorphic replacement on a method with decorators.
 
