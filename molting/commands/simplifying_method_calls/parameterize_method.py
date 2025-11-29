@@ -91,21 +91,24 @@ class ParameterizeMethodCommand(BaseCommand):
             class_node, method_node1 = result1
             _, method_node2 = result2
 
-            # Extract the percentage values from the original methods
-            # For five_percent_raise: self.salary *= 1.05 -> 5
-            # For ten_percent_raise: self.salary *= 1.10 -> 10
-            percentage1 = self._extract_percentage(method_node1)
-            percentage2 = self._extract_percentage(method_node2)
+            # Determine the type of refactoring (percentage or threshold-based)
+            is_percentage_based = self._is_percentage_based(method_node1)
 
-            # Extract the attribute name being modified (e.g., "salary")
-            attribute_name = self._extract_attribute_name(method_node1)
-
-            # Create the new parameterized method
-            new_method = self._create_parameterized_method(new_name, attribute_name)
+            if is_percentage_based:
+                # Extract percentage values from multiplication-based methods
+                parameter1 = self._extract_percentage(method_node1)
+                parameter2 = self._extract_percentage(method_node2)
+                attribute_name = self._extract_attribute_name(method_node1)
+                new_method = self._create_parameterized_method(new_name, attribute_name)
+            else:
+                # Extract threshold values from comparison-based methods
+                parameter1 = self._extract_threshold_attribute(method_node1)
+                parameter2 = self._extract_threshold_attribute(method_node2)
+                new_method = self._create_threshold_parameterized_method(new_name, method_node1)
 
             # Update the original methods to call the new method
-            self._update_method_to_call_new(method_node1, new_name, percentage1)
-            self._update_method_to_call_new(method_node2, new_name, percentage2)
+            self._update_method_to_call_new(method_node1, new_name, parameter1, is_percentage_based)
+            self._update_method_to_call_new(method_node2, new_name, parameter2, is_percentage_based)
 
             # Insert the new method after the __init__ method
             insertion_position = 0
@@ -192,10 +195,18 @@ class ParameterizeMethodCommand(BaseCommand):
         """
         stmt = self._get_augmented_assignment(method_node)
 
-        if not isinstance(stmt.target, ast.Attribute):
+        # Handle both AugAssign and Assign statements
+        if isinstance(stmt, ast.AugAssign):
+            if not isinstance(stmt.target, ast.Attribute):
+                raise ValueError(f"Method '{method_node.name}' doesn't modify an attribute")
+            return stmt.target.attr
+        elif isinstance(stmt, ast.Assign):
+            # For simple assignments, check the targets
+            if stmt.targets and isinstance(stmt.targets[0], ast.Attribute):
+                return stmt.targets[0].attr
             raise ValueError(f"Method '{method_node.name}' doesn't modify an attribute")
-
-        return stmt.target.attr
+        else:
+            raise ValueError(f"Method '{method_node.name}' doesn't have expected assignment")
 
     def _create_parameterized_method(
         self, method_name: str, attribute_name: str
@@ -244,16 +255,28 @@ class ParameterizeMethodCommand(BaseCommand):
         return new_method
 
     def _update_method_to_call_new(
-        self, method_node: ast.FunctionDef, new_method_name: str, percentage: int
+        self, method_node: ast.FunctionDef, new_method_name: str, parameter, is_percentage_based: bool = True
     ) -> None:
         """Update a method to call the new parameterized method.
 
         Args:
             method_node: The method node to update
             new_method_name: The name of the new method to call
-            percentage: The percentage value to pass
+            parameter: The parameter value to pass (int for percentage, str for threshold attribute)
+            is_percentage_based: Whether this is percentage or threshold based
         """
-        # Replace the body with: self.raise_salary(5)
+        # For percentage: self.raise_salary(5)
+        # For threshold: self.mark_stock_level(self.low_stock_threshold)
+        if is_percentage_based:
+            arg = ast.Constant(value=parameter)
+        else:
+            # parameter is an attribute name like "low_stock_threshold"
+            arg = ast.Attribute(
+                value=ast.Name(id="self", ctx=ast.Load()),
+                attr=parameter,
+                ctx=ast.Load(),
+            )
+
         method_node.body = [
             ast.Expr(
                 value=ast.Call(
@@ -262,11 +285,115 @@ class ParameterizeMethodCommand(BaseCommand):
                         attr=new_method_name,
                         ctx=ast.Load(),
                     ),
-                    args=[ast.Constant(value=percentage)],
+                    args=[arg],
                     keywords=[],
                 )
             )
         ]
+
+    def _is_percentage_based(self, method_node: ast.FunctionDef) -> bool:
+        """Check if the method is percentage-based (salary *= 1.XX) vs threshold-based (if quantity <= XX).
+
+        Args:
+            method_node: The method to check
+
+        Returns:
+            True if percentage-based, False if threshold-based
+        """
+        # Check the first statement
+        if not method_node.body:
+            return False
+
+        stmt = method_node.body[0]
+
+        # Direct augmented assignment = percentage-based
+        if isinstance(stmt, ast.AugAssign):
+            return True
+
+        # If statement = could be threshold-based
+        return False
+
+    def _extract_threshold_attribute(self, method_node: ast.FunctionDef) -> str:
+        """Extract the threshold attribute name from a method.
+
+        Args:
+            method_node: The method node
+
+        Returns:
+            The attribute name used in the threshold (e.g., "low_stock_threshold")
+
+        Raises:
+            ValueError: If the method doesn't have the expected structure
+        """
+        if not method_node.body or not isinstance(method_node.body[0], ast.If):
+            raise ValueError(f"Method '{method_node.name}' doesn't have if statement")
+
+        if_stmt = method_node.body[0]
+
+        # Look for a comparison in the if condition
+        # Expecting something like: self.quantity <= self.low_stock_threshold
+        if isinstance(if_stmt.test, ast.Compare):
+            comparators = if_stmt.test.comparators
+            if comparators and isinstance(comparators[0], ast.Attribute):
+                return comparators[0].attr
+
+        raise ValueError(f"Method '{method_node.name}' doesn't have expected threshold comparison")
+
+    def _create_threshold_parameterized_method(
+        self, method_name: str, original_method: ast.FunctionDef
+    ) -> ast.FunctionDef:
+        """Create a new parameterized method for threshold-based refactoring.
+
+        Args:
+            method_name: The name of the new method
+            original_method: The original method to base the new one on
+
+        Returns:
+            The new method node
+        """
+        # Get the original if statement and copy it
+        if not original_method.body or not isinstance(original_method.body[0], ast.If):
+            raise ValueError(f"Method '{original_method.name}' doesn't have if statement")
+
+        original_if = original_method.body[0]
+
+        # Clone the if statement and modify the comparison to use the parameter
+        new_if = self._replace_threshold_with_parameter(original_if)
+
+        new_method = ast.FunctionDef(
+            name=method_name,
+            args=ast.arguments(
+                posonlyargs=[],
+                args=[ast.arg(arg="self"), ast.arg(arg="threshold")],
+                kwonlyargs=[],
+                kw_defaults=[],
+                defaults=[],
+            ),
+            body=[new_if],
+            decorator_list=[],
+        )
+        return new_method
+
+    def _replace_threshold_with_parameter(self, if_stmt: ast.If) -> ast.If:
+        """Replace the threshold attribute with a parameter in an if statement.
+
+        Args:
+            if_stmt: The if statement to modify
+
+        Returns:
+            A new if statement with the threshold replaced by a parameter
+        """
+        # Deep copy the if statement
+        import copy
+        new_if = copy.deepcopy(if_stmt)
+
+        # Replace the comparator (right side of <=) with the parameter
+        if isinstance(new_if.test, ast.Compare):
+            if new_if.test.comparators:
+                # Replace the first comparator with ast.Name("threshold")
+                new_if.test.comparators[0] = ast.Name(id="threshold", ctx=ast.Load())
+
+        return new_if
 
 
 # Register the command
