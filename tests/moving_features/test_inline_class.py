@@ -15,23 +15,48 @@ class TestInlineClass(RefactoringTestBase):
     fixture_category = "moving_features/inline_class"
 
     def test_simple(self) -> None:
-        """Move all features from one class into another."""
+        """Test inlining a class by moving all its features into another class.
+
+        This baseline case moves all fields and methods from a simple extracted class
+        back into the target class. Verifies basic inlining works and that the source
+        class can be safely removed after the transformation.
+        """
         self.refactor("inline-class", source_class="TelephoneNumber", into="Person")
 
     def test_with_instance_vars(self) -> None:
-        """Test inline class with instance variables."""
+        """Test inlining a class whose methods access multiple instance variables.
+
+        Unlike test_simple, this tests inlining classes with complex state where
+        multiple fields interact. Verifies that intra-class field references are
+        correctly handled when merging the classes together.
+        """
         self.refactor("inline-class", source_class="Compensation", into="Employee")
 
     def test_with_decorators(self) -> None:
-        """Test inline class with decorated methods."""
+        """Test inlining a class that contains decorated methods.
+
+        When inlining a class with decorators (e.g., @property methods), the
+        decorators must be preserved on the inlined methods in the target class.
+        Tests proper handling of method metadata during inlining.
+        """
         self.refactor("inline-class", source_class="Address", into="Employee")
 
     @pytest.mark.skip(reason="Implementation needs call site update fix")
     def test_multiple_calls(self) -> None:
-        """Test inline class with multiple call sites."""
+        """Test inlining a class when its instances are created and used in multiple places.
+
+        When a class is instantiated and used from various call sites throughout
+        the codebase, inlining must update all those locations to use the target
+        class instead. Tests comprehensive call site transformation.
+        """
         self.refactor("inline-class", source_class="TelephoneNumber", into="Person")
 
     def test_name_conflict(self) -> None:
-        """Test inline class when target class already has method with same name."""
+        """Test that inline class raises error when method names conflict.
+
+        This error handling test verifies the refactoring detects when inlining
+        would create a naming conflict in the target class. Prevents silent method
+        overwrites that could lose functionality.
+        """
         with pytest.raises(ValueError, match="already has a method"):
             self.refactor("inline-class", source_class="TelephoneNumber", into="Person")

@@ -13,5 +13,11 @@ class TestSubstituteAlgorithm(RefactoringTestBase):
     fixture_category = "composing_methods/substitute_algorithm"
 
     def test_simple(self) -> None:
-        """Replace an algorithm with a clearer one."""
+        """Test basic substitute algorithm refactoring.
+
+        This tests the core algorithm substitution: replacing an existing
+        algorithm (e.g., a loop-based search) with a clearer or more efficient
+        alternative (e.g., using built-in methods). This is a foundational test
+        ensuring the transformation mechanics work correctly.
+        """
         self.refactor("substitute-algorithm", target="found_person")

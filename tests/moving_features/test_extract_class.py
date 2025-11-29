@@ -16,7 +16,12 @@ class TestExtractClass(RefactoringTestBase):
     fixture_category = "moving_features/extract_class"
 
     def test_simple(self) -> None:
-        """Create a new class and move relevant fields and methods."""
+        """Test extracting related fields and methods into a new class.
+
+        This baseline case creates a new class with straightforward fields and
+        methods that have no complex dependencies on the source class. Verifies
+        basic extraction, new class creation, and simple method relocation work.
+        """
         self.refactor(
             "extract-class",
             source="Person",
@@ -27,7 +32,13 @@ class TestExtractClass(RefactoringTestBase):
 
     @pytest.mark.skip(reason="Implementation needs docstring handling fix")
     def test_with_instance_vars(self) -> None:
-        """Test extract class with instance variables."""
+        """Test extracting a class where extracted methods reference other extracted fields.
+
+        Unlike test_simple where extracted methods are independent, this tests complex
+        intra-class dependencies where methods need to access multiple extracted fields.
+        Verifies the refactoring correctly establishes relationships between extracted
+        members and updates method bodies to access fields through the new class.
+        """
         self.refactor(
             "extract-class",
             source="Employee",
@@ -37,7 +48,12 @@ class TestExtractClass(RefactoringTestBase):
         )
 
     def test_multiple_calls(self) -> None:
-        """Test extract class with multiple call sites."""
+        """Test extracting a class where extracted methods are called from multiple locations.
+
+        When extracted methods are invoked from various call sites, all references must
+        be updated to access the method through the new extracted class. Tests that all
+        call sites are properly updated, not just a subset.
+        """
         self.refactor(
             "extract-class",
             source="Person",
@@ -47,7 +63,12 @@ class TestExtractClass(RefactoringTestBase):
         )
 
     def test_with_decorators(self) -> None:
-        """Test extract class with decorated methods."""
+        """Test extracting a class that contains decorated methods (e.g., @property).
+
+        When extracting methods with decorators, the decorators must be preserved
+        and remain valid in the new class context. Tests proper handling of method
+        metadata during extraction.
+        """
         self.refactor(
             "extract-class",
             source="Employee",
@@ -57,7 +78,12 @@ class TestExtractClass(RefactoringTestBase):
         )
 
     def test_name_conflict(self) -> None:
-        """Test extract class when target class name already exists."""
+        """Test that extract class raises error when proposed class name already exists.
+
+        This error handling test verifies the refactoring prevents creating a new
+        class that would conflict with an existing class. Critical for maintaining
+        code integrity and preventing accidental shadowing or overwriting.
+        """
         with pytest.raises(ValueError, match="Class .* already exists"):
             self.refactor(
                 "extract-class",

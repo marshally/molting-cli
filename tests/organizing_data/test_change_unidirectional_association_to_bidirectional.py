@@ -16,7 +16,12 @@ class TestChangeUnidirectionalAssociationToBidirectional(RefactoringTestBase):
     fixture_category = "organizing_data/change_unidirectional_association_to_bidirectional"
 
     def test_simple(self) -> None:
-        """Add back pointers and change modifiers to update both sets."""
+        """Test basic conversion of unidirectional association to bidirectional.
+
+        This is the simplest case: adding a back pointer from the referenced class
+        back to the referencing class, and ensuring both directions stay synchronized.
+        Verifies the core transformation works before testing complex instance variables.
+        """
         self.refactor(
             "change-unidirectional-association-to-bidirectional",
             target="Order::customer",
@@ -25,7 +30,12 @@ class TestChangeUnidirectionalAssociationToBidirectional(RefactoringTestBase):
 
     @pytest.mark.skip(reason="Fixture loading broken for with_instance_vars tests")
     def test_with_instance_vars(self) -> None:
-        """Test change-unidirectional-association-to-bidirectional with instance variables."""
+        """Test unidirectional-to-bidirectional conversion with complex instance state.
+
+        Unlike test_simple which uses simple references, this verifies that associations
+        with multiple instance variables are properly synchronized bidirectionally.
+        Currently skipped due to fixture loading issues.
+        """
         self.refactor(
             "change-unidirectional-association-to-bidirectional",
             target="Team::manager",

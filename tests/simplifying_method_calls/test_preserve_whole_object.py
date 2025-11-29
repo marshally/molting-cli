@@ -11,15 +11,30 @@ class TestPreserveWholeObject(RefactoringTestBase):
     fixture_category = "simplifying_method_calls/preserve_whole_object"
 
     def test_simple(self) -> None:
-        """Send the whole object instead of extracting values from it."""
+        """Test passing a whole object instead of individual extracted values.
+
+        This is the basic case: replacing multiple parameter extractions
+        (e.g., plan.start, plan.end) with a single parameter (plan).
+        Verifies the core transformation works before testing multiple call sites.
+        """
         self.refactor("preserve-whole-object", target="within_plan")
 
     @pytest.mark.skip(reason="Implementation needed for multiple_calls")
     def test_multiple_calls(self) -> None:
-        """Test preserve whole object with multiple call sites."""
+        """Test preserving whole object when called from multiple locations.
+
+        Unlike test_simple, this verifies that all call sites are updated to
+        pass the whole object instead of extracted values. Each caller must
+        change its signature when the method signature changes.
+        """
         self.refactor("preserve-whole-object", target="within_plan")
 
     @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
-        """Test preserve whole object with local variables."""
+        """Test preserving whole object when local variables are involved.
+
+        Unlike test_simple, this tests when extracted values are assigned to
+        local variables. The refactoring must handle local variable extraction
+        from the passed object.
+        """
         self.refactor("preserve-whole-object", target="can_withdraw")

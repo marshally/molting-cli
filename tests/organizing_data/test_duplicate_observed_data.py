@@ -15,7 +15,12 @@ class TestDuplicateObservedData(RefactoringTestBase):
     fixture_category = "organizing_data/duplicate_observed_data"
 
     def test_simple(self) -> None:
-        """Copy data from domain object to GUI object and set up observer pattern."""
+        """Test basic duplicate-observed-data to synchronize GUI and domain objects.
+
+        This is the simplest case: copying a data field from a domain object to a GUI
+        object and establishing bidirectional observer synchronization. Verifies the
+        core transformation that keeps UI and domain data in sync.
+        """
         self.refactor(
             "duplicate-observed-data", target="IntervalWindow::start_field", domain="Interval"
         )
