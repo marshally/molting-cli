@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.decorator_handler import DecoratorHandler
 
 
 class RemoveControlFlagCommand(BaseCommand):
@@ -139,7 +140,14 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
 
         body = cast(cst.IndentedBlock, updated_node.body)
         new_body = self._transform_body(body)
-        return updated_node.with_changes(body=new_body)
+        result = updated_node.with_changes(body=new_body)
+
+        # Preserve decorators on the method
+        handler = DecoratorHandler(original_node)
+        if handler.has_preservable_decorators():
+            result = handler.apply_decorators(result)
+
+        return result
 
     def _transform_body(self, body: cst.IndentedBlock) -> cst.IndentedBlock:
         """Transform the function body to remove control flag.
