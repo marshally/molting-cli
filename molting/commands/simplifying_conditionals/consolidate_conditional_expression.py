@@ -166,14 +166,6 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
             self.current_class = self.class_name
         return True
 
-    def leave_ClassDef(  # noqa: N802
-        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
-    ) -> cst.ClassDef:
-        """Track exit from class."""
-        if original_node.name.value == self.class_name:
-            self.current_class = None
-        return updated_node
-
     def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
         """Visit function definition to find target function."""
         self.current_function = node.name.value
@@ -425,11 +417,17 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
     ) -> cst.ClassDef:
         """Leave class and add helper function if it's a class method."""
         # Only add helper in the class if this is a class method
+        # Skip if this is just tracking exit from class (checked below)
+        if original_node.name.value != self.class_name:
+            return updated_node
+
         if (
             not self._is_method
             or not self.helper_function
-            or original_node.name.value != self.class_name
         ):
+            # This is just exiting the tracked class, not adding a helper
+            # Handle the first leave_ClassDef logic
+            self.current_class = None
             return updated_node
 
         if not isinstance(updated_node.body, cst.IndentedBlock):
