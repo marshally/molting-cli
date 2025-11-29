@@ -1,4 +1,10 @@
 class Employee:
-    def __init__(self, name, salary):
+    """Employee with type code that could benefit from factory construction."""
+
+    ENGINEER = 0
+    SALESMAN = 1
+    MANAGER = 2
+
+    def __init__(self, name, employee_type):
         self.name = name
-        self.salary = salary
+        self.employee_type = employee_type
