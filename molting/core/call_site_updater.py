@@ -61,12 +61,10 @@ class AttributeCallReplacer(cst.CSTTransformer):
             # Extract the object name from the pattern
             obj_name = updated_node.value.value.value
             # Only proceed if object_name matches (if specified) or always (if None)
-            if self.object_name is None or obj_name == self.object_name:
+            if self.new_method and (self.object_name is None or obj_name == self.object_name):
                 # Return obj.new_method() as a call
                 return cst.Call(
-                    func=cst.Attribute(
-                        value=cst.Name(obj_name), attr=cst.Name(self.new_method)
-                    )
+                    func=cst.Attribute(value=cst.Name(obj_name), attr=cst.Name(self.new_method))
                 )
 
         return updated_node
@@ -103,9 +101,7 @@ class AttributeCallReplacer(cst.CSTTransformer):
         ):
             # Replace person.get_department() with person.get_manager()
             return updated_node.with_changes(
-                func=cst.Attribute(
-                    value=cst.Name(self.object_name), attr=cst.Name(self.new_method)
-                )
+                func=cst.Attribute(value=cst.Name(self.object_name), attr=cst.Name(self.new_method))
             )
 
         return updated_node
@@ -117,6 +113,8 @@ class CallSiteUpdater(cst.CSTTransformer):
     This transformer finds and updates all occurrences of:
     - Attribute access patterns (obj.delegate.method -> obj.new_method)
     - Constructor calls (ClassName(...) -> factory_name(...))
+
+    For constructor replacement, it excludes the factory function itself from replacement.
     """
 
     def __init__(
@@ -146,10 +144,21 @@ class CallSiteUpdater(cst.CSTTransformer):
             class_name=class_name,
             factory_name=factory_name,
         )
+        self.factory_name = factory_name
+        self.inside_factory_function = False
 
-    def visit_Module(self, node: cst.Module) -> None:  # noqa: N802
-        """Visit the module and apply replacements."""
-        pass
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
+        """Track when entering the factory function."""
+        if self.factory_name and node.name.value == self.factory_name:
+            self.inside_factory_function = True
+
+    def leave_FunctionDef(  # noqa: N802
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
+        """Track when leaving the factory function."""
+        if self.factory_name and original_node.name.value == self.factory_name:
+            self.inside_factory_function = False
+        return updated_node
 
     def leave_Attribute(  # noqa: N802
         self, original_node: cst.Attribute, updated_node: cst.Attribute
@@ -160,5 +169,13 @@ class CallSiteUpdater(cst.CSTTransformer):
     def leave_Call(  # noqa: N802
         self, original_node: cst.Call, updated_node: cst.Call
     ) -> cst.BaseExpression:
-        """Delegate to replacer for call updates."""
+        """Delegate to replacer for call updates, but skip if inside factory function."""
+        # Skip replacement if this is a constructor call inside the factory function
+        if (
+            self.inside_factory_function
+            and self.replacer.class_name
+            and isinstance(updated_node.func, cst.Name)
+            and updated_node.func.value == self.replacer.class_name
+        ):
+            return updated_node
         return self.replacer.leave_Call(original_node, updated_node)

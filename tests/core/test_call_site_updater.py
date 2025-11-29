@@ -6,7 +6,7 @@ to use new method/function names or patterns when transformers modify API signat
 
 import libcst as cst
 
-from molting.core.call_site_updater import CallSiteUpdater, AttributeCallReplacer
+from molting.core.call_site_updater import AttributeCallReplacer, CallSiteUpdater
 
 
 class TestAttributeCallReplacer:
@@ -94,9 +94,7 @@ other = employee.department.manager
 emp = Employee(Employee.ENGINEER)
 """
         module = cst.parse_module(code.strip())
-        replacer = AttributeCallReplacer(
-            class_name="Employee", factory_name="create_employee"
-        )
+        replacer = AttributeCallReplacer(class_name="Employee", factory_name="create_employee")
         modified = module.visit(replacer)
 
         expected = """
@@ -112,9 +110,7 @@ e2 = Employee(Employee.MANAGER)
 e3 = Employee(role_type)
 """
         module = cst.parse_module(code.strip())
-        replacer = AttributeCallReplacer(
-            class_name="Employee", factory_name="create_employee"
-        )
+        replacer = AttributeCallReplacer(class_name="Employee", factory_name="create_employee")
         modified = module.visit(replacer)
 
         expected = """
@@ -131,9 +127,7 @@ emp = Employee(Employee.ENGINEER)
 dept = Department()
 """
         module = cst.parse_module(code.strip())
-        replacer = AttributeCallReplacer(
-            class_name="Employee", factory_name="create_employee"
-        )
+        replacer = AttributeCallReplacer(class_name="Employee", factory_name="create_employee")
         modified = module.visit(replacer)
 
         expected = """
@@ -260,9 +254,7 @@ def onboard_employee(role_type):
     return employee
 """
         module = cst.parse_module(code.strip())
-        updater = CallSiteUpdater(
-            class_name="Employee", factory_name="create_employee"
-        )
+        updater = CallSiteUpdater(class_name="Employee", factory_name="create_employee")
         modified = module.visit(updater)
 
         expected = """
@@ -302,3 +294,24 @@ def some_function():
         modified = module.visit(updater)
 
         assert modified.code == code.strip()
+
+    def test_exclude_factory_function_from_replacement(self) -> None:
+        """Test that constructor calls inside the factory function are not replaced."""
+        code = """
+def create_employee(employee_type):
+    return Employee(employee_type)
+
+emp = Employee(Employee.ENGINEER)
+"""
+        module = cst.parse_module(code.strip())
+        updater = CallSiteUpdater(class_name="Employee", factory_name="create_employee")
+        modified = module.visit(updater)
+
+        # The Employee() call inside the factory should stay, but the one outside should change
+        expected = """
+def create_employee(employee_type):
+    return Employee(employee_type)
+
+emp = create_employee(Employee.ENGINEER)
+"""
+        assert modified.code == expected.strip()
