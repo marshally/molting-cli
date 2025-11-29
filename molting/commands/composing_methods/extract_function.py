@@ -5,12 +5,8 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_target
+from molting.core.ast_utils import parse_line_number, parse_target_with_line
 from molting.core.code_generation_utils import create_parameter
-
-# Target format constants
-TARGET_SEPARATOR = "#"
-LINE_PREFIX = "L"
 
 
 class ExtractFunctionCommand(BaseCommand):
@@ -64,58 +60,6 @@ class ExtractFunctionCommand(BaseCommand):
         """
         self.validate_required_params("target", "name")
 
-    def _parse_target_specification(self, target: str) -> tuple[str, str, str]:
-        """Parse target format into class::method and line components.
-
-        Args:
-            target: Target string in format "ClassName::method_name#L4"
-
-        Returns:
-            Tuple of (class_name, method_name, line_number)
-
-        Raises:
-            ValueError: If target format is invalid
-        """
-        # Parse target format: "ClassName::method_name#L4"
-        parts = target.split(TARGET_SEPARATOR)
-        if len(parts) != 2:
-            raise ValueError(
-                f"Invalid target format '{target}'. Expected 'ClassName::method_name#L4'"
-            )
-
-        class_method = parts[0]
-        line_spec = parts[1]
-
-        # Parse class and method name
-        try:
-            class_name, method_name = parse_target(class_method, expected_parts=2)
-        except ValueError as e:
-            raise ValueError(f"Invalid class::method format in target '{target}': {e}") from e
-
-        return class_name, method_name, line_spec
-
-    def _parse_line_number(self, line_spec: str) -> int:
-        """Parse line number string into integer.
-
-        Args:
-            line_spec: Line number in format "L4"
-
-        Returns:
-            Line number as integer
-
-        Raises:
-            ValueError: If line number format is invalid
-        """
-        if not line_spec.startswith(LINE_PREFIX):
-            raise ValueError(f"Invalid line format '{line_spec}'. Expected 'L4'")
-
-        try:
-            line_number = int(line_spec[1:])
-        except ValueError as e:
-            raise ValueError(f"Invalid line number in '{line_spec}': {e}") from e
-
-        return line_number
-
     def execute(self) -> None:
         """Apply extract-function refactoring using libCST.
 
@@ -125,9 +69,9 @@ class ExtractFunctionCommand(BaseCommand):
         target = self.params["target"]
         new_function_name = self.params["name"]
 
-        # Parse target and line number
-        class_name, method_name, line_spec = self._parse_target_specification(target)
-        line_number = self._parse_line_number(line_spec)
+        # Parse target and line number using canonical functions
+        class_name, method_name, line_spec = parse_target_with_line(target)
+        line_number = parse_line_number(line_spec)
 
         # Read file
         source_code = self.file_path.read_text()
