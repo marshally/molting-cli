@@ -62,7 +62,7 @@ class DecomposeConditionalCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        self.validate_required_params("target")
+        self.validate_required_params("target", "condition_name", "then_name", "else_name")
 
     def _parse_target(self, target: str) -> tuple[str, str, int, int]:
         """Parse target format into class name, function name, and line range.
@@ -107,6 +107,9 @@ class DecomposeConditionalCommand(BaseCommand):
             ValueError: If function not found or target format is invalid
         """
         target = self.params["target"]
+        condition_name = self.params["condition_name"]
+        then_name = self.params["then_name"]
+        else_name = self.params["else_name"]
         class_name, function_name, start_line, end_line = self._parse_target(target)
 
         # Read file
@@ -116,7 +119,14 @@ class DecomposeConditionalCommand(BaseCommand):
         module = cst.parse_module(source_code)
         wrapper = metadata.MetadataWrapper(module)
         transformer = DecomposeConditionalTransformer(
-            class_name, function_name, start_line, end_line, module
+            class_name,
+            function_name,
+            start_line,
+            end_line,
+            module,
+            condition_name=condition_name,
+            then_name=then_name,
+            else_name=else_name,
         )
         modified_tree = wrapper.visit(transformer)
 
@@ -136,6 +146,10 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         start_line: int,
         end_line: int,
         module: cst.Module | None = None,
+        *,
+        condition_name: str,
+        then_name: str,
+        else_name: str,
     ) -> None:
         """Initialize the transformer.
 
@@ -145,12 +159,18 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             start_line: Start line of the conditional
             end_line: End line of the conditional
             module: The CST module for analyzing local variables
+            condition_name: Name for the extracted condition function
+            then_name: Name for the extracted then-branch function
+            else_name: Name for the extracted else-branch function
         """
         self.class_name = class_name
         self.function_name = function_name
         self.start_line = start_line
         self.end_line = end_line
         self.module = module
+        self.condition_name = condition_name
+        self.then_name = then_name
+        self.else_name = else_name
         self.condition_expr: cst.BaseExpression | None = None
         self.then_body: cst.BaseStatement | None = None
         self.else_body: cst.BaseStatement | None = None
@@ -280,20 +300,20 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         """Create helper functions for condition, then, and else branches."""
         if self.condition_expr and self.condition_params:
             condition_func = self._create_function(
-                "is_winter", self.condition_params, self.condition_expr
+                self.condition_name, self.condition_params, self.condition_expr
             )
             self.new_functions.append(condition_func)
 
         if self.then_body and self.then_params:
             then_value = self._extract_return_value(self.then_body)
             if then_value:
-                then_func = self._create_function("winter_charge", self.then_params, then_value)
+                then_func = self._create_function(self.then_name, self.then_params, then_value)
                 self.new_functions.append(then_func)
 
         if self.else_body and self.else_params:
             else_value = self._extract_return_value(self.else_body)
             if else_value:
-                else_func = self._create_function("summer_charge", self.else_params, else_value)
+                else_func = self._create_function(self.else_name, self.else_params, else_value)
                 self.new_functions.append(else_func)
 
     def _create_function(
@@ -353,10 +373,10 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         if self._is_method:
             condition_func: cst.BaseExpression = cst.Attribute(
                 value=cst.Name("self"),
-                attr=cst.Name("is_winter"),
+                attr=cst.Name(self.condition_name),
             )
         else:
-            condition_func = cst.Name("is_winter")
+            condition_func = cst.Name(self.condition_name)
 
         condition_call = cst.Call(
             func=condition_func,
@@ -372,10 +392,10 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
                     if self._is_method:
                         then_func: cst.BaseExpression = cst.Attribute(
                             value=cst.Name("self"),
-                            attr=cst.Name("winter_charge"),
+                            attr=cst.Name(self.then_name),
                         )
                     else:
-                        then_func = cst.Name("winter_charge")
+                        then_func = cst.Name(self.then_name)
 
                     then_call = cst.Call(
                         func=then_func,
@@ -404,10 +424,10 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
                         if self._is_method:
                             else_func: cst.BaseExpression = cst.Attribute(
                                 value=cst.Name("self"),
-                                attr=cst.Name("summer_charge"),
+                                attr=cst.Name(self.else_name),
                             )
                         else:
-                            else_func = cst.Name("summer_charge")
+                            else_func = cst.Name(self.else_name)
 
                         else_call = cst.Call(
                             func=else_func,
