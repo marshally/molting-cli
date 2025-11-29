@@ -1,38 +1,21 @@
-"""Example code for replace-constructor-with-factory-function with multiple call sites."""
-
-
 class Employee:
-    ENGINEER = 0
-    SALESMAN = 1
-    MANAGER = 2
-
-    def __init__(self, employee_type):
-        self.type = employee_type
+    def __init__(self, name, salary):
+        self.name = name
+        self.salary = salary
 
 
 class Department:
     def __init__(self):
         self.employees = []
 
-    def hire_engineer(self):
-        emp = Employee(Employee.ENGINEER)
-        self.employees.append(emp)
-        return emp
-
-    def hire_manager(self):
-        emp = Employee(Employee.MANAGER)
+    def hire(self, name, salary):
+        emp = Employee(name, salary)
         self.employees.append(emp)
         return emp
 
 
-def create_sales_team(size):
+def create_team(members):
     team = []
-    for i in range(size):
-        team.append(Employee(Employee.SALESMAN))
+    for name, salary in members:
+        team.append(Employee(name, salary))
     return team
-
-
-def onboard_employee(role_type):
-    employee = Employee(role_type)
-    print(f"Onboarding employee of type {role_type}")
-    return employee
