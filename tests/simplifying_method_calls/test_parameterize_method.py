@@ -39,7 +39,6 @@ class TestParameterizeMethod(RefactoringTestBase):
             new_name="apply_raise",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test parameterizing methods that use instance variables.
 

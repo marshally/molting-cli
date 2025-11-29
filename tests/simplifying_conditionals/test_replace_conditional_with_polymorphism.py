@@ -26,7 +26,6 @@ class TestReplaceConditionalWithPolymorphism(RefactoringTestBase):
             "replace-conditional-with-polymorphism", target="Employee::pay_amount#L13-L20"
         )
 
-    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test polymorphic replacement with heavy use of instance variables.
 

@@ -33,7 +33,6 @@ class TestDecomposeConditional(RefactoringTestBase):
         """
         self.refactor("decompose-conditional", target="process_order#L8-L13")
 
-    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test decompose conditional when branches use instance variables.
 

@@ -33,7 +33,6 @@ class TestRemoveControlFlag(RefactoringTestBase):
         """
         self.refactor("remove-control-flag", target="find_matching_product::found")
 
-    @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
         """Test removing a control flag in an instance method using self variables.
 
