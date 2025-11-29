@@ -1,6 +1,4 @@
 class Site:
-    TAX_RATE = 0.1
-
     def get_bill_amount(self):
         base = self.get_base_amount()
         tax = self.get_tax_amount(base)
@@ -22,7 +20,7 @@ class ResidentialSite(Site):
         return self.units * self.rate
 
     def get_tax_amount(self, base):
-        return base * self.TAX_RATE
+        return base * 0.1
 
 
 class LifelineSite(Site):
@@ -34,4 +32,4 @@ class LifelineSite(Site):
         return self.units * self.rate * 0.5
 
     def get_tax_amount(self, base):
-        return base * self.TAX_RATE * 0.2
+        return base * 0.02

@@ -8,6 +8,53 @@ from molting.core.ast_utils import find_method_in_class, parse_comma_separated_l
 from molting.core.code_generation_utils import create_parameter
 
 
+def parse_steps(steps_str: str) -> dict[str, str]:
+    """Parse steps parameter from 'var1:method1,var2:method2' format.
+
+    Args:
+        steps_str: Steps string in format 'var1:method1,var2:method2'
+
+    Returns:
+        Dictionary mapping variable names to method names
+
+    Raises:
+        ValueError: If format is invalid
+
+    Examples:
+        >>> parse_steps("base:get_base_amount,tax:get_tax_amount")
+        {'base': 'get_base_amount', 'tax': 'get_tax_amount'}
+    """
+    if not steps_str or not steps_str.strip():
+        raise ValueError("Steps parameter cannot be empty")
+
+    steps: dict[str, str] = {}
+    pairs = parse_comma_separated_list(steps_str)
+
+    for pair in pairs:
+        if ":" not in pair:
+            raise ValueError(
+                f"Invalid step format '{pair}'. Expected 'variable:method_name' format"
+            )
+
+        parts = pair.split(":", 1)
+        if len(parts) != 2:
+            raise ValueError(
+                f"Invalid step format '{pair}'. Expected 'variable:method_name' format"
+            )
+
+        var_name = parts[0].strip()
+        method_name = parts[1].strip()
+
+        if not var_name or not method_name:
+            raise ValueError(
+                f"Invalid step format '{pair}'. Variable and method names cannot be empty"
+            )
+
+        steps[var_name] = method_name
+
+    return steps
+
+
 class FormTemplateMethodCommand(BaseCommand):
     """Extract common algorithm structure into a template method.
 
@@ -23,25 +70,37 @@ class FormTemplateMethodCommand(BaseCommand):
     - You need to ensure subclasses follow the same algorithm structure
     - Different implementations vary only in specific steps of a larger process
 
+    **Parameters:**
+    - targets: Comma-separated list of Class::method pairs to analyze
+    - name: Name for the template method in the superclass
+    - steps: Variable-to-method mappings in format "var1:method1,var2:method2"
+
+    **Usage:**
+        molting form-template-method example.py \\
+            --targets "ResidentialSite::get_bill_amount,LifelineSite::get_bill_amount" \\
+            --name "get_bill_amount" \\
+            --steps "base:get_base_amount,tax:get_tax_amount"
+
     **Example:**
 
     Before:
-        class ResidentialSite:
+        class Site:
+            pass
+
+        class ResidentialSite(Site):
             def get_bill_amount(self):
                 base = self.units * self.rate
-                tax = base * self.TAX_RATE
+                tax = base * 0.1
                 return base + tax
 
-        class LifelineSite:
+        class LifelineSite(Site):
             def get_bill_amount(self):
                 base = self.units * self.rate * 0.5
-                tax = base * self.TAX_RATE * 0.2
+                tax = base * 0.02
                 return base + tax
 
-    After:
+    After (with steps="base:get_base_amount,tax:get_tax_amount"):
         class Site:
-            TAX_RATE = 0.1
-
             def get_bill_amount(self):
                 base = self.get_base_amount()
                 tax = self.get_tax_amount(base)
@@ -58,14 +117,14 @@ class FormTemplateMethodCommand(BaseCommand):
                 return self.units * self.rate
 
             def get_tax_amount(self, base):
-                return base * self.TAX_RATE
+                return base * 0.1
 
         class LifelineSite(Site):
             def get_base_amount(self):
                 return self.units * self.rate * 0.5
 
             def get_tax_amount(self, base):
-                return base * self.TAX_RATE * 0.2
+                return base * 0.02
     """
 
     name = "form-template-method"
@@ -76,7 +135,7 @@ class FormTemplateMethodCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        self.validate_required_params("targets", "name")
+        self.validate_required_params("targets", "name", "steps")
 
     def execute(self) -> None:
         """Apply form-template-method refactoring using libCST.
@@ -86,6 +145,7 @@ class FormTemplateMethodCommand(BaseCommand):
         """
         targets_str = self.params["targets"]
         template_method_name = self.params["name"]
+        steps_str = self.params["steps"]
 
         # Parse targets: "Class1::method,Class2::method"
         target_specs = parse_comma_separated_list(targets_str)
@@ -94,6 +154,9 @@ class FormTemplateMethodCommand(BaseCommand):
         for spec in target_specs:
             class_name, method_name = parse_target(spec, expected_parts=2)
             method_info.append((class_name, method_name))
+
+        # Parse steps: "var1:method1,var2:method2"
+        steps = parse_steps(steps_str)
 
         # Read file
         source_code = self.file_path.read_text()
@@ -109,6 +172,7 @@ class FormTemplateMethodCommand(BaseCommand):
             template_method_name,
             collector.superclass_name,
             collector.method_implementations,
+            steps,
         )
         modified_tree = module.visit(transformer)
 
@@ -153,16 +217,13 @@ class MethodCollector(cst.CSTVisitor):
 class FormTemplateMethodTransformer(cst.CSTTransformer):
     """Transforms similar methods into a template method pattern."""
 
-    # Class-level configuration for domain-specific details
-    CLASS_VARIABLE_NAME = "TAX_RATE"
-    CLASS_VARIABLE_VALUE = 0.1
-
     def __init__(
         self,
         method_info: list[tuple[str, str]],
         template_method_name: str,
         superclass_name: str | None,
         method_implementations: dict[str, cst.FunctionDef],
+        steps: dict[str, str],
     ) -> None:
         """Initialize the transformer.
 
@@ -171,11 +232,13 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
             template_method_name: Name to use for the template method
             superclass_name: Name of the superclass
             method_implementations: Dict of collected method implementations
+            steps: Dictionary mapping variable names to method names
         """
         self.method_info = method_info
         self.template_method_name = template_method_name
         self.superclass_name = superclass_name
         self.method_implementations = method_implementations
+        self.steps = steps
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -193,21 +256,6 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
                 return self._transform_subclass(updated_node)
 
         return updated_node
-
-    def _create_class_variable(self) -> cst.SimpleStatementLine:
-        """Create the class variable statement.
-
-        Returns:
-            A SimpleStatementLine assigning CLASS_VARIABLE_NAME to CLASS_VARIABLE_VALUE
-        """
-        return cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[cst.AssignTarget(target=cst.Name(self.CLASS_VARIABLE_NAME))],
-                    value=cst.Float(str(self.CLASS_VARIABLE_VALUE)),
-                )
-            ]
-        )
 
     def _collect_existing_statements(self, node: cst.ClassDef) -> list[cst.BaseStatement]:
         """Collect existing class statements, filtering out 'pass' statements.
@@ -231,9 +279,6 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
     def _transform_superclass(self, node: cst.ClassDef) -> cst.ClassDef:
         """Transform the superclass to add the template method and abstract methods."""
         new_body_stmts: list[cst.BaseStatement] = []
-
-        # Add class variable
-        new_body_stmts.append(self._create_class_variable())
 
         # Add the template method and abstract methods
         new_body_stmts.append(self._create_template_method())
@@ -263,7 +308,6 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
         target_method_def: cst.FunctionDef | None = (
             find_method_in_class(node, target_method_name) if target_method_name else None
         )
-        init_method: cst.FunctionDef | None = find_method_in_class(node, "__init__")
 
         for stmt in node.body.body:
             # Replace the target method with new abstract method implementations
@@ -271,236 +315,155 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
                 # Extract the abstract methods from this implementation
                 abstract_impls = self._extract_abstract_methods_from_implementation(stmt)
                 new_body_stmts.extend(abstract_impls)
-            # Clean up __init__ to remove TAX_RATE assignment
-            elif stmt is init_method:
-                new_init = self._clean_init_method(init_method)
-                new_body_stmts.append(new_init)
             else:
                 new_body_stmts.append(stmt)  # type: ignore[arg-type]
 
         return node.with_changes(body=node.body.with_changes(body=tuple(new_body_stmts)))
 
-    def _is_class_variable_assignment(self, item: cst.Assign) -> bool:
-        """Check if an assignment is self.<CLASS_VARIABLE_NAME> = ...
-
-        Args:
-            item: The assignment to check
-
-        Returns:
-            True if this assigns to the class variable, False otherwise
-        """
-        for target in item.targets:
-            if isinstance(target.target, cst.Attribute):
-                if (
-                    isinstance(target.target.value, cst.Name)
-                    and target.target.value.value == "self"
-                    and target.target.attr.value == self.CLASS_VARIABLE_NAME
-                ):
-                    return True
-        return False
-
-    def _clean_init_method(self, method: cst.FunctionDef) -> cst.FunctionDef:
-        """Remove class variable assignment from __init__ method.
-
-        Args:
-            method: The __init__ method to clean
-
-        Returns:
-            The cleaned __init__ method
-        """
-        if not isinstance(method.body, cst.IndentedBlock):
-            return method
-
-        new_body_stmts: list[cst.BaseStatement] = []
-
-        for stmt in method.body.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                # Filter out class variable assignments
-                new_items: list[cst.BaseSmallStatement] = []
-
-                for item in stmt.body:
-                    if isinstance(item, cst.Assign):
-                        if not self._is_class_variable_assignment(item):
-                            new_items.append(item)
-                    else:
-                        new_items.append(item)
-
-                # Only add statement if it has items
-                if new_items:
-                    new_body_stmts.append(stmt.with_changes(body=new_items))
-            else:
-                new_body_stmts.append(stmt)
-
-        return method.with_changes(body=cst.IndentedBlock(body=new_body_stmts))
-
     def _create_template_method(self) -> cst.FunctionDef:
-        """Create the template method."""
-        # Create the template method that calls abstract methods
-        # def get_bill_amount(self):
-        #     base = self.get_base_amount()
-        #     tax = self.get_tax_amount(base)
-        #     return base + tax
+        """Create the template method using the step mappings.
 
-        base_stmt = cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[cst.AssignTarget(target=cst.Name("base"))],
-                    value=cst.Call(
-                        func=cst.Attribute(
-                            value=cst.Name("self"),
-                            attr=cst.Name("get_base_amount"),
+        Creates a template method that:
+        1. Calls each step method in order
+        2. Passes previous variables as arguments to later methods
+        3. Returns the sum of all variables
+        """
+        body_stmts: list[cst.SimpleStatementLine] = []
+        var_names: list[str] = []
+
+        # Create assignment statements for each step
+        for var_name, method_name in self.steps.items():
+            # Determine arguments - pass all previously defined variables
+            args = [cst.Arg(value=cst.Name(v)) for v in var_names]
+
+            # Create: var_name = self.method_name(args...)
+            stmt = cst.SimpleStatementLine(
+                body=[
+                    cst.Assign(
+                        targets=[cst.AssignTarget(target=cst.Name(var_name))],
+                        value=cst.Call(
+                            func=cst.Attribute(
+                                value=cst.Name("self"),
+                                attr=cst.Name(method_name),
+                            ),
+                            args=args,
                         ),
-                        args=[],
-                    ),
-                )
-            ]
-        )
-
-        tax_stmt = cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[cst.AssignTarget(target=cst.Name("tax"))],
-                    value=cst.Call(
-                        func=cst.Attribute(
-                            value=cst.Name("self"),
-                            attr=cst.Name("get_tax_amount"),
-                        ),
-                        args=[cst.Arg(value=cst.Name("base"))],
-                    ),
-                )
-            ]
-        )
-
-        return_stmt = cst.SimpleStatementLine(
-            body=[
-                cst.Return(
-                    value=cst.BinaryOperation(
-                        left=cst.Name("base"),
-                        operator=cst.Add(),
-                        right=cst.Name("tax"),
                     )
+                ]
+            )
+            body_stmts.append(stmt)
+            var_names.append(var_name)
+
+        # Create return statement that sums all variables
+        return_value: cst.BaseExpression
+        if len(var_names) == 0:
+            return_value = cst.Name("None")
+        elif len(var_names) == 1:
+            return_value = cst.Name(var_names[0])
+        else:
+            # Build: var1 + var2 + var3 + ...
+            return_value = cst.Name(var_names[0])
+            for var_name in var_names[1:]:
+                return_value = cst.BinaryOperation(
+                    left=return_value,
+                    operator=cst.Add(),
+                    right=cst.Name(var_name),
                 )
-            ]
-        )
+
+        return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=return_value)])
+        body_stmts.append(return_stmt)
 
         return cst.FunctionDef(
             name=cst.Name(self.template_method_name),
             params=cst.Parameters(
                 params=[create_parameter("self")],
             ),
-            body=cst.IndentedBlock(body=[base_stmt, tax_stmt, return_stmt]),
+            body=cst.IndentedBlock(body=body_stmts),
         )
 
     def _create_abstract_methods(self) -> list[cst.FunctionDef]:
-        """Create abstract method stubs."""
-        # def get_base_amount(self):
-        #     raise NotImplementedError
-        #
-        # def get_tax_amount(self, base):
-        #     raise NotImplementedError
+        """Create abstract method stubs based on step mappings.
 
-        get_base_amount = cst.FunctionDef(
-            name=cst.Name("get_base_amount"),
-            params=cst.Parameters(
-                params=[create_parameter("self")],
-            ),
-            body=cst.IndentedBlock(
-                body=[
-                    cst.SimpleStatementLine(body=[cst.Raise(exc=cst.Name("NotImplementedError"))])
-                ]
-            ),
-        )
+        Creates one abstract method for each step, with parameters for all
+        previously defined variables.
+        """
+        methods: list[cst.FunctionDef] = []
+        var_names: list[str] = []
 
-        get_tax_amount = cst.FunctionDef(
-            name=cst.Name("get_tax_amount"),
-            params=cst.Parameters(
-                params=[
-                    create_parameter("self"),
-                    create_parameter("base"),
-                ],
-            ),
-            body=cst.IndentedBlock(
-                body=[
-                    cst.SimpleStatementLine(body=[cst.Raise(exc=cst.Name("NotImplementedError"))])
-                ]
-            ),
-        )
+        for var_name, method_name in self.steps.items():
+            # Create parameters: self + all previous variables
+            params = [create_parameter("self")]
+            params.extend([create_parameter(v) for v in var_names])
 
-        return [get_base_amount, get_tax_amount]
+            # Create method: def method_name(self, ...): raise NotImplementedError
+            method = cst.FunctionDef(
+                name=cst.Name(method_name),
+                params=cst.Parameters(params=params),
+                body=cst.IndentedBlock(
+                    body=[
+                        cst.SimpleStatementLine(
+                            body=[cst.Raise(exc=cst.Name("NotImplementedError"))]
+                        )
+                    ]
+                ),
+            )
+            methods.append(method)
+            var_names.append(var_name)
+
+        return methods
 
     def _extract_abstract_methods_from_implementation(
         self, method: cst.FunctionDef
     ) -> list[cst.FunctionDef]:
         """Extract abstract method implementations from a concrete implementation.
 
+        Analyzes the original method to find assignments to variables specified in
+        self.steps, and creates methods that return those expressions.
+
         Args:
             method: The concrete method implementation
-            class_name: Name of the class
 
         Returns:
             List of extracted abstract method implementations
         """
         methods: list[cst.FunctionDef] = []
+        var_expressions: dict[str, cst.BaseExpression] = {}
 
-        # For ResidentialSite::get_bill_amount:
-        #   base = self.units * self.rate
-        #   tax = base * self.TAX_RATE
-        # Extract to:
-        #   get_base_amount: return self.units * self.rate
-        #   get_tax_amount: return base * self.TAX_RATE
-
-        # For LifelineSite::get_bill_amount:
-        #   base = self.units * self.rate * 0.5
-        #   tax = base * self.TAX_RATE * 0.2
-        # Extract to:
-        #   get_base_amount: return self.units * self.rate * 0.5
-        #   get_tax_amount: return base * self.TAX_RATE * 0.2
-
-        base_expr: cst.BaseExpression | None = None
-        tax_expr: cst.BaseExpression | None = None
-
-        # Parse the method body to extract base and tax expressions
+        # Parse the method body to extract variable assignments
         if isinstance(method.body, cst.IndentedBlock):
             for stmt in method.body.body:
                 if isinstance(stmt, cst.SimpleStatementLine):
                     for item in stmt.body:
                         if isinstance(item, cst.Assign):
-                            # Check if this is base = ...
+                            # Check if this assigns to one of our step variables
                             for target in item.targets:
                                 if isinstance(target.target, cst.Name):
-                                    if target.target.value == "base":
-                                        base_expr = item.value
-                                    elif target.target.value == "tax":
-                                        tax_expr = item.value
+                                    var_name = target.target.value
+                                    if var_name in self.steps:
+                                        var_expressions[var_name] = item.value
 
-        # Create get_base_amount method
-        if base_expr:
-            get_base_amount = cst.FunctionDef(
-                name=cst.Name("get_base_amount"),
-                params=cst.Parameters(
-                    params=[create_parameter("self")],
-                ),
-                body=cst.IndentedBlock(
-                    body=[cst.SimpleStatementLine(body=[cst.Return(value=base_expr)])]
-                ),
-            )
-            methods.append(get_base_amount)
+        # Create a method for each step variable, in order
+        var_names: list[str] = []
+        for var_name, method_name in self.steps.items():
+            if var_name in var_expressions:
+                # Create parameters: self + all previous variables
+                params = [create_parameter("self")]
+                params.extend([create_parameter(v) for v in var_names])
 
-        # Create get_tax_amount method
-        if tax_expr:
-            get_tax_amount = cst.FunctionDef(
-                name=cst.Name("get_tax_amount"),
-                params=cst.Parameters(
-                    params=[
-                        create_parameter("self"),
-                        create_parameter("base"),
-                    ],
-                ),
-                body=cst.IndentedBlock(
-                    body=[cst.SimpleStatementLine(body=[cst.Return(value=tax_expr)])]
-                ),
-            )
-            methods.append(get_tax_amount)
+                # Create method that returns the expression
+                method_def = cst.FunctionDef(
+                    name=cst.Name(method_name),
+                    params=cst.Parameters(params=params),
+                    body=cst.IndentedBlock(
+                        body=[
+                            cst.SimpleStatementLine(
+                                body=[cst.Return(value=var_expressions[var_name])]
+                            )
+                        ]
+                    ),
+                )
+                methods.append(method_def)
+            var_names.append(var_name)
 
         return methods
 
