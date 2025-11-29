@@ -183,6 +183,9 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
         # Use the provided defaults dictionary
         if var_name in self.defaults:
             value = self.defaults[var_name]
+            # Check if value is a Python literal that shouldn't be quoted
+            if self._is_python_literal(value):
+                return value
             # Quote strings if not already quoted
             if not (value.startswith('"') or value.startswith("'")):
                 return f'"{value}"'
@@ -190,6 +193,26 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
         else:
             # Fallback: return None for any unknown field
             return "None"
+
+    def _is_python_literal(self, value: str) -> bool:
+        """Check if a value is a Python literal that shouldn't be quoted.
+
+        Args:
+            value: The string value to check
+
+        Returns:
+            True if the value is a Python literal (list, dict, tuple, number)
+        """
+        # Check for list/dict/tuple literals by their brackets
+        if value.startswith("[") or value.startswith("{") or value.startswith("("):
+            return True
+        # Check for numeric literals
+        try:
+            float(value)
+            return True
+        except ValueError:
+            pass
+        return False
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
