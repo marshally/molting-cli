@@ -53,29 +53,43 @@ class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
         """
         self.validate_required_params("target")
 
-    def _parse_target(self, target: str) -> tuple[str, int, int]:
-        """Parse target specification into function name and line range.
+    def _parse_target(self, target: str) -> tuple[str, str, int, int]:
+        """Parse target specification into class name, function name, and line range.
 
         Args:
-            target: Target string in format "function_name#L2-L7"
+            target: Target string in format "function_name#L2-L7" or "ClassName::method#L2-L7"
 
         Returns:
-            Tuple of (function_name, start_line, end_line)
+            Tuple of (class_name, function_name, start_line, end_line)
+            class_name will be empty string for module-level functions
 
         Raises:
             ValueError: If target format is invalid
         """
-        # Parse target format: "function_name#L2-L7"
+        # Parse target format: "function_name#L2-L7" or "ClassName::method#L2-L7"
         parts = target.split("#")
         if len(parts) != 2:
-            raise ValueError(f"Invalid target format '{target}'. Expected 'function_name#L2-L7'")
+            raise ValueError(
+                f"Invalid target format '{target}'. "
+                "Expected 'function_name#L2-L7' or 'ClassName::method#L2-L7'"
+            )
 
-        function_name = parts[0]
+        class_method = parts[0]
         line_range = parts[1]
+
+        # Parse class_method to extract class and method names
+        if "::" in class_method:
+            class_parts = class_method.split("::")
+            if len(class_parts) != 2:
+                raise ValueError(f"Invalid class::method format in '{class_method}'")
+            class_name, function_name = class_parts
+        else:
+            class_name = ""
+            function_name = class_method
 
         # Use canonical line range parser
         start_line, end_line = parse_line_range(line_range)
-        return function_name, start_line, end_line
+        return class_name, function_name, start_line, end_line
 
     def execute(self) -> None:
         """Apply consolidate-duplicate-conditional-fragments refactoring using libCST.
@@ -84,14 +98,14 @@ class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
             ValueError: If function not found or target format is invalid
         """
         target = self.params["target"]
-        function_name, start_line, end_line = self._parse_target(target)
+        class_name, function_name, start_line, end_line = self._parse_target(target)
 
         # Read file
         source_code = self.file_path.read_text()
 
         # Apply transformation
         wrapper = metadata.MetadataWrapper(cst.parse_module(source_code))
-        transformer = ConsolidateDuplicateFragmentsTransformer(function_name, start_line, end_line)
+        transformer = ConsolidateDuplicateFragmentsTransformer(class_name, function_name, start_line, end_line)
         modified_tree = wrapper.visit(transformer)
 
         # Write back
@@ -101,23 +115,46 @@ class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
 class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
     """Transforms a function by consolidating duplicate conditional fragments."""
 
-    def __init__(self, function_name: str, start_line: int, end_line: int) -> None:
+    METADATA_DEPENDENCIES = (metadata.PositionProvider,)
+
+    def __init__(self, class_name: str, function_name: str, start_line: int, end_line: int) -> None:
         """Initialize the transformer.
 
         Args:
+            class_name: Name of the class (empty string for module-level functions)
             function_name: Name of the function to transform
             start_line: Start line of the conditional (1-indexed)
             end_line: End line of the conditional (1-indexed)
         """
+        self.class_name = class_name
         self.function_name = function_name
         self.start_line = start_line
         self.end_line = end_line
         self.in_target_function = False
+        self.current_class: str | None = None
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track current class being visited."""
+        if node.name.value == self.class_name:
+            self.current_class = self.class_name
+        return True
+
+    def leave_ClassDef(  # noqa: N802
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
+        """Track exit from class."""
+        if original_node.name.value == self.class_name:
+            self.current_class = None
+        return updated_node
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
         """Visit function definition to track if we're in the target function."""
+        # For class methods, also check we're in the right class
         if node.name.value == self.function_name:
-            self.in_target_function = True
+            if self.class_name and self.current_class == self.class_name:
+                self.in_target_function = True
+            elif not self.class_name:
+                self.in_target_function = True
         return True
 
     def leave_FunctionDef(  # noqa: N802
