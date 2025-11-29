@@ -92,6 +92,9 @@ class MoveFieldTransformer(cst.CSTTransformer):
             return self._transform_source_class(updated_node)
         elif original_node.name.value == self.target_class:
             return self._transform_target_class(updated_node)
+        else:
+            # Update field references in other classes
+            return self._update_external_class_references(updated_node)
         return updated_node
 
     def _transform_source_class(self, node: cst.ClassDef) -> cst.ClassDef:
@@ -135,9 +138,16 @@ class MoveFieldTransformer(cst.CSTTransformer):
         new_params = list(node.params.params)
         new_stmts: list[cst.BaseStatement] = []
 
-        new_params.append(create_parameter(self.target_class_lower))
+        # Check if parameter already exists
+        param_exists = any(
+            isinstance(param.name, cst.Name) and param.name.value == self.target_class_lower
+            for param in new_params
+        )
+        if not param_exists:
+            new_params.append(create_parameter(self.target_class_lower))
 
         if isinstance(node.body, cst.IndentedBlock):
+            has_target_assignment = False
             for stmt in node.body.body:
                 if isinstance(stmt, cst.SimpleStatementLine):
                     keep_stmt = True
@@ -146,26 +156,39 @@ class MoveFieldTransformer(cst.CSTTransformer):
                             self.field_value = item.value
                             keep_stmt = False
                             break
+                        # Check if this is already an assignment to self.target_class_lower
+                        if isinstance(item, cst.Assign):
+                            for target in item.targets:
+                                if isinstance(target.target, cst.Attribute):
+                                    if (
+                                        isinstance(target.target.value, cst.Name)
+                                        and target.target.value.value == "self"
+                                        and target.target.attr.value == self.target_class_lower
+                                    ):
+                                        has_target_assignment = True
                     if keep_stmt:
                         new_stmts.append(stmt)
                 else:
                     new_stmts.append(stmt)
 
-            target_assignment = cst.SimpleStatementLine(
-                body=[
-                    cst.Assign(
-                        targets=[
-                            cst.AssignTarget(
-                                cst.Attribute(
-                                    value=cst.Name("self"), attr=cst.Name(self.target_class_lower)
+            # Only add target assignment if it doesn't already exist
+            if not has_target_assignment:
+                target_assignment = cst.SimpleStatementLine(
+                    body=[
+                        cst.Assign(
+                            targets=[
+                                cst.AssignTarget(
+                                    cst.Attribute(
+                                        value=cst.Name("self"),
+                                        attr=cst.Name(self.target_class_lower),
+                                    )
                                 )
-                            )
-                        ],
-                        value=cst.Name(self.target_class_lower),
-                    )
-                ]
-            )
-            new_stmts.append(target_assignment)
+                            ],
+                            value=cst.Name(self.target_class_lower),
+                        )
+                    ]
+                )
+                new_stmts.append(target_assignment)
 
         return node.with_changes(
             params=cst.Parameters(params=new_params),
@@ -176,6 +199,13 @@ class MoveFieldTransformer(cst.CSTTransformer):
         """Update references to the moved field in methods."""
         transformer = FieldReferenceUpdater(self.field_name, self.target_class_lower)
         return cast(cst.FunctionDef, node.visit(transformer))
+
+    def _update_external_class_references(self, node: cst.ClassDef) -> cst.ClassDef:
+        """Update field references in classes other than source and target."""
+        transformer = ExternalFieldReferenceUpdater(
+            self.source_class, self.field_name, self.target_class_lower
+        )
+        return cast(cst.ClassDef, node.visit(transformer))
 
     def _create_field_assignment(self) -> cst.SimpleStatementLine:
         """Create a field assignment statement for the moved field.
@@ -255,6 +285,70 @@ class FieldReferenceUpdater(cst.CSTTransformer):
                 value=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.target_class_lower)),
                 attr=cst.Name(self.field_name),
             )
+        return updated_node
+
+
+class ExternalFieldReferenceUpdater(cst.CSTTransformer):
+    """Updates references to a field in external classes (not source or target)."""
+
+    def __init__(self, source_class: str, field_name: str, target_class_lower: str) -> None:
+        """Initialize the updater.
+
+        Args:
+            source_class: Name of the source class
+            field_name: Name of the field to update
+            target_class_lower: Name of the target class reference
+        """
+        self.source_class = source_class
+        self.field_name = field_name
+        self.target_class_lower = target_class_lower
+        # Convert source class to snake_case for instance variable name
+        self.source_class_lower = re.sub(r"(?<!^)(?=[A-Z])", "_", source_class).lower()
+
+    def leave_Attribute(  # noqa: N802
+        self, original_node: cst.Attribute, updated_node: cst.Attribute
+    ) -> cst.Attribute | cst.BaseExpression:
+        """Update attribute access to moved field in external references.
+
+        Transforms: obj.source_instance.field -> obj.source_instance.target_instance.field
+        Also transforms: param.field -> param.target_instance.field (for parameters)
+        """
+        # Check if this is an access to the field we're looking for
+        if updated_node.attr.value == self.field_name:
+            # Pattern 1: self.account.interest_rate -> self.account.account_type.interest_rate
+            if isinstance(updated_node.value, cst.Attribute):
+                # We have something like obj.something.field_name
+                # We need to check if 'something' is likely an instance of the source class
+                attr_name = updated_node.value.attr.value
+                if attr_name == self.source_class_lower or attr_name.endswith(
+                    f"_{self.source_class_lower}"
+                ):
+                    # Insert the target class reference between the source instance and field
+                    return cst.Attribute(
+                        value=cst.Attribute(
+                            value=updated_node.value, attr=cst.Name(self.target_class_lower)
+                        ),
+                        attr=cst.Name(self.field_name),
+                    )
+            # Pattern 2: other_account.interest_rate -> other_account.account_type.interest_rate
+            # This handles function parameters or local variables that are instances of source class
+            elif isinstance(updated_node.value, cst.Name):
+                var_name = updated_node.value.value
+                # Check if the variable name suggests it's an instance of the source class
+                # Examples: other_account, account, some_account, etc.
+                if (
+                    var_name == self.source_class_lower
+                    or var_name.endswith(f"_{self.source_class_lower}")
+                    or var_name.startswith(f"{self.source_class_lower}_")
+                    or f"_{self.source_class_lower}_" in var_name
+                ):
+                    # Insert the target class reference
+                    return cst.Attribute(
+                        value=cst.Attribute(
+                            value=updated_node.value, attr=cst.Name(self.target_class_lower)
+                        ),
+                        attr=cst.Name(self.field_name),
+                    )
         return updated_node
 
 
