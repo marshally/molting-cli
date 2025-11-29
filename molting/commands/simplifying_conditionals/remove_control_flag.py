@@ -3,7 +3,6 @@
 from typing import cast
 
 import libcst as cst
-from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command

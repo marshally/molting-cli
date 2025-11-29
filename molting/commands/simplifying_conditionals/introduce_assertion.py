@@ -5,7 +5,7 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_line_number, parse_line_range
+from molting.core.ast_utils import parse_line_number
 
 
 class IntroduceAssertionCommand(BaseCommand):
