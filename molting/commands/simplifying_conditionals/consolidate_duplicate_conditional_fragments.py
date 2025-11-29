@@ -5,6 +5,7 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_line_range
 
 
 class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
@@ -72,20 +73,8 @@ class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
         function_name = parts[0]
         line_range = parts[1]
 
-        # Parse line range
-        if not line_range.startswith("L") or "-" not in line_range:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L7'")
-
-        range_parts = line_range.split("-")
-        if len(range_parts) != 2:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L7'")
-
-        try:
-            start_line = int(range_parts[0][1:])
-            end_line = int(range_parts[1][1:])
-        except ValueError as e:
-            raise ValueError(f"Invalid line numbers in '{line_range}': {e}") from e
-
+        # Use canonical line range parser
+        start_line, end_line = parse_line_range(line_range)
         return function_name, start_line, end_line
 
     def execute(self) -> None:

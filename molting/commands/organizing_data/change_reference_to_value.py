@@ -61,8 +61,7 @@ class ChangeReferenceToValueCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "target" not in self.params:
-            raise ValueError("Missing required parameter for change-reference-to-value: 'target'")
+        self.validate_required_params("target")
 
     def execute(self) -> None:
         """Apply change-reference-to-value refactoring using libCST.

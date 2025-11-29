@@ -1,4 +1,4 @@
-"""Example code for move field with instance variables."""
+"""Expected output after move field with instance variables."""
 
 
 class Account:

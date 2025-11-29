@@ -89,10 +89,7 @@ class DuplicateObservedDataCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "target" not in self.params:
-            raise ValueError("Missing required parameter for duplicate-observed-data: 'target'")
-        if "domain" not in self.params:
-            raise ValueError("Missing required parameter for duplicate-observed-data: 'domain'")
+        self.validate_required_params("target", "domain")
 
     def execute(self) -> None:
         """Apply duplicate-observed-data refactoring using libCST.

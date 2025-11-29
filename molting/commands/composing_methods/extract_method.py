@@ -1,18 +1,15 @@
 """Extract Method refactoring command."""
 
+from typing import Sequence, Union
+
 import libcst as cst
 from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_target
+from molting.core.ast_utils import parse_target_with_range
 from molting.core.code_generation_utils import create_parameter
 from molting.core.visitors import MethodConflictChecker
-
-# Target format constants
-TARGET_SEPARATOR = "#"
-LINE_PREFIX = "L"
-LINE_RANGE_SEPARATOR = "-"
 
 
 class ExtractMethodCommand(BaseCommand):
@@ -64,71 +61,6 @@ class ExtractMethodCommand(BaseCommand):
         """
         self.validate_required_params("target", "name")
 
-    def _parse_target_specification(self, target: str) -> tuple[str, str, str]:
-        """Parse target format into class::method and line range components.
-
-        Args:
-            target: Target string in format "ClassName::method_name#L9-L11"
-
-        Returns:
-            Tuple of (class_name, method_name, line_range)
-
-        Raises:
-            ValueError: If target format is invalid
-        """
-        # Parse target format: "ClassName::method_name#L9-L11"
-        parts = target.split(TARGET_SEPARATOR)
-        if len(parts) != 2:
-            raise ValueError(
-                f"Invalid target format '{target}'. Expected 'ClassName::method_name#L9-L11'"
-            )
-
-        class_method = parts[0]
-        line_range = parts[1]
-
-        # Parse class and method name
-        try:
-            class_name, method_name = parse_target(class_method, expected_parts=2)
-        except ValueError as e:
-            raise ValueError(f"Invalid class::method format in target '{target}': {e}") from e
-
-        return class_name, method_name, line_range
-
-    def _parse_line_range(self, line_range: str) -> tuple[int, int]:
-        """Parse line range string into start and end line numbers.
-
-        Args:
-            line_range: Line range in format "L9-L11"
-
-        Returns:
-            Tuple of (start_line, end_line)
-
-        Raises:
-            ValueError: If line range format is invalid
-        """
-        # Parse line range: "L9-L11" -> [9, 11]
-        if not line_range.startswith(LINE_PREFIX):
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L9-L11'")
-
-        if LINE_RANGE_SEPARATOR not in line_range:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L9-L11' format")
-
-        # Split on '-' and extract numbers: "L9-L11" -> ["L9", "L11"]
-        parts_range = line_range.split(LINE_RANGE_SEPARATOR)
-        if len(parts_range) != 2:
-            raise ValueError(
-                f"Invalid line range format '{line_range}'. " f"Expected 'L<start>-L<end>' format"
-            )
-
-        try:
-            # Remove 'L' prefix from each part
-            start_line = int(parts_range[0][1:])
-            end_line = int(parts_range[1][1:])
-        except ValueError as e:
-            raise ValueError(f"Invalid line numbers in '{line_range}': {e}") from e
-
-        return start_line, end_line
-
     def execute(self) -> None:
         """Apply extract-method refactoring using libCST.
 
@@ -138,9 +70,8 @@ class ExtractMethodCommand(BaseCommand):
         target = self.params["target"]
         new_method_name = self.params["name"]
 
-        # Parse target and line range
-        class_name, method_name, line_range = self._parse_target_specification(target)
-        start_line, end_line = self._parse_line_range(line_range)
+        # Parse target and line range using canonical functions
+        class_name, method_name, start_line, end_line = parse_target_with_range(target)
 
         # Read file
         source_code = self.file_path.read_text()
@@ -368,19 +299,44 @@ class ExtractMethodTransformer(cst.CSTTransformer):
         if not self.extracted_stmt_indices:
             return updated_node
 
-        # Collect extracted statements
+        body = updated_node.body.body
+        extracted_stmts = self._collect_statements_to_extract(body)  # type: ignore[arg-type]
+        self._analyze_extracted_statements(extracted_stmts, list(body))  # type: ignore[arg-type]
+        new_body = self._build_modified_method_body(body)  # type: ignore[arg-type]
+        self.new_method = self._create_new_extracted_method(extracted_stmts)
+
+        return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body)))
+
+    def _collect_statements_to_extract(
+        self, body_stmts: Union[Sequence[cst.BaseStatement], Sequence[cst.BaseSmallStatement]]
+    ) -> list[cst.BaseStatement]:
+        """Collect statements that should be extracted by their index.
+
+        Args:
+            body_stmts: All statements in the method body
+
+        Returns:
+            List of statements that are marked for extraction
+        """
         extracted_stmts: list[cst.BaseStatement] = []
-        for i, stmt in enumerate(updated_node.body.body):
+        for i, stmt in enumerate(body_stmts):
             if i in self.extracted_stmt_indices:
                 extracted_stmts.append(stmt)  # type: ignore[arg-type]
+        return extracted_stmts
 
-        # Analyze extracted statements BEFORE creating the method call
-        # This ensures return_vars is populated for _create_method_call_statement()
-        self._analyze_extracted_statements(extracted_stmts, list(updated_node.body.body))
+    def _build_modified_method_body(
+        self, original_body: Union[Sequence[cst.BaseStatement], Sequence[cst.BaseSmallStatement]]
+    ) -> list[cst.BaseStatement]:
+        """Build the new method body with extracted statements replaced by a method call.
 
-        # Now create the method call with proper return assignment
+        Args:
+            original_body: The original method body statements
+
+        Returns:
+            New method body with extracted statements replaced by a method call
+        """
         new_body: list[cst.BaseStatement] = []
-        for i, stmt in enumerate(updated_node.body.body):
+        for i, stmt in enumerate(original_body):
             if i in self.extracted_stmt_indices:
                 # Insert method call at the first extracted statement position
                 if len([j for j in self.extracted_stmt_indices if j <= i]) == 1:
@@ -388,16 +344,7 @@ class ExtractMethodTransformer(cst.CSTTransformer):
                     new_body.append(method_call)
             else:
                 new_body.append(stmt)  # type: ignore[arg-type]
-
-        # Create the new extracted method with self parameter and return statement
-        new_method_body = self._create_new_method_body(extracted_stmts)
-        self.new_method = cst.FunctionDef(
-            name=cst.Name(self.new_method_name),
-            params=cst.Parameters(params=[create_parameter("self")]),
-            body=new_method_body,
-        )
-
-        return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body)))
+        return new_body
 
     def _analyze_extracted_statements(
         self,
@@ -493,6 +440,24 @@ class ExtractMethodTransformer(cst.CSTTransformer):
             body_stmts.append(return_stmt)
 
         return cst.IndentedBlock(body=tuple(body_stmts))
+
+    def _create_new_extracted_method(
+        self, extracted_stmts: list[cst.BaseStatement]
+    ) -> cst.FunctionDef:
+        """Create a new method definition from extracted statements.
+
+        Args:
+            extracted_stmts: Statements that have been extracted
+
+        Returns:
+            A new FunctionDef node for the extracted method
+        """
+        new_method_body = self._create_new_method_body(extracted_stmts)
+        return cst.FunctionDef(
+            name=cst.Name(self.new_method_name),
+            params=cst.Parameters(params=[create_parameter("self")]),
+            body=new_method_body,
+        )
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef

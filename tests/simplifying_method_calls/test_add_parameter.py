@@ -1,6 +1,5 @@
 """Tests for Add Parameter refactoring."""
 
-
 from tests.conftest import RefactoringTestBase
 
 

@@ -45,8 +45,7 @@ class HideDelegateCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "target" not in self.params:
-            raise ValueError("Missing required parameter for hide-delegate: 'target'")
+        self.validate_required_params("target")
 
     def execute(self) -> None:
         """Apply hide-delegate refactoring using libCST.

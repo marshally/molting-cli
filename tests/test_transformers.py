@@ -3,13 +3,14 @@ Tests for CST transformer classes.
 
 This module tests the reusable transformer classes used across refactorings,
 including SelfFieldRenameTransformer for renaming self.field references
-and FieldAccessCollector for collecting field accesses.
+and SelfFieldCollector for collecting field accesses.
 """
 
 import libcst as cst
 import pytest
 
-from molting.core.transformers import FieldAccessCollector, SelfFieldRenameTransformer
+from molting.core.transformers import SelfFieldRenameTransformer
+from molting.core.visitors import SelfFieldCollector
 
 
 class TestSelfFieldRenameTransformer:
@@ -284,8 +285,8 @@ def method(self):
         assert "self._person.manager.name" in modified.code
 
 
-class TestFieldAccessCollector:
-    """Tests for FieldAccessCollector visitor."""
+class TestSelfFieldCollector:
+    """Tests for SelfFieldCollector visitor."""
 
     def test_collects_single_field(self) -> None:
         """Should collect a single self.field reference."""
@@ -297,7 +298,7 @@ def method(self):
         method = module.body[0]
         assert isinstance(method, cst.FunctionDef)
 
-        collector = FieldAccessCollector()
+        collector = SelfFieldCollector()
         method.visit(collector)
 
         assert collector.collected_fields == ["name"]
@@ -314,7 +315,7 @@ def method(self):
         method = module.body[0]
         assert isinstance(method, cst.FunctionDef)
 
-        collector = FieldAccessCollector()
+        collector = SelfFieldCollector()
         method.visit(collector)
 
         assert len(collector.collected_fields) == 3
@@ -334,7 +335,7 @@ def method(self):
         method = module.body[0]
         assert isinstance(method, cst.FunctionDef)
 
-        collector = FieldAccessCollector(exclude_fields={"age"})
+        collector = SelfFieldCollector(exclude_fields={"age"})
         method.visit(collector)
 
         assert len(collector.collected_fields) == 2
@@ -354,7 +355,7 @@ def method(self):
         method = module.body[0]
         assert isinstance(method, cst.FunctionDef)
 
-        collector = FieldAccessCollector()
+        collector = SelfFieldCollector()
         method.visit(collector)
 
         assert collector.collected_fields == ["name"]
@@ -370,7 +371,7 @@ def method(self):
         method = module.body[0]
         assert isinstance(method, cst.FunctionDef)
 
-        collector = FieldAccessCollector()
+        collector = SelfFieldCollector()
         method.visit(collector)
 
         assert collector.collected_fields == []
@@ -385,7 +386,7 @@ def method(self):
         method = module.body[0]
         assert isinstance(method, cst.FunctionDef)
 
-        collector = FieldAccessCollector()
+        collector = SelfFieldCollector()
         method.visit(collector)
 
         assert len(collector.collected_fields) == 4
@@ -405,7 +406,7 @@ def method(self):
         method = module.body[0]
         assert isinstance(method, cst.FunctionDef)
 
-        collector = FieldAccessCollector()
+        collector = SelfFieldCollector()
         method.visit(collector)
 
         assert collector.collected_fields == []
@@ -420,7 +421,7 @@ def method(self):
         method = module.body[0]
         assert isinstance(method, cst.FunctionDef)
 
-        collector = FieldAccessCollector(exclude_fields=None)
+        collector = SelfFieldCollector(exclude_fields=None)
         method.visit(collector)
 
         assert collector.collected_fields == ["name"]

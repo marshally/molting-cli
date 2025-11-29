@@ -1,5 +1,7 @@
 """Command registry for dynamic dispatch of refactorings."""
 
+import importlib
+import pkgutil
 from pathlib import Path
 from typing import Any, Dict, Type
 
@@ -37,6 +39,28 @@ def get_command(name: str) -> Type[BaseCommand]:
     if name not in _registry:
         raise ValueError(f"Unknown refactoring: {name}")
     return _registry[name]
+
+
+def discover_and_register_commands() -> None:
+    """Dynamically discover and import all command modules.
+
+    This function walks through the commands directory structure and imports
+    all command modules. Each module's register_command() call at import time
+    automatically registers the command in the global registry.
+
+    This replaces the need for explicit imports and the register_command()
+    pattern is automatically triggered when a module is imported.
+    """
+    commands_dir = Path(__file__).parent
+
+    # Walk through all subdirectories and import .py files
+    for category_dir in commands_dir.iterdir():
+        if category_dir.is_dir() and not category_dir.name.startswith("_"):
+            package_name = f"molting.commands.{category_dir.name}"
+            for module_info in pkgutil.iter_modules([str(category_dir)]):
+                if not module_info.name.startswith("_"):
+                    module_name = f"{package_name}.{module_info.name}"
+                    importlib.import_module(module_name)
 
 
 def apply_refactoring(refactoring: str, file_path: Path, **params: Any) -> None:

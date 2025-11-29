@@ -5,6 +5,7 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_line_range
 
 
 class ReplaceConditionalWithPolymorphismCommand(BaseCommand):
@@ -109,7 +110,8 @@ class ReplaceConditionalWithPolymorphismCommand(BaseCommand):
         method_name = method_parts[0]
         line_range = method_parts[1]
 
-        start_line, end_line = self._parse_line_range(line_range)
+        # Use canonical line range parser
+        start_line, end_line = parse_line_range(line_range)
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
@@ -119,36 +121,6 @@ class ReplaceConditionalWithPolymorphismCommand(BaseCommand):
         )
         modified_tree = wrapper.visit(transformer)
         self.file_path.write_text(modified_tree.code)
-
-    def _parse_line_range(self, line_range: str) -> tuple[int, int]:
-        """Parse line range string into start and end line numbers.
-
-        Args:
-            line_range: Line range in format "L2-L5"
-
-        Returns:
-            Tuple of (start_line, end_line)
-
-        Raises:
-            ValueError: If line range format is invalid
-        """
-        if not line_range.startswith("L"):
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L5'")
-
-        if "-" not in line_range:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L5'")
-
-        range_parts = line_range.split("-")
-        if len(range_parts) != 2:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L2-L5'")
-
-        try:
-            start_line = int(range_parts[0][1:])
-            end_line = int(range_parts[1][1:])
-        except ValueError as e:
-            raise ValueError(f"Invalid line numbers in '{line_range}': {e}") from e
-
-        return start_line, end_line
 
 
 class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):

@@ -66,10 +66,7 @@ class MoveFieldCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "source" not in self.params:
-            raise ValueError("Missing required parameter for move-field: 'source'")
-        if "to" not in self.params:
-            raise ValueError("Missing required parameter for move-field: 'to'")
+        self.validate_required_params("source", "to")
 
     def execute(self) -> None:
         """Apply move-field refactoring using libCST.

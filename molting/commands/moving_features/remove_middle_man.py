@@ -64,8 +64,7 @@ class RemoveMiddleManCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "target" not in self.params:
-            raise ValueError("Missing required parameter for remove-middle-man: 'target'")
+        self.validate_required_params("target")
 
     def execute(self) -> None:
         """Apply remove-middle-man refactoring using libCST.

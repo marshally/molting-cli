@@ -55,10 +55,7 @@ class ReplaceArrayWithObjectCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "target" not in self.params:
-            raise ValueError("Missing required parameter for replace-array-with-object: 'target'")
-        if "name" not in self.params:
-            raise ValueError("Missing required parameter for replace-array-with-object: 'name'")
+        self.validate_required_params("target", "name")
 
     def execute(self) -> None:
         """Apply replace-array-with-object refactoring using libCST.

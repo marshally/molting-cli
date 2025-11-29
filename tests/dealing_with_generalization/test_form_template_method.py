@@ -28,6 +28,7 @@ class TestFormTemplateMethod(RefactoringTestBase):
             "form-template-method",
             targets="ResidentialSite::get_bill_amount,LifelineSite::get_bill_amount",
             name="get_bill_amount",
+            steps="base:get_base_amount,tax:get_tax_amount",
         )
 
     @pytest.mark.skip(reason="Implementation needed for local variables")
@@ -43,4 +44,5 @@ class TestFormTemplateMethod(RefactoringTestBase):
             "form-template-method",
             targets="ResidentialSite::get_bill_amount,LifelineSite::get_bill_amount",
             name="get_bill_amount",
+            steps="base:get_base_amount,tax:get_tax_amount",
         )

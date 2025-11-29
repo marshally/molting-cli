@@ -5,6 +5,7 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_line_number
 
 
 class IntroduceAssertionCommand(BaseCommand):
@@ -66,19 +67,14 @@ class IntroduceAssertionCommand(BaseCommand):
         Raises:
             ValueError: If target format is invalid
         """
-        if "#L" not in target:
+        if "#" not in target:
             raise ValueError(
                 f"Invalid target format: {target}. Expected: function_name#L<line_number>"
             )
 
-        function_name, line_part = target.split("#L", 1)
-        try:
-            target_line = int(line_part)
-        except ValueError:
-            raise ValueError(
-                f"Invalid line number in target: {target}. Expected: function_name#L<line_number>"
-            )
-
+        function_name, line_spec = target.split("#", 1)
+        # Use canonical line number parser
+        target_line = parse_line_number(line_spec)
         return function_name, target_line
 
     def execute(self) -> None:

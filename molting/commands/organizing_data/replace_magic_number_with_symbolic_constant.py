@@ -53,10 +53,7 @@ class ReplaceMagicNumberWithSymbolicConstantCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing or invalid
         """
-        if "target" not in self.params:
-            raise ValueError("Missing required parameter: 'target'")
-        if "name" not in self.params:
-            raise ValueError("Missing required parameter: 'name'")
+        self.validate_required_params("target", "name")
 
         constant_name = self.params["name"]
         if not constant_name.isupper() or not constant_name.replace("_", "").isalnum():

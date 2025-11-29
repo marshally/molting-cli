@@ -1,4 +1,4 @@
-"""Example code for remove-parameter with multiple call sites."""
+"""Expected output after remove-parameter with multiple call sites."""
 
 
 class Order:

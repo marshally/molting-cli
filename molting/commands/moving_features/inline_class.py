@@ -230,14 +230,32 @@ class InlineClassTransformer(cst.CSTTransformer):
         new_body_stmts: list[cst.BaseStatement] = []
         for stmt in class_body:
             stmt = cast(cst.BaseStatement, stmt)
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
-                stmt = self._transform_init_method(stmt)
-                new_body_stmts.append(stmt)
-            elif isinstance(stmt, cst.FunctionDef) and stmt.name.value in source_method_names:
-                continue
-            else:
-                new_body_stmts.append(stmt)
+            processed_stmt = self._process_target_class_statement(stmt, source_method_names)
+            if processed_stmt is not None:
+                new_body_stmts.append(processed_stmt)
         return new_body_stmts
+
+    def _process_target_class_statement(
+        self, stmt: cst.BaseStatement, source_method_names: set[str]
+    ) -> cst.BaseStatement | None:
+        """Process a statement from the target class body.
+
+        Transforms __init__ methods and removes delegating methods from source class.
+
+        Args:
+            stmt: The statement to process
+            source_method_names: Names of methods being inlined
+
+        Returns:
+            The processed statement or None to skip it
+        """
+        if isinstance(stmt, cst.FunctionDef):
+            if stmt.name.value == INIT_METHOD_NAME:
+                return self._transform_init_method(stmt)
+            elif stmt.name.value in source_method_names:
+                return None  # Skip delegating methods
+
+        return stmt
 
     def _add_inlined_methods(self, body_stmts: list[cst.BaseStatement]) -> None:
         """Add transformed methods from source class to target class body.
@@ -247,8 +265,19 @@ class InlineClassTransformer(cst.CSTTransformer):
         """
         for method in self.source_methods:
             if method.name.value != INIT_METHOD_NAME:
-                transformed_method = self._transform_method(method)
-                body_stmts.append(transformed_method)
+                self._add_inlined_method(method, body_stmts)
+
+    def _add_inlined_method(
+        self, method: cst.FunctionDef, body_stmts: list[cst.BaseStatement]
+    ) -> None:
+        """Add a single transformed method to the target class body.
+
+        Args:
+            method: The method to transform and add
+            body_stmts: List of body statements to append to
+        """
+        transformed_method = self._transform_method(method)
+        body_stmts.append(transformed_method)
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -289,9 +318,19 @@ class InlineClassTransformer(cst.CSTTransformer):
         """
         for stmt in class_def.body.body:
             if isinstance(stmt, cst.FunctionDef):
-                self.source_methods.append(stmt)
-                if stmt.name.value == INIT_METHOD_NAME:
-                    self.source_fields = extract_init_field_assignments(stmt)
+                self._process_source_method(stmt)
+
+    def _process_source_method(self, method: cst.FunctionDef) -> None:
+        """Process a method from the source class.
+
+        Collects the method and extracts field assignments if it's __init__.
+
+        Args:
+            method: The method definition to process
+        """
+        self.source_methods.append(method)
+        if method.name.value == INIT_METHOD_NAME:
+            self.source_fields = extract_init_field_assignments(method)
 
     def _compute_prefix_from_field(self, field_name: str) -> str:
         """Compute the prefix from a delegation field name.
@@ -313,22 +352,49 @@ class InlineClassTransformer(cst.CSTTransformer):
         Args:
             target_class_def: The target class definition
         """
-        for stmt in target_class_def.body.body:
-            if not isinstance(stmt, cst.FunctionDef):
-                continue
-            if stmt.name.value != INIT_METHOD_NAME:
-                continue
-            if not isinstance(stmt.body, cst.IndentedBlock):
-                continue
+        init_method = self._find_init_method(target_class_def)
+        if init_method:
+            self._extract_prefix_from_init(init_method)
 
-            for body_stmt in stmt.body.body:
-                if isinstance(body_stmt, cst.SimpleStatementLine):
-                    result = find_self_field_assignment(body_stmt)
-                    if result:
-                        field_name, value = result
-                        if self._is_source_class_instantiation(value):
-                            self.field_prefix = self._compute_prefix_from_field(field_name)
-                            return
+    def _find_init_method(self, class_def: cst.ClassDef) -> cst.FunctionDef | None:
+        """Find the __init__ method in a class definition.
+
+        Args:
+            class_def: The class definition to search
+
+        Returns:
+            The __init__ method if found, None otherwise
+        """
+        for stmt in class_def.body.body:
+            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == INIT_METHOD_NAME:
+                if isinstance(stmt.body, cst.IndentedBlock):
+                    return stmt
+        return None
+
+    def _extract_prefix_from_init(self, init_method: cst.FunctionDef) -> None:
+        """Extract the field prefix from source class instantiation in __init__.
+
+        Args:
+            init_method: The __init__ method to analyze
+        """
+        if not isinstance(init_method.body, cst.IndentedBlock):
+            return
+
+        for body_stmt in init_method.body.body:
+            if isinstance(body_stmt, cst.SimpleStatementLine):
+                self._check_and_set_prefix_for_statement(body_stmt)
+
+    def _check_and_set_prefix_for_statement(self, stmt: cst.SimpleStatementLine) -> None:
+        """Check if statement assigns source class instance and set prefix.
+
+        Args:
+            stmt: The statement to check
+        """
+        result = find_self_field_assignment(stmt)
+        if result:
+            field_name, value = result
+            if self._is_source_class_instantiation(value):
+                self.field_prefix = self._compute_prefix_from_field(field_name)
 
     def _transform_init_method(self, node: cst.FunctionDef) -> cst.FunctionDef:
         """Transform the __init__ method to inline source class fields.
@@ -343,37 +409,64 @@ class InlineClassTransformer(cst.CSTTransformer):
 
         if isinstance(node.body, cst.IndentedBlock):
             for stmt in node.body.body:
-                if isinstance(stmt, cst.SimpleStatementLine):
-                    result = find_self_field_assignment(stmt)
-                    if result:
-                        field_name, value = result
-                        if self._is_source_class_instantiation(value):
-                            for field_name, field_value in self.source_fields.items():
-                                new_field_name = self.field_prefix + field_name
-                                new_assignment = cst.SimpleStatementLine(
-                                    body=[
-                                        cst.Assign(
-                                            targets=[
-                                                cst.AssignTarget(
-                                                    cst.Attribute(
-                                                        value=cst.Name("self"),
-                                                        attr=cst.Name(new_field_name),
-                                                    )
-                                                )
-                                            ],
-                                            value=field_value,
-                                        )
-                                    ]
-                                )
-                                new_stmts.append(new_assignment)
-                        else:
-                            new_stmts.append(stmt)
-                    else:
-                        new_stmts.append(stmt)
-                else:
-                    new_stmts.append(stmt)
+                transformed_stmts = self._transform_init_statement(stmt)
+                new_stmts.extend(transformed_stmts)
 
         return node.with_changes(body=cst.IndentedBlock(body=new_stmts))
+
+    def _transform_init_statement(self, stmt: cst.BaseStatement) -> list[cst.BaseStatement]:
+        """Transform a single statement from __init__ method.
+
+        Replaces source class instantiation with inlined field assignments.
+
+        Args:
+            stmt: The statement to transform
+
+        Returns:
+            List of transformed statements (may be one or multiple)
+        """
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return [stmt]
+
+        result = find_self_field_assignment(stmt)
+        if not result:
+            return [stmt]
+
+        field_name, value = result
+        if not self._is_source_class_instantiation(value):
+            return [stmt]
+
+        # Replace source class instantiation with inlined field assignments
+        return self._create_inlined_field_assignments()
+
+    def _create_inlined_field_assignments(self) -> list[cst.BaseStatement]:
+        """Create assignments for all inlined source class fields.
+
+        Returns:
+            List of assignment statements for inlined fields
+        """
+        assignments: list[cst.BaseStatement] = []
+
+        for field_name, field_value in self.source_fields.items():
+            new_field_name = self.field_prefix + field_name
+            assignment = cst.SimpleStatementLine(
+                body=[
+                    cst.Assign(
+                        targets=[
+                            cst.AssignTarget(
+                                cst.Attribute(
+                                    value=cst.Name("self"),
+                                    attr=cst.Name(new_field_name),
+                                )
+                            )
+                        ],
+                        value=field_value,
+                    )
+                ]
+            )
+            assignments.append(assignment)
+
+        return assignments
 
     def _transform_method(self, method: cst.FunctionDef) -> cst.FunctionDef:
         """Transform a method from source class to use inlined fields.
