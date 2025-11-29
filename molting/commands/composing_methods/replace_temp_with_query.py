@@ -213,7 +213,9 @@ class ReplaceTempWithQueryTransformer(cst.CSTTransformer):
             modified_module = temp_module.visit(inserter)
 
             # Extract the modified class from the temporary module
-            return modified_module.body[0]
+            modified_class = modified_module.body[0]
+            assert isinstance(modified_class, cst.ClassDef)
+            return modified_class
         return updated_node
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
