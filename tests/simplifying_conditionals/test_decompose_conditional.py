@@ -51,7 +51,6 @@ class TestDecomposeConditional(RefactoringTestBase):
         """
         self.refactor("decompose-conditional", target="calculate_shipping_charge#L5-L8")
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test decompose conditional on a method with decorators.
 

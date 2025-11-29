@@ -9,6 +9,7 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_line_range
 from molting.core.code_generation_utils import create_parameter
+from molting.core.decorator_handler import DecoratorHandler
 from molting.core.local_variable_analyzer import LocalVariableAnalyzer
 
 
@@ -210,9 +211,15 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
     ) -> cst.FunctionDef | cst.FlattenSentinel[cst.FunctionDef]:
         """Process function definition after visiting."""
         if self.current_function == self.function_name:
+            # Preserve decorators from original method
+            decorator_handler = DecoratorHandler(original_node)
+            preserved_node = decorator_handler.apply_decorators(updated_node)
+
             # Return the updated function along with new helper functions
             if self.new_functions:
-                return cst.FlattenSentinel([updated_node] + self.new_functions)
+                return cst.FlattenSentinel([preserved_node] + self.new_functions)
+
+            return preserved_node
 
         self.current_function = None
         return updated_node
@@ -278,19 +285,26 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
     def _create_helper_functions(self) -> None:
         """Create helper functions for condition, then, and else branches."""
-        if self.condition_expr and self.condition_params:
+        # Create condition function if we have a condition expression
+        # For methods, even if condition_params is empty, we should still create the function
+        # because 'self' will be implicitly added
+        if self.condition_expr:
             condition_func = self._create_function(
                 "is_winter", self.condition_params, self.condition_expr
             )
             self.new_functions.append(condition_func)
 
-        if self.then_body and self.then_params:
+        # Create then branch function if we have both a then body and parameters
+        # (or if it's a method, even with no parameters)
+        if self.then_body:
             then_value = self._extract_return_value(self.then_body)
             if then_value:
                 then_func = self._create_function("winter_charge", self.then_params, then_value)
                 self.new_functions.append(then_func)
 
-        if self.else_body and self.else_params:
+        # Create else branch function if we have both an else body and parameters
+        # (or if it's a method, even with no parameters)
+        if self.else_body:
             else_value = self._extract_return_value(self.else_body)
             if else_value:
                 else_func = self._create_function("summer_charge", self.else_params, else_value)
