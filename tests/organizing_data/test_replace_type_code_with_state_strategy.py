@@ -26,9 +26,6 @@ class TestReplaceTypeCodeWithStateStrategy(RefactoringTestBase):
             "replace-type-code-with-state-strategy", target="Employee::type", name="EmployeeType"
         )
 
-    @pytest.mark.skip(
-        reason="Implementation needed for name_conflict - should detect existing class"
-    )
     def test_name_conflict(self) -> None:
         """Test that replacing type code fails when the target state class name already exists.
 
