@@ -482,8 +482,17 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
     def _determine_additional_params_from_body(self, body: list[cst.BaseStatement]) -> list[str]:
         """Determine additional parameters needed based on branch body."""
         params = []
-        # For now, we don't need to determine additional params from the body
-        # since the base class init will have all parameters
+        # Scan the body for attributes that are not class-wide (look for commission, bonus, etc.)
+        collector = AttributeNameCollector()
+        for stmt in body:
+            if isinstance(stmt, cst.BaseStatement):
+                stmt.visit(collector)
+
+        # Check which attributes are parameter-like (commission, bonus, etc.)
+        for attr in collector.found_attributes:
+            if attr in ["commission", "bonus", "commission_rate", "discount"]:
+                params.append(attr)
+
         return params
 
     def _uses_attribute(self, expr: cst.BaseExpression, attr_name: str) -> bool:
@@ -603,6 +612,19 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
             params=cst.Parameters(params=params),
             body=cst.IndentedBlock(body=method_body),
         )
+
+
+class AttributeNameCollector(cst.CSTVisitor):
+    """Visitor to collect all attribute names in an expression."""
+
+    def __init__(self) -> None:
+        """Initialize the collector."""
+        self.found_attributes: set[str] = set()
+
+    def visit_Attribute(self, node: cst.Attribute) -> None:  # noqa: N802
+        """Collect all attribute names."""
+        if isinstance(node.attr, cst.Name):
+            self.found_attributes.add(node.attr.value)
 
 
 class AttributeCollector(cst.CSTVisitor):
