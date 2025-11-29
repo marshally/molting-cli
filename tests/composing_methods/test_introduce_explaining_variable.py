@@ -15,7 +15,14 @@ class TestIntroduceExplainingVariable(RefactoringTestBase):
     fixture_category = "composing_methods/introduce_explaining_variable"
 
     def test_simple(self) -> None:
-        """Put complex expressions into named temp variables."""
+        """Test basic introduce explaining variable using line number targeting.
+
+        This test applies the refactoring multiple times using line number targeting
+        (#L3, #L5, #L7). It verifies that complex expressions are extracted into
+        named temporary variables with descriptive names. This is the foundational
+        case using explicit line targeting, which requires tracking line shifts
+        as new variables are introduced.
+        """
         from molting.cli import refactor_file
 
         assert self.test_file is not None  # Type guard
@@ -46,7 +53,13 @@ class TestIntroduceExplainingVariable(RefactoringTestBase):
         self.assert_matches_expected()
 
     def test_name_conflict(self) -> None:
-        """Test introduce explaining variable when variable name already exists."""
+        """Test that name conflict is detected when the variable name already exists.
+
+        This test verifies error handling: when extracting a complex expression
+        into a named variable, if that variable name (e.g., base_price) already
+        exists in the function scope, the refactoring should raise a ValueError
+        instead of creating a shadowing variable or silently overwriting.
+        """
         from molting.cli import refactor_file
 
         assert self.test_file is not None  # Type guard

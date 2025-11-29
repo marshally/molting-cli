@@ -16,7 +16,12 @@ class TestIntroduceForeignMethod(RefactoringTestBase):
     fixture_category = "moving_features/introduce_foreign_method"
 
     def test_simple(self) -> None:
-        """Create method in client with server instance as first arg."""
+        """Test adding a foreign method to a class that you don't own.
+
+        This baseline case creates a method in a client class that takes an instance
+        of an external class (that you can't modify) as its first parameter. Verifies
+        the method is created in the right place and can be called on the external class.
+        """
         self.refactor(
             "introduce-foreign-method",
             target="Report::generate#L6",
@@ -26,7 +31,12 @@ class TestIntroduceForeignMethod(RefactoringTestBase):
 
     @pytest.mark.skip(reason="Implementation needs local variable handling fix")
     def test_with_locals(self) -> None:
-        """Test introduce foreign method with local variables."""
+        """Test creating a foreign method that uses local variables from the client.
+
+        Unlike test_simple which may have simple logic, this tests foreign methods
+        that depend on local variables from the calling code. Verifies the refactoring
+        correctly captures and passes local state as parameters to the foreign method.
+        """
         self.refactor(
             "introduce-foreign-method",
             target="Report::generate#L12",
@@ -35,7 +45,12 @@ class TestIntroduceForeignMethod(RefactoringTestBase):
         )
 
     def test_name_conflict(self) -> None:
-        """Test introduce foreign method when method name already exists."""
+        """Test that introduce foreign method raises error when method name exists.
+
+        This error handling test verifies the refactoring detects when the proposed
+        foreign method name already exists in the client class. Prevents silent
+        method overwrites.
+        """
         with pytest.raises(ValueError, match="already has a method"):
             self.refactor(
                 "introduce-foreign-method",

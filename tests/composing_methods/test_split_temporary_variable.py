@@ -15,11 +15,23 @@ class TestSplitTemporaryVariable(RefactoringTestBase):
     fixture_category = "composing_methods/split_temporary_variable"
 
     def test_simple(self) -> None:
-        """Split a temp variable assigned multiple times."""
+        """Test basic split temporary variable refactoring.
+
+        This is the simplest case: a method with a single temporary variable that
+        is assigned multiple times for different purposes. The refactoring should
+        split this into separate variables with more meaningful names, improving
+        code clarity and reducing cognitive load.
+        """
         self.refactor("split-temporary-variable", target="calculate_distance::temp")
 
     def test_name_conflict(self) -> None:
-        """Test split temporary variable when new variable name already exists."""
+        """Test that name conflict is detected when the new variable name already exists.
+
+        This test verifies error handling: when splitting a temporary variable,
+        if the proposed name for the split variable (e.g., primary_acc) already
+        exists in the scope, the refactoring should raise a ValueError instead of
+        silently overwriting or creating shadowing variables.
+        """
         from molting.cli import refactor_file
 
         assert self.test_file is not None  # Type guard

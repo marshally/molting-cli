@@ -15,13 +15,28 @@ class TestEncapsulateField(RefactoringTestBase):
     fixture_category = "organizing_data/encapsulate_field"
 
     def test_simple(self) -> None:
-        """Make the field private and provide accessors."""
+        """Test basic encapsulate field on a public field.
+
+        This is the simplest case: converting a public field to private with getter/setter
+        methods. Verifies the core transformation works before testing fields with existing
+        accessors or decorators.
+        """
         self.refactor("encapsulate-field", target="Person::name")
 
     def test_with_decorators(self) -> None:
-        """Test encapsulate-field with decorated methods."""
+        """Test encapsulate field when class has existing decorated accessor methods.
+
+        Unlike test_simple, this verifies that methods with decorators like @property
+        are properly handled and don't conflict with the generated getter/setter methods.
+        Important for classes that already use Python's property protocol.
+        """
         self.refactor("encapsulate-field", target="Person::name")
 
     def test_multiple_calls(self) -> None:
-        """Test encapsulate-field with multiple call sites."""
+        """Test encapsulate field when field is accessed from multiple locations.
+
+        Unlike test_simple, this verifies that all external references to the field are
+        properly updated to use the new getter/setter methods, maintaining consistency
+        across all call sites that access the field.
+        """
         self.refactor("encapsulate-field", target="Person::name")

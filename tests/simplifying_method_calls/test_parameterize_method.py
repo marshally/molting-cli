@@ -11,7 +11,12 @@ class TestParameterizeMethod(RefactoringTestBase):
     fixture_category = "simplifying_method_calls/parameterize_method"
 
     def test_simple(self) -> None:
-        """Create one method that uses a parameter for different values."""
+        """Test consolidating two methods with a parameter in the basic case.
+
+        This is the simplest case: combining two similar methods
+        (five_percent_raise and ten_percent_raise) into one parameterized
+        method (raise_salary). Verifies the core transformation works.
+        """
         self.refactor(
             "parameterize-method",
             target1="Employee::five_percent_raise",
@@ -21,7 +26,12 @@ class TestParameterizeMethod(RefactoringTestBase):
 
     @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
-        """Test parameterize method with decorated methods."""
+        """Test parameterizing decorated methods.
+
+        Unlike test_simple, this tests consolidating two decorated methods.
+        Decorators must be preserved and applied appropriately to the new
+        parameterized method.
+        """
         self.refactor(
             "parameterize-method",
             target1="Employee::small_raise",
@@ -31,7 +41,12 @@ class TestParameterizeMethod(RefactoringTestBase):
 
     @pytest.mark.skip(reason="Implementation needed for with_instance_vars")
     def test_with_instance_vars(self) -> None:
-        """Test parameterize method with instance variables."""
+        """Test parameterizing methods that use instance variables.
+
+        Unlike test_simple, this tests consolidating two methods that access
+        instance state. The parameterized method must correctly access the
+        instance variables that both original methods needed.
+        """
         self.refactor(
             "parameterize-method",
             target1="InventoryItem::mark_low_stock",
@@ -40,7 +55,12 @@ class TestParameterizeMethod(RefactoringTestBase):
         )
 
     def test_name_conflict(self) -> None:
-        """Test parameterize method when target name already exists."""
+        """Test parameterizing methods when the new name already exists.
+
+        This is an edge case where the parameterized method name would
+        conflict with an existing method. The refactoring must handle
+        this gracefully.
+        """
         self.refactor(
             "parameterize-method",
             target1="Employee::five_percent_raise",

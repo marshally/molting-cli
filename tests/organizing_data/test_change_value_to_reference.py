@@ -16,10 +16,20 @@ class TestChangeValueToReference(RefactoringTestBase):
     fixture_category = "organizing_data/change_value_to_reference"
 
     def test_simple(self) -> None:
-        """Turn a value object into a reference object."""
+        """Test basic conversion of a value object to a reference object.
+
+        This is the simplest case: converting a value type (with value-based equality)
+        into a reference type (with identity-based equality). Verifies the core transformation
+        works before testing objects with instance variables.
+        """
         self.refactor("change-value-to-reference", target="Customer")
 
     @pytest.mark.skip(reason="Fixture loading broken for with_instance_vars tests")
     def test_with_instance_vars(self) -> None:
-        """Test change-value-to-reference with instance variables."""
+        """Test value-to-reference conversion with complex instance state.
+
+        Unlike test_simple which uses a simple value object, this verifies that
+        objects with multiple instance variables are properly converted to reference
+        objects with identity-based behavior. Currently skipped due to fixture loading issues.
+        """
         self.refactor("change-value-to-reference", target="Product")

@@ -15,5 +15,11 @@ class TestCollapseHierarchy(RefactoringTestBase):
     fixture_category = "dealing_with_generalization/collapse_hierarchy"
 
     def test_simple(self) -> None:
-        """Merge a subclass into its superclass."""
+        """Test basic merging of a subclass into its superclass.
+
+        Merges the Salesman subclass into the Employee superclass, moving all
+        of Salesman's features (fields and methods) into Employee and removing
+        the now-redundant subclass. This is the simplest case: collapsing an
+        inheritance hierarchy that is no longer needed.
+        """
         self.refactor("collapse-hierarchy", target="Salesman", into="Employee")
