@@ -6,7 +6,6 @@ that uses local variables.
 """
 
 import libcst as cst
-from libcst import metadata
 
 
 class LocalVariableAnalyzer(cst.CSTVisitor):
@@ -192,7 +191,7 @@ class LocalVariableAnalyzer(cst.CSTVisitor):
             if node.name:
                 # node.name is an AsName object, extract the name
                 if isinstance(node.name, cst.AsName):
-                    var_name = node.name.name.value
+                    var_name = node.name.name.value  # type: ignore[union-attr]
                     if var_name not in self._local_variables:
                         self._local_variables.append(var_name)
         return True
@@ -212,7 +211,7 @@ class LocalVariableAnalyzer(cst.CSTVisitor):
             # Handle tuple unpacking: a, b = ...
             for element in target.elements:
                 if isinstance(element, cst.Element):
-                    self._extract_names_from_target(element.value)
+                    self._extract_names_from_target(element.value)  # type: ignore[arg-type]
         elif isinstance(target, cst.Attribute):
             # Skip self.attribute assignments - these are instance variables
             pass

@@ -23,9 +23,7 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
         """
         self.refactor("consolidate-duplicate-conditional-fragments", target="process_order#L2-L7")
 
-    @pytest.mark.skip(
-        reason="Requires ternary expression extraction for differing arguments - not yet implemented"
-    )
+    @pytest.mark.skip(reason="Requires ternary expression extraction for differing arguments")
     def test_with_locals(self) -> None:
         """Test consolidating duplicate code when it uses local variables.
 

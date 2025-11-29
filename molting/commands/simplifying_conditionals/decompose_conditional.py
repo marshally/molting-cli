@@ -345,7 +345,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         return ""
 
     def _create_replacement_if(self) -> cst.If:
-        """Create replacement if statement using the new functions, preserving non-extracted statements."""
+        """Create replacement if using new functions, preserving other statements."""
         if not self.original_if:
             return cst.If(test=cst.Name("False"), body=cst.IndentedBlock(body=[]))
 

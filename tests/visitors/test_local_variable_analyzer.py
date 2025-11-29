@@ -6,7 +6,6 @@ as parameters to extracted code.
 """
 
 import libcst as cst
-import pytest
 
 from molting.core.local_variable_analyzer import LocalVariableAnalyzer
 

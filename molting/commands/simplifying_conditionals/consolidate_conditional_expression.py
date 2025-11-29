@@ -347,7 +347,7 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         else:
             all_params.append(self._first_param)
 
-        # Add all variables that are used in the conditions (both local vars and other function params)
+        # Add variables used in conditions (local vars and other function params)
         for var in self.variables_used_in_conditions:
             # Check if this variable is already added as a param
             param_names = [p.name.value for p in all_params]
