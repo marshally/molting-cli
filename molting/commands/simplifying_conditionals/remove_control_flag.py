@@ -107,6 +107,8 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         self.function_name = function_name
         self.flag_variable = flag_variable
         self.current_class: str | None = None
+        self.initial_flag_value: bool = False  # Track the initial flag value
+        self.has_return_not_flag: bool = False  # Track if there's a return not flag stmt
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
         """Track current class being visited."""
@@ -150,6 +152,12 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         Returns:
             Transformed function body
         """
+        # First pass: check if there's a return not flag statement
+        for stmt in body.body:
+            if self._is_return_not_flag(stmt):
+                self.has_return_not_flag = True
+                break
+
         new_statements: list[cst.BaseStatement] = []
 
         for stmt in body.body:
@@ -159,10 +167,39 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
             if isinstance(stmt, cst.For):
                 new_for = self._transform_for_loop(stmt)
                 new_statements.append(new_for)
+            elif self._is_return_not_flag(stmt):
+                # Transform "return not found" to "return True" (if initial was False)
+                # or "return False" (if initial was True)
+                return_value = "True" if not self.initial_flag_value else "False"
+                new_statements.append(
+                    cst.SimpleStatementLine(
+                        body=[cst.Return(value=cst.Name(return_value))]
+                    )
+                )
             else:
                 new_statements.append(stmt)
 
         return body.with_changes(body=new_statements)
+
+    def _is_return_not_flag(self, stmt: cst.BaseStatement) -> bool:
+        """Check if statement is 'return not flag_variable'.
+
+        Args:
+            stmt: Statement to check
+
+        Returns:
+            True if this is a return not flag_variable statement
+        """
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return False
+
+        for s in stmt.body:
+            if isinstance(s, cst.Return) and s.value is not None:
+                if isinstance(s.value, cst.UnaryOperation):
+                    if isinstance(s.value.operator, cst.Not):
+                        if isinstance(s.value.expression, cst.Name):
+                            return s.value.expression.value == self.flag_variable
+        return False
 
     def _is_flag_initialization(self, stmt: cst.BaseStatement) -> bool:
         """Check if statement is the flag initialization.
@@ -179,6 +216,9 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         for s in stmt.body:
             if isinstance(s, cst.Assign):
                 if self._assigns_to_flag_variable(s):
+                    # Track the initial value
+                    if isinstance(s.value, cst.Name):
+                        self.initial_flag_value = s.value.value == "True"
                     return True
         return False
 
@@ -292,9 +332,24 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
                 replaced = False
                 for s in stmt.body:
                     if isinstance(s, cst.Assign) and self._assigns_to_flag_variable(s):
-                        new_statements.append(
-                            cst.SimpleStatementLine(body=[cst.Return(value=None)])
-                        )
+                        # Only include return value if original code had "return not flag"
+                        if self.has_return_not_flag:
+                            # Determine what value is being assigned to the flag
+                            assigned_value = True
+                            if isinstance(s.value, cst.Name):
+                                assigned_value = s.value.value == "True"
+                            # Return the opposite since the original code did "return not flag"
+                            return_value = "False" if assigned_value else "True"
+                            new_statements.append(
+                                cst.SimpleStatementLine(
+                                    body=[cst.Return(value=cst.Name(return_value))]
+                                )
+                            )
+                        else:
+                            # No return value for simple exit-only case
+                            new_statements.append(
+                                cst.SimpleStatementLine(body=[cst.Return(value=None)])
+                            )
                         replaced = True
                         break
                 if not replaced:
