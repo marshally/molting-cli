@@ -6,6 +6,7 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.call_site_updater import CallSiteUpdater
 from molting.core.code_generation_utils import create_parameter
 from molting.core.visitors import MethodConflictChecker
 
@@ -75,8 +76,17 @@ class HideDelegateCommand(BaseCommand):
         if conflict_checker.has_conflict:
             raise ValueError(f"Class '{class_name}' already has a method named 'get_manager'")
 
+        # Apply the hide delegate transformation
         transformer = HideDelegateTransformer(class_name, field_name)
         modified_tree = module.visit(transformer)
+
+        # Update all call sites to use the new method instead of direct delegate access
+        updater = CallSiteUpdater(
+            old_attr=field_name,
+            new_method="get_manager",
+            nested_attr="manager",
+        )
+        modified_tree = modified_tree.visit(updater)
 
         self.file_path.write_text(modified_tree.code)
 
