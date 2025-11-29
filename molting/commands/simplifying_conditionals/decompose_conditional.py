@@ -7,10 +7,8 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_line_range, parse_target_with_line
+from molting.core.ast_utils import parse_line_range
 from molting.core.code_generation_utils import create_parameter
-from molting.core.instance_variable_tracker import InstanceVariableTracker
-from molting.core.method_inserter import MethodInserter
 
 
 class DecomposeConditionalCommand(BaseCommand):

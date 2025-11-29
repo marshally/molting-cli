@@ -5,7 +5,6 @@ This refactoring replaces delegation with inheritance by making the
 delegating class a subclass of the delegate.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

@@ -5,7 +5,6 @@ This refactoring replaces a subclass with a field containing an instance
 of the original superclass, delegating calls to it instead of inheriting.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
