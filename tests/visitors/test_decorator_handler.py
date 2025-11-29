@@ -165,9 +165,9 @@ class Calculator:
         handler = DecoratorHandler(original_method)
 
         # Simulate a transformation that keeps the method but changes its body
-        new_body = cst.IndentedBlock(body=[
-            cst.SimpleStatementLine(body=[cst.Return(value=cst.Integer("42"))])
-        ])
+        new_body = cst.IndentedBlock(
+            body=[cst.SimpleStatementLine(body=[cst.Return(value=cst.Integer("42"))])]
+        )
         transformed_method = original_method.with_changes(body=new_body)
 
         # Apply original decorators
