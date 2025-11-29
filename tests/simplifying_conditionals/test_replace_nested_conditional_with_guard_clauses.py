@@ -4,8 +4,6 @@ Tests for Replace Nested Conditional with Guard Clauses refactoring.
 This refactoring uses guard clauses for all special cases.
 """
 
-import pytest
-
 from tests.conftest import RefactoringTestBase
 
 
@@ -37,7 +35,6 @@ class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
             target="PaymentCalculator::get_payment_amount#L10-L19",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test replacing nested conditionals with guard clauses on a decorated method.
 

@@ -324,7 +324,9 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         Args:
             func_def: The original function definition
         """
-        if self._first_param is None:
+        # For methods, we only need self (first_param)
+        # For functions, we need at least one parameter
+        if not self._is_method and self._first_param is None:
             return
 
         # Combine conditions with 'or'
@@ -344,7 +346,7 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
             all_params.append(create_parameter("self"))
             if self._second_param:
                 all_params.append(self._second_param)
-        else:
+        elif self._first_param:
             all_params.append(self._first_param)
 
         # Add variables used in conditions (local vars and other function params)
@@ -373,17 +375,6 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         if self.return_value is None:
             return None
 
-        # Determine which parameter to pass to the helper
-        # For methods: pass the second parameter (first after self)
-        # For functions: pass the first parameter
-        if self._is_method:
-            param_to_pass = self._second_param
-        else:
-            param_to_pass = self._first_param
-
-        if param_to_pass is None:
-            return None
-
         # Create call to helper function
         if self._is_method:
             helper_func: cst.BaseExpression = cst.Attribute(
@@ -393,11 +384,24 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         else:
             helper_func = cst.Name(self.helper_name)
 
-        # Build arguments: start with the main param, then add all variables used in conditions
-        args: list[cst.Arg] = [cst.Arg(value=param_to_pass.name)]
+        # Build arguments for the helper call
+        args: list[cst.Arg] = []
+
+        # For methods with only self (e.g., @property), don't pass any arguments
+        # For methods with additional params, pass those params
+        # For functions, pass the first parameter
+        if self._is_method:
+            if self._second_param:
+                args.append(cst.Arg(value=self._second_param.name))
+        else:
+            if self._first_param:
+                args.append(cst.Arg(value=self._first_param.name))
+
+        # Add any additional variables used in conditions
         for var in self.variables_used_in_conditions:
-            # Skip if it's already added as the main param
-            if var != param_to_pass.name.value:
+            # Skip if it's already added as an arg
+            arg_names = [arg.value.value for arg in args if isinstance(arg.value, cst.Name)]
+            if var not in arg_names:
                 args.append(cst.Arg(value=cst.Name(var)))
 
         helper_call = cst.Call(func=helper_func, args=args)

@@ -69,7 +69,6 @@ class TestDecomposeConditional(RefactoringTestBase):
         """
         self.refactor("decompose-conditional", target="calculate_shipping_charge#L5-L8")
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test decompose conditional on a method with decorators.
 
@@ -77,4 +76,10 @@ class TestDecomposeConditional(RefactoringTestBase):
         @lru_cache, @staticmethod, etc.). Verifies that decorators are preserved and
         don't interfere with the extraction logic.
         """
-        self.refactor("decompose-conditional", target="PriceCalculator::charge#L14-L17")
+        self.refactor(
+            "decompose-conditional",
+            target="PriceCalculator::charge#L14-L17",
+            condition_name="is_winter",
+            then_name="winter_charge",
+            else_name="summer_charge",
+        )
