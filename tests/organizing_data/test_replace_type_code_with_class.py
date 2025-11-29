@@ -50,9 +50,6 @@ class TestReplaceTypeCodeWithClass(RefactoringTestBase):
             "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
         )
 
-    @pytest.mark.skip(
-        reason="Implementation needed for name_conflict - should detect existing class"
-    )
     def test_name_conflict(self) -> None:
         """Test that type-code-to-class replacement fails when class name already exists.
 
