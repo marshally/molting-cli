@@ -75,6 +75,7 @@ class ExtractClassTransformer(cst.CSTTransformer):
         self.methods = methods
         self.new_class_name = new_class_name
         self.extracted_methods: list[cst.FunctionDef] = []
+        self.delegate_field_name: str | None = None
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -88,11 +89,18 @@ class ExtractClassTransformer(cst.CSTTransformer):
         Returns:
             The transformed class or a flattened sequence with both classes
         """
+        # Calculate delegate field name once on first encounter of source class
+        if self.delegate_field_name is None and updated_node.name.value == self.source_class:
+            self.delegate_field_name = self._calculate_delegate_field_name()
+
+        # Handle external classes
         if updated_node.name.value != self.source_class:
+            if self.delegate_field_name:
+                return self._update_external_class_references(updated_node)
             return updated_node
 
         new_body: list[cst.BaseStatement] = []
-        delegate_field_name = self._calculate_delegate_field_name()
+        delegate_field_name = self.delegate_field_name
 
         for stmt in updated_node.body.body:
             if isinstance(stmt, cst.FunctionDef):
@@ -104,7 +112,9 @@ class ExtractClassTransformer(cst.CSTTransformer):
                     delegate_method = self._create_delegate_method(stmt, delegate_field_name)
                     new_body.append(delegate_method)
                 else:
-                    new_body.append(stmt)
+                    # Update field references in non-extracted methods
+                    updated_method = self._update_method_field_references(stmt, delegate_field_name)
+                    new_body.append(updated_method)
             else:
                 new_body.append(cast(cst.BaseStatement, stmt))
 
@@ -120,24 +130,70 @@ class ExtractClassTransformer(cst.CSTTransformer):
             ]
         )
 
+    def _update_method_field_references(
+        self, method: cst.FunctionDef, delegate_field_name: str
+    ) -> cst.FunctionDef:
+        """Update field references in a method that stays in the source class.
+
+        Args:
+            method: The method to update
+            delegate_field_name: Name of the delegate field
+
+        Returns:
+            Updated method with field references transformed
+        """
+        # Create a transformer that updates self.extracted_field to self.delegate.new_field
+        field_mapping = {}
+        for field in self.fields:
+            if field.startswith("office_"):
+                field_mapping[field] = field[7:]
+            else:
+                field_mapping[field] = field
+
+        transformer = SourceClassFieldUpdater(self.fields, delegate_field_name, field_mapping)
+        return cast(cst.FunctionDef, method.visit(transformer))
+
+    def _update_external_class_references(self, node: cst.ClassDef) -> cst.ClassDef:
+        """Update field references in classes other than source.
+
+        Args:
+            node: The class to update
+
+        Returns:
+            The updated class
+        """
+        transformer = ExternalExtractedFieldUpdater(
+            self.source_class, self.fields, self.delegate_field_name, self.new_class_name
+        )
+        return cast(cst.ClassDef, node.visit(transformer))
+
     def _calculate_delegate_field_name(self) -> str:
         """Calculate the name for the delegate field.
 
-        Converts class name to snake_case and adds prefix.
-        For example: TelephoneNumber -> office_telephone
+        Converts class name to snake_case, removing common suffixes.
+        For example: TelephoneNumber -> telephone, Address -> address
 
         Returns:
             The delegate field name
         """
+        import re
+
         base_name = self.new_class_name
+        # Remove common suffixes to get a cleaner name
         for suffix in ["Number", "Info", "Data", "Class"]:
-            if base_name.endswith(suffix):
+            if base_name.endswith(suffix) and len(base_name) > len(suffix):
                 base_name = base_name[: -len(suffix)]
                 break
-        delegate_field_name = (
-            base_name[0].lower() + base_name[1:] if base_name else self.new_class_name.lower()
-        )
-        return f"office_{delegate_field_name.lower()}"
+
+        # Convert to snake_case
+        snake_case = re.sub(r"(?<!^)(?=[A-Z])", "_", base_name).lower()
+
+        # For TelephoneNumber -> telephone, prepend office_
+        # For Address -> address, don't prepend
+        # Heuristic: if original fields had "office_" prefix, add it
+        if any(field.startswith("office_") for field in self.fields):
+            return f"office_{snake_case}"
+        return snake_case
 
     def _modify_init(
         self, init_method: cst.FunctionDef, delegate_field_name: str
@@ -199,19 +255,102 @@ class ExtractClassTransformer(cst.CSTTransformer):
         Returns:
             Delegating method
         """
-        delegate_call = cst.Return(
-            value=cst.Call(
-                func=cst.Attribute(
-                    value=cst.Attribute(value=cst.Name("self"), attr=cst.Name(delegate_field_name)),
-                    attr=cst.Name(method.name.value),
-                ),
-                args=[],
-            )
+        # Check if method is a property
+        is_property = any(
+            isinstance(dec.decorator, cst.Name) and dec.decorator.value == "property"
+            for dec in method.decorators
         )
 
-        return method.with_changes(
-            body=cst.IndentedBlock(body=[cst.SimpleStatementLine(body=[delegate_call])])
+        # Build delegate access
+        delegate_access = cst.Attribute(
+            value=cst.Attribute(value=cst.Name("self"), attr=cst.Name(delegate_field_name)),
+            attr=cst.Name(method.name.value),
         )
+
+        # Collect method parameters (excluding 'self')
+        args = []
+        for param in method.params.params[1:]:  # Skip 'self'
+            if isinstance(param.name, cst.Name):
+                args.append(cst.Arg(value=cst.Name(param.name.value)))
+
+        # For properties, just return the attribute access
+        # For methods, call it with parameters
+        if is_property:
+            delegate_expr = cst.Return(value=delegate_access)
+        else:
+            call_expr = cst.Call(func=delegate_access, args=args)
+            # Check if the original method had a return statement
+            # If not, don't add return to the delegate call
+            has_return = self._method_has_return(method)
+            if has_return:
+                delegate_expr = cst.Return(value=call_expr)
+            else:
+                delegate_expr = cst.Expr(value=call_expr)
+
+        # Preserve docstrings in delegate methods
+        new_body = []
+        if isinstance(method.body, cst.IndentedBlock) and len(method.body.body) > 0:
+            first_stmt = method.body.body[0]
+            if isinstance(first_stmt, cst.SimpleStatementLine) and len(first_stmt.body) > 0:
+                if isinstance(first_stmt.body[0], cst.Expr):
+                    expr_value = first_stmt.body[0].value
+                    if isinstance(expr_value, (cst.SimpleString, cst.ConcatenatedString)):
+                        # This is a docstring, preserve it
+                        new_body.append(first_stmt)
+
+        new_body.append(cst.SimpleStatementLine(body=[delegate_expr]))
+
+        return method.with_changes(body=cst.IndentedBlock(body=new_body))
+
+    def _method_has_return(self, method: cst.FunctionDef) -> bool:
+        """Check if a method has a return statement.
+
+        Args:
+            method: The method to check
+
+        Returns:
+            True if the method has a return statement
+        """
+        if not isinstance(method.body, cst.IndentedBlock):
+            return False
+
+        for stmt in method.body.body:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for item in stmt.body:
+                    if isinstance(item, cst.Return):
+                        return True
+        return False
+
+    def _remove_docstring(self, method: cst.FunctionDef) -> cst.FunctionDef:
+        """Remove docstring from a method.
+
+        Args:
+            method: The method to process
+
+        Returns:
+            Method without docstring
+        """
+        if not isinstance(method.body, cst.IndentedBlock) or len(method.body.body) == 0:
+            return method
+
+        new_body = []
+        first_is_docstring = False
+
+        # Check if first statement is a docstring
+        first_stmt = method.body.body[0]
+        if isinstance(first_stmt, cst.SimpleStatementLine) and len(first_stmt.body) > 0:
+            if isinstance(first_stmt.body[0], cst.Expr):
+                expr_value = first_stmt.body[0].value
+                if isinstance(expr_value, (cst.SimpleString, cst.ConcatenatedString)):
+                    first_is_docstring = True
+
+        # Copy all statements except docstring
+        for i, stmt in enumerate(method.body.body):
+            if i == 0 and first_is_docstring:
+                continue
+            new_body.append(stmt)
+
+        return method.with_changes(body=cst.IndentedBlock(body=new_body))
 
     def _create_new_class(self) -> cst.ClassDef:
         """Create the new extracted class.
@@ -259,6 +398,12 @@ class ExtractClassTransformer(cst.CSTTransformer):
         for method in self.extracted_methods:
             transformer = FieldRenameTransformer(param_mapping)
             updated_method = method.visit(transformer)
+            # Only remove docstrings from @property decorated methods
+            if any(
+                isinstance(dec.decorator, cst.Name) and dec.decorator.value == "property"
+                for dec in cast(cst.FunctionDef, updated_method).decorators
+            ):
+                updated_method = self._remove_docstring(cast(cst.FunctionDef, updated_method))
             updated_methods.append(cast(cst.FunctionDef, updated_method))
 
         class_body: list[cst.BaseStatement] = [
@@ -277,6 +422,51 @@ class ExtractClassTransformer(cst.CSTTransformer):
             bases=[],
             body=cst.IndentedBlock(body=class_body),
         )
+
+
+class SourceClassFieldUpdater(cst.CSTTransformer):
+    """Updates field references in source class methods that remain."""
+
+    def __init__(
+        self, extracted_fields: list[str], delegate_field_name: str, field_mapping: dict[str, str]
+    ):
+        """Initialize the updater.
+
+        Args:
+            extracted_fields: List of fields that were extracted
+            delegate_field_name: Name of the delegate field
+            field_mapping: Mapping from old field names to new field names
+        """
+        self.extracted_fields = set(extracted_fields)
+        self.delegate_field_name = delegate_field_name
+        self.field_mapping = field_mapping
+
+    def leave_Attribute(  # noqa: N802
+        self, original_node: cst.Attribute, updated_node: cst.Attribute
+    ) -> cst.Attribute | cst.BaseExpression:
+        """Update self.extracted_field to self.delegate.new_field.
+
+        Args:
+            original_node: The original attribute node
+            updated_node: The updated attribute node
+
+        Returns:
+            The transformed attribute node
+        """
+        # Check if this is self.field_name where field_name was extracted
+        if isinstance(updated_node.value, cst.Name) and updated_node.value.value == "self":
+            if updated_node.attr.value in self.extracted_fields:
+                new_field_name = self.field_mapping.get(
+                    updated_node.attr.value, updated_node.attr.value
+                )
+                # Transform to self.delegate.new_field
+                return cst.Attribute(
+                    value=cst.Attribute(
+                        value=cst.Name("self"), attr=cst.Name(self.delegate_field_name)
+                    ),
+                    attr=cst.Name(new_field_name),
+                )
+        return updated_node
 
 
 class FieldRenameTransformer(cst.CSTTransformer):
@@ -307,6 +497,87 @@ class FieldRenameTransformer(cst.CSTTransformer):
                 if updated_node.attr.value in self.field_mapping:
                     new_name = self.field_mapping[updated_node.attr.value]
                     return updated_node.with_changes(attr=cst.Name(new_name))
+        return updated_node
+
+
+class ExternalExtractedFieldUpdater(cst.CSTTransformer):
+    """Updates references to extracted fields in external classes."""
+
+    def __init__(
+        self,
+        source_class: str,
+        extracted_fields: list[str],
+        delegate_field_name: str,
+        new_class_name: str,
+    ):
+        """Initialize the updater.
+
+        Args:
+            source_class: Name of the source class
+            extracted_fields: List of field names that were extracted
+            delegate_field_name: Name of the delegate field
+            new_class_name: Name of the new extracted class
+        """
+        self.source_class = source_class
+        self.extracted_fields = set(extracted_fields)
+        self.delegate_field_name = delegate_field_name
+        self.new_class_name = new_class_name
+        # Convert source class to snake_case for instance variable names
+        import re
+
+        self.source_class_lower = re.sub(r"(?<!^)(?=[A-Z])", "_", source_class).lower()
+
+        # Create field mapping for renamed fields (e.g., office_area_code -> area_code)
+        self.field_mapping = {}
+        for field in extracted_fields:
+            if field.startswith("office_"):
+                self.field_mapping[field] = field[7:]
+            else:
+                self.field_mapping[field] = field
+
+    def leave_Attribute(  # noqa: N802
+        self, original_node: cst.Attribute, updated_node: cst.Attribute
+    ) -> cst.Attribute | cst.BaseExpression:
+        """Update attribute access to extracted fields in external references.
+
+        Transforms: person.office_area_code -> person.office_telephone.area_code
+        """
+        # Check if this is an access to an extracted field
+        if updated_node.attr.value in self.extracted_fields:
+            # Pattern 1: obj.source_instance.field -> obj.source_instance.delegate.new_field
+            if isinstance(updated_node.value, cst.Attribute):
+                attr_name = updated_node.value.attr.value
+                if attr_name == self.source_class_lower or attr_name.endswith(
+                    f"_{self.source_class_lower}"
+                ):
+                    new_field_name = self.field_mapping.get(
+                        updated_node.attr.value, updated_node.attr.value
+                    )
+                    return cst.Attribute(
+                        value=cst.Attribute(
+                            value=updated_node.value, attr=cst.Name(self.delegate_field_name)
+                        ),
+                        attr=cst.Name(new_field_name),
+                    )
+            # Pattern 2: param.field -> param.delegate.new_field
+            elif isinstance(updated_node.value, cst.Name):
+                var_name = updated_node.value.value
+                # Check if variable name suggests it's an instance of source class
+                if (
+                    var_name == self.source_class_lower
+                    or var_name.endswith(f"_{self.source_class_lower}")
+                    or var_name.startswith(f"{self.source_class_lower}_")
+                    or f"_{self.source_class_lower}_" in var_name
+                ):
+                    new_field_name = self.field_mapping.get(
+                        updated_node.attr.value, updated_node.attr.value
+                    )
+                    return cst.Attribute(
+                        value=cst.Attribute(
+                            value=updated_node.value, attr=cst.Name(self.delegate_field_name)
+                        ),
+                        attr=cst.Name(new_field_name),
+                    )
         return updated_node
 
 
