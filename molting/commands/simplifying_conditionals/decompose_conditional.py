@@ -61,7 +61,7 @@ class DecomposeConditionalCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        self.validate_required_params("target")
+        self.validate_required_params("target", "cond")
 
     def _parse_target(self, target: str) -> tuple[str, str, int, int]:
         """Parse target format into class name, function name, and line range.
@@ -106,6 +106,9 @@ class DecomposeConditionalCommand(BaseCommand):
             ValueError: If function not found or target format is invalid
         """
         target = self.params["target"]
+        cond_name = self.params["cond"]
+        then_name = self.params.get("then")
+        else_name = self.params.get("else")
         class_name, function_name, start_line, end_line = self._parse_target(target)
 
         # Read file
@@ -115,7 +118,13 @@ class DecomposeConditionalCommand(BaseCommand):
         module = cst.parse_module(source_code)
         wrapper = metadata.MetadataWrapper(module)
         transformer = DecomposeConditionalTransformer(
-            class_name, function_name, start_line, end_line
+            class_name,
+            function_name,
+            start_line,
+            end_line,
+            cond_name=cond_name,
+            then_name=then_name,
+            else_name=else_name,
         )
         modified_tree = wrapper.visit(transformer)
 
@@ -128,7 +137,17 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
     METADATA_DEPENDENCIES = (metadata.PositionProvider,)
 
-    def __init__(self, class_name: str, function_name: str, start_line: int, end_line: int) -> None:
+    def __init__(
+        self,
+        class_name: str,
+        function_name: str,
+        start_line: int,
+        end_line: int,
+        *,
+        cond_name: str,
+        then_name: str | None = None,
+        else_name: str | None = None,
+    ) -> None:
         """Initialize the transformer.
 
         Args:
@@ -136,14 +155,22 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             function_name: Name of the function containing the conditional
             start_line: Start line of the conditional
             end_line: End line of the conditional
+            cond_name: Name for the extracted condition function
+            then_name: Name for the extracted then-branch function (optional)
+            else_name: Name for the extracted else-branch function (optional)
         """
         self.class_name = class_name
         self.function_name = function_name
         self.start_line = start_line
         self.end_line = end_line
+        self.cond_name = cond_name
+        self.then_name = then_name
+        self.else_name = else_name
         self.condition_expr: cst.BaseExpression | None = None
         self.then_body: cst.BaseStatement | None = None
         self.else_body: cst.BaseStatement | None = None
+        self.then_full_body: cst.BaseSuite | None = None
+        self.else_full_body: cst.BaseSuite | None = None
         self.condition_params: list[str] = []
         self.then_params: list[str] = []
         self.else_params: list[str] = []
@@ -222,6 +249,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
         # Extract then body
         if original_node.body and original_node.body.body:
+            self.then_full_body = original_node.body
             then_stmt = original_node.body.body[0]
             if isinstance(then_stmt, cst.BaseStatement):
                 self.then_body = then_stmt
@@ -235,6 +263,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         # Extract else body
         if original_node.orelse and isinstance(original_node.orelse, cst.Else):
             if original_node.orelse.body and original_node.orelse.body.body:
+                self.else_full_body = original_node.orelse.body
                 else_stmt = original_node.orelse.body.body[0]
                 if isinstance(else_stmt, cst.BaseStatement):
                     self.else_body = else_stmt
@@ -252,20 +281,20 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         """Create helper functions for condition, then, and else branches."""
         if self.condition_expr and self.condition_params:
             condition_func = self._create_function(
-                "is_winter", self.condition_params, self.condition_expr
+                self.cond_name, self.condition_params, self.condition_expr
             )
             self.new_functions.append(condition_func)
 
-        if self.then_body and self.then_params:
+        if self.then_name and self.then_body and self.then_params:
             then_value = self._extract_return_value(self.then_body)
             if then_value:
-                then_func = self._create_function("winter_charge", self.then_params, then_value)
+                then_func = self._create_function(self.then_name, self.then_params, then_value)
                 self.new_functions.append(then_func)
 
-        if self.else_body and self.else_params:
+        if self.else_name and self.else_body and self.else_params:
             else_value = self._extract_return_value(self.else_body)
             if else_value:
-                else_func = self._create_function("summer_charge", self.else_params, else_value)
+                else_func = self._create_function(self.else_name, self.else_params, else_value)
                 self.new_functions.append(else_func)
 
     def _create_function(
@@ -318,69 +347,85 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
     def _create_replacement_if(self) -> cst.If:
         """Create replacement if statement using the new functions."""
-        # Create call to is_winter(date) or self.is_winter(date)
+        # Create call to condition function
         if self._is_method:
             condition_func: cst.BaseExpression = cst.Attribute(
                 value=cst.Name("self"),
-                attr=cst.Name("is_winter"),
+                attr=cst.Name(self.cond_name),
             )
         else:
-            condition_func = cst.Name("is_winter")
+            condition_func = cst.Name(self.cond_name)
 
         condition_call = cst.Call(
             func=condition_func,
             args=[cst.Arg(value=cst.Name(param)) for param in self.condition_params],
         )
 
-        # Create call to winter_charge(...) or self.winter_charge(...)
-        if self._is_method:
-            then_func: cst.BaseExpression = cst.Attribute(
-                value=cst.Name("self"),
-                attr=cst.Name("winter_charge"),
+        # Create then body - either a function call or keep original
+        if self.then_name:
+            if self._is_method:
+                then_func: cst.BaseExpression = cst.Attribute(
+                    value=cst.Name("self"),
+                    attr=cst.Name(self.then_name),
+                )
+            else:
+                then_func = cst.Name(self.then_name)
+
+            then_call = cst.Call(
+                func=then_func,
+                args=[cst.Arg(value=cst.Name(param)) for param in self.then_params],
+            )
+            then_body: cst.IndentedBlock = cst.IndentedBlock(
+                body=[
+                    cst.SimpleStatementLine(
+                        body=[
+                            cst.Assign(
+                                targets=[cst.AssignTarget(target=cst.Name(self.assignment_target))],
+                                value=then_call,
+                            )
+                        ]
+                    )
+                ]
             )
         else:
-            then_func = cst.Name("winter_charge")
+            # Keep original then body (all statements)
+            then_body = self.then_full_body  # type: ignore[assignment]
 
-        then_call = cst.Call(
-            func=then_func,
-            args=[cst.Arg(value=cst.Name(param)) for param in self.then_params],
-        )
-        then_assign = cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[cst.AssignTarget(target=cst.Name(self.assignment_target))],
-                    value=then_call,
+        # Create else body - either a function call or keep original
+        if self.else_name:
+            if self._is_method:
+                else_func: cst.BaseExpression = cst.Attribute(
+                    value=cst.Name("self"),
+                    attr=cst.Name(self.else_name),
                 )
-            ]
-        )
+            else:
+                else_func = cst.Name(self.else_name)
 
-        # Create call to summer_charge(...) or self.summer_charge(...)
-        if self._is_method:
-            else_func: cst.BaseExpression = cst.Attribute(
-                value=cst.Name("self"),
-                attr=cst.Name("summer_charge"),
+            else_call = cst.Call(
+                func=else_func,
+                args=[cst.Arg(value=cst.Name(param)) for param in self.else_params],
+            )
+            else_body: cst.IndentedBlock = cst.IndentedBlock(
+                body=[
+                    cst.SimpleStatementLine(
+                        body=[
+                            cst.Assign(
+                                targets=[cst.AssignTarget(target=cst.Name(self.assignment_target))],
+                                value=else_call,
+                            )
+                        ]
+                    )
+                ]
             )
         else:
-            else_func = cst.Name("summer_charge")
-
-        else_call = cst.Call(
-            func=else_func,
-            args=[cst.Arg(value=cst.Name(param)) for param in self.else_params],
-        )
-        else_assign = cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[cst.AssignTarget(target=cst.Name(self.assignment_target))],
-                    value=else_call,
-                )
-            ]
-        )
+            # Keep original else body (all statements)
+            else_body = self.else_full_body  # type: ignore[assignment]
 
         # Create new if statement
         return cst.If(
             test=condition_call,
-            body=cst.IndentedBlock(body=[then_assign]),
-            orelse=cst.Else(body=cst.IndentedBlock(body=[else_assign])),
+            body=then_body,
+            orelse=cst.Else(body=else_body),
         )
 
 

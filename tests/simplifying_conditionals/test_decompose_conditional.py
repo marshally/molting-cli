@@ -21,17 +21,26 @@ class TestDecomposeConditional(RefactoringTestBase):
         into separate methods. Verifies the core transformation works before testing
         more complex scenarios with local variables, instance variables, or multiple calls.
         """
-        self.refactor("decompose-conditional", target="calculate_charge#L2-L5")
+        self.refactor(
+            "decompose-conditional",
+            target="calculate_charge#L2-L5",
+            cond="is_winter",
+            then="winter_charge",
+            **{"else": "summer_charge"},
+        )
 
-    @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test decompose conditional when branches use local variables.
 
         Unlike test_simple, this tests extraction when the conditional branches
-        reference local variables. Verifies that local variables are correctly
-        passed as parameters to the extracted methods while preserving semantics.
+        reference local variables. When only cond is provided, the condition is
+        extracted but branch bodies are preserved.
         """
-        self.refactor("decompose-conditional", target="process_order#L8-L13")
+        self.refactor(
+            "decompose-conditional",
+            target="process_order#L9-L14",
+            cond="is_premium_order",
+        )
 
     def test_with_instance_vars(self) -> None:
         """Test decompose conditional when branches use instance variables.
@@ -40,7 +49,13 @@ class TestDecomposeConditional(RefactoringTestBase):
         reference instance (self) variables. Unlike test_with_locals, instance variables
         do not need to be passed as parameters; they remain accessible via self.
         """
-        self.refactor("decompose-conditional", target="PricingCalculator::calculate_charge#L11-L14")
+        self.refactor(
+            "decompose-conditional",
+            target="PricingCalculator::calculate_charge#L11-L14",
+            cond="is_winter",
+            then="winter_charge",
+            **{"else": "summer_charge"},
+        )
 
     @pytest.mark.skip(reason="Implementation needed for multiple_calls")
     def test_multiple_calls(self) -> None:
@@ -50,7 +65,13 @@ class TestDecomposeConditional(RefactoringTestBase):
         call sites. Ensures the refactoring doesn't break other code that depends on
         the extracted logic being refactored.
         """
-        self.refactor("decompose-conditional", target="calculate_shipping_charge#L5-L8")
+        self.refactor(
+            "decompose-conditional",
+            target="calculate_shipping_charge#L5-L8",
+            cond="is_winter",
+            then="winter_charge",
+            **{"else": "summer_charge"},
+        )
 
     @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
@@ -60,4 +81,10 @@ class TestDecomposeConditional(RefactoringTestBase):
         @lru_cache, @staticmethod, etc.). Verifies that decorators are preserved and
         don't interfere with the extraction logic.
         """
-        self.refactor("decompose-conditional", target="PriceCalculator::charge#L14-L17")
+        self.refactor(
+            "decompose-conditional",
+            target="PriceCalculator::charge#L14-L17",
+            cond="is_winter",
+            then="winter_charge",
+            **{"else": "summer_charge"},
+        )
