@@ -65,10 +65,7 @@ class ReplaceInheritanceWithDelegationCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "target" not in self.params:
-            raise ValueError(
-                "Missing required parameter for replace-inheritance-with-delegation: 'target'"
-            )
+        self.validate_required_params("target")
 
     def execute(self) -> None:
         """Apply replace-inheritance-with-delegation refactoring using libCST.

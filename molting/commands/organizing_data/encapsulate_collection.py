@@ -77,8 +77,7 @@ class EncapsulateCollectionCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "target" not in self.params:
-            raise ValueError("Missing required parameter for encapsulate-collection: 'target'")
+        self.validate_required_params("target")
 
     def execute(self) -> None:
         """Apply encapsulate-collection refactoring using libCST.

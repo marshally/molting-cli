@@ -71,16 +71,7 @@ class ChangeUnidirectionalAssociationToBidirectionalCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "target" not in self.params:
-            raise ValueError(
-                "Missing required parameter for "
-                "change-unidirectional-association-to-bidirectional: 'target'"
-            )
-        if "back" not in self.params:
-            raise ValueError(
-                "Missing required parameter for "
-                "change-unidirectional-association-to-bidirectional: 'back'"
-            )
+        self.validate_required_params("target", "back")
 
     def execute(self) -> None:
         """Apply change-unidirectional-association-to-bidirectional refactoring using libCST.

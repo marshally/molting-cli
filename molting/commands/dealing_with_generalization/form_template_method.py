@@ -76,10 +76,7 @@ class FormTemplateMethodCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "targets" not in self.params:
-            raise ValueError("Missing required parameter for form-template-method: 'targets'")
-        if "name" not in self.params:
-            raise ValueError("Missing required parameter for form-template-method: 'name'")
+        self.validate_required_params("targets", "name")
 
     def execute(self) -> None:
         """Apply form-template-method refactoring using libCST.

@@ -66,10 +66,7 @@ class ReplaceTypeCodeWithSubclassesCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "target" not in self.params:
-            raise ValueError(
-                "Missing required parameter for replace-type-code-with-subclasses: 'target'"
-            )
+        self.validate_required_params("target")
 
     def execute(self) -> None:
         """Apply replace-type-code-with-subclasses refactoring using libCST.
