@@ -7,8 +7,10 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_line_range
+from molting.core.ast_utils import parse_line_range, parse_target_with_line
 from molting.core.code_generation_utils import create_parameter
+from molting.core.instance_variable_tracker import InstanceVariableTracker
+from molting.core.method_inserter import MethodInserter
 
 
 class DecomposeConditionalCommand(BaseCommand):
@@ -63,27 +65,41 @@ class DecomposeConditionalCommand(BaseCommand):
         """
         self.validate_required_params("target")
 
-    def _parse_target(self, target: str) -> tuple[str, int, int]:
-        """Parse target format into function name and line range.
+    def _parse_target(self, target: str) -> tuple[str, str, int, int]:
+        """Parse target format into class name, function name, and line range.
 
         Args:
-            target: Target string in format "function_name#L2-L5"
+            target: Target string in format "function_name#L2-L5" or "ClassName::method#L2-L5"
 
         Returns:
-            Tuple of (function_name, start_line, end_line)
+            Tuple of (class_name, function_name, start_line, end_line)
+            class_name will be empty string for module-level functions
 
         Raises:
             ValueError: If target format is invalid
         """
         parts = target.split("#")
         if len(parts) != 2:
-            raise ValueError(f"Invalid target format '{target}'. Expected 'function_name#L2-L5'")
+            raise ValueError(
+                f"Invalid target format '{target}'. "
+                "Expected 'function_name#L2-L5' or 'ClassName::method#L2-L5'"
+            )
 
-        function_name = parts[0]
-        line_range = parts[1]
+        class_method = parts[0]
+        line_spec = parts[1]
 
-        start_line, end_line = parse_line_range(line_range)
-        return function_name, start_line, end_line
+        # Parse class_method to extract class and method names
+        if "::" in class_method:
+            class_parts = class_method.split("::")
+            if len(class_parts) != 2:
+                raise ValueError(f"Invalid class::method format in '{class_method}'")
+            class_name, function_name = class_parts
+        else:
+            class_name = ""
+            function_name = class_method
+
+        start_line, end_line = parse_line_range(line_spec)
+        return class_name, function_name, start_line, end_line
 
     def execute(self) -> None:
         """Apply decompose-conditional refactoring using libCST.
@@ -92,7 +108,7 @@ class DecomposeConditionalCommand(BaseCommand):
             ValueError: If function not found or target format is invalid
         """
         target = self.params["target"]
-        function_name, start_line, end_line = self._parse_target(target)
+        class_name, function_name, start_line, end_line = self._parse_target(target)
 
         # Read file
         source_code = self.file_path.read_text()
@@ -100,7 +116,9 @@ class DecomposeConditionalCommand(BaseCommand):
         # Parse and transform with metadata
         module = cst.parse_module(source_code)
         wrapper = metadata.MetadataWrapper(module)
-        transformer = DecomposeConditionalTransformer(function_name, start_line, end_line)
+        transformer = DecomposeConditionalTransformer(
+            class_name, function_name, start_line, end_line
+        )
         modified_tree = wrapper.visit(transformer)
 
         # Write back
@@ -112,14 +130,18 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
     METADATA_DEPENDENCIES = (metadata.PositionProvider,)
 
-    def __init__(self, function_name: str, start_line: int, end_line: int) -> None:
+    def __init__(
+        self, class_name: str, function_name: str, start_line: int, end_line: int
+    ) -> None:
         """Initialize the transformer.
 
         Args:
+            class_name: Name of the class (empty string for module-level functions)
             function_name: Name of the function containing the conditional
             start_line: Start line of the conditional
             end_line: End line of the conditional
         """
+        self.class_name = class_name
         self.function_name = function_name
         self.start_line = start_line
         self.end_line = end_line
@@ -131,13 +153,39 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         self.else_params: list[str] = []
         self.new_functions: list[cst.FunctionDef] = []
         self.current_function: str | None = None
+        self.current_class: str | None = None
         self.function_params: list[str] = []
         self.assignment_target: str = ""
+        self._is_method = False
+        self._self_references: list[str] = []
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track current class being visited."""
+        if node.name.value == self.class_name:
+            self.current_class = self.class_name
+        return True
+
+    def leave_ClassDef(  # noqa: N802
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
+        """Track exit from class."""
+        if original_node.name.value == self.class_name:
+            self.current_class = None
+        return updated_node
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
         """Track current function being visited."""
         self.current_function = node.name.value
         if self.current_function == self.function_name:
+            # Check if this is a class method
+            if self.class_name and self.current_class == self.class_name:
+                self._is_method = True
+                # Get the module to analyze self references
+                # This will be done after visiting the tree
+            elif not self.class_name:
+                # This is a module-level function
+                self._is_method = False
+
             # Collect function parameter names
             for param in node.params.params:
                 self.function_params.append(param.name.value)
@@ -170,8 +218,9 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         # Extract the condition
         self.condition_expr = original_node.test
 
-        # Extract parameters used in condition
-        condition_visitor = ParameterCollector(self.function_params)
+        # Extract parameters used in condition (exclude 'self' for methods)
+        params_to_collect = [p for p in self.function_params if p != "self"]
+        condition_visitor = ParameterCollector(params_to_collect)
         original_node.test.visit(condition_visitor)
         self.condition_params = condition_visitor.params
 
@@ -180,7 +229,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             then_stmt = original_node.body.body[0]
             if isinstance(then_stmt, cst.BaseStatement):
                 self.then_body = then_stmt
-                then_visitor = ParameterCollector(self.function_params)
+                then_visitor = ParameterCollector(params_to_collect)
                 self.then_body.visit(then_visitor)
                 self.then_params = then_visitor.params
                 # Extract assignment target name
@@ -193,7 +242,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
                 else_stmt = original_node.orelse.body.body[0]
                 if isinstance(else_stmt, cst.BaseStatement):
                     self.else_body = else_stmt
-                    else_visitor = ParameterCollector(self.function_params)
+                    else_visitor = ParameterCollector(params_to_collect)
                     self.else_body.visit(else_visitor)
                     self.else_params = else_visitor.params
 
@@ -230,15 +279,20 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
         Args:
             name: Name of the function
-            params: List of parameter names
+            params: List of parameter names (not including 'self')
             return_value: Expression to return
 
         Returns:
             Function definition node
         """
+        # If this is a method, add 'self' as the first parameter
+        all_params = params
+        if self._is_method:
+            all_params = ["self"] + params
+
         return cst.FunctionDef(
             name=cst.Name(name),
-            params=cst.Parameters(params=[create_parameter(param) for param in params]),
+            params=cst.Parameters(params=[create_parameter(param) for param in all_params]),
             body=cst.IndentedBlock(
                 body=[
                     cst.SimpleStatementLine(
@@ -268,15 +322,31 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
     def _create_replacement_if(self) -> cst.If:
         """Create replacement if statement using the new functions."""
-        # Create call to is_winter(date)
+        # Create call to is_winter(date) or self.is_winter(date)
+        if self._is_method:
+            condition_func = cst.Attribute(
+                value=cst.Name("self"),
+                attr=cst.Name("is_winter"),
+            )
+        else:
+            condition_func = cst.Name("is_winter")
+
         condition_call = cst.Call(
-            func=cst.Name("is_winter"),
+            func=condition_func,
             args=[cst.Arg(value=cst.Name(param)) for param in self.condition_params],
         )
 
-        # Create call to winter_charge(...)
+        # Create call to winter_charge(...) or self.winter_charge(...)
+        if self._is_method:
+            then_func = cst.Attribute(
+                value=cst.Name("self"),
+                attr=cst.Name("winter_charge"),
+            )
+        else:
+            then_func = cst.Name("winter_charge")
+
         then_call = cst.Call(
-            func=cst.Name("winter_charge"),
+            func=then_func,
             args=[cst.Arg(value=cst.Name(param)) for param in self.then_params],
         )
         then_assign = cst.SimpleStatementLine(
@@ -288,9 +358,17 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             ]
         )
 
-        # Create call to summer_charge(...)
+        # Create call to summer_charge(...) or self.summer_charge(...)
+        if self._is_method:
+            else_func = cst.Attribute(
+                value=cst.Name("self"),
+                attr=cst.Name("summer_charge"),
+            )
+        else:
+            else_func = cst.Name("summer_charge")
+
         else_call = cst.Call(
-            func=cst.Name("summer_charge"),
+            func=else_func,
             args=[cst.Arg(value=cst.Name(param)) for param in self.else_params],
         )
         else_assign = cst.SimpleStatementLine(
