@@ -47,9 +47,6 @@ class TestReplaceMagicNumberWithSymbolicConstant(RefactoringTestBase):
             name="GRAVITATIONAL_CONSTANT",
         )
 
-    @pytest.mark.skip(
-        reason="Implementation needed for name_conflict - should detect existing constant"
-    )
     def test_name_conflict(self) -> None:
         """Test that magic number replacement fails when the constant name already exists.
 

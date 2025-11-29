@@ -8,6 +8,7 @@ from libcst import metadata
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_line_number, parse_target_with_line
+from molting.core.name_conflict_validator import NameConflictValidator
 
 
 class ReplaceMagicNumberWithSymbolicConstantCommand(BaseCommand):
@@ -73,6 +74,10 @@ class ReplaceMagicNumberWithSymbolicConstantCommand(BaseCommand):
         target_line = parse_line_number(line_spec)
 
         source_code = self.file_path.read_text()
+
+        # Check for name conflicts before applying transformation
+        validator = NameConflictValidator(source_code)
+        validator.validate_constant_name(constant_name)
 
         # First pass: extract the magic number from the target line
         wrapper = metadata.MetadataWrapper(cst.parse_module(source_code))
