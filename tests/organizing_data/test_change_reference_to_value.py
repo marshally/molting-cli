@@ -5,8 +5,6 @@ This test module verifies the change-reference-to-value refactoring,
 which converts a reference object into a value object.
 """
 
-import pytest
-
 from tests.conftest import RefactoringTestBase
 
 

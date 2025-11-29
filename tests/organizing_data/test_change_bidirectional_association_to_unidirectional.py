@@ -5,8 +5,6 @@ This test module verifies the change-bidirectional-association-to-unidirectional
 which removes back pointers from bidirectional associations.
 """
 
-import pytest
-
 from tests.conftest import RefactoringTestBase
 
 
