@@ -24,7 +24,6 @@ class TestChangeValueToReference(RefactoringTestBase):
         """
         self.refactor("change-value-to-reference", target="Customer")
 
-    @pytest.mark.skip(reason="Fixture loading broken for with_instance_vars tests")
     def test_with_instance_vars(self) -> None:
         """Test value-to-reference conversion with complex instance state.
 
