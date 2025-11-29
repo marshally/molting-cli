@@ -81,7 +81,6 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             name="is_not_eligible_for_disability",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test consolidating conditionals in a method with decorators.
 

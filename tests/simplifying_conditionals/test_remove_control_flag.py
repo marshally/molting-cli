@@ -44,7 +44,6 @@ class TestRemoveControlFlag(RefactoringTestBase):
         """
         self.refactor("remove-control-flag", target="SecurityChecker::check_security::found")
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test removing a control flag from a method with decorators.
 

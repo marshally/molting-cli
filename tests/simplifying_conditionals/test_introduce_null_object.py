@@ -4,7 +4,6 @@ Tests for Introduce Null Object refactoring.
 This refactoring replaces null checks with a null object.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -32,7 +31,6 @@ class TestIntroduceNullObject(RefactoringTestBase):
         """
         self.refactor("introduce-null-object", target_class="Customer")
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test null object pattern on a class whose methods have decorators.
 
