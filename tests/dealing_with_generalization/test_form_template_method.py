@@ -31,7 +31,7 @@ class TestFormTemplateMethod(RefactoringTestBase):
             steps="base:get_base_amount,tax:get_tax_amount",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for local variables")
+    @pytest.mark.skip(reason="Requires template method extraction with local variable handling in class hierarchies - implementation planned")
     def test_with_locals(self) -> None:
         """Test form-template-method when methods use local variables.
 
