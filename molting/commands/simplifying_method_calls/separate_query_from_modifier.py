@@ -424,7 +424,7 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         index: int,
         modifier_indices: set[int],
     ) -> bool:
-        """Check if a local variable assignment is needed for later modifications.
+        """Check if a local variable assignment is needed for modifications.
 
         Args:
             stmt: The statement to check
