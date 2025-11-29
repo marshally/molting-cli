@@ -120,26 +120,37 @@ class ParameterizeMethodCommand(BaseCommand):
 
         self.apply_ast_transform(transform)
 
-    def _get_augmented_assignment(self, method_node: ast.FunctionDef) -> ast.AugAssign:
+    def _get_augmented_assignment(self, method_node: ast.FunctionDef) -> ast.AugAssign | ast.Assign:
         """Get the augmented assignment statement from a method.
 
         Args:
             method_node: The method node
 
         Returns:
-            The augmented assignment statement
+            The augmented assignment or simple assignment statement
 
         Raises:
             ValueError: If the method doesn't have the expected structure
         """
-        if not method_node.body or len(method_node.body) != 1:
-            raise ValueError(f"Method '{method_node.name}' has unexpected structure")
+        if not method_node.body:
+            raise ValueError(f"Method '{method_node.name}' has empty body")
 
         stmt = method_node.body[0]
-        if not isinstance(stmt, ast.AugAssign):
-            raise ValueError(f"Method '{method_node.name}' doesn't have expected assignment")
 
-        return stmt
+        # Direct augmented assignment case (e.g., self.salary *= 1.05)
+        if isinstance(stmt, ast.AugAssign):
+            return stmt
+
+        # If statement case (e.g., if condition: self.field = value)
+        if isinstance(stmt, ast.If) and stmt.body:
+            # Look for assignment inside the if body
+            for inner_stmt in stmt.body:
+                if isinstance(inner_stmt, ast.Assign):
+                    return inner_stmt
+                if isinstance(inner_stmt, ast.AugAssign):
+                    return inner_stmt
+
+        raise ValueError(f"Method '{method_node.name}' doesn't have expected assignment")
 
     def _extract_percentage(self, method_node: ast.FunctionDef) -> int:
         """Extract the percentage value from a method like five_percent_raise.
