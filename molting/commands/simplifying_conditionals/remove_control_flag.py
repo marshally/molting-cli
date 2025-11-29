@@ -3,6 +3,7 @@
 from typing import cast
 
 import libcst as cst
+from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
@@ -66,17 +67,28 @@ class RemoveControlFlagCommand(BaseCommand):
         """
         target = self.params["target"]
 
-        # Parse target as function_name::flag_variable
-        if "::" not in target:
+        # Parse target as function_name::flag_variable or ClassName::method_name::flag_variable
+        parts = target.split("::")
+        if len(parts) < 2:
             raise ValueError(
-                f"Invalid target format: {target}. Expected: function_name::flag_variable"
+                f"Invalid target format: {target}. "
+                "Expected: function_name::flag_variable or ClassName::function_name::flag_variable"
             )
 
-        function_name, flag_variable = target.split("::", 1)
+        if len(parts) == 2:
+            # Module-level function: function_name::flag_variable
+            class_name = ""
+            function_name = parts[0]
+            flag_variable = parts[1]
+        else:
+            # Class method: ClassName::function_name::flag_variable
+            class_name = parts[0]
+            function_name = parts[1]
+            flag_variable = parts[2]
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
-        transformer = RemoveControlFlagTransformer(function_name, flag_variable)
+        transformer = RemoveControlFlagTransformer(class_name, function_name, flag_variable)
         modified_tree = module.visit(transformer)
         self.file_path.write_text(modified_tree.code)
 
@@ -84,21 +96,46 @@ class RemoveControlFlagCommand(BaseCommand):
 class RemoveControlFlagTransformer(cst.CSTTransformer):
     """Transforms a function by removing control flag and using return/break."""
 
-    def __init__(self, function_name: str, flag_variable: str) -> None:
+    def __init__(self, class_name: str, function_name: str, flag_variable: str) -> None:
         """Initialize the transformer.
 
         Args:
+            class_name: Name of the class (empty string for module-level functions)
             function_name: Name of the function to transform
             flag_variable: Name of the control flag variable to remove
         """
+        self.class_name = class_name
         self.function_name = function_name
         self.flag_variable = flag_variable
+        self.current_class: str | None = None
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track current class being visited."""
+        if node.name.value == self.class_name:
+            self.current_class = self.class_name
+        return True
+
+    def leave_ClassDef(  # noqa: N802
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
+        """Track exit from class."""
+        if original_node.name.value == self.class_name:
+            self.current_class = None
+        return updated_node
 
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
         """Leave function definition and remove control flag pattern."""
+        # Check if this is the target function
         if original_node.name.value != self.function_name:
+            return updated_node
+
+        # For class methods, also check we're in the right class
+        if self.class_name and self.current_class != self.class_name:
+            return updated_node
+        elif not self.class_name and self.current_class is not None:
+            # We're in a class but shouldn't be
             return updated_node
 
         body = cast(cst.IndentedBlock, updated_node.body)
