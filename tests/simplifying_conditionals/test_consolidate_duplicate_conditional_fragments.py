@@ -62,7 +62,6 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
         """
         self.refactor("consolidate-duplicate-conditional-fragments", target="process_order#L4-L9")
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test consolidating duplicate code in a method with decorators.
 

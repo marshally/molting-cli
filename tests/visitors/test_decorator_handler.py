@@ -8,7 +8,6 @@ Specifically handles:
 """
 
 import libcst as cst
-import pytest
 
 from molting.core.decorator_handler import DecoratorHandler
 
