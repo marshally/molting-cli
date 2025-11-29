@@ -1,6 +1,5 @@
 """Tests for Rename Method refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

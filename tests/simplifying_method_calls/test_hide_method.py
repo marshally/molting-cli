@@ -1,6 +1,5 @@
 """Tests for Hide Method refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

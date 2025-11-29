@@ -5,7 +5,6 @@ This refactoring moves a method from subclasses to their superclass,
 consolidating common behavior in the class hierarchy.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

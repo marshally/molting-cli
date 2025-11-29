@@ -1,7 +1,8 @@
 """
 Tests for Introduce Foreign Method refactoring.
 
-This module tests the Introduce Foreign Method refactoring which creates method in client with server instance as first arg.
+This module tests the Introduce Foreign Method refactoring which creates
+method in client with server instance as first arg.
 """
 
 import pytest

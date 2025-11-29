@@ -5,7 +5,6 @@ This test module verifies the encapsulate-field refactoring,
 which makes fields private and provides accessor methods.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

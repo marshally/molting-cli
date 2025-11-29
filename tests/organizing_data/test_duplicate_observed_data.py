@@ -5,7 +5,6 @@ This test module verifies the duplicate-observed-data refactoring,
 which copies data from domain objects to GUI objects using the observer pattern.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
