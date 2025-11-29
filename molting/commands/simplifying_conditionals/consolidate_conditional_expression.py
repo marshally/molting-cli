@@ -7,6 +7,7 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_line_range
 from molting.core.code_generation_utils import create_parameter
+from molting.core.local_variable_analyzer import LocalVariableAnalyzer
 
 
 class ConsolidateConditionalExpressionCommand(BaseCommand):
@@ -78,7 +79,7 @@ class ConsolidateConditionalExpressionCommand(BaseCommand):
         module = cst.parse_module(source_code)
         wrapper = metadata.MetadataWrapper(module)
         transformer = ConsolidateConditionalExpressionTransformer(
-            class_name, function_name, start_line, end_line, helper_name
+            class_name, function_name, start_line, end_line, helper_name, module
         )
         modified_tree = wrapper.visit(transformer)
 
@@ -134,6 +135,7 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         start_line: int,
         end_line: int,
         helper_name: str,
+        module: cst.Module | None = None,
     ) -> None:
         """Initialize the transformer.
 
@@ -143,12 +145,14 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
             start_line: Start line of the conditional range
             end_line: End line of the conditional range
             helper_name: Name of the helper function to create
+            module: The CST module for analyzing local variables
         """
         self.class_name = class_name
         self.function_name = function_name
         self.start_line = start_line
         self.end_line = end_line
         self.helper_name = helper_name
+        self.module = module
         self.conditions: list[cst.BaseExpression] = []
         self.return_value: cst.BaseExpression | None = None
         self.helper_function: cst.FunctionDef | None = None
@@ -156,6 +160,8 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         self.current_function: str | None = None
         self.current_class: str | None = None
         self.function_params: list[str] = []
+        self.local_variables: list[str] = []
+        self.variables_used_in_conditions: list[str] = []
         self._is_method = False
         self._first_param: cst.Param | None = None
         self._second_param: cst.Param | None = None
@@ -185,6 +191,11 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
                 self._first_param = node.params.params[0]
                 if len(node.params.params) > 1:
                     self._second_param = node.params.params[1]
+
+            # Analyze local variables early
+            if self.module and not self.local_variables:
+                analyzer = LocalVariableAnalyzer(self.module, self.class_name, self.function_name)
+                self.local_variables = analyzer.get_local_variables()
 
             # Extract conditions from the if statements
             self._extract_conditions(node)
@@ -218,10 +229,18 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
                         self.return_value = return_val
                         self.conditions.append(stmt.test)
                         self.num_ifs_to_replace = 1
+                        # Collect variables used in this condition
+                        collector = VariableUsageCollector()
+                        stmt.test.visit(collector)
+                        self._add_variables(collector.used_variables)
                     elif self._are_equal_values(return_val, self.return_value):
                         # Same return value, add this condition
                         self.conditions.append(stmt.test)
                         self.num_ifs_to_replace += 1
+                        # Collect variables used in this condition
+                        collector = VariableUsageCollector()
+                        stmt.test.visit(collector)
+                        self._add_variables(collector.used_variables)
                     else:
                         # Different return value, stop looking
                         break
@@ -229,6 +248,16 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
                     # Not a simple return, stop looking
                     if self.conditions:
                         break
+
+    def _add_variables(self, variables: list[str]) -> None:
+        """Add variables to the list of variables used in conditions.
+
+        Args:
+            variables: List of variable names to add
+        """
+        for var in variables:
+            if var not in self.variables_used_in_conditions:
+                self.variables_used_in_conditions.append(var)
 
     def _get_return_value(self, if_stmt: cst.If) -> cst.BaseExpression | None:
         """Get the return value from an if statement if it has a simple return.
@@ -308,14 +337,22 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         # Create return statement
         return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=combined_condition)])
 
-        # Build parameters: for methods, add 'self' as first param and the original second param
+        # Build parameters: start with regular params, then add all variables used in conditions
+        all_params: list[cst.Param] = []
+
         if self._is_method:
+            all_params.append(create_parameter("self"))
             if self._second_param:
-                all_params = [create_parameter("self"), self._second_param]
-            else:
-                all_params = [create_parameter("self")]
+                all_params.append(self._second_param)
         else:
-            all_params = [self._first_param]
+            all_params.append(self._first_param)
+
+        # Add all variables that are used in the conditions (both local vars and other function params)
+        for var in self.variables_used_in_conditions:
+            # Check if this variable is already added as a param
+            param_names = [p.name.value for p in all_params]
+            if var not in param_names:
+                all_params.append(create_parameter(var))
 
         # Create helper function
         self.helper_function = cst.FunctionDef(
@@ -356,7 +393,14 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         else:
             helper_func = cst.Name(self.helper_name)
 
-        helper_call = cst.Call(func=helper_func, args=[cst.Arg(value=param_to_pass.name)])
+        # Build arguments: start with the main param, then add all variables used in conditions
+        args: list[cst.Arg] = [cst.Arg(value=param_to_pass.name)]
+        for var in self.variables_used_in_conditions:
+            # Skip if it's already added as the main param
+            if var != param_to_pass.name.value:
+                args.append(cst.Arg(value=cst.Name(var)))
+
+        helper_call = cst.Call(func=helper_func, args=args)
 
         # Create return statement with the consolidated return value
         return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=self.return_value)])
@@ -469,6 +513,52 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
                 new_body.append(helper_with_leading_lines)
 
         return updated_node.with_changes(body=new_body)
+
+
+class VariableUsageCollector(cst.CSTVisitor):
+    """Collector for all variable references in code."""
+
+    def __init__(self) -> None:
+        """Initialize the collector."""
+        self.used_variables: list[str] = []
+
+    def visit_Name(self, node: cst.Name) -> bool:  # noqa: N802
+        """Collect variable names used in expressions."""
+        var_name = node.value
+        # Skip Python keywords and builtins
+        if var_name not in self.used_variables and not self._is_builtin(var_name):
+            self.used_variables.append(var_name)
+        return True
+
+    def visit_Attribute(self, node: cst.Attribute) -> bool:  # noqa: N802
+        """Visit attribute, but only process the base value."""
+        # Only visit the base value, not the attribute name
+        node.value.visit(self)
+        # Return False to prevent visiting the attribute name
+        return False
+
+    @staticmethod
+    def _is_builtin(name: str) -> bool:
+        """Check if a name is a Python builtin or keyword.
+
+        Args:
+            name: Variable name to check
+
+        Returns:
+            True if it's a builtin/keyword, False otherwise
+        """
+        builtins = {
+            "True",
+            "False",
+            "None",
+            "self",
+            "cls",
+            "Exception",
+            "ValueError",
+            "TypeError",
+            "AttributeError",
+        }
+        return name in builtins
 
 
 # Register the command

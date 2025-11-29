@@ -27,7 +27,6 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             name="is_not_eligible_for_disability",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test consolidating conditionals that reference local variables.
 
