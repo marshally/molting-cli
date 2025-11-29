@@ -81,7 +81,8 @@ class DecoratorHandler:
         """
         # Only apply decorators that should be preserved
         preservable = tuple(
-            d for d in self.method.decorators
+            d
+            for d in self.method.decorators
             if self._extract_decorator_name(d) in self.PRESERVABLE_DECORATORS
         )
 
