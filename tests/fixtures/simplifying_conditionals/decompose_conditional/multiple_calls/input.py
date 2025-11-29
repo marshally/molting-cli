@@ -2,7 +2,7 @@
 
 
 def calculate_shipping_charge(quantity, date, winter_rate, summer_rate, winter_service_charge):
-    if date.month < 6 or date.month > 8:
+    if date.month in (12, 1, 2):
         charge = quantity * winter_rate + winter_service_charge
     else:
         charge = quantity * summer_rate
@@ -10,7 +10,7 @@ def calculate_shipping_charge(quantity, date, winter_rate, summer_rate, winter_s
 
 
 def calculate_handling_charge(quantity, date, winter_rate, summer_rate, winter_service_charge):
-    if date.month < 6 or date.month > 8:
+    if date.month in (12, 1, 2):
         charge = quantity * winter_rate + winter_service_charge
     else:
         charge = quantity * summer_rate
@@ -18,7 +18,7 @@ def calculate_handling_charge(quantity, date, winter_rate, summer_rate, winter_s
 
 
 def calculate_total_charge(quantity, date, winter_rate, summer_rate, winter_service_charge):
-    if date.month < 6 or date.month > 8:
+    if date.month in (12, 1, 2):
         base_charge = quantity * winter_rate + winter_service_charge
     else:
         base_charge = quantity * summer_rate

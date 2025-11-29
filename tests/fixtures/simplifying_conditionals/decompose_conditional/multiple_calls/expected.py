@@ -28,7 +28,7 @@ def calculate_total_charge(quantity, date, winter_rate, summer_rate, winter_serv
 
 
 def is_winter(date):
-    return date.month < 6 or date.month > 8
+    return date.month in (12, 1, 2)
 
 
 def winter_charge(quantity, winter_rate, winter_service_charge):
