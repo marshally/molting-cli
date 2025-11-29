@@ -160,21 +160,26 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
         Returns:
             String representation of the default value
         """
+        # Normalize name by removing leading underscores for matching
+        normalized_name = var_name.lstrip("_")
+
         # Special cases based on parameter name
-        if var_name == "name":
+        if normalized_name == "name":
             return '"Unknown"'
-        elif var_name == "plan":
+        elif normalized_name == "plan":
             return '"Basic"'
-        elif var_name == "tier":
+        elif normalized_name == "tier":
             return '"None"'
-        elif var_name == "email":
+        elif normalized_name == "email":
             return '"unknown@example.com"'
-        elif var_name == "phone":
+        elif normalized_name == "phone":
             return '"N/A"'
-        elif var_name == "address":
+        elif normalized_name == "address":
             return '"N/A"'
-        elif var_name == "insurance_rate" or "rate" in var_name:
+        elif normalized_name == "insurance_rate" or "rate" in normalized_name:
             return "0.0"
+        elif normalized_name == "billing_history":
+            return "[]"
         else:
             # For other variables, try to use the assigned value if it's a literal
             return '"Unknown"'
@@ -212,7 +217,7 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
         if not isinstance(node.body, cst.IndentedBlock):
             return node
 
-        # Create is_null method
+        # Create is_null method (with no decorators)
         is_null_method = cst.FunctionDef(
             name=cst.Name("is_null"),
             params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
@@ -224,6 +229,7 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                 ]
             ),
             leading_lines=[cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))],
+            decorators=(),
         )
 
         # Add method to the end of the class body
@@ -261,9 +267,10 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
             name=cst.Name("__init__"),
             params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
             body=cst.IndentedBlock(body=init_body_stmts),
+            decorators=(),
         )
 
-        # Create is_null method
+        # Create is_null method (with no decorators)
         is_null_method = cst.FunctionDef(
             name=cst.Name("is_null"),
             params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
@@ -271,6 +278,7 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                 body=[cst.SimpleStatementLine(body=[cst.Return(value=cst.Name("True"))])]
             ),
             leading_lines=[cst.EmptyLine(whitespace=cst.SimpleWhitespace(""))],
+            decorators=(),
         )
 
         # Create the null object class
