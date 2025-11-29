@@ -21,5 +21,9 @@ class TestDuplicateObservedData(RefactoringTestBase):
         core transformation that keeps UI and domain data in sync.
         """
         self.refactor(
-            "duplicate-observed-data", target="IntervalWindow::start_field", domain="Interval"
+            "duplicate-observed-data",
+            target="IntervalWindow::start_field",
+            domain="Interval",
+            field_suffix="_field",
+            focus_handler="start_field_focus_lost",
         )

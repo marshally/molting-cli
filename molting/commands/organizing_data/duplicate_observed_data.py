@@ -89,7 +89,7 @@ class DuplicateObservedDataCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        self.validate_required_params("target", "domain")
+        self.validate_required_params("target", "domain", "field_suffix", "focus_handler")
 
     def execute(self) -> None:
         """Apply duplicate-observed-data refactoring using libCST.
@@ -99,6 +99,8 @@ class DuplicateObservedDataCommand(BaseCommand):
         """
         target = self.params["target"]
         domain_class_name = self.params["domain"]
+        field_suffix = self.params["field_suffix"]
+        focus_handler = self.params["focus_handler"]
 
         # Parse the target to get class and field names
         class_name, field_name = parse_target(target)
@@ -106,7 +108,13 @@ class DuplicateObservedDataCommand(BaseCommand):
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
 
-        transformer = DuplicateObservedDataTransformer(class_name, field_name, domain_class_name)
+        transformer = DuplicateObservedDataTransformer(
+            class_name,
+            field_name,
+            domain_class_name,
+            field_suffix=field_suffix,
+            focus_handler=focus_handler,
+        )
         modified_tree = module.visit(transformer)
 
         self.file_path.write_text(modified_tree.code)
@@ -115,17 +123,29 @@ class DuplicateObservedDataCommand(BaseCommand):
 class DuplicateObservedDataTransformer(cst.CSTTransformer):
     """Transforms GUI class to extract domain logic into separate domain class."""
 
-    def __init__(self, gui_class_name: str, target_field: str, domain_class_name: str) -> None:
+    def __init__(
+        self,
+        gui_class_name: str,
+        target_field: str,
+        domain_class_name: str,
+        *,
+        field_suffix: str,
+        focus_handler: str,
+    ) -> None:
         """Initialize the transformer.
 
         Args:
             gui_class_name: Name of the GUI class
             target_field: Name of the field that triggered the refactoring
             domain_class_name: Name of the domain class to create
+            field_suffix: Suffix used to identify GUI fields (e.g., "_field")
+            focus_handler: Name of the focus handler method to transform
         """
         self.gui_class_name = gui_class_name
         self.target_field = target_field
         self.domain_class_name = domain_class_name
+        self.field_suffix = field_suffix
+        self.focus_handler = focus_handler
         self.gui_fields: list[str] = []
         self.domain_field_name = self._generate_domain_field_name()
 
@@ -183,9 +203,9 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
         # Create __init__ method for domain class
         init_body = []
         for field in self.gui_fields:
-            if field.endswith("_field"):
-                # Convert field_name_field to field_name
-                domain_field = field[: -len("_field")]
+            if field.endswith(self.field_suffix):
+                # Convert field_name_suffix to field_name
+                domain_field = field[: -len(self.field_suffix)]
                 init_body.append(
                     cst.SimpleStatementLine(
                         body=[
@@ -280,7 +300,7 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
                 if stmt.name.value == INIT_METHOD_NAME:
                     modified_init = self._modify_init_method(stmt)
                     new_body.append(modified_init)
-                elif stmt.name.value == "start_field_focus_lost":
+                elif stmt.name.value == self.focus_handler:
                     modified_method = self._modify_focus_lost_method(stmt)
                     new_body.append(modified_method)
                 elif stmt.name.value == "calculate_length":
@@ -358,7 +378,9 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
             Modified method
         """
         # Create: self.interval.start = int(self.start_field)
-        field_name = self.target_field.replace("_field", "")
+        field_name = self.target_field
+        if field_name.endswith(self.field_suffix):
+            field_name = field_name[: -len(self.field_suffix)]
         update_domain = cst.SimpleStatementLine(
             body=[
                 cst.Assign(
@@ -449,8 +471,8 @@ class DuplicateObservedDataTransformer(cst.CSTTransformer):
 
         # Create update statements for each field
         for field in self.gui_fields:
-            if field.endswith("_field"):
-                domain_field = field[: -len("_field")]
+            if field.endswith(self.field_suffix):
+                domain_field = field[: -len(self.field_suffix)]
                 # Create: self.field_name_field = str(self.interval.field_name)
                 update_stmt = cst.SimpleStatementLine(
                     body=[
