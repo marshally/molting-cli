@@ -7,18 +7,18 @@ def calculate_charge(quantity, date, winter_rate, summer_rate, winter_service_ch
         charge = winter_charge(base, discount, tax_rate)
     else:
         base = quantity * summer_rate
-        charge = summer_charge(base, discount, tax_rate)
+        charge = summer_charge(base, tax_rate)
 
     return charge
 
 
 def is_winter(date):
-    return date.month < 6 or date.month > 8
+    return date.month in (12, 1, 2)
 
 
 def winter_charge(base, discount, tax_rate):
     return base * (1 - discount) * (1 + tax_rate)
 
 
-def summer_charge(base, discount, tax_rate):
-    return base * (1 - discount) * (1 + tax_rate)
+def summer_charge(base, tax_rate):
+    return base * (1 + tax_rate)
