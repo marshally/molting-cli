@@ -40,7 +40,6 @@ class TestIntroduceNullObject(RefactoringTestBase):
             defaults="name=Unknown,tier=None",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test null object pattern on a class whose methods have decorators.
 
@@ -48,4 +47,8 @@ class TestIntroduceNullObject(RefactoringTestBase):
         (e.g., @property, @lru_cache, etc.). Verifies the null object correctly
         implements or delegates these decorated methods appropriately.
         """
-        self.refactor("introduce-null-object", target_class="Customer")
+        self.refactor(
+            "introduce-null-object",
+            target_class="Customer",
+            defaults="_name=Unknown,_plan=Basic,_billing_history=[]",
+        )
