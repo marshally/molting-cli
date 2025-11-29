@@ -266,7 +266,8 @@ class ParameterizeMethodCommand(BaseCommand):
         Args:
             method_node: The method node to update
             new_method_name: The name of the new method to call
-            parameter: The parameter value to pass (int for percentage, str for threshold attribute)
+            parameter: The parameter value to pass (int for percentage, str
+                for threshold attribute)
             is_percentage_based: Whether this is percentage or threshold based
         """
         # For percentage: self.raise_salary(5)
@@ -296,7 +297,7 @@ class ParameterizeMethodCommand(BaseCommand):
         ]
 
     def _is_percentage_based(self, method_node: ast.FunctionDef) -> bool:
-        """Check if the method is percentage-based (salary *= 1.XX) vs threshold-based (if quantity <= XX).
+        """Check if percentage-based (salary *= 1.XX) or threshold-based (if quantity <= XX).
 
         Args:
             method_node: The method to check

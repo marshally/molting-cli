@@ -231,11 +231,17 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
                         target = s.targets[0].target
                         if isinstance(target, cst.Name):
                             const_name = target.value
-                            # Check if it's a type constant (uppercase, typically short names like STANDARD, EXPRESS)
-                            if const_name.isupper() and const_name in self.type_constants:
+                            # Type constants: STANDARD, EXPRESS, etc.
+                            if (
+                                const_name.isupper()
+                                and const_name in self.type_constants
+                            ):
                                 return True
-                            # Also check for string literal assignments to uppercase names (common pattern)
-                            if const_name.isupper() and isinstance(s.value, cst.SimpleString):
+                            # String literal assignments to uppercase names
+                            if (
+                                const_name.isupper()
+                                and isinstance(s.value, cst.SimpleString)
+                            ):
                                 return True
         return False
 
@@ -261,7 +267,9 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
 
         return updated_node
 
-    def _transform_init_method(self, node: cst.FunctionDef) -> cst.FunctionDef:
+    def _transform_init_method(
+        self, node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         """Transform __init__ to remove type parameter and type-specific parameters."""
         # Determine which parameters to keep by analyzing the method bodies
         # For now, identify parameters that should be removed (those specific to subclasses)
@@ -297,7 +305,8 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
                                             if param_name not in params_to_remove:
                                                 new_stmt_body.append(s)
                                                 continue
-                                        # Keep non-parameter assignments (e.g., self.insurance_rate = 0.02)
+                                        # Keep non-param assignments
+                                        # (e.g., self.insurance_rate = 0.02)
                                         elif attr_name not in self.init_params:
                                             new_stmt_body.append(s)
                                             continue
@@ -310,9 +319,13 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
                     new_body_stmts.append(stmt)
 
         new_body = cst.IndentedBlock(
-            body=new_body_stmts if new_body_stmts else [cst.SimpleStatementLine(body=[cst.Pass()])]
+            body=new_body_stmts
+            if new_body_stmts
+            else [cst.SimpleStatementLine(body=[cst.Pass()])]
         )
-        return node.with_changes(params=cst.Parameters(params=new_params), body=new_body)
+        return node.with_changes(
+            params=cst.Parameters(params=new_params), body=new_body
+        )
 
     def _identify_subclass_specific_params(self) -> set[str]:
         """Identify parameters that are specific to subclasses.
@@ -355,13 +368,11 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
 
         # First, try to find a trailing return statement after the if block
         self._trailing_return = None
-        if_found = False
         for i, stmt in enumerate(body.body):
             if isinstance(stmt, cst.If):
                 pos = self.get_metadata(metadata.PositionProvider, stmt)
                 # Check if the if statement is within the target range
                 if pos and self.start_line <= pos.start.line <= self.end_line:
-                    if_found = True
                     # Look for return statement after the if block BEFORE processing chains
                     if i + 1 < len(body.body):
                         next_stmt = body.body[i + 1]
