@@ -104,36 +104,3 @@ class SelfFieldRenameTransformer(cst.CSTTransformer):
                 return updated_node.with_changes(attr=cst.Name(new_name))
 
         return updated_node
-
-
-class FieldAccessCollector(cst.CSTVisitor):
-    """Visitor that collects all self.field accesses.
-
-    This is an alias for SelfFieldCollector in visitors.py, provided here
-    for convenience and consistency with SelfFieldRenameTransformer.
-
-    Examples:
-        collector = FieldAccessCollector(exclude_fields={"skip_this"})
-        method_node.visit(collector)
-        all_fields = collector.collected_fields
-    """
-
-    def __init__(self, exclude_fields: set[str] | None = None) -> None:
-        """Initialize the collector.
-
-        Args:
-            exclude_fields: Set of field names to exclude from collection
-        """
-        self.collected_fields: list[str] = []
-        self.exclude_fields = exclude_fields or set()
-
-    def visit_Attribute(self, node: cst.Attribute) -> None:  # noqa: N802
-        """Visit attribute access to find self.field references.
-
-        Args:
-            node: The attribute node to visit
-        """
-        if isinstance(node.value, cst.Name) and node.value.value == "self":
-            field_name = node.attr.value
-            if field_name not in self.collected_fields and field_name not in self.exclude_fields:
-                self.collected_fields.append(field_name)
