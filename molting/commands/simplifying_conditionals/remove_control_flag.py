@@ -172,9 +172,7 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
                 # or "return False" (if initial was True)
                 return_value = "True" if not self.initial_flag_value else "False"
                 new_statements.append(
-                    cst.SimpleStatementLine(
-                        body=[cst.Return(value=cst.Name(return_value))]
-                    )
+                    cst.SimpleStatementLine(body=[cst.Return(value=cst.Name(return_value))])
                 )
             else:
                 new_statements.append(stmt)
