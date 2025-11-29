@@ -1,4 +1,4 @@
-"""Example code for introduce-parameter-object with multiple call sites."""
+"""Expected output after introduce-parameter-object with multiple call sites."""
 
 
 class Charge:

@@ -1,4 +1,4 @@
-"""Example code for extract-class with multiple call sites."""
+"""Expected output after extract-class with multiple call sites."""
 
 
 class Person:

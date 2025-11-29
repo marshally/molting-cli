@@ -1,4 +1,4 @@
-"""Example code for add-parameter with decorators."""
+"""Expected output after add-parameter with decorators."""
 
 
 def validate_input(func):

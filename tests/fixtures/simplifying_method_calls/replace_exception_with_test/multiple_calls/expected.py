@@ -1,4 +1,4 @@
-"""Example code for replace-exception-with-test with multiple call sites."""
+"""Expected output after replace-exception-with-test with multiple call sites."""
 
 
 def get_value_for_period(period_count, values):

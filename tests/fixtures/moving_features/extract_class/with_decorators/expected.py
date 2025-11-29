@@ -1,4 +1,4 @@
-"""Example code for extract-class with decorators."""
+"""Expected output after extract-class with decorators."""
 
 
 class Employee:
