@@ -376,7 +376,6 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                                     and target.value.value == "self"
                                     and isinstance(target.attr, cst.Name)
                                 ):
-                                    attr_name = target.attr.value
                                     # Check if the value being assigned is the target parameter
                                     if (
                                         isinstance(s.value, cst.Name)

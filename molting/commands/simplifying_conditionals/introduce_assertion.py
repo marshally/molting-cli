@@ -59,7 +59,8 @@ class IntroduceAssertionCommand(BaseCommand):
         """Parse target parameter into class name, function name, and line number.
 
         Args:
-            target: Target string in format function_name#L<line_number> or ClassName::method#L<line_number>
+            target: Target string in format function_name#L<line_number>
+                or ClassName::method#L<line_number>
 
         Returns:
             Tuple of (class_name, function_name, target_line)
