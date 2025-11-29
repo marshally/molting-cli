@@ -94,7 +94,7 @@ class IntroduceNullObjectCommand(BaseCommand):
         code_text = modified_tree.code
         code_text = code_text.replace(
             "# Client code would check: if customer is not None",
-            "# Client code no longer needs null checks"
+            "# Client code no longer needs null checks",
         )
 
         self.file_path.write_text(code_text)
@@ -145,7 +145,9 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                                             ):
                                                 var_name = target.attr.value
                                                 # Extract default value based on parameter defaults
-                                                default_val = self._get_default_value(var_name, s.value)
+                                                default_val = self._get_default_value(
+                                                    var_name, s.value
+                                                )
                                                 self.instance_vars[var_name] = default_val
 
     def _get_default_value(self, var_name: str, value_node: cst.BaseExpression) -> str:
@@ -295,8 +297,7 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
                 # Get parameter names (skip self)
                 param_names = [
-                    p.name.value for p in stmt.params.params[1:]
-                    if isinstance(p.name, cst.Name)
+                    p.name.value for p in stmt.params.params[1:] if isinstance(p.name, cst.Name)
                 ]
                 # Check if any parameter matches typical naming for target class
                 # (lowercase version or singular form)
@@ -342,15 +343,18 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
 
         # Get parameter names (skip self)
         param_names = [
-            p.name.value for p in init_method.params.params[1:]
-            if isinstance(p.name, cst.Name)
+            p.name.value for p in init_method.params.params[1:] if isinstance(p.name, cst.Name)
         ]
 
         # Find which parameter name corresponds to target class
         target_param_name = None
         target_lower = self.target_class.lower()
         for param in param_names:
-            if param == target_lower or param == target_lower + "_obj" or param == self.target_class:
+            if (
+                param == target_lower
+                or param == target_lower + "_obj"
+                or param == self.target_class
+            ):
                 target_param_name = param
                 break
 
@@ -374,7 +378,10 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                                 ):
                                     attr_name = target.attr.value
                                     # Check if the value being assigned is the target parameter
-                                    if isinstance(s.value, cst.Name) and s.value.value == target_param_name:
+                                    if (
+                                        isinstance(s.value, cst.Name)
+                                        and s.value.value == target_param_name
+                                    ):
                                         # Replace with conditional assignment to null object
                                         new_assignment = cst.Assign(
                                             targets=s.targets,
@@ -384,8 +391,12 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                                                     comparisons=[
                                                         cst.ComparisonTarget(
                                                             operator=cst.IsNot(
-                                                                whitespace_before=cst.SimpleWhitespace(" "),
-                                                                whitespace_after=cst.SimpleWhitespace(" "),
+                                                                whitespace_before=cst.SimpleWhitespace(
+                                                                    " "
+                                                                ),
+                                                                whitespace_after=cst.SimpleWhitespace(
+                                                                    " "
+                                                                ),
                                                             ),
                                                             comparator=cst.Name("None"),
                                                         )
@@ -440,12 +451,15 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
         for stmt in node.body.body:
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
                 param_names = [
-                    p.name.value for p in stmt.params.params[1:]
-                    if isinstance(p.name, cst.Name)
+                    p.name.value for p in stmt.params.params[1:] if isinstance(p.name, cst.Name)
                 ]
                 target_lower = self.target_class.lower()
                 for param in param_names:
-                    if param == target_lower or param == target_lower + "_obj" or param == self.target_class:
+                    if (
+                        param == target_lower
+                        or param == target_lower + "_obj"
+                        or param == self.target_class
+                    ):
                         return param
         return None
 
@@ -483,9 +497,7 @@ class NullCheckReplacer(cst.CSTTransformer):
             ):
                 # Replace with "not self.target_param.is_null()"
                 new_test = cst.UnaryOperation(
-                    operator=cst.Not(
-                        whitespace_after=cst.SimpleWhitespace(" ")
-                    ),
+                    operator=cst.Not(whitespace_after=cst.SimpleWhitespace(" ")),
                     expression=cst.Call(
                         func=cst.Attribute(
                             value=cst.Attribute(

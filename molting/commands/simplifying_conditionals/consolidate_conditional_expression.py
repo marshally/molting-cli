@@ -425,7 +425,11 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
     ) -> cst.ClassDef:
         """Leave class and add helper function if it's a class method."""
         # Only add helper in the class if this is a class method
-        if not self._is_method or not self.helper_function or original_node.name.value != self.class_name:
+        if (
+            not self._is_method
+            or not self.helper_function
+            or original_node.name.value != self.class_name
+        ):
             return updated_node
 
         if not isinstance(updated_node.body, cst.IndentedBlock):

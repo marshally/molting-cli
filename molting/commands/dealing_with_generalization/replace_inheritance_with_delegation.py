@@ -195,7 +195,9 @@ class ReplaceInheritanceTransformer(cst.CSTTransformer):
                 cst.Assign(
                     targets=[
                         cst.AssignTarget(
-                            target=cst.Attribute(value=cst.Name("self"), attr=cst.Name(delegate_field_name))
+                            target=cst.Attribute(
+                                value=cst.Name("self"), attr=cst.Name(delegate_field_name)
+                            )
                         )
                     ],
                     value=delegate_value,
@@ -348,7 +350,13 @@ class DelegationTransformer(cst.CSTTransformer):
 
         return cst.Call(
             func=cst.Name("len"),
-            args=[cst.Arg(value=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.delegate_field_name)))],
+            args=[
+                cst.Arg(
+                    value=cst.Attribute(
+                        value=cst.Name("self"), attr=cst.Name(self.delegate_field_name)
+                    )
+                )
+            ],
         )
 
     def _transform_super_call(self, node: cst.Call) -> cst.Call | None:
@@ -372,7 +380,9 @@ class DelegationTransformer(cst.CSTTransformer):
         method_name = node.func.attr.value
         return cst.Call(
             func=cst.Attribute(
-                value=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.delegate_field_name)),
+                value=cst.Attribute(
+                    value=cst.Name("self"), attr=cst.Name(self.delegate_field_name)
+                ),
                 attr=cst.Name(method_name),
             ),
             args=node.args,
@@ -400,7 +410,9 @@ class DelegationTransformer(cst.CSTTransformer):
 
         return cst.Call(
             func=cst.Attribute(
-                value=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.delegate_field_name)),
+                value=cst.Attribute(
+                    value=cst.Name("self"), attr=cst.Name(self.delegate_field_name)
+                ),
                 attr=cst.Name(method_name),
             ),
             args=node.args,

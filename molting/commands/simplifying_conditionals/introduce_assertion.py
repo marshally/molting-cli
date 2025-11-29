@@ -105,7 +105,9 @@ class IntroduceAssertionCommand(BaseCommand):
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
         wrapper = metadata.MetadataWrapper(module)
-        transformer = IntroduceAssertionTransformer(class_name, function_name, target_line, condition, message)
+        transformer = IntroduceAssertionTransformer(
+            class_name, function_name, target_line, condition, message
+        )
         modified_tree = wrapper.visit(transformer)
         self.file_path.write_text(modified_tree.code)
 
@@ -115,7 +117,9 @@ class IntroduceAssertionTransformer(cst.CSTTransformer):
 
     METADATA_DEPENDENCIES = (metadata.PositionProvider,)
 
-    def __init__(self, class_name: str, function_name: str, target_line: int, condition: str, message: str) -> None:
+    def __init__(
+        self, class_name: str, function_name: str, target_line: int, condition: str, message: str
+    ) -> None:
         """Initialize the transformer.
 
         Args:

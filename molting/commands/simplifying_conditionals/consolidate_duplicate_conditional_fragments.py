@@ -105,7 +105,9 @@ class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
 
         # Apply transformation
         wrapper = metadata.MetadataWrapper(cst.parse_module(source_code))
-        transformer = ConsolidateDuplicateFragmentsTransformer(class_name, function_name, start_line, end_line)
+        transformer = ConsolidateDuplicateFragmentsTransformer(
+            class_name, function_name, start_line, end_line
+        )
         modified_tree = wrapper.visit(transformer)
 
         # Write back
