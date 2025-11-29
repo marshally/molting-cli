@@ -1,4 +1,7 @@
 class Employee:
+    def __init__(self, monthly_cost):
+        self.monthly_cost = monthly_cost
+
     def get_annual_cost(self):
         return self.monthly_cost * 12
 

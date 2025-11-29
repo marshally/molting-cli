@@ -1,5 +1,6 @@
 class Employee:
-    pass
+    def __init__(self, monthly_cost):
+        self.monthly_cost = monthly_cost
 
 
 class Salesman(Employee):
