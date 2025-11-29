@@ -320,7 +320,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         """Create replacement if statement using the new functions."""
         # Create call to is_winter(date) or self.is_winter(date)
         if self._is_method:
-            condition_func = cst.Attribute(
+            condition_func: cst.BaseExpression = cst.Attribute(
                 value=cst.Name("self"),
                 attr=cst.Name("is_winter"),
             )
@@ -334,7 +334,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
         # Create call to winter_charge(...) or self.winter_charge(...)
         if self._is_method:
-            then_func = cst.Attribute(
+            then_func: cst.BaseExpression = cst.Attribute(
                 value=cst.Name("self"),
                 attr=cst.Name("winter_charge"),
             )
@@ -356,7 +356,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
         # Create call to summer_charge(...) or self.summer_charge(...)
         if self._is_method:
-            else_func = cst.Attribute(
+            else_func: cst.BaseExpression = cst.Attribute(
                 value=cst.Name("self"),
                 attr=cst.Name("summer_charge"),
             )
