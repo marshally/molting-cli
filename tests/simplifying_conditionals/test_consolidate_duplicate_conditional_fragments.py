@@ -35,7 +35,6 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
             "consolidate-duplicate-conditional-fragments", target="calculate_shipping#L8-L16"
         )
 
-    
     def test_with_instance_vars(self) -> None:
         """Test consolidating duplicate code in an instance method using self variables.
 

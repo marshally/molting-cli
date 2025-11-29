@@ -11,24 +11,24 @@ import libcst as cst
 class InstanceVariableTracker(cst.CSTVisitor):
     """Tracks instance variables and detects class method context.
 
-    Use this visitor to:
-    - Detect if code is inside a class method (vs standalone function)
-    - Collect all self.attribute references in a method
-    - Determine if extracted code needs self parameter
-    - Collect instance variables defined in __init__
+        Use this visitor to:
+        - Detect if code is inside a class method (vs standalone function)
+        - Collect all self.attribute references in a method
+        - Determine if extracted code needs self parameter
+        - Collect instance variables defined in __init__
 
-    Example:
-        code = '''
-class Calculator:
-    def add(self, a, b):
-        return a + b + self.offset
-'''
-        module = cst.parse_module(code)
-        tracker = InstanceVariableTracker(module, "Calculator", "add")
-        if tracker.needs_self_parameter():
-            # extracted methods should have self as first param
-            pass
-        refs = tracker.collect_self_references()  # returns ["offset"]
+        Example:
+            code = '''
+    class Calculator:
+        def add(self, a, b):
+            return a + b + self.offset
+    '''
+            module = cst.parse_module(code)
+            tracker = InstanceVariableTracker(module, "Calculator", "add")
+            if tracker.needs_self_parameter():
+                # extracted methods should have self as first param
+                pass
+            refs = tracker.collect_self_references()  # returns ["offset"]
     """
 
     def __init__(self, module: cst.Module, class_name: str, method_name: str) -> None:
@@ -162,7 +162,11 @@ class Calculator:
             return True
 
         # For __init__ collection when visiting for other methods
-        if self._in_target_class and node.name.value == "__init__" and self.method_name != "__init__":
+        if (
+            self._in_target_class
+            and node.name.value == "__init__"
+            and self.method_name != "__init__"
+        ):
             self._is_in_init = True
             return True
 
@@ -189,10 +193,7 @@ class Calculator:
             for target in node.targets:
                 if isinstance(target.target, cst.Attribute):
                     attr = target.target
-                    if (
-                        isinstance(attr.value, cst.Name)
-                        and attr.value.value == "self"
-                    ):
+                    if isinstance(attr.value, cst.Name) and attr.value.value == "self":
                         var_name = attr.attr.value
                         if var_name not in self._init_instance_vars:
                             self._init_instance_vars.append(var_name)
@@ -203,10 +204,7 @@ class Calculator:
         if self._is_in_init:
             if isinstance(node.target, cst.Attribute):
                 attr = node.target
-                if (
-                    isinstance(attr.value, cst.Name)
-                    and attr.value.value == "self"
-                ):
+                if isinstance(attr.value, cst.Name) and attr.value.value == "self":
                     var_name = attr.attr.value
                     if var_name not in self._init_instance_vars:
                         self._init_instance_vars.append(var_name)

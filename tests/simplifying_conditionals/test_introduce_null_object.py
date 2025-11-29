@@ -23,7 +23,6 @@ class TestIntroduceNullObject(RefactoringTestBase):
         """
         self.refactor("introduce-null-object", target_class="Customer")
 
-    
     def test_with_instance_vars(self) -> None:
         """Test null object pattern on a class with heavy instance variable usage.
 

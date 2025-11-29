@@ -39,7 +39,6 @@ class TestParameterizeMethod(RefactoringTestBase):
             new_name="apply_raise",
         )
 
-    
     def test_with_instance_vars(self) -> None:
         """Test parameterizing methods that use instance variables.
 

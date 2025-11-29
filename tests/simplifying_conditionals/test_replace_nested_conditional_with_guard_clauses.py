@@ -25,7 +25,6 @@ class TestReplaceNestedConditionalWithGuardClauses(RefactoringTestBase):
             "replace-nested-conditional-with-guard-clauses", target="get_payment_amount#L2-L11"
         )
 
-    
     def test_with_instance_vars(self) -> None:
         """Test replacing nested conditionals with guard clauses using instance variables.
 

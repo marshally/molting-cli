@@ -25,7 +25,6 @@ class TestReplaceDelegationWithInheritance(RefactoringTestBase):
         """
         self.refactor("replace-delegation-with-inheritance", target="Employee", delegate="_person")
 
-    
     def test_with_instance_vars(self) -> None:
         """Test replace-delegation-with-inheritance with instance variables.
 

@@ -48,7 +48,6 @@ class TestSeparateQueryFromModifier(RefactoringTestBase):
         """
         self.refactor("separate-query-from-modifier", target="TaskQueue::process_and_get_next")
 
-    
     def test_with_instance_vars(self) -> None:
         """Test separating query from modifier when instance variables are accessed.
 

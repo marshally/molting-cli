@@ -27,7 +27,6 @@ class TestIntroduceAssertion(RefactoringTestBase):
             condition="project.expense_limit is not None or project.primary_project is not None",
         )
 
-    
     def test_with_instance_vars(self) -> None:
         """Test adding an assertion in an instance method using self variables.
 

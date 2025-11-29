@@ -41,7 +41,6 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             name="is_not_eligible_for_bonus",
         )
 
-    
     def test_with_instance_vars(self) -> None:
         """Test consolidating conditionals in an instance method using self variables.
 

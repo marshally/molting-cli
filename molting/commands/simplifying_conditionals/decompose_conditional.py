@@ -130,9 +130,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
     METADATA_DEPENDENCIES = (metadata.PositionProvider,)
 
-    def __init__(
-        self, class_name: str, function_name: str, start_line: int, end_line: int
-    ) -> None:
+    def __init__(self, class_name: str, function_name: str, start_line: int, end_line: int) -> None:
         """Initialize the transformer.
 
         Args:
