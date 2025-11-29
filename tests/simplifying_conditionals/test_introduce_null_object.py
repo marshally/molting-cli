@@ -4,8 +4,6 @@ Tests for Introduce Null Object refactoring.
 This refactoring replaces null checks with a null object.
 """
 
-import pytest
-
 from tests.conftest import RefactoringTestBase
 
 

@@ -4,8 +4,6 @@ Tests for Replace Conditional with Polymorphism refactoring.
 This refactoring moves each conditional leg to an overriding method in a subclass.
 """
 
-import pytest
-
 from tests.conftest import RefactoringTestBase
 
 
