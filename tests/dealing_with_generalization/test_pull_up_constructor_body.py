@@ -5,7 +5,6 @@ This refactoring extracts common constructor initialization code from subclasses
 and moves it to the superclass constructor.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

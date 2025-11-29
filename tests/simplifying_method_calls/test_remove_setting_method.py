@@ -1,6 +1,5 @@
 """Tests for Remove Setting Method refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

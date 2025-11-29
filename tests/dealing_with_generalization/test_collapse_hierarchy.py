@@ -5,7 +5,6 @@ This refactoring merges a subclass into its superclass when the inheritance
 hierarchy is no longer needed.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

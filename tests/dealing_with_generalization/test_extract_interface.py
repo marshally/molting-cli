@@ -5,7 +5,6 @@ This refactoring creates an interface for a common subset of methods
 that multiple classes can implement.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

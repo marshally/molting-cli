@@ -1,7 +1,8 @@
 """
 Tests for Hide Delegate refactoring.
 
-This module tests the Hide Delegate refactoring which creates methods on server to hide the delegate.
+This module tests the Hide Delegate refactoring which creates methods on
+server to hide the delegate.
 """
 
 import pytest

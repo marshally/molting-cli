@@ -5,7 +5,6 @@ This test module verifies the self-encapsulate-field refactoring, which creates
 getter and setter methods for class fields.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

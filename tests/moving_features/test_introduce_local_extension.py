@@ -1,7 +1,8 @@
 """
 Tests for Introduce Local Extension refactoring.
 
-This module tests the Introduce Local Extension refactoring which creates new class with extra methods as subclass/wrapper.
+This module tests the Introduce Local Extension refactoring which creates
+new class with extra methods as subclass/wrapper.
 """
 
 import pytest

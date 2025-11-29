@@ -1,7 +1,8 @@
 """
 Tests for Remove Middle Man refactoring.
 
-This module tests the Remove Middle Man refactoring which gets the client to call the delegate directly.
+This module tests the Remove Middle Man refactoring which gets the client
+to call the delegate directly.
 """
 
 import pytest

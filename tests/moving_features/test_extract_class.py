@@ -1,7 +1,8 @@
 """
 Tests for Extract Class refactoring.
 
-This module tests the Extract Class refactoring which creates a new class and moves relevant fields and methods.
+This module tests the Extract Class refactoring which creates a new class
+and moves relevant fields and methods.
 """
 
 import pytest

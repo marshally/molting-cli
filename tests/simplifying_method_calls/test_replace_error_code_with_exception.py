@@ -1,6 +1,5 @@
 """Tests for Replace Error Code with Exception refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

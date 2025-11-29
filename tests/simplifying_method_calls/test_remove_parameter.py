@@ -1,6 +1,5 @@
 """Tests for Remove Parameter refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
