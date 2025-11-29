@@ -77,17 +77,28 @@ class ReplaceNestedConditionalWithGuardClausesCommand(BaseCommand):
         """
         target = self.params["target"]
 
-        # Parse target as function_name#L<start>-L<end>
+        # Parse target as function_name#L<start>-L<end> or ClassName::method#L<start>-L<end>
         if "#" not in target:
             raise ValueError(
-                f"Invalid target format: {target}. Expected: function_name#L<start>-L<end>"
+                f"Invalid target format: {target}. "
+                "Expected: function_name#L<start>-L<end> or ClassName::method#L<start>-L<end>"
             )
 
-        function_name, _ = target.split("#", 1)
+        class_method, _ = target.split("#", 1)
+
+        # Parse class_method to extract class and method names
+        if "::" in class_method:
+            class_parts = class_method.split("::")
+            if len(class_parts) != 2:
+                raise ValueError(f"Invalid class::method format in '{class_method}'")
+            class_name, function_name = class_parts
+        else:
+            class_name = ""
+            function_name = class_method
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
-        transformer = ReplaceNestedConditionalWithGuardClausesTransformer(function_name)
+        transformer = ReplaceNestedConditionalWithGuardClausesTransformer(class_name, function_name)
         modified_tree = module.visit(transformer)
         self.file_path.write_text(modified_tree.code)
 
@@ -97,19 +108,44 @@ class ReplaceNestedConditionalWithGuardClausesTransformer(cst.CSTTransformer):
 
     RESULT_VARIABLE_NAME = "result"
 
-    def __init__(self, function_name: str) -> None:
+    def __init__(self, class_name: str, function_name: str) -> None:
         """Initialize the transformer.
 
         Args:
+            class_name: Name of the class (empty string for module-level functions)
             function_name: Name of the function to transform
         """
+        self.class_name = class_name
         self.function_name = function_name
+        self.current_class: str | None = None
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track current class being visited."""
+        if node.name.value == self.class_name:
+            self.current_class = self.class_name
+        return True
+
+    def leave_ClassDef(  # noqa: N802
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
+        """Track exit from class."""
+        if original_node.name.value == self.class_name:
+            self.current_class = None
+        return updated_node
 
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
         """Leave function definition and replace nested conditionals with guard clauses."""
+        # Check if this is the target function
         if original_node.name.value != self.function_name:
+            return updated_node
+
+        # For class methods, also check we're in the right class
+        if self.class_name and self.current_class != self.class_name:
+            return updated_node
+        elif not self.class_name and self.current_class is not None:
+            # We're in a class but shouldn't be
             return updated_node
 
         body = cast(cst.IndentedBlock, updated_node.body)
