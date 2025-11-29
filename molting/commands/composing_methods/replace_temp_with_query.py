@@ -6,6 +6,7 @@ import libcst.metadata as metadata
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
+from molting.core.method_inserter import MethodInserter
 from molting.core.visitors import MethodConflictChecker
 
 
@@ -205,13 +206,16 @@ class ReplaceTempWithQueryTransformer(cst.CSTTransformer):
             # Create the new query method
             new_method = self._create_query_method()
 
-            # Add the method to the class body
-            new_body = list(updated_node.body.body)
-            new_body.append(new_method)
+            # Use MethodInserter to insert the method after the target method
+            inserter = MethodInserter(self.class_name, self.method_name, new_method)
+            # Create a temporary module to apply the insertion
+            temp_module = cst.Module(body=[updated_node])
+            modified_module = temp_module.visit(inserter)
 
-            return updated_node.with_changes(
-                body=updated_node.body.with_changes(body=tuple(new_body))
-            )
+            # Extract the modified class from the temporary module
+            modified_class = modified_module.body[0]
+            assert isinstance(modified_class, cst.ClassDef)
+            return modified_class
         return updated_node
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802

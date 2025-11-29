@@ -65,7 +65,6 @@ class TestReplaceTempWithQuery(RefactoringTestBase):
                 "replace-temp-with-query", self.test_file, target="Order::get_price::base_price"
             )
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test replace temp with query when the containing method has decorators.
 
