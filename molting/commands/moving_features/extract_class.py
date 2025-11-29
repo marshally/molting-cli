@@ -101,6 +101,7 @@ class ExtractClassTransformer(cst.CSTTransformer):
 
         new_body: list[cst.BaseStatement] = []
         delegate_field_name = self.delegate_field_name
+        assert delegate_field_name is not None, "delegate_field_name should be set by now"
 
         for stmt in updated_node.body.body:
             if isinstance(stmt, cst.FunctionDef):
@@ -162,6 +163,7 @@ class ExtractClassTransformer(cst.CSTTransformer):
         Returns:
             The updated class
         """
+        assert self.delegate_field_name is not None, "delegate_field_name must be set"
         transformer = ExternalExtractedFieldUpdater(
             self.source_class, self.fields, self.delegate_field_name, self.new_class_name
         )
@@ -275,6 +277,7 @@ class ExtractClassTransformer(cst.CSTTransformer):
 
         # For properties, just return the attribute access
         # For methods, call it with parameters
+        delegate_expr: cst.Return | cst.Expr
         if is_property:
             delegate_expr = cst.Return(value=delegate_access)
         else:
