@@ -1,5 +1,7 @@
 """Extract Method refactoring command."""
 
+from typing import Sequence, Union
+
 import libcst as cst
 from libcst import metadata
 
@@ -297,19 +299,44 @@ class ExtractMethodTransformer(cst.CSTTransformer):
         if not self.extracted_stmt_indices:
             return updated_node
 
-        # Collect extracted statements
+        body = updated_node.body.body
+        extracted_stmts = self._collect_statements_to_extract(body)  # type: ignore[arg-type]
+        self._analyze_extracted_statements(extracted_stmts, list(body))  # type: ignore[arg-type]
+        new_body = self._build_modified_method_body(body)  # type: ignore[arg-type]
+        self.new_method = self._create_new_extracted_method(extracted_stmts)
+
+        return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body)))
+
+    def _collect_statements_to_extract(
+        self, body_stmts: Union[Sequence[cst.BaseStatement], Sequence[cst.BaseSmallStatement]]
+    ) -> list[cst.BaseStatement]:
+        """Collect statements that should be extracted by their index.
+
+        Args:
+            body_stmts: All statements in the method body
+
+        Returns:
+            List of statements that are marked for extraction
+        """
         extracted_stmts: list[cst.BaseStatement] = []
-        for i, stmt in enumerate(updated_node.body.body):
+        for i, stmt in enumerate(body_stmts):
             if i in self.extracted_stmt_indices:
                 extracted_stmts.append(stmt)  # type: ignore[arg-type]
+        return extracted_stmts
 
-        # Analyze extracted statements BEFORE creating the method call
-        # This ensures return_vars is populated for _create_method_call_statement()
-        self._analyze_extracted_statements(extracted_stmts, list(updated_node.body.body))
+    def _build_modified_method_body(
+        self, original_body: Union[Sequence[cst.BaseStatement], Sequence[cst.BaseSmallStatement]]
+    ) -> list[cst.BaseStatement]:
+        """Build the new method body with extracted statements replaced by a method call.
 
-        # Now create the method call with proper return assignment
+        Args:
+            original_body: The original method body statements
+
+        Returns:
+            New method body with extracted statements replaced by a method call
+        """
         new_body: list[cst.BaseStatement] = []
-        for i, stmt in enumerate(updated_node.body.body):
+        for i, stmt in enumerate(original_body):
             if i in self.extracted_stmt_indices:
                 # Insert method call at the first extracted statement position
                 if len([j for j in self.extracted_stmt_indices if j <= i]) == 1:
@@ -317,16 +344,7 @@ class ExtractMethodTransformer(cst.CSTTransformer):
                     new_body.append(method_call)
             else:
                 new_body.append(stmt)  # type: ignore[arg-type]
-
-        # Create the new extracted method with self parameter and return statement
-        new_method_body = self._create_new_method_body(extracted_stmts)
-        self.new_method = cst.FunctionDef(
-            name=cst.Name(self.new_method_name),
-            params=cst.Parameters(params=[create_parameter("self")]),
-            body=new_method_body,
-        )
-
-        return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(new_body)))
+        return new_body
 
     def _analyze_extracted_statements(
         self,
@@ -422,6 +440,24 @@ class ExtractMethodTransformer(cst.CSTTransformer):
             body_stmts.append(return_stmt)
 
         return cst.IndentedBlock(body=tuple(body_stmts))
+
+    def _create_new_extracted_method(
+        self, extracted_stmts: list[cst.BaseStatement]
+    ) -> cst.FunctionDef:
+        """Create a new method definition from extracted statements.
+
+        Args:
+            extracted_stmts: Statements that have been extracted
+
+        Returns:
+            A new FunctionDef node for the extracted method
+        """
+        new_method_body = self._create_new_method_body(extracted_stmts)
+        return cst.FunctionDef(
+            name=cst.Name(self.new_method_name),
+            params=cst.Parameters(params=[create_parameter("self")]),
+            body=new_method_body,
+        )
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
