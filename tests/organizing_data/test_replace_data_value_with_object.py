@@ -56,9 +56,6 @@ class TestReplaceDataValueWithObject(RefactoringTestBase):
         """
         self.refactor("replace-data-value-with-object", target="Order::customer", name="Customer")
 
-    @pytest.mark.skip(
-        reason="Implementation needed for name_conflict - should detect existing class"
-    )
     def test_name_conflict(self) -> None:
         """Test that data-value-to-object replacement fails when class name already exists.
 
