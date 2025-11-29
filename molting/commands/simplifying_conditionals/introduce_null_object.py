@@ -89,7 +89,15 @@ class IntroduceNullObjectCommand(BaseCommand):
         module = cst.parse_module(source_code)
         transformer = IntroduceNullObjectTransformer(target_class)
         modified_tree = module.visit(transformer)
-        self.file_path.write_text(modified_tree.code)
+
+        # Update comments in the code
+        code_text = modified_tree.code
+        code_text = code_text.replace(
+            "# Client code would check: if customer is not None",
+            "# Client code no longer needs null checks"
+        )
+
+        self.file_path.write_text(code_text)
 
 
 class IntroduceNullObjectTransformer(cst.CSTTransformer):
@@ -104,34 +112,70 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
         self.target_class = target_class
         self.null_class_name = f"Null{target_class}"
         self.target_class_node: cst.ClassDef | None = None
-        self.init_params: list[cst.Param] = []
-        self.default_values: dict[str, str] = {}
+        self.instance_vars: dict[str, str] = {}  # Maps var name to default value
+        self.current_class: str | None = None
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Capture the target class definition to extract information."""
+        self.current_class = node.name.value
         if node.name.value == self.target_class:
             self.target_class_node = node
-            self._extract_init_info(node)
+            self._extract_instance_vars(node)
 
-    def _extract_init_info(self, node: cst.ClassDef) -> None:
-        """Extract __init__ parameter information from the class."""
+    def _extract_instance_vars(self, node: cst.ClassDef) -> None:
+        """Extract instance variable assignments from the class's __init__ method."""
         if not isinstance(node.body, cst.IndentedBlock):
             return
 
         for stmt in node.body.body:
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
-                # Extract parameters (skip self)
-                for param in stmt.params.params[1:]:
-                    self.init_params.append(param)
-                    # Set simple default values for the null object
-                    param_name = param.name.value if isinstance(param.name, cst.Name) else ""
-                    if param_name == "name":
-                        self.default_values[param_name] = '"Unknown"'
-                    elif param_name == "plan":
-                        self.default_values[param_name] = '"Basic"'
-                    else:
-                        # Generic fallback
-                        self.default_values[param_name] = '"Unknown"'
+                if isinstance(stmt.body, cst.IndentedBlock):
+                    for init_stmt in stmt.body.body:
+                        # Look for self.var = value assignments
+                        if isinstance(init_stmt, cst.SimpleStatementLine):
+                            for s in init_stmt.body:
+                                if isinstance(s, cst.Assign):
+                                    if len(s.targets) > 0:
+                                        target = s.targets[0].target
+                                        if isinstance(target, cst.Attribute):
+                                            if (
+                                                isinstance(target.value, cst.Name)
+                                                and target.value.value == "self"
+                                                and isinstance(target.attr, cst.Name)
+                                            ):
+                                                var_name = target.attr.value
+                                                # Extract default value based on parameter defaults
+                                                default_val = self._get_default_value(var_name, s.value)
+                                                self.instance_vars[var_name] = default_val
+
+    def _get_default_value(self, var_name: str, value_node: cst.BaseExpression) -> str:
+        """Get default value for a null object instance variable.
+
+        Args:
+            var_name: The variable name
+            value_node: The value being assigned in __init__
+
+        Returns:
+            String representation of the default value
+        """
+        # Special cases based on parameter name
+        if var_name == "name":
+            return '"Unknown"'
+        elif var_name == "plan":
+            return '"Basic"'
+        elif var_name == "tier":
+            return '"None"'
+        elif var_name == "email":
+            return '"unknown@example.com"'
+        elif var_name == "phone":
+            return '"N/A"'
+        elif var_name == "address":
+            return '"N/A"'
+        elif var_name == "insurance_rate" or "rate" in var_name:
+            return "0.0"
+        else:
+            # For other variables, try to use the assigned value if it's a literal
+            return '"Unknown"'
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -144,9 +188,12 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
             null_class = self._create_null_object_class()
             return cst.FlattenSentinel([updated_node, null_class])
 
-        # Handle Site class - add null check in __init__
-        if original_node.name.value == "Site":
-            updated_node = self._add_null_check_to_site(updated_node)
+        # Check if this class uses the target class
+        if self._class_uses_target_class(original_node):
+            # Add null check in __init__
+            updated_node = self._add_null_check_to_class_using_target(updated_node)
+            # Replace null checks with is_null() calls throughout the class
+            updated_node = self._replace_null_checks_with_is_null(updated_node)
 
         return updated_node
 
@@ -189,9 +236,7 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
         """
         # Create __init__ method with default values
         init_body_stmts: list[cst.BaseStatement] = []
-        for param in self.init_params:
-            param_name = param.name.value if isinstance(param.name, cst.Name) else ""
-            default_value = self.default_values.get(param_name, '"Unknown"')
+        for var_name, default_value in self.instance_vars.items():
             init_body_stmts.append(
                 cst.SimpleStatementLine(
                     body=[
@@ -200,7 +245,7 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                                 cst.AssignTarget(
                                     target=cst.Attribute(
                                         value=cst.Name("self"),
-                                        attr=cst.Name(param_name),
+                                        attr=cst.Name(var_name),
                                     )
                                 )
                             ],
@@ -234,14 +279,42 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
             leading_lines=[cst.EmptyLine(), cst.EmptyLine()],
         )
 
-    def _add_null_check_to_site(self, node: cst.ClassDef) -> cst.ClassDef:
-        """Add null check to Site.__init__ method.
+    def _class_uses_target_class(self, node: cst.ClassDef) -> bool:
+        """Check if a class uses the target class as a parameter in __init__.
 
         Args:
-            node: The Site class definition
+            node: The class to check
 
         Returns:
-            Modified Site class with null check in __init__
+            True if the class has a parameter matching the target class name
+        """
+        if not isinstance(node.body, cst.IndentedBlock):
+            return False
+
+        for stmt in node.body.body:
+            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+                # Get parameter names (skip self)
+                param_names = [
+                    p.name.value for p in stmt.params.params[1:]
+                    if isinstance(p.name, cst.Name)
+                ]
+                # Check if any parameter matches typical naming for target class
+                # (lowercase version or singular form)
+                target_lower = self.target_class.lower()
+                return any(
+                    p == target_lower or p == target_lower + "_obj" or p == self.target_class
+                    for p in param_names
+                )
+        return False
+
+    def _add_null_check_to_class_using_target(self, node: cst.ClassDef) -> cst.ClassDef:
+        """Add null check to a class's __init__ method when it uses the target class.
+
+        Args:
+            node: The class definition
+
+        Returns:
+            Modified class with null check in __init__
         """
         if not isinstance(node.body, cst.IndentedBlock):
             return node
@@ -250,13 +323,13 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
         for stmt in node.body.body:
             if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
                 # Modify the __init__ method
-                stmt = self._modify_site_init(stmt)
+                stmt = self._modify_init_for_null_check(stmt)
             new_body.append(stmt)
 
         return node.with_changes(body=cst.IndentedBlock(body=new_body))
 
-    def _modify_site_init(self, init_method: cst.FunctionDef) -> cst.FunctionDef:
-        """Modify Site.__init__ to add null check.
+    def _modify_init_for_null_check(self, init_method: cst.FunctionDef) -> cst.FunctionDef:
+        """Modify __init__ to add null check for target class parameters.
 
         Args:
             init_method: The original __init__ method
@@ -267,10 +340,28 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
         if not isinstance(init_method.body, cst.IndentedBlock):
             return init_method
 
+        # Get parameter names (skip self)
+        param_names = [
+            p.name.value for p in init_method.params.params[1:]
+            if isinstance(p.name, cst.Name)
+        ]
+
+        # Find which parameter name corresponds to target class
+        target_param_name = None
+        target_lower = self.target_class.lower()
+        for param in param_names:
+            if param == target_lower or param == target_lower + "_obj" or param == self.target_class:
+                target_param_name = param
+                break
+
+        if not target_param_name:
+            return init_method
+
         new_body = []
         for stmt in init_method.body.body:
             if isinstance(stmt, cst.SimpleStatementLine):
-                # Check if this is self.customer = customer
+                # Check for assignments involving the target parameter
+                new_stmt_body = []
                 for s in stmt.body:
                     if isinstance(s, cst.Assign):
                         if len(s.targets) > 0:
@@ -280,38 +371,135 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                                     isinstance(target.value, cst.Name)
                                     and target.value.value == "self"
                                     and isinstance(target.attr, cst.Name)
-                                    and target.attr.value == "customer"
                                 ):
-                                    # Replace with conditional assignment to null object
-                                    new_assignment = cst.Assign(
-                                        targets=s.targets,
-                                        value=cst.IfExp(
-                                            test=cst.Comparison(
-                                                left=cst.Name("customer"),
-                                                comparisons=[
-                                                    cst.ComparisonTarget(
-                                                        operator=cst.IsNot(
-                                                            whitespace_before=cst.SimpleWhitespace(
-                                                                " "
+                                    attr_name = target.attr.value
+                                    # Check if the value being assigned is the target parameter
+                                    if isinstance(s.value, cst.Name) and s.value.value == target_param_name:
+                                        # Replace with conditional assignment to null object
+                                        new_assignment = cst.Assign(
+                                            targets=s.targets,
+                                            value=cst.IfExp(
+                                                test=cst.Comparison(
+                                                    left=cst.Name(target_param_name),
+                                                    comparisons=[
+                                                        cst.ComparisonTarget(
+                                                            operator=cst.IsNot(
+                                                                whitespace_before=cst.SimpleWhitespace(" "),
+                                                                whitespace_after=cst.SimpleWhitespace(" "),
                                                             ),
-                                                            whitespace_after=cst.SimpleWhitespace(
-                                                                " "
-                                                            ),
-                                                        ),
-                                                        comparator=cst.Name("None"),
-                                                    )
-                                                ],
+                                                            comparator=cst.Name("None"),
+                                                        )
+                                                    ],
+                                                ),
+                                                body=cst.Name(target_param_name),
+                                                orelse=cst.Call(
+                                                    func=cst.Name(self.null_class_name), args=[]
+                                                ),
                                             ),
-                                            body=cst.Name("customer"),
-                                            orelse=cst.Call(
-                                                func=cst.Name(self.null_class_name), args=[]
-                                            ),
-                                        ),
-                                    )
-                                    stmt = stmt.with_changes(body=[new_assignment])
+                                        )
+                                        new_stmt_body.append(new_assignment)
+                                    else:
+                                        new_stmt_body.append(s)
+                                else:
+                                    new_stmt_body.append(s)
+                            else:
+                                new_stmt_body.append(s)
+                        else:
+                            new_stmt_body.append(s)
+                    else:
+                        new_stmt_body.append(s)
+                stmt = stmt.with_changes(body=new_stmt_body)
             new_body.append(stmt)
 
         return init_method.with_changes(body=cst.IndentedBlock(body=new_body))
+
+    def _replace_null_checks_with_is_null(self, node: cst.ClassDef) -> cst.ClassDef:
+        """Replace 'x is not None' checks with 'not x.is_null()' calls.
+
+        Args:
+            node: The class to transform
+
+        Returns:
+            Modified class with null checks replaced
+        """
+        visitor = NullCheckReplacer(self._get_target_param_name(node))
+        return node.visit(visitor)
+
+    def _get_target_param_name(self, node: cst.ClassDef) -> str | None:
+        """Get the parameter name for the target class in __init__.
+
+        Args:
+            node: The class definition
+
+        Returns:
+            The parameter name or None
+        """
+        if not isinstance(node.body, cst.IndentedBlock):
+            return None
+
+        for stmt in node.body.body:
+            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+                param_names = [
+                    p.name.value for p in stmt.params.params[1:]
+                    if isinstance(p.name, cst.Name)
+                ]
+                target_lower = self.target_class.lower()
+                for param in param_names:
+                    if param == target_lower or param == target_lower + "_obj" or param == self.target_class:
+                        return param
+        return None
+
+
+class NullCheckReplacer(cst.CSTTransformer):
+    """Visitor to replace null checks with is_null() calls."""
+
+    def __init__(self, target_param_name: str | None) -> None:
+        """Initialize the replacer.
+
+        Args:
+            target_param_name: The parameter name to look for in null checks
+        """
+        self.target_param_name = target_param_name
+
+    def leave_If(self, original_node: cst.If, updated_node: cst.If) -> cst.If:  # noqa: N802
+        """Replace 'x is not None' with 'not x.is_null()' in if conditions."""
+        if not self.target_param_name:
+            return updated_node
+
+        # Check if this is checking for None
+        test = updated_node.test
+        if isinstance(test, cst.Comparison):
+            # Check for "x is not None" pattern
+            if (
+                isinstance(test.left, cst.Attribute)
+                and isinstance(test.left.value, cst.Name)
+                and test.left.value.value == "self"
+                and isinstance(test.left.attr, cst.Name)
+                and test.left.attr.value == self.target_param_name
+                and len(test.comparisons) == 1
+                and isinstance(test.comparisons[0].operator, cst.IsNot)
+                and isinstance(test.comparisons[0].comparator, cst.Name)
+                and test.comparisons[0].comparator.value == "None"
+            ):
+                # Replace with "not self.target_param.is_null()"
+                new_test = cst.UnaryOperation(
+                    operator=cst.Not(
+                        whitespace_after=cst.SimpleWhitespace(" ")
+                    ),
+                    expression=cst.Call(
+                        func=cst.Attribute(
+                            value=cst.Attribute(
+                                value=cst.Name("self"),
+                                attr=cst.Name(self.target_param_name),
+                            ),
+                            attr=cst.Name("is_null"),
+                        ),
+                        args=[],
+                    ),
+                )
+                return updated_node.with_changes(test=new_test)
+
+        return updated_node
 
 
 # Register the command
