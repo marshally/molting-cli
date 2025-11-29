@@ -7,6 +7,7 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_line_range
 from molting.core.code_generation_utils import create_parameter
+from molting.core.decorator_handler import DecoratorHandler
 from molting.core.local_variable_analyzer import LocalVariableAnalyzer
 
 
@@ -354,11 +355,12 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
             if var not in param_names:
                 all_params.append(create_parameter(var))
 
-        # Create helper function
+        # Create helper function (with no decorators)
         self.helper_function = cst.FunctionDef(
             name=cst.Name(self.helper_name),
             params=cst.Parameters(params=all_params),
             body=cst.IndentedBlock(body=[return_stmt]),
+            decorators=(),
         )
 
     def _build_consolidated_if_statement(self, func_def: cst.FunctionDef) -> cst.If | None:
@@ -373,17 +375,6 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         if self.return_value is None:
             return None
 
-        # Determine which parameter to pass to the helper
-        # For methods: pass the second parameter (first after self)
-        # For functions: pass the first parameter
-        if self._is_method:
-            param_to_pass = self._second_param
-        else:
-            param_to_pass = self._first_param
-
-        if param_to_pass is None:
-            return None
-
         # Create call to helper function
         if self._is_method:
             helper_func: cst.BaseExpression = cst.Attribute(
@@ -393,11 +384,28 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         else:
             helper_func = cst.Name(self.helper_name)
 
-        # Build arguments: start with the main param, then add all variables used in conditions
-        args: list[cst.Arg] = [cst.Arg(value=param_to_pass.name)]
-        for var in self.variables_used_in_conditions:
-            # Skip if it's already added as the main param
-            if var != param_to_pass.name.value:
+        # Build arguments for the helper function
+        args: list[cst.Arg] = []
+
+        # For methods with parameters (beyond self), add them as arguments
+        if self._is_method and self._second_param:
+            args.append(cst.Arg(value=self._second_param.name))
+            # Add other variables used in conditions
+            for var in self.variables_used_in_conditions:
+                if var != self._second_param.name.value:
+                    args.append(cst.Arg(value=cst.Name(var)))
+        # For functions, add the first parameter and any other variables
+        elif not self._is_method and self._first_param:
+            args.append(cst.Arg(value=self._first_param.name))
+            # Add other variables used in conditions
+            for var in self.variables_used_in_conditions:
+                if var != self._first_param.name.value:
+                    args.append(cst.Arg(value=cst.Name(var)))
+        else:
+            # No parameters to pass - this can happen for methods with only self
+            # or module-level functions with no parameters
+            # In this case, just pass the variables used in conditions
+            for var in self.variables_used_in_conditions:
                 args.append(cst.Arg(value=cst.Name(var)))
 
         helper_call = cst.Call(func=helper_func, args=args)
@@ -454,7 +462,15 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
 
             new_body.append(stmt)
 
-        return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
+        # Create the updated node with new body
+        result = updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
+
+        # Preserve decorators on the main method
+        handler = DecoratorHandler(original_node)
+        if handler.has_preservable_decorators():
+            result = handler.apply_decorators(result)
+
+        return result
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
