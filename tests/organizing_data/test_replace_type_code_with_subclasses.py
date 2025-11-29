@@ -5,7 +5,6 @@ This test module verifies the replace-type-code-with-subclasses refactoring,
 which replaces type codes with subclasses.
 """
 
-
 from tests.conftest import RefactoringTestBase
 
 

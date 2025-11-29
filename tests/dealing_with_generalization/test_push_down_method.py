@@ -5,7 +5,6 @@ This refactoring moves a method from a superclass to those subclasses
 that specifically need it.
 """
 
-
 from tests.conftest import RefactoringTestBase
 
 

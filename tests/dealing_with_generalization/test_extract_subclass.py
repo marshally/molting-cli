@@ -5,7 +5,6 @@ This refactoring creates a subclass for a subset of features, allowing
 specialized behavior for certain instances of a class.
 """
 
-
 from tests.conftest import RefactoringTestBase
 
 
