@@ -21,7 +21,11 @@ class TestIntroduceNullObject(RefactoringTestBase):
         straightforward null checks. Verifies the core null object pattern works
         before testing with instance variables or decorated methods.
         """
-        self.refactor("introduce-null-object", target_class="Customer")
+        self.refactor(
+            "introduce-null-object",
+            target_class="Customer",
+            defaults="name=Unknown,plan=Basic",
+        )
 
     def test_with_instance_vars(self) -> None:
         """Test null object pattern on a class with heavy instance variable usage.
@@ -30,7 +34,11 @@ class TestIntroduceNullObject(RefactoringTestBase):
         instance variables that need to be initialized in the null object. Tests that
         default values are properly chosen for the null object's state.
         """
-        self.refactor("introduce-null-object", target_class="Customer")
+        self.refactor(
+            "introduce-null-object",
+            target_class="Customer",
+            defaults="name=Unknown,tier=None",
+        )
 
     @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:

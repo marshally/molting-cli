@@ -75,7 +75,24 @@ class IntroduceNullObjectCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        self.validate_required_params("target_class")
+        self.validate_required_params("target_class", "defaults")
+
+    def _parse_defaults(self, defaults_str: str) -> dict[str, str]:
+        """Parse defaults parameter into a dictionary.
+
+        Args:
+            defaults_str: Comma-separated key=value pairs, e.g., "name=Unknown,plan=Basic"
+
+        Returns:
+            Dictionary mapping field names to their default values
+        """
+        result: dict[str, str] = {}
+        for pair in defaults_str.split(","):
+            pair = pair.strip()
+            if "=" in pair:
+                key, value = pair.split("=", 1)
+                result[key.strip()] = value.strip()
+        return result
 
     def execute(self) -> None:
         """Apply introduce-null-object refactoring using libCST.
@@ -84,10 +101,11 @@ class IntroduceNullObjectCommand(BaseCommand):
             ValueError: If target_class is not found
         """
         target_class = self.params["target_class"]
+        defaults = self._parse_defaults(self.params["defaults"])
 
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
-        transformer = IntroduceNullObjectTransformer(target_class)
+        transformer = IntroduceNullObjectTransformer(target_class, defaults=defaults)
         modified_tree = module.visit(transformer)
 
         # Update comments in the code
@@ -103,14 +121,16 @@ class IntroduceNullObjectCommand(BaseCommand):
 class IntroduceNullObjectTransformer(cst.CSTTransformer):
     """Transformer to introduce null object pattern."""
 
-    def __init__(self, target_class: str) -> None:
+    def __init__(self, target_class: str, *, defaults: dict[str, str]) -> None:
         """Initialize the transformer.
 
         Args:
             target_class: Name of the class to create null object for
+            defaults: Dictionary mapping field names to their default values for the null object
         """
         self.target_class = target_class
         self.null_class_name = f"Null{target_class}"
+        self.defaults = defaults
         self.target_class_node: cst.ClassDef | None = None
         self.instance_vars: dict[str, str] = {}  # Maps var name to default value
         self.current_class: str | None = None
@@ -160,24 +180,16 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
         Returns:
             String representation of the default value
         """
-        # Special cases based on parameter name
-        if var_name == "name":
-            return '"Unknown"'
-        elif var_name == "plan":
-            return '"Basic"'
-        elif var_name == "tier":
-            return '"None"'
-        elif var_name == "email":
-            return '"unknown@example.com"'
-        elif var_name == "phone":
-            return '"N/A"'
-        elif var_name == "address":
-            return '"N/A"'
-        elif var_name == "insurance_rate" or "rate" in var_name:
-            return "0.0"
+        # Use the provided defaults dictionary
+        if var_name in self.defaults:
+            value = self.defaults[var_name]
+            # Quote strings if not already quoted
+            if not (value.startswith('"') or value.startswith("'")):
+                return f'"{value}"'
+            return value
         else:
-            # For other variables, try to use the assigned value if it's a literal
-            return '"Unknown"'
+            # Fallback: return None for any unknown field
+            return "None"
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
