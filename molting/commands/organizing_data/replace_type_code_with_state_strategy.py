@@ -104,14 +104,7 @@ class ReplaceTypeCodeWithStateStrategyCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        if "target" not in self.params:
-            raise ValueError(
-                "Missing required parameter for replace-type-code-with-state-strategy: 'target'"
-            )
-        if "name" not in self.params:
-            raise ValueError(
-                "Missing required parameter for replace-type-code-with-state-strategy: 'name'"
-            )
+        self.validate_required_params("target", "name")
 
     def execute(self) -> None:
         """Apply replace-type-code-with-state-strategy refactoring using libCST.

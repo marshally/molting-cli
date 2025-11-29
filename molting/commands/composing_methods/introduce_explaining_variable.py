@@ -51,8 +51,7 @@ class IntroduceExplainingVariableCommand(BaseCommand):
             ValueError: If required parameters are missing or invalid
         """
         # Always require name
-        if "name" not in self.params:
-            raise ValueError(f"Missing required parameter for {self.name}: name")
+        self.validate_required_params("name")
 
         # Check for either target OR (in_function + expression)
         has_target = "target" in self.params
