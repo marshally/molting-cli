@@ -12,24 +12,24 @@ from libcst import metadata
 class LocalVariableAnalyzer(cst.CSTVisitor):
     """Analyzes local variables and their usage within a function.
 
-    Use this visitor to:
-    - Identify which variables are local to a function (defined via assignment)
-    - Identify function parameters
-    - Determine which variables are used in a specific code block
-    - Understand variable scope and dependencies
+        Use this visitor to:
+        - Identify which variables are local to a function (defined via assignment)
+        - Identify function parameters
+        - Determine which variables are used in a specific code block
+        - Understand variable scope and dependencies
 
-    Example:
-        code = '''
-def process(param1):
-    local_var = 10
-    result = local_var + param1
-    return result
-'''
-        module = cst.parse_module(code)
-        analyzer = LocalVariableAnalyzer(module, "", "process")
-        locals = analyzer.get_local_variables()  # ["local_var", "result"]
-        params = analyzer.get_parameters()  # ["param1"]
-        used = analyzer.get_variables_used_in_range(4, 4)  # Variables used in return
+        Example:
+            code = '''
+    def process(param1):
+        local_var = 10
+        result = local_var + param1
+        return result
+    '''
+            module = cst.parse_module(code)
+            analyzer = LocalVariableAnalyzer(module, "", "process")
+            locals = analyzer.get_local_variables()  # ["local_var", "result"]
+            params = analyzer.get_parameters()  # ["param1"]
+            used = analyzer.get_variables_used_in_range(4, 4)  # Variables used in return
     """
 
     def __init__(self, module: cst.Module, class_name: str, function_name: str) -> None:

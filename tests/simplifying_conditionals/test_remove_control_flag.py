@@ -23,7 +23,9 @@ class TestRemoveControlFlag(RefactoringTestBase):
         """
         self.refactor("remove-control-flag", target="check_security::found")
 
-    @pytest.mark.skip(reason="Requires analyzing return statement variables - implementation planned")
+    @pytest.mark.skip(
+        reason="Requires analyzing return statement variables - implementation planned"
+    )
     def test_with_locals(self) -> None:
         """Test removing a control flag when local variables are involved.
 

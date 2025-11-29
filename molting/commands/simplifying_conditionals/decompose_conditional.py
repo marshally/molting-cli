@@ -416,7 +416,9 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
                         else_assign = cst.SimpleStatementLine(
                             body=[
                                 cst.Assign(
-                                    targets=[cst.AssignTarget(target=cst.Name(self.assignment_target))],
+                                    targets=[
+                                        cst.AssignTarget(target=cst.Name(self.assignment_target))
+                                    ],
                                     value=else_call,
                                 )
                             ]

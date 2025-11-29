@@ -38,7 +38,9 @@ class TestSeparateQueryFromModifier(RefactoringTestBase):
         """
         self.refactor("separate-query-from-modifier", target="Security::get_and_remove_intruder")
 
-    @pytest.mark.skip(reason="Requires distributing local variables between query and modifier methods - implementation planned")
+    @pytest.mark.skip(
+        reason="Requires distributing local variables between query and modifier methods - implementation planned"
+    )
     def test_with_locals(self) -> None:
         """Test separating query from modifier when local variables are involved.
 
