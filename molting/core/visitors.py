@@ -315,11 +315,76 @@ class ClassConflictChecker(cst.CSTVisitor):
         """
         self.class_name = class_name
         self.has_conflict = False
+        self._class_depth = 0  # Track class nesting depth
+        self._function_depth = 0  # Track function nesting depth
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
-        """Check if this class has the conflicting name."""
-        if node.name.value == self.class_name:
+        """Check if this is a module-level class with the conflicting name."""
+        if self._class_depth == 0 and self._function_depth == 0 and node.name.value == self.class_name:
             self.has_conflict = True
+        self._class_depth += 1
+        return True
+
+    def leave_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Track exit from class."""
+        self._class_depth -= 1
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Track entry into function (increases depth)."""
+        self._function_depth += 1
+        return True
+
+    def leave_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
+        """Track exit from function."""
+        self._function_depth -= 1
+
+
+class ConstantConflictChecker(cst.CSTVisitor):
+    """Check if a module-level constant name already exists.
+
+    Use this before creating new module-level constants via refactoring.
+
+    Example:
+        checker = ConstantConflictChecker("MAX_RETRIES")
+        module.visit(checker)
+        if checker.has_conflict:
+            raise ValueError(f"Constant 'MAX_RETRIES' already exists")
+    """
+
+    def __init__(self, constant_name: str) -> None:
+        """Initialize the checker.
+
+        Args:
+            constant_name: Constant name to check for conflicts (typically UPPERCASE)
+        """
+        self.constant_name = constant_name
+        self.has_conflict = False
+        self._depth = 0  # Track nesting depth to only check module-level
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track entry into class (increases depth)."""
+        self._depth += 1
+        return True
+
+    def leave_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Track exit from class."""
+        self._depth -= 1
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Track entry into function (increases depth)."""
+        self._depth += 1
+        return True
+
+    def leave_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
+        """Track exit from function."""
+        self._depth -= 1
+
+    def visit_Assign(self, node: cst.Assign) -> bool:  # noqa: N802
+        """Check for module-level constant assignment."""
+        if self._depth == 0:
+            for target in node.targets:
+                if isinstance(target.target, cst.Name) and target.target.value == self.constant_name:
+                    self.has_conflict = True
         return True
 
 
