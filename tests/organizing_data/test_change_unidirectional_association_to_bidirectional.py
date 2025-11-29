@@ -28,7 +28,6 @@ class TestChangeUnidirectionalAssociationToBidirectional(RefactoringTestBase):
             back="orders",
         )
 
-    @pytest.mark.skip(reason="Fixture loading broken for with_instance_vars tests")
     def test_with_instance_vars(self) -> None:
         """Test unidirectional-to-bidirectional conversion with complex instance state.
 
