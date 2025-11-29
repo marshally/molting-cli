@@ -29,7 +29,9 @@ class TestPreserveWholeObject(RefactoringTestBase):
         """
         self.refactor("preserve-whole-object", target="within_plan")
 
-    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    @pytest.mark.skip(
+        reason="Requires object property extraction to local variables - implementation planned"
+    )
     def test_with_locals(self) -> None:
         """Test preserving whole object when local variables are involved.
 

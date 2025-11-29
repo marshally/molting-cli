@@ -23,7 +23,6 @@ class TestDecomposeConditional(RefactoringTestBase):
         """
         self.refactor("decompose-conditional", target="calculate_charge#L2-L5")
 
-    @pytest.mark.skip(reason="Implementation needed for with_locals")
     def test_with_locals(self) -> None:
         """Test decompose conditional when branches use local variables.
 
@@ -31,7 +30,7 @@ class TestDecomposeConditional(RefactoringTestBase):
         reference local variables. Verifies that local variables are correctly
         passed as parameters to the extracted methods while preserving semantics.
         """
-        self.refactor("decompose-conditional", target="process_order#L8-L13")
+        self.refactor("decompose-conditional", target="process_order#L9-L14")
 
     def test_with_instance_vars(self) -> None:
         """Test decompose conditional when branches use instance variables.

@@ -33,7 +33,7 @@ class TestReplaceParameterWithMethodCall(RefactoringTestBase):
             "replace-parameter-with-method-call", target="Order::discounted_price::discount_level"
         )
 
-    @pytest.mark.skip(reason="Implementation needed for with_locals")
+    @pytest.mark.skip(reason="Requires method call insertion with local variable scope analysis")
     def test_with_locals(self) -> None:
         """Test replacing a parameter with method call when local variables are involved.
 

@@ -230,7 +230,7 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
         )
 
     def _transform_init_method(self, node: cst.FunctionDef) -> cst.FunctionDef:
-        """Transform the __init__ method to call super().__init__().
+        """Transform the __init__ method to call super().__init__() and preserve other assignments.
 
         Args:
             node: The __init__ method to transform
@@ -238,11 +238,13 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
         Returns:
             The transformed __init__ method
         """
-        # Create super().__init__() call with all parameters except self
+        # Find the delegate creation to extract its parameters
+        delegate_params = self._extract_delegate_params(node)
+
+        # Create super().__init__() call with parameters used in delegate creation
         call_args = []
-        for param in node.params.params:
-            if param.name.value != "self":
-                call_args.append(cst.Arg(value=cst.Name(param.name.value)))
+        for param_name in delegate_params:
+            call_args.append(cst.Arg(value=cst.Name(param_name)))
 
         super_call = cst.Expr(
             value=cst.Call(
@@ -255,10 +257,67 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
 
         super_call_stmt = cst.SimpleStatementLine(body=[super_call])
 
-        # Create new body with only the super call
-        new_body = cst.IndentedBlock(body=[super_call_stmt])
+        # Collect non-delegate assignments from the original __init__
+        new_body_stmts: list[cst.BaseStatement] = [super_call_stmt]
+        if isinstance(node.body, cst.IndentedBlock):
+            for stmt in node.body.body:
+                if isinstance(stmt, cst.SimpleStatementLine):
+                    new_stmt_body = []
+                    for item in stmt.body:
+                        if isinstance(item, cst.Assign):
+                            # Skip the delegate assignment (self._contact = Contact(...))
+                            is_delegate_assign = False
+                            for target in item.targets:
+                                if isinstance(target.target, cst.Attribute):
+                                    if (
+                                        isinstance(target.target.value, cst.Name)
+                                        and target.target.value.value == "self"
+                                        and target.target.attr.value == self.delegate_field
+                                    ):
+                                        is_delegate_assign = True
+                                        break
+                            if not is_delegate_assign:
+                                # Keep non-delegate assignments
+                                new_stmt_body.append(item)
+                        else:
+                            new_stmt_body.append(item)  # type: ignore[arg-type]
 
+                    if new_stmt_body:
+                        new_body_stmts.append(stmt.with_changes(body=new_stmt_body))
+
+        new_body = cst.IndentedBlock(body=new_body_stmts)
         return node.with_changes(body=new_body)
+
+    def _extract_delegate_params(self, node: cst.FunctionDef) -> list[str]:
+        """Extract parameters used in the delegate object creation.
+
+        Args:
+            node: The __init__ method
+
+        Returns:
+            List of parameter names passed to the delegate constructor
+        """
+        if isinstance(node.body, cst.IndentedBlock):
+            for stmt in node.body.body:
+                if isinstance(stmt, cst.SimpleStatementLine):
+                    for item in stmt.body:
+                        if isinstance(item, cst.Assign):
+                            for target in item.targets:
+                                # Find self._delegate = DelegateClass(...)
+                                if isinstance(target.target, cst.Attribute):
+                                    if (
+                                        isinstance(target.target.value, cst.Name)
+                                        and target.target.value.value == "self"
+                                        and target.target.attr.value == self.delegate_field
+                                    ):
+                                        # Extract arguments from the call
+                                        if isinstance(item.value, cst.Call):
+                                            params = []
+                                            for arg in item.value.args:
+                                                if isinstance(arg.value, cst.Name):
+                                                    params.append(arg.value.value)
+                                            return params
+        return []
 
 
 # Register the command

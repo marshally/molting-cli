@@ -101,14 +101,22 @@ class ReplaceInheritanceTransformer(cst.CSTTransformer):
         """
         self.class_name = class_name
         self.superclass_name: str | None = None
+        self.original_init: cst.FunctionDef | None = None
+        self.delegate_field_name: str = "_items"  # Default to _items
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
-        """Visit class definition to find superclass."""
+        """Visit class definition to find superclass and original init."""
         if node.name.value == self.class_name:
             # Find the superclass from the bases
             for base in node.bases:
                 if isinstance(base.value, cst.Name):
                     self.superclass_name = base.value.value
+                    break
+
+            # Find the original __init__ method
+            for stmt in node.body.body:
+                if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+                    self.original_init = stmt
                     break
         return True
 
@@ -128,8 +136,8 @@ class ReplaceInheritanceTransformer(cst.CSTTransformer):
         # Remove inheritance
         new_bases: list[cst.Arg] = []
 
-        # Create __init__ method with _items field
-        init_method = self._create_init_method()
+        # Create __init__ method with _items field and preserved instance variables
+        init_method = self._create_init_method(original_node)
 
         # Update methods to use delegation
         new_body_stmts: list[cst.BaseStatement] = [init_method]
@@ -146,36 +154,92 @@ class ReplaceInheritanceTransformer(cst.CSTTransformer):
             bases=new_bases, body=updated_node.body.with_changes(body=tuple(new_body_stmts))
         )
 
-    def _create_init_method(self) -> cst.FunctionDef:
-        """Create __init__ method with _items field.
+    def _create_init_method(self, class_node: cst.ClassDef) -> cst.FunctionDef:
+        """Create __init__ method with _items field and preserved instance variables.
+
+        Args:
+            class_node: The class definition to extract parameters and assignments from
 
         Returns:
             The __init__ method
         """
-        # Create: self._items = []
-        assignment = cst.SimpleStatementLine(
+        # Extract parameters and body statements from original __init__
+        params = [create_parameter("self")]
+        body_stmts: list[cst.BaseStatement] = []
+
+        if self.original_init:
+            # Copy parameters except self
+            for param in self.original_init.params.params:
+                if param.name.value != "self":
+                    params.append(param)
+
+            # Copy body statements that don't call super().__init__()
+            if isinstance(self.original_init.body, cst.IndentedBlock):
+                for stmt in self.original_init.body.body:
+                    # Skip super().__init__() calls
+                    if self._is_super_init_call(stmt):
+                        continue
+                    body_stmts.append(stmt)
+
+        # Create: self._items = [] or self._data = {}
+        # Determine the type and field name based on superclass
+        if self.superclass_name == "dict":
+            delegate_value: cst.BaseExpression = cst.Dict([])
+            delegate_field_name = "_data"
+        else:
+            delegate_value = cst.List([])
+            delegate_field_name = "_items"
+
+        delegate_assignment = cst.SimpleStatementLine(
             body=[
                 cst.Assign(
                     targets=[
                         cst.AssignTarget(
-                            target=cst.Attribute(value=cst.Name("self"), attr=cst.Name("_items"))
+                            target=cst.Attribute(
+                                value=cst.Name("self"), attr=cst.Name(delegate_field_name)
+                            )
                         )
                     ],
-                    value=cst.List([]),
+                    value=delegate_value,
                 )
             ]
         )
 
+        # Store for later use in method transformation
+        self.delegate_field_name = delegate_field_name
+
+        # Combine: delegate assignment first, then other assignments
+        final_body = [delegate_assignment] + body_stmts
+
         # Create __init__ method
         init_method = cst.FunctionDef(
             name=cst.Name("__init__"),
-            params=cst.Parameters(
-                params=[create_parameter("self")],
-            ),
-            body=cst.IndentedBlock(body=[assignment]),
+            params=cst.Parameters(params=params),
+            body=cst.IndentedBlock(body=final_body),
         )
 
         return init_method
+
+    def _is_super_init_call(self, stmt: cst.BaseStatement) -> bool:
+        """Check if a statement is a super().__init__() call.
+
+        Args:
+            stmt: The statement to check
+
+        Returns:
+            True if the statement calls super().__init__()
+        """
+        if isinstance(stmt, cst.SimpleStatementLine):
+            for item in stmt.body:
+                if isinstance(item, cst.Expr):
+                    if isinstance(item.value, cst.Call):
+                        call = item.value
+                        if isinstance(call.func, cst.Attribute):
+                            if isinstance(call.func.value, cst.Call):
+                                if isinstance(call.func.value.func, cst.Name):
+                                    if call.func.value.func.value == "super":
+                                        return True
+        return False
 
     def _transform_method(self, method: cst.FunctionDef) -> cst.FunctionDef:
         """Transform a method to use delegation.
@@ -186,8 +250,8 @@ class ReplaceInheritanceTransformer(cst.CSTTransformer):
         Returns:
             The transformed method
         """
-        # Transform super() calls and inherited method calls to use _items
-        transformer = DelegationTransformer()
+        # Transform super() calls and inherited method calls to use the delegate field
+        transformer = DelegationTransformer(self.delegate_field_name)
         transformed = method.visit(transformer)
         if not isinstance(transformed, cst.FunctionDef):
             return method  # Return original if transformation failed
@@ -198,12 +262,13 @@ class DelegationTransformer(cst.CSTTransformer):
     """Transform inherited method calls to delegation calls.
 
     Transforms method calls that rely on inherited behavior to use a delegate field:
-    - self.method() -> self._items.method() for inherited list methods
-    - super().method() -> self._items.method() for explicit super calls
-    - len(self) -> len(self._items) for len built-in
+    - self.method() -> self._field.method() for inherited methods
+    - super().method() -> self._field.method() for explicit super calls
+    - len(self) -> len(self._field) for len built-in
+    - self[key] -> self._field[key] for subscript access
     """
 
-    # List of inherited list methods that need delegation
+    # List of inherited methods that need delegation (list and dict methods)
     DELEGATED_METHODS = frozenset(
         [
             "append",
@@ -217,32 +282,57 @@ class DelegationTransformer(cst.CSTTransformer):
             "index",
             "reverse",
             "sort",
+            "get",
+            "keys",
+            "values",
+            "items",
         ]
     )
+
+    def __init__(self, delegate_field_name: str = "_items") -> None:
+        """Initialize the transformer.
+
+        Args:
+            delegate_field_name: The name of the delegate field (e.g., "_items" or "_data")
+        """
+        self.delegate_field_name = delegate_field_name
 
     def leave_Call(  # noqa: N802
         self, original_node: cst.Call, updated_node: cst.Call
     ) -> cst.BaseExpression:
         """Transform super() and inherited method calls."""
-        # Try to transform len(self) -> len(self._items)
+        # Try to transform len(self) -> len(self._data)
         transformed = self._transform_len_call(updated_node)
         if transformed is not None:
             return transformed
 
-        # Try to transform super().method() -> self._items.method()
+        # Try to transform super().method() -> self._data.method()
         transformed = self._transform_super_call(updated_node)
         if transformed is not None:
             return transformed
 
-        # Try to transform self.method() -> self._items.method()
+        # Try to transform self.method() -> self._data.method()
         transformed = self._transform_delegated_method_call(updated_node)
         if transformed is not None:
             return transformed
 
         return updated_node
 
+    def leave_Subscript(  # noqa: N802
+        self, original_node: cst.Subscript, updated_node: cst.Subscript
+    ) -> cst.BaseExpression:
+        """Transform self[key] -> self._field[key]."""
+        # Check if this is self[...] access
+        if not isinstance(updated_node.value, cst.Name) or updated_node.value.value != "self":
+            return updated_node
+
+        # Transform to self._field[...]
+        return updated_node.with_changes(
+            value=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.delegate_field_name))
+        )
+
     def _transform_len_call(self, node: cst.Call) -> cst.Call | None:
-        """Transform len(self) -> len(self._items).
+        """Transform len(self) -> len(self._field).
 
         Args:
             node: Call node to potentially transform
@@ -260,11 +350,17 @@ class DelegationTransformer(cst.CSTTransformer):
 
         return cst.Call(
             func=cst.Name("len"),
-            args=[cst.Arg(value=cst.Attribute(value=cst.Name("self"), attr=cst.Name("_items")))],
+            args=[
+                cst.Arg(
+                    value=cst.Attribute(
+                        value=cst.Name("self"), attr=cst.Name(self.delegate_field_name)
+                    )
+                )
+            ],
         )
 
     def _transform_super_call(self, node: cst.Call) -> cst.Call | None:
-        """Transform super().method() -> self._items.method().
+        """Transform super().method() -> self._field.method().
 
         Args:
             node: Call node to potentially transform
@@ -284,14 +380,16 @@ class DelegationTransformer(cst.CSTTransformer):
         method_name = node.func.attr.value
         return cst.Call(
             func=cst.Attribute(
-                value=cst.Attribute(value=cst.Name("self"), attr=cst.Name("_items")),
+                value=cst.Attribute(
+                    value=cst.Name("self"), attr=cst.Name(self.delegate_field_name)
+                ),
                 attr=cst.Name(method_name),
             ),
             args=node.args,
         )
 
     def _transform_delegated_method_call(self, node: cst.Call) -> cst.Call | None:
-        """Transform self.method() -> self._items.method() for list methods.
+        """Transform self.method() -> self._field.method() for inherited methods.
 
         Args:
             node: Call node to potentially transform
@@ -312,7 +410,9 @@ class DelegationTransformer(cst.CSTTransformer):
 
         return cst.Call(
             func=cst.Attribute(
-                value=cst.Attribute(value=cst.Name("self"), attr=cst.Name("_items")),
+                value=cst.Attribute(
+                    value=cst.Name("self"), attr=cst.Name(self.delegate_field_name)
+                ),
                 attr=cst.Name(method_name),
             ),
             args=node.args,
