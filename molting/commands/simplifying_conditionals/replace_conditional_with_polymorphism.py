@@ -284,9 +284,11 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
                             if len(s.targets) > 0:
                                 target = s.targets[0].target
                                 if isinstance(target, cst.Attribute):
-                                    if (isinstance(target.value, cst.Name) and
-                                        target.value.value == "self" and
-                                        isinstance(target.attr, cst.Name)):
+                                    if (
+                                        isinstance(target.value, cst.Name)
+                                        and target.value.value == "self"
+                                        and isinstance(target.attr, cst.Name)
+                                    ):
                                         attr_name = target.attr.value
                                         # Check if this is a parameter assignment
                                         if isinstance(s.value, cst.Name):
@@ -307,9 +309,9 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
                 else:
                     new_body_stmts.append(stmt)
 
-        new_body = cst.IndentedBlock(body=new_body_stmts if new_body_stmts else [
-            cst.SimpleStatementLine(body=[cst.Pass()])
-        ])
+        new_body = cst.IndentedBlock(
+            body=new_body_stmts if new_body_stmts else [cst.SimpleStatementLine(body=[cst.Pass()])]
+        )
         return node.with_changes(params=cst.Parameters(params=new_params), body=new_body)
 
     def _identify_subclass_specific_params(self) -> set[str]:
@@ -436,11 +438,11 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
         # Examples: ShippingCalculator -> Shipping, Employee -> (empty)
         # For ShippingCalculator: remove "Calculator"
         if class_name.endswith("Calculator"):
-            return class_name[:-len("Calculator")]
+            return class_name[: -len("Calculator")]
         elif class_name.endswith("Manager"):
-            return class_name[:-len("Manager")]
+            return class_name[: -len("Manager")]
         elif class_name.endswith("Service"):
-            return class_name[:-len("Service")]
+            return class_name[: -len("Service")]
         # Default: remove trailing "s" if it looks like a plural, or just use empty
         # For Employee, we don't add suffix
         # Check if this looks like a role/type name

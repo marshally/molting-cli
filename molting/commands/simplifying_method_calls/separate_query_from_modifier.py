@@ -408,7 +408,9 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         for i, stmt in enumerate(block.body):
             if i in modifier_indices:
                 result.append(stmt)
-            elif self._is_local_var_assignment_needed_for_modifiers(stmt, block.body, i, modifier_indices):
+            elif self._is_local_var_assignment_needed_for_modifiers(
+                stmt, block.body, i, modifier_indices
+            ):
                 # Keep local assignments that are used in later modifications
                 result.append(stmt)
             # Skip returns and other query operations
@@ -416,8 +418,11 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         return result
 
     def _is_local_var_assignment_needed_for_modifiers(
-        self, stmt: cst.BaseStatement, all_stmts: list[cst.BaseStatement],
-        index: int, modifier_indices: set[int]
+        self,
+        stmt: cst.BaseStatement,
+        all_stmts: list[cst.BaseStatement],
+        index: int,
+        modifier_indices: set[int],
     ) -> bool:
         """Check if a local variable assignment is needed for later modifications.
 

@@ -255,7 +255,11 @@ class ParameterizeMethodCommand(BaseCommand):
         return new_method
 
     def _update_method_to_call_new(
-        self, method_node: ast.FunctionDef, new_method_name: str, parameter, is_percentage_based: bool = True
+        self,
+        method_node: ast.FunctionDef,
+        new_method_name: str,
+        parameter,
+        is_percentage_based: bool = True,
     ) -> None:
         """Update a method to call the new parameterized method.
 
@@ -385,6 +389,7 @@ class ParameterizeMethodCommand(BaseCommand):
         """
         # Deep copy the if statement
         import copy
+
         new_if = copy.deepcopy(if_stmt)
 
         # Replace the comparator (right side of <=) with the parameter
