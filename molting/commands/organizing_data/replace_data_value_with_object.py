@@ -8,6 +8,7 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import find_class_in_module, parse_target
 from molting.core.code_generation_utils import create_parameter
+from molting.core.name_conflict_validator import NameConflictValidator
 
 INIT_METHOD_NAME = "__init__"
 
@@ -73,6 +74,11 @@ class ReplaceDataValueWithObjectCommand(BaseCommand):
         class_name, field_name = parse_target(target)
 
         source_code = self.file_path.read_text()
+
+        # Check for name conflicts before applying transformation
+        validator = NameConflictValidator(source_code)
+        validator.validate_class_name(new_class_name)
+
         module = cst.parse_module(source_code)
 
         transformer = ReplaceDataValueWithObjectTransformer(class_name, field_name, new_class_name)
