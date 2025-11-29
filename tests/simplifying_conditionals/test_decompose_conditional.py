@@ -30,7 +30,7 @@ class TestDecomposeConditional(RefactoringTestBase):
         reference local variables. Verifies that local variables are correctly
         passed as parameters to the extracted methods while preserving semantics.
         """
-        self.refactor("decompose-conditional", target="process_order#L9-L14")
+        self.refactor("decompose-conditional", target="calculate_charge#L5-L10")
 
     def test_with_instance_vars(self) -> None:
         """Test decompose conditional when branches use instance variables.
