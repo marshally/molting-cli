@@ -28,19 +28,9 @@ class Rectangle:
         # Create a new method to insert
         new_method = cst.FunctionDef(
             name=cst.Name("perimeter"),
-            params=cst.Parameters(
-                params=[cst.Param(name=cst.Name("self"))]
-            ),
+            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
             body=cst.IndentedBlock(
-                body=[
-                    cst.SimpleStatementLine(
-                        body=[
-                            cst.Return(
-                                value=cst.Integer("0")
-                            )
-                        ]
-                    )
-                ]
+                body=[cst.SimpleStatementLine(body=[cst.Return(value=cst.Integer("0"))])]
             ),
         )
 
@@ -70,19 +60,9 @@ class Rectangle:
         # Create a new method to insert
         new_method = cst.FunctionDef(
             name=cst.Name("perimeter"),
-            params=cst.Parameters(
-                params=[cst.Param(name=cst.Name("self"))]
-            ),
+            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
             body=cst.IndentedBlock(
-                body=[
-                    cst.SimpleStatementLine(
-                        body=[
-                            cst.Return(
-                                value=cst.Integer("0")
-                            )
-                        ]
-                    )
-                ]
+                body=[cst.SimpleStatementLine(body=[cst.Return(value=cst.Integer("0"))])]
             ),
         )
 
@@ -106,19 +86,9 @@ class Rectangle:
         # Create a new method to insert
         new_method = cst.FunctionDef(
             name=cst.Name("perimeter"),
-            params=cst.Parameters(
-                params=[cst.Param(name=cst.Name("self"))]
-            ),
+            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
             body=cst.IndentedBlock(
-                body=[
-                    cst.SimpleStatementLine(
-                        body=[
-                            cst.Return(
-                                value=cst.Integer("0")
-                            )
-                        ]
-                    )
-                ]
+                body=[cst.SimpleStatementLine(body=[cst.Return(value=cst.Integer("0"))])]
             ),
         )
 
@@ -147,19 +117,9 @@ class Circle:
         # Create a new method to insert
         new_method = cst.FunctionDef(
             name=cst.Name("perimeter"),
-            params=cst.Parameters(
-                params=[cst.Param(name=cst.Name("self"))]
-            ),
+            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
             body=cst.IndentedBlock(
-                body=[
-                    cst.SimpleStatementLine(
-                        body=[
-                            cst.Return(
-                                value=cst.Integer("0")
-                            )
-                        ]
-                    )
-                ]
+                body=[cst.SimpleStatementLine(body=[cst.Return(value=cst.Integer("0"))])]
             ),
         )
 
@@ -194,19 +154,9 @@ class Rectangle:
         # Create a new method to insert
         new_method = cst.FunctionDef(
             name=cst.Name("perimeter"),
-            params=cst.Parameters(
-                params=[cst.Param(name=cst.Name("self"))]
-            ),
+            params=cst.Parameters(params=[cst.Param(name=cst.Name("self"))]),
             body=cst.IndentedBlock(
-                body=[
-                    cst.SimpleStatementLine(
-                        body=[
-                            cst.Return(
-                                value=cst.Integer("0")
-                            )
-                        ]
-                    )
-                ]
+                body=[cst.SimpleStatementLine(body=[cst.Return(value=cst.Integer("0"))])]
             ),
         )
 
