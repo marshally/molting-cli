@@ -421,10 +421,7 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         if original_node.name.value != self.class_name:
             return updated_node
 
-        if (
-            not self._is_method
-            or not self.helper_function
-        ):
+        if not self._is_method or not self.helper_function:
             # This is just exiting the tracked class, not adding a helper
             # Handle the first leave_ClassDef logic
             self.current_class = None
