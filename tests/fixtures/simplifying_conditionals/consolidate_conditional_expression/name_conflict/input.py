@@ -1,4 +1,4 @@
-"""Example code for consolidate-conditional-expression with name conflict."""
+"""Expected output after consolidate-conditional-expression with name conflict."""
 
 
 def is_not_eligible_for_disability(employee):

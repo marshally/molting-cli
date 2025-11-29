@@ -1,4 +1,4 @@
-"""Example code for introduce-assertion with instance variables."""
+"""Expected output after introduce-assertion with instance variables."""
 
 
 class ExpenseManager:

@@ -1,4 +1,4 @@
-"""Example code for consolidate duplicate conditional fragments with local variables."""
+"""Expected output after consolidate duplicate conditional fragments with local variables."""
 
 
 def calculate_shipping(is_express, weight, distance):

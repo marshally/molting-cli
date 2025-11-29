@@ -1,4 +1,4 @@
-"""Example code for consolidate-conditional-expression with multiple call sites."""
+"""Expected output after consolidate-conditional-expression with multiple call sites."""
 
 
 def disability_amount(employee):
