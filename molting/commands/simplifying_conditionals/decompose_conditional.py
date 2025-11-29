@@ -9,6 +9,7 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_line_range
 from molting.core.code_generation_utils import create_parameter
+from molting.core.local_variable_analyzer import LocalVariableAnalyzer
 
 
 class DecomposeConditionalCommand(BaseCommand):
@@ -115,7 +116,7 @@ class DecomposeConditionalCommand(BaseCommand):
         module = cst.parse_module(source_code)
         wrapper = metadata.MetadataWrapper(module)
         transformer = DecomposeConditionalTransformer(
-            class_name, function_name, start_line, end_line
+            class_name, function_name, start_line, end_line, module
         )
         modified_tree = wrapper.visit(transformer)
 
@@ -128,7 +129,14 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
 
     METADATA_DEPENDENCIES = (metadata.PositionProvider,)
 
-    def __init__(self, class_name: str, function_name: str, start_line: int, end_line: int) -> None:
+    def __init__(
+        self,
+        class_name: str,
+        function_name: str,
+        start_line: int,
+        end_line: int,
+        module: cst.Module | None = None,
+    ) -> None:
         """Initialize the transformer.
 
         Args:
@@ -136,17 +144,23 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             function_name: Name of the function containing the conditional
             start_line: Start line of the conditional
             end_line: End line of the conditional
+            module: The CST module for analyzing local variables
         """
         self.class_name = class_name
         self.function_name = function_name
         self.start_line = start_line
         self.end_line = end_line
+        self.module = module
         self.condition_expr: cst.BaseExpression | None = None
         self.then_body: cst.BaseStatement | None = None
         self.else_body: cst.BaseStatement | None = None
+        self.then_body_index: int = -1  # Index of the extracted statement in then block
+        self.else_body_index: int = -1  # Index of the extracted statement in else block
+        self.original_if: cst.If | None = None  # Original if statement
         self.condition_params: list[str] = []
         self.then_params: list[str] = []
         self.else_params: list[str] = []
+        self.local_variables: list[str] = []
         self.new_functions: list[cst.FunctionDef] = []
         self.current_function: str | None = None
         self.current_class: str | None = None
@@ -186,6 +200,11 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             for param in node.params.params:
                 self.function_params.append(param.name.value)
 
+            # Analyze local variables early so they're available in leave_If
+            if self.module and not self.local_variables:
+                analyzer = LocalVariableAnalyzer(self.module, self.class_name, self.function_name)
+                self.local_variables = analyzer.get_local_variables()
+
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef | cst.FlattenSentinel[cst.FunctionDef]:
@@ -211,18 +230,25 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         if pos.start.line != self.start_line:
             return updated_node
 
+        # Store the original if statement for later reconstruction
+        self.original_if = original_node
+
         # Extract the condition
         self.condition_expr = original_node.test
 
         # Extract parameters used in condition (exclude 'self' for methods)
+        # Include both function parameters and local variables
         params_to_collect = [p for p in self.function_params if p != "self"]
+        params_to_collect.extend(self.local_variables)
         condition_visitor = ParameterCollector(params_to_collect)
         original_node.test.visit(condition_visitor)
         self.condition_params = condition_visitor.params
 
-        # Extract then body
+        # Extract then body (use last statement to handle multiple statements in branch)
         if original_node.body and original_node.body.body:
-            then_stmt = original_node.body.body[0]
+            # Track which statement index we're extracting (the last one)
+            self.then_body_index = len(original_node.body.body) - 1
+            then_stmt = original_node.body.body[self.then_body_index]
             if isinstance(then_stmt, cst.BaseStatement):
                 self.then_body = then_stmt
                 then_visitor = ParameterCollector(params_to_collect)
@@ -232,10 +258,12 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
                 if not self.assignment_target:
                     self.assignment_target = self._extract_assignment_target(self.then_body)
 
-        # Extract else body
+        # Extract else body (use last statement to handle multiple statements in branch)
         if original_node.orelse and isinstance(original_node.orelse, cst.Else):
             if original_node.orelse.body and original_node.orelse.body.body:
-                else_stmt = original_node.orelse.body.body[0]
+                # Track which statement index we're extracting (the last one)
+                self.else_body_index = len(original_node.orelse.body.body) - 1
+                else_stmt = original_node.orelse.body.body[self.else_body_index]
                 if isinstance(else_stmt, cst.BaseStatement):
                     self.else_body = else_stmt
                     else_visitor = ParameterCollector(params_to_collect)
@@ -317,8 +345,11 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         return ""
 
     def _create_replacement_if(self) -> cst.If:
-        """Create replacement if statement using the new functions."""
-        # Create call to is_winter(date) or self.is_winter(date)
+        """Create replacement if statement using the new functions, preserving non-extracted statements."""
+        if not self.original_if:
+            return cst.If(test=cst.Name("False"), body=cst.IndentedBlock(body=[]))
+
+        # Create call to condition function
         if self._is_method:
             condition_func: cst.BaseExpression = cst.Attribute(
                 value=cst.Name("self"),
@@ -332,60 +363,83 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
             args=[cst.Arg(value=cst.Name(param)) for param in self.condition_params],
         )
 
-        # Create call to winter_charge(...) or self.winter_charge(...)
-        if self._is_method:
-            then_func: cst.BaseExpression = cst.Attribute(
-                value=cst.Name("self"),
-                attr=cst.Name("winter_charge"),
-            )
-        else:
-            then_func = cst.Name("winter_charge")
+        # Build the then block with all statements, replacing the extracted one
+        then_statements: list[cst.BaseStatement] = []
+        if self.original_if.body and self.original_if.body.body:
+            for i, stmt in enumerate(self.original_if.body.body):
+                if i == self.then_body_index:
+                    # Replace with extracted function call
+                    if self._is_method:
+                        then_func: cst.BaseExpression = cst.Attribute(
+                            value=cst.Name("self"),
+                            attr=cst.Name("winter_charge"),
+                        )
+                    else:
+                        then_func = cst.Name("winter_charge")
 
-        then_call = cst.Call(
-            func=then_func,
-            args=[cst.Arg(value=cst.Name(param)) for param in self.then_params],
-        )
-        then_assign = cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[cst.AssignTarget(target=cst.Name(self.assignment_target))],
-                    value=then_call,
-                )
-            ]
-        )
+                    then_call = cst.Call(
+                        func=then_func,
+                        args=[cst.Arg(value=cst.Name(param)) for param in self.then_params],
+                    )
+                    then_assign = cst.SimpleStatementLine(
+                        body=[
+                            cst.Assign(
+                                targets=[cst.AssignTarget(target=cst.Name(self.assignment_target))],
+                                value=then_call,
+                            )
+                        ]
+                    )
+                    then_statements.append(then_assign)
+                else:
+                    # Keep original statement
+                    then_statements.append(stmt)
 
-        # Create call to summer_charge(...) or self.summer_charge(...)
-        if self._is_method:
-            else_func: cst.BaseExpression = cst.Attribute(
-                value=cst.Name("self"),
-                attr=cst.Name("summer_charge"),
-            )
-        else:
-            else_func = cst.Name("summer_charge")
+        # Build the else block with all statements, replacing the extracted one
+        else_statements: list[cst.BaseStatement] = []
+        if self.original_if.orelse and isinstance(self.original_if.orelse, cst.Else):
+            if self.original_if.orelse.body and self.original_if.orelse.body.body:
+                for i, stmt in enumerate(self.original_if.orelse.body.body):
+                    if i == self.else_body_index:
+                        # Replace with extracted function call
+                        if self._is_method:
+                            else_func: cst.BaseExpression = cst.Attribute(
+                                value=cst.Name("self"),
+                                attr=cst.Name("summer_charge"),
+                            )
+                        else:
+                            else_func = cst.Name("summer_charge")
 
-        else_call = cst.Call(
-            func=else_func,
-            args=[cst.Arg(value=cst.Name(param)) for param in self.else_params],
-        )
-        else_assign = cst.SimpleStatementLine(
-            body=[
-                cst.Assign(
-                    targets=[cst.AssignTarget(target=cst.Name(self.assignment_target))],
-                    value=else_call,
-                )
-            ]
-        )
+                        else_call = cst.Call(
+                            func=else_func,
+                            args=[cst.Arg(value=cst.Name(param)) for param in self.else_params],
+                        )
+                        else_assign = cst.SimpleStatementLine(
+                            body=[
+                                cst.Assign(
+                                    targets=[cst.AssignTarget(target=cst.Name(self.assignment_target))],
+                                    value=else_call,
+                                )
+                            ]
+                        )
+                        else_statements.append(else_assign)
+                    else:
+                        # Keep original statement
+                        else_statements.append(stmt)
 
         # Create new if statement
+        else_clause = None
+        if else_statements:
+            else_clause = cst.Else(body=cst.IndentedBlock(body=else_statements))
+
         return cst.If(
             test=condition_call,
-            body=cst.IndentedBlock(body=[then_assign]),
-            orelse=cst.Else(body=cst.IndentedBlock(body=[else_assign])),
+            body=cst.IndentedBlock(body=then_statements),
+            orelse=else_clause,
         )
 
 
 class ParameterCollector(cst.CSTVisitor):
-    """Visitor to collect parameter names used in expressions."""
+    """Visitor to collect parameter names used in expressions (not assignment targets)."""
 
     def __init__(self, valid_params: list[str]) -> None:
         """Initialize the collector.
@@ -395,6 +449,20 @@ class ParameterCollector(cst.CSTVisitor):
         """
         self.valid_params = set(valid_params)
         self.params: list[str] = []
+
+    def visit_Assign(self, node: cst.Assign) -> bool:  # noqa: N802
+        """Visit assignment, but only process the RHS value, not the targets."""
+        # Only visit the RHS (the value being assigned), not the targets
+        node.value.visit(self)
+        # Return False to prevent visiting the targets
+        return False
+
+    def visit_Attribute(self, node: cst.Attribute) -> bool:  # noqa: N802
+        """Visit attribute, but only process the base value, not the attribute name."""
+        # Only visit the base value, not the attribute name
+        node.value.visit(self)
+        # Return False to prevent visiting the attribute name
+        return False
 
     def visit_Name(self, node: cst.Name) -> None:  # noqa: N802
         """Collect name references that are valid parameters."""
