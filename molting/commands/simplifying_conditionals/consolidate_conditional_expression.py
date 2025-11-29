@@ -1,9 +1,12 @@
 """Consolidate Conditional Expression refactoring command."""
 
 import libcst as cst
+from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.ast_utils import parse_line_range
+from molting.core.code_generation_utils import create_parameter
 
 
 class ConsolidateConditionalExpressionCommand(BaseCommand):
@@ -65,41 +68,132 @@ class ConsolidateConditionalExpressionCommand(BaseCommand):
         target = self.params["target"]
         helper_name = self.params["name"]
 
-        # Parse target format: "function_name#L2-L7"
-        if "#L" not in target:
-            raise ValueError(f"Invalid target format '{target}'. Expected 'function_name#L2-L7'")
+        # Parse target format: "function_name#L2-L7" or "ClassName::method#L2-L7"
+        class_name, function_name, start_line, end_line = self._parse_target(target)
 
-        parts = target.split("#L")
-        function_name = parts[0]
+        # Read file
+        source_code = self.file_path.read_text()
 
-        # Apply transformation
-        self.apply_libcst_transform(
-            ConsolidateConditionalExpressionTransformer,
-            function_name,
-            helper_name,
+        # Parse and transform with metadata
+        module = cst.parse_module(source_code)
+        wrapper = metadata.MetadataWrapper(module)
+        transformer = ConsolidateConditionalExpressionTransformer(
+            class_name, function_name, start_line, end_line, helper_name
         )
+        modified_tree = wrapper.visit(transformer)
+
+        # Write back
+        self.file_path.write_text(modified_tree.code)
+
+    def _parse_target(self, target: str) -> tuple[str, str, int, int]:
+        """Parse target format into class name, function name, and line range.
+
+        Args:
+            target: Target string in format "function_name#L2-L5" or "ClassName::method#L2-L5"
+
+        Returns:
+            Tuple of (class_name, function_name, start_line, end_line)
+            class_name will be empty string for module-level functions
+
+        Raises:
+            ValueError: If target format is invalid
+        """
+        parts = target.split("#")
+        if len(parts) != 2:
+            raise ValueError(
+                f"Invalid target format '{target}'. "
+                "Expected 'function_name#L2-L5' or 'ClassName::method#L2-L5'"
+            )
+
+        class_method = parts[0]
+        line_spec = parts[1]
+
+        # Parse class_method to extract class and method names
+        if "::" in class_method:
+            class_parts = class_method.split("::")
+            if len(class_parts) != 2:
+                raise ValueError(f"Invalid class::method format in '{class_method}'")
+            class_name, function_name = class_parts
+        else:
+            class_name = ""
+            function_name = class_method
+
+        start_line, end_line = parse_line_range(line_spec)
+        return class_name, function_name, start_line, end_line
 
 
 class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
     """Transforms sequential if statements into a consolidated conditional."""
 
-    def __init__(self, function_name: str, helper_name: str) -> None:
+    METADATA_DEPENDENCIES = (metadata.PositionProvider,)
+
+    def __init__(
+        self,
+        class_name: str,
+        function_name: str,
+        start_line: int,
+        end_line: int,
+        helper_name: str,
+    ) -> None:
         """Initialize the transformer.
 
         Args:
+            class_name: Name of the class (empty string for module-level functions)
             function_name: Name of the function to refactor
+            start_line: Start line of the conditional range
+            end_line: End line of the conditional range
             helper_name: Name of the helper function to create
         """
+        self.class_name = class_name
         self.function_name = function_name
+        self.start_line = start_line
+        self.end_line = end_line
         self.helper_name = helper_name
         self.conditions: list[cst.BaseExpression] = []
         self.return_value: cst.BaseExpression | None = None
         self.helper_function: cst.FunctionDef | None = None
         self.num_ifs_to_replace = 0
+        self.current_function: str | None = None
+        self.current_class: str | None = None
+        self.function_params: list[str] = []
+        self._is_method = False
+        self._first_param: cst.Param | None = None
+        self._second_param: cst.Param | None = None
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track current class being visited."""
+        if node.name.value == self.class_name:
+            self.current_class = self.class_name
+        return True
+
+    def leave_ClassDef(  # noqa: N802
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
+        """Track exit from class."""
+        if original_node.name.value == self.class_name:
+            self.current_class = None
+        return updated_node
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
         """Visit function definition to find target function."""
+        self.current_function = node.name.value
         if node.name.value == self.function_name:
+            # Check if this is a class method
+            if self.class_name and self.current_class == self.class_name:
+                self._is_method = True
+            elif not self.class_name:
+                self._is_method = False
+
+            # Collect function parameter names
+            for param in node.params.params:
+                self.function_params.append(param.name.value)
+
+            # Store parameters for helper function
+            if node.params.params:
+                self._first_param = node.params.params[0]
+                if len(node.params.params) > 1:
+                    self._second_param = node.params.params[1]
+
             # Extract conditions from the if statements
             self._extract_conditions(node)
             # Create the helper function
@@ -116,9 +210,14 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         if not isinstance(func_def.body, cst.IndentedBlock):
             return
 
-        # Find consecutive if statements with the same return value
+        # Find consecutive if statements with the same return value within the line range
         for stmt in func_def.body.body:
             if isinstance(stmt, cst.If):
+                # Check if this if is within the target line range
+                pos = self.get_metadata(cst.metadata.PositionProvider, stmt)
+                if not pos or pos.start.line < self.start_line or pos.start.line > self.end_line:
+                    continue
+
                 # Check if this if has a simple return in its body
                 return_val = self._get_return_value(stmt)
                 if return_val is not None:
@@ -204,8 +303,7 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         Args:
             func_def: The original function definition
         """
-        param = self._get_first_parameter(func_def)
-        if param is None:
+        if self._first_param is None:
             return
 
         # Combine conditions with 'or'
@@ -218,10 +316,19 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         # Create return statement
         return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=combined_condition)])
 
+        # Build parameters: for methods, add 'self' as first param and the original second param
+        if self._is_method:
+            if self._second_param:
+                all_params = [create_parameter("self"), self._second_param]
+            else:
+                all_params = [create_parameter("self")]
+        else:
+            all_params = [self._first_param]
+
         # Create helper function
         self.helper_function = cst.FunctionDef(
             name=cst.Name(self.helper_name),
-            params=cst.Parameters(params=[param]),
+            params=cst.Parameters(params=all_params),
             body=cst.IndentedBlock(body=[return_stmt]),
         )
 
@@ -234,12 +341,30 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         Returns:
             The consolidated if statement, or None if it cannot be built
         """
-        param = self._get_first_parameter(func_def)
-        if param is None or self.return_value is None:
+        if self.return_value is None:
+            return None
+
+        # Determine which parameter to pass to the helper
+        # For methods: pass the second parameter (first after self)
+        # For functions: pass the first parameter
+        if self._is_method:
+            param_to_pass = self._second_param
+        else:
+            param_to_pass = self._first_param
+
+        if param_to_pass is None:
             return None
 
         # Create call to helper function
-        helper_call = cst.Call(func=cst.Name(self.helper_name), args=[cst.Arg(value=param.name)])
+        if self._is_method:
+            helper_func: cst.BaseExpression = cst.Attribute(
+                value=cst.Name("self"),
+                attr=cst.Name(self.helper_name),
+            )
+        else:
+            helper_func = cst.Name(self.helper_name)
+
+        helper_call = cst.Call(func=helper_func, args=[cst.Arg(value=param_to_pass.name)])
 
         # Create return statement with the consolidated return value
         return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=self.return_value)])
@@ -295,11 +420,39 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
 
         return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
 
+    def leave_ClassDef(  # noqa: N802
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
+        """Leave class and add helper function if it's a class method."""
+        # Only add helper in the class if this is a class method
+        if not self._is_method or not self.helper_function or original_node.name.value != self.class_name:
+            return updated_node
+
+        if not isinstance(updated_node.body, cst.IndentedBlock):
+            return updated_node
+
+        # Add helper function after the original method
+        new_body: list[cst.BaseStatement] = []
+        for stmt in updated_node.body.body:
+            new_body.append(stmt)
+            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == self.function_name:
+                # Add helper function with proper spacing
+                helper_with_leading_lines = self.helper_function.with_changes(
+                    leading_lines=[
+                        cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                        cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                    ]
+                )
+                new_body.append(helper_with_leading_lines)
+
+        return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
+
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
     ) -> cst.Module:
-        """Leave module and add helper function."""
-        if not self.helper_function:
+        """Leave module and add helper function for module-level functions."""
+        # Only add helper at module level if this is NOT a class method
+        if self._is_method or not self.helper_function:
             return updated_node
 
         # Add helper function after the original function
