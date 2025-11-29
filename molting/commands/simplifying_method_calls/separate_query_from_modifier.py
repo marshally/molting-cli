@@ -417,7 +417,7 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
 
         return result
 
-    def _is_local_var_assignment_needed_for_modifiers(
+    def _is_local_var_assignment_needed_for_modifiers(  # type: ignore[misc]
         self,
         stmt: cst.BaseStatement,
         all_stmts,  # type: ignore
