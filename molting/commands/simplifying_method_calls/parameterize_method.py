@@ -91,33 +91,83 @@ class ParameterizeMethodCommand(BaseCommand):
             class_node, method_node1 = result1
             _, method_node2 = result2
 
+            # Check if methods have decorators - this changes the refactoring pattern
+            has_decorators = bool(method_node1.decorator_list or method_node2.decorator_list)
+
             # Determine the type of refactoring (percentage or threshold-based)
             is_percentage_based = self._is_percentage_based(method_node1)
 
-            if is_percentage_based:
+            if has_decorators and is_percentage_based:
+                # For decorated methods: remove originals, create new with decorator
+                attribute_name = self._extract_attribute_name(method_node1)
+                decorators = method_node1.decorator_list.copy()
+                new_method = self._create_direct_parameterized_method(
+                    new_name, attribute_name, decorators
+                )
+
+                # Remove the original methods from the class
+                class_node.body = [
+                    node
+                    for node in class_node.body
+                    if not (
+                        isinstance(node, ast.FunctionDef)
+                        and node.name in [method_name1, method_name2]
+                    )
+                ]
+
+                # Insert the new method after __init__
+                insertion_position = 0
+                for i, node in enumerate(class_node.body):
+                    if isinstance(node, ast.FunctionDef) and node.name == "__init__":
+                        insertion_position = i
+                        break
+
+                class_node.body.insert(insertion_position + 1, new_method)
+            elif is_percentage_based:
                 # Extract percentage values from multiplication-based methods
                 parameter1 = self._extract_percentage(method_node1)
                 parameter2 = self._extract_percentage(method_node2)
                 attribute_name = self._extract_attribute_name(method_node1)
                 new_method = self._create_parameterized_method(new_name, attribute_name)
+
+                # Update the original methods to call the new method
+                self._update_method_to_call_new(
+                    method_node1, new_name, parameter1, is_percentage_based
+                )
+                self._update_method_to_call_new(
+                    method_node2, new_name, parameter2, is_percentage_based
+                )
+
+                # Insert the new method after the __init__ method
+                insertion_position = 0
+                for i, node in enumerate(class_node.body):
+                    if isinstance(node, ast.FunctionDef) and node.name == "__init__":
+                        insertion_position = i
+                        break
+
+                class_node.body.insert(insertion_position + 1, new_method)
             else:
                 # Extract threshold values from comparison-based methods
                 parameter1 = self._extract_threshold_attribute(method_node1)  # type: ignore
                 parameter2 = self._extract_threshold_attribute(method_node2)  # type: ignore
                 new_method = self._create_threshold_parameterized_method(new_name, method_node1)
 
-            # Update the original methods to call the new method
-            self._update_method_to_call_new(method_node1, new_name, parameter1, is_percentage_based)
-            self._update_method_to_call_new(method_node2, new_name, parameter2, is_percentage_based)
+                # Update the original methods to call the new method
+                self._update_method_to_call_new(
+                    method_node1, new_name, parameter1, is_percentage_based
+                )
+                self._update_method_to_call_new(
+                    method_node2, new_name, parameter2, is_percentage_based
+                )
 
-            # Insert the new method after the __init__ method
-            insertion_position = 0
-            for i, node in enumerate(class_node.body):
-                if isinstance(node, ast.FunctionDef) and node.name == "__init__":
-                    insertion_position = i
-                    break
+                # Insert the new method after the __init__ method
+                insertion_position = 0
+                for i, node in enumerate(class_node.body):
+                    if isinstance(node, ast.FunctionDef) and node.name == "__init__":
+                        insertion_position = i
+                        break
 
-            class_node.body.insert(insertion_position + 1, new_method)
+                class_node.body.insert(insertion_position + 1, new_method)
 
             return tree
 
@@ -207,6 +257,45 @@ class ParameterizeMethodCommand(BaseCommand):
             raise ValueError(f"Method '{method_node.name}' doesn't modify an attribute")
         else:
             raise ValueError(f"Method '{method_node.name}' doesn't have expected assignment")
+
+    def _create_direct_parameterized_method(
+        self, method_name: str, attribute_name: str, decorators: list[ast.expr]
+    ) -> ast.FunctionDef:
+        """Create a parameterized method that uses the parameter directly as multiplier.
+
+        Args:
+            method_name: The name of the new method
+            attribute_name: The attribute name to modify
+            decorators: List of decorators to apply to the method
+
+        Returns:
+            The new method node
+        """
+        # Create: def apply_raise(self, percentage):
+        #             self.salary *= percentage
+        new_method = ast.FunctionDef(
+            name=method_name,
+            args=ast.arguments(
+                posonlyargs=[],
+                args=[ast.arg(arg="self"), ast.arg(arg="percentage")],
+                kwonlyargs=[],
+                kw_defaults=[],
+                defaults=[],
+            ),
+            body=[
+                ast.AugAssign(
+                    target=ast.Attribute(
+                        value=ast.Name(id="self", ctx=ast.Load()),
+                        attr=attribute_name,
+                        ctx=ast.Store(),
+                    ),
+                    op=ast.Mult(),
+                    value=ast.Name(id="percentage", ctx=ast.Load()),
+                )
+            ],
+            decorator_list=decorators,
+        )
+        return new_method
 
     def _create_parameterized_method(
         self, method_name: str, attribute_name: str
