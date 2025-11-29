@@ -21,7 +21,13 @@ class TestDecomposeConditional(RefactoringTestBase):
         into separate methods. Verifies the core transformation works before testing
         more complex scenarios with local variables, instance variables, or multiple calls.
         """
-        self.refactor("decompose-conditional", target="calculate_charge#L2-L5")
+        self.refactor(
+            "decompose-conditional",
+            target="calculate_charge#L2-L5",
+            condition_name="is_winter",
+            then_name="winter_charge",
+            else_name="summer_charge",
+        )
 
     def test_with_locals(self) -> None:
         """Test decompose conditional when branches use local variables.
@@ -30,7 +36,13 @@ class TestDecomposeConditional(RefactoringTestBase):
         reference local variables. Verifies that local variables are correctly
         passed as parameters to the extracted methods while preserving semantics.
         """
-        self.refactor("decompose-conditional", target="calculate_charge#L5-L10")
+        self.refactor(
+            "decompose-conditional",
+            target="calculate_charge#L5-L10",
+            condition_name="is_winter",
+            then_name="winter_charge",
+            else_name="summer_charge",
+        )
 
     def test_with_instance_vars(self) -> None:
         """Test decompose conditional when branches use instance variables.
@@ -39,7 +51,13 @@ class TestDecomposeConditional(RefactoringTestBase):
         reference instance (self) variables. Unlike test_with_locals, instance variables
         do not need to be passed as parameters; they remain accessible via self.
         """
-        self.refactor("decompose-conditional", target="PricingCalculator::calculate_charge#L11-L14")
+        self.refactor(
+            "decompose-conditional",
+            target="PricingCalculator::calculate_charge#L11-L14",
+            condition_name="is_winter",
+            then_name="winter_charge",
+            else_name="summer_charge",
+        )
 
     @pytest.mark.skip(reason="Implementation needed for multiple_calls")
     def test_multiple_calls(self) -> None:
