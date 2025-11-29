@@ -102,8 +102,8 @@ class ParameterizeMethodCommand(BaseCommand):
                 new_method = self._create_parameterized_method(new_name, attribute_name)
             else:
                 # Extract threshold values from comparison-based methods
-                parameter1 = self._extract_threshold_attribute(method_node1)
-                parameter2 = self._extract_threshold_attribute(method_node2)
+                parameter1 = self._extract_threshold_attribute(method_node1)  # type: ignore
+                parameter2 = self._extract_threshold_attribute(method_node2)  # type: ignore
                 new_method = self._create_threshold_parameterized_method(new_name, method_node1)
 
             # Update the original methods to call the new method
@@ -258,7 +258,7 @@ class ParameterizeMethodCommand(BaseCommand):
         self,
         method_node: ast.FunctionDef,
         new_method_name: str,
-        parameter,
+        parameter: int | str,
         is_percentage_based: bool = True,
     ) -> None:
         """Update a method to call the new parameterized method.
@@ -273,12 +273,12 @@ class ParameterizeMethodCommand(BaseCommand):
         # For percentage: self.raise_salary(5)
         # For threshold: self.mark_stock_level(self.low_stock_threshold)
         if is_percentage_based:
-            arg = ast.Constant(value=parameter)
+            arg = ast.Constant(value=parameter)  # type: ignore
         else:
             # parameter is an attribute name like "low_stock_threshold"
-            arg = ast.Attribute(
+            arg = ast.Attribute(  # type: ignore
                 value=ast.Name(id="self", ctx=ast.Load()),
-                attr=parameter,
+                attr=parameter,  # type: ignore
                 ctx=ast.Load(),
             )
 

@@ -420,7 +420,7 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
     def _is_local_var_assignment_needed_for_modifiers(
         self,
         stmt: cst.BaseStatement,
-        all_stmts: list[cst.BaseStatement],
+        all_stmts,  # type: ignore
         index: int,
         modifier_indices: set[int],
     ) -> bool:
