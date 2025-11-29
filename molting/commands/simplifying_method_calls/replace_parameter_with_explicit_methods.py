@@ -209,6 +209,11 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
         # Extract the body for this specific value
         new_body = self._extract_body_for_value(original_method, param_name, value)
 
+        # Copy decorators from the original method
+        import copy
+
+        decorators = [copy.deepcopy(d) for d in original_method.decorator_list]
+
         # Create the new method
         new_method = ast.FunctionDef(
             name=new_method_name,
@@ -220,7 +225,7 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
                 defaults=[],
             ),
             body=new_body,
-            decorator_list=[],
+            decorator_list=decorators,
         )
 
         return new_method

@@ -19,7 +19,6 @@ class TestReplaceParameterWithExplicitMethods(RefactoringTestBase):
         """
         self.refactor("replace-parameter-with-explicit-methods", target="Employee::set_value::name")
 
-    @pytest.mark.skip(reason="Implementation needed for with_decorators")
     def test_with_decorators(self) -> None:
         """Test replacing a parameter with explicit methods on decorated methods.
 
