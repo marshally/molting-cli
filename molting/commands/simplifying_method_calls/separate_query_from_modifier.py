@@ -397,12 +397,132 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
             return []
 
         result: list[cst.BaseStatement] = []
-        for stmt in block.body:
-            if self._is_pure_modifier(stmt):
+
+        # First pass: identify which statements modify state
+        modifier_indices = set()
+        for i, stmt in enumerate(block.body):
+            if self._is_pure_modifier(stmt) or self._modifies_instance_state(stmt):
+                modifier_indices.add(i)
+
+        # Second pass: keep statements that modify + needed assignments
+        for i, stmt in enumerate(block.body):
+            if i in modifier_indices:
                 result.append(stmt)
-            # Skip assignments, returns, and other query operations
+            elif self._is_local_var_assignment_needed_for_modifiers(stmt, block.body, i, modifier_indices):
+                # Keep local assignments that are used in later modifications
+                result.append(stmt)
+            # Skip returns and other query operations
 
         return result
+
+    def _is_local_var_assignment_needed_for_modifiers(
+        self, stmt: cst.BaseStatement, all_stmts: list[cst.BaseStatement],
+        index: int, modifier_indices: set[int]
+    ) -> bool:
+        """Check if a local variable assignment is needed for later modifications.
+
+        Args:
+            stmt: The statement to check
+            all_stmts: All statements in the block
+            index: The index of this statement
+            modifier_indices: Set of indices of modifier statements
+
+        Returns:
+            True if this assignment is needed for later modifiers
+        """
+        # Check if this is a local variable assignment
+        if not isinstance(stmt, cst.SimpleStatementLine):
+            return False
+
+        assigned_var = None
+        for sub_stmt in stmt.body:
+            if isinstance(sub_stmt, cst.Assign) and len(sub_stmt.targets) == 1:
+                target = sub_stmt.targets[0].target
+                if isinstance(target, cst.Name):
+                    # This is a local variable assignment
+                    assigned_var = target.value
+
+        if not assigned_var:
+            return False
+
+        # Check if this variable is used in later modifier statements
+        for j in range(index + 1, len(all_stmts)):
+            if j in modifier_indices:
+                if self._uses_variable(all_stmts[j], assigned_var):
+                    return True
+
+        return False
+
+    def _uses_variable(self, stmt: cst.BaseStatement, var_name: str) -> bool:
+        """Check if a statement uses a specific variable.
+
+        Args:
+            stmt: The statement to check
+            var_name: The variable name to look for
+
+        Returns:
+            True if the statement uses the variable
+        """
+        if isinstance(stmt, cst.SimpleStatementLine):
+            for sub_stmt in stmt.body:
+                if isinstance(sub_stmt, cst.Assign):
+                    # Check in the target (for attribute assignments like lowest.field = value)
+                    for target in sub_stmt.targets:
+                        if self._expression_uses_variable(target.target, var_name):
+                            return True
+                    # Check in the value expression
+                    if self._expression_uses_variable(sub_stmt.value, var_name):
+                        return True
+                elif isinstance(sub_stmt, cst.AugAssign):
+                    # Check if the target or value uses the variable
+                    if self._expression_uses_variable(sub_stmt.target, var_name):
+                        return True
+                    if self._expression_uses_variable(sub_stmt.value, var_name):
+                        return True
+        return False
+
+    def _expression_uses_variable(self, expr: cst.BaseExpression, var_name: str) -> bool:
+        """Check if an expression uses a specific variable.
+
+        Args:
+            expr: The expression to check
+            var_name: The variable name to look for
+
+        Returns:
+            True if the expression uses the variable
+        """
+        # Simple check: look for the variable name as an attribute base
+        # This handles cases like "lowest.reorder_pending"
+        if isinstance(expr, cst.Attribute):
+            if isinstance(expr.value, cst.Name) and expr.value.value == var_name:
+                return True
+        elif isinstance(expr, cst.Name):
+            if expr.value == var_name:
+                return True
+        return False
+
+    def _modifies_instance_state(self, stmt: cst.BaseStatement) -> bool:
+        """Check if a statement modifies instance state.
+
+        Args:
+            stmt: The statement to check
+
+        Returns:
+            True if the statement modifies instance state
+        """
+        if isinstance(stmt, cst.SimpleStatementLine):
+            for sub_stmt in stmt.body:
+                if isinstance(sub_stmt, cst.Assign):
+                    # Check if this is an assignment to self.something or object.attribute
+                    for target in sub_stmt.targets:
+                        if isinstance(target.target, cst.Attribute):
+                            # self.field = value or lowest.field = value
+                            return True
+                elif isinstance(sub_stmt, cst.AugAssign):
+                    # self.field += value, etc.
+                    if isinstance(sub_stmt.target, cst.Attribute):
+                        return True
+        return False
 
 
 # Register the command
