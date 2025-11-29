@@ -11,7 +11,39 @@ from molting.core.ast_utils import parse_line_number, parse_target_with_line
 
 
 class ReplaceMagicNumberWithSymbolicConstantCommand(BaseCommand):
-    """Command to replace a magic number with a named symbolic constant."""
+    """Replace Magic Number with Symbolic Constant refactoring.
+
+    This refactoring transforms magic numbers (unexplained numeric literals) into
+    named symbolic constants, improving code readability and maintainability.
+    The refactoring extracts a magic number, creates a named constant that
+    expresses its meaning, and replaces all occurrences of that number with
+    references to the constant.
+
+    **When to use:**
+    - A numeric literal has a special meaning that isn't immediately obvious
+    - The same magic number appears in multiple places in the codebase
+    - You want to make the intent and meaning of numeric values explicit
+    - A magic number represents a business rule or domain concept
+    - You need to update the value in a single location rather than searching
+      for multiple hardcoded occurrences
+
+    **Example:**
+
+    Before:
+        def calculate_discount(subtotal: float) -> float:
+            if subtotal > 100:
+                return subtotal * 0.9  # 10% discount
+            return subtotal
+
+    After:
+        DISCOUNT_RATE = 0.9
+        DISCOUNT_THRESHOLD = 100
+
+        def calculate_discount(subtotal: float) -> float:
+            if subtotal > DISCOUNT_THRESHOLD:
+                return subtotal * DISCOUNT_RATE
+            return subtotal
+    """
 
     name = "replace-magic-number-with-symbolic-constant"
 

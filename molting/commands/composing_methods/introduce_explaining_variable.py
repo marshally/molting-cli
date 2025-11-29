@@ -13,7 +13,30 @@ from molting.core.visitors import VariableConflictChecker
 
 @register_command
 class IntroduceExplainingVariableCommand(BaseCommand):
-    """Command to introduce explaining variables for complex expressions."""
+    """Extract complex expressions into temporary variables with meaningful names.
+
+    The Introduce Explaining Variable refactoring breaks down complex expressions
+    by assigning them to temporary variables with names that clearly describe their
+    purpose. This improves code readability and makes complex logic easier to
+    understand and debug.
+
+    **When to use:**
+    - An expression is difficult to understand at first glance
+    - The same complex expression appears multiple times in the function
+    - You want to document the intent of a calculation or condition
+    - A complex expression would benefit from a descriptive name to clarify its role
+
+    **Example:**
+
+    Before:
+        def calculate_price(quantity, unit_price, discount_rate):
+            return quantity * unit_price * (1 - discount_rate) + (quantity * unit_price * 0.1)
+
+    After:
+        def calculate_price(quantity, unit_price, discount_rate):
+            base_price = quantity * unit_price
+            return base_price * (1 - discount_rate) + (base_price * 0.1)
+    """
 
     name = "introduce-explaining-variable"
 

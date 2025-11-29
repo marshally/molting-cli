@@ -11,7 +11,46 @@ from molting.core.code_generation_utils import create_parameter
 
 
 class DecomposeConditionalCommand(BaseCommand):
-    """Command to extract conditional logic into separate methods."""
+    """Decompose Conditional refactoring: extract complex conditional logic into named methods.
+
+    This refactoring extracts the condition, then-branch, and else-branch of a complicated
+    conditional statement into separate, well-named helper methods. By breaking down the
+    conditional logic into discrete methods with clear names, the original code becomes
+    more readable and the intent becomes explicit.
+
+    **When to use:**
+    - When a conditional statement is difficult to understand at a glance
+    - When the condition itself is complex and would benefit from a named method
+    - When the then/else branches perform substantial operations
+    - When the same conditions or branches appear in multiple places
+    - When you want to make the business logic clearer through method naming
+
+    **Example:**
+    Before:
+        def charge_for_order(customer):
+            if customer.age > 60 and customer.is_resident:
+                charge = customer.base_charge * 0.9
+            else:
+                charge = customer.base_charge * 1.1
+            return charge
+
+    After:
+        def charge_for_order(customer):
+            if is_senior_resident(customer):
+                charge = senior_discount(customer)
+            else:
+                charge = standard_surcharge(customer)
+            return charge
+
+        def is_senior_resident(customer):
+            return customer.age > 60 and customer.is_resident
+
+        def senior_discount(customer):
+            return customer.base_charge * 0.9
+
+        def standard_surcharge(customer):
+            return customer.base_charge * 1.1
+    """
 
     name = "decompose-conditional"
 

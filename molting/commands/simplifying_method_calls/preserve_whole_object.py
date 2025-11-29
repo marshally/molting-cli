@@ -8,7 +8,40 @@ from molting.commands.registry import register_command
 
 
 class PreserveWholeObjectCommand(BaseCommand):
-    """Command to replace individual parameters with a whole object."""
+    """Replace individual parameters with a whole object parameter.
+
+    The Preserve Whole Object refactoring simplifies method signatures by replacing
+    multiple primitive or related parameters with a single object that contains those
+    values. Instead of passing individual fields extracted from an object, you pass
+    the whole object itself to the method.
+
+    **When to use:**
+    - When a method receives multiple parameters that belong together as a cohesive unit
+    - When adding new parameters would require updating all call sites
+    - When parameters form a natural cluster (e.g., low and high values for a range)
+    - To reduce coupling between methods and the internal structure of objects
+    - When the same group of values is passed to multiple methods
+
+    **Why use it:**
+    - Reduces parameter list length, improving method readability
+    - Makes the method signature more stable when new related values are added
+    - Clarifies semantic intent by grouping related parameters
+    - Reduces duplication when the same parameter group is used elsewhere
+    - Makes it easier to add behaviors to the parameter object later
+
+    **Example:**
+    Before:
+        def within_plan(plan, low, high):
+            return low <= plan.temperature <= high
+
+        result = within_plan(current_plan, 18, 25)
+
+    After:
+        def within_plan(plan, temp_range):
+            return temp_range.low <= plan.temperature <= temp_range.high
+
+        result = within_plan(current_plan, TemperatureRange(18, 25))
+    """
 
     name = "preserve-whole-object"
 

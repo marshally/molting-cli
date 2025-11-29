@@ -12,7 +12,37 @@ INIT_METHOD_NAME = "__init__"
 
 
 class ChangeValueToReferenceCommand(BaseCommand):
-    """Command to change a value object to a reference object."""
+    """Transform a value object into a reference object with identity-based sharing.
+
+    The Change Value to Reference refactoring converts a value object (an object
+    whose identity is determined by its data) into a reference object (an object
+    whose identity is based on shared instance equality). This is done by introducing
+    a registry to ensure only one instance exists for each unique identity, and
+    replacing all instantiations with calls to a factory method that returns the
+    shared instance.
+
+    **When to use:**
+    - You have many equal instances of a class that should actually be the same
+      shared object (e.g., multiple Customer instances with the same ID should
+      reference the same object across your application)
+    - Creating a new instance every time is wasteful when the same logical entity
+      already exists in memory
+    - You need to ensure referential equality for objects with the same identity
+    - The object is essentially immutable or has a stable identity
+
+    **Example:**
+    Before:
+        customer1 = Customer("Alice")
+        customer2 = Customer("Alice")
+        assert customer1 is not customer2  # Two separate instances
+        assert customer1 == customer2      # But equal by value
+
+    After:
+        customer1 = Customer.get_named("Alice")
+        customer2 = Customer.get_named("Alice")
+        assert customer1 is customer2      # Same shared instance
+        assert customer1 == customer2      # Also equal by value
+    """
 
     name = "change-value-to-reference"
 

@@ -12,7 +12,58 @@ from molting.core.visitors import SelfFieldChecker
 
 
 class ExtractSubclassCommand(BaseCommand):
-    """Command to extract a subclass from a class."""
+    """Extract Subclass refactoring: create a new subclass for a subset of features.
+
+    Extract Subclass creates a new subclass to hold features (fields and methods)
+    that are only used in some instances of the parent class. This refactoring is
+    useful when a class has features that are only sometimes used, causing
+    unnecessary complexity. By moving these conditional features into a subclass,
+    the parent class becomes simpler and the code's intent becomes clearer.
+
+    The refactoring:
+    1. Creates a new subclass that inherits from the parent class
+    2. Moves specified features (fields and methods) to the subclass
+    3. Removes feature parameters and assignments from the parent's __init__
+    4. Removes feature-specific logic (if statements) from parent methods
+    5. Overrides methods in the subclass with feature-specific implementations
+
+    **When to use:**
+    - A class has several features that are only used in some instances
+    - A class has numerous conditional checks (if statements) based on type flags
+    - You want to eliminate feature envy or type code in the parent class
+    - The class is becoming too complex due to optional or variant behavior
+
+    **Example:**
+
+    Before:
+        class Employee:
+            def __init__(self, name, hourly_rate, is_labor):
+                self.name = name
+                self.hourly_rate = hourly_rate
+                self.is_labor = is_labor
+
+            def pay_amount(self):
+                if self.is_labor:
+                    return self.hourly_rate * 160
+                else:
+                    return self.hourly_rate
+
+    After:
+        class Employee:
+            def __init__(self, name, hourly_rate):
+                self.name = name
+                self.hourly_rate = hourly_rate
+
+            def pay_amount(self):
+                return self.hourly_rate
+
+        class LaborEmployee(Employee):
+            def __init__(self, name, hourly_rate):
+                super().__init__(name, hourly_rate)
+
+            def pay_amount(self):
+                return self.hourly_rate * 160
+    """
 
     name = "extract-subclass"
 

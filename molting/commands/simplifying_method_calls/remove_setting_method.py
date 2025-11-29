@@ -8,7 +8,44 @@ from molting.core.ast_utils import parse_target
 
 
 class RemoveSettingMethodCommand(BaseCommand):
-    """Command to remove a setter method to make a field immutable."""
+    """Remove setter methods to enforce immutability of object fields.
+
+    This refactoring removes setter methods for fields that should only be set during
+    object creation and never modified afterward. When a field should remain constant
+    throughout an object's lifetime, having a setter method suggests the design allows
+    for unnecessary mutations. By removing the setter, you enforce immutability and
+    communicate the intended behavior to callers.
+
+    The transformation:
+    1. Identifies and removes the setter method from the class
+    2. Updates constructor calls at call sites to pass the value as a parameter instead
+    3. Removes statements that were calling the now-removed setter
+
+    **When to use:**
+    - A field is set only once during object initialization
+    - The field should never change after object creation
+    - You want to enforce immutability to prevent bugs from unintended mutations
+    - Simplifying initialization code by consolidating setup into the constructor
+
+    **Example:**
+    Before:
+        class User:
+            def __init__(self):
+                self._id = None
+
+            def set_id(self, value):
+                self._id = value
+
+        user = User()
+        user.set_id(42)
+
+    After:
+        class User:
+            def __init__(self, id):
+                self._id = id
+
+        user = User(42)
+    """
 
     name = "remove-setting-method"
 

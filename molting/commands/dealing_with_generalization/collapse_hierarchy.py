@@ -8,7 +8,41 @@ from molting.core.ast_utils import is_empty_class, parse_target
 
 
 class CollapseHierarchyCommand(BaseCommand):
-    """Command to collapse an empty subclass into its superclass."""
+    """Collapse an empty subclass into its superclass by removing the subclass.
+
+    This refactoring removes a subclass that has become redundant because it no
+    longer differs from its superclass in any meaningful way. When a subclass
+    only inherits from its superclass without adding new methods, fields, or
+    overriding existing ones, it serves no purpose and should be removed to
+    simplify the class hierarchy.
+
+    This implementation specifically targets empty subclasses (those with no body
+    or only containing a `pass` statement). All references to the subclass are
+    expected to be updated to use the superclass directly.
+
+    **When to use:**
+    - After refactoring, a subclass no longer adds any value over its superclass
+    - You want to simplify class hierarchies and reduce unnecessary abstractions
+    - A subclass was created as a placeholder but never gained its own behavior
+    - You're consolidating similar classes that share the same implementation
+
+    **Example:**
+
+    Before:
+        class PaymentMethod:
+            def pay(self, amount: float) -> None:
+                pass
+
+        class CreditCardPayment(PaymentMethod):
+            pass  # No additional behavior
+
+    After:
+        class PaymentMethod:
+            def pay(self, amount: float) -> None:
+                pass
+
+        # CreditCardPayment class is removed, code uses PaymentMethod directly
+    """
 
     name = "collapse-hierarchy"
 

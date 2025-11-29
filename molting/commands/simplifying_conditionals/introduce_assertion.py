@@ -8,7 +8,41 @@ from molting.commands.registry import register_command
 
 
 class IntroduceAssertionCommand(BaseCommand):
-    """Command to make assumptions explicit with an assertion."""
+    """Make assumptions explicit with an assertion statement.
+
+    The Introduce Assertion refactoring is used to make an assumption that a section
+    of code makes about the program state explicit by adding an assertion statement.
+    An assertion is a conditional statement that is assumed to be true. If an
+    assertion fails at runtime, it indicates a bug in the code.
+
+    **Why use this refactoring:**
+    - Clarifies assumptions made by the code, making them visible to future readers
+    - Helps catch bugs early by explicitly checking expected conditions
+    - Improves code maintainability by documenting implicit assumptions
+    - Serves as executable documentation of program state expectations
+
+    **When to use:**
+    - You have code that relies on a condition being true but doesn't check it
+    - You want to make implicit assumptions explicit and verifiable
+    - You're documenting preconditions or invariants that should hold at a point in code
+    - You need to catch bugs when assumptions about program state are violated
+
+    **Example:**
+    Before:
+        def calculate_discount(customer):
+            if customer.membership_years > 0:
+                discount = customer.base_rate * customer.membership_years
+                return discount
+            return customer.base_rate
+
+    After:
+        def calculate_discount(customer):
+            assert customer.base_rate is not None, "Customer must have a base rate set"
+            if customer.membership_years > 0:
+                discount = customer.base_rate * customer.membership_years
+                return discount
+            return customer.base_rate
+    """
 
     name = "introduce-assertion"
 

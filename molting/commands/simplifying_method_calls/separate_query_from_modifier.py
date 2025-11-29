@@ -11,7 +11,36 @@ MUTATING_METHODS = frozenset(["pop", "remove", "append", "clear", "extend"])
 
 
 class SeparateQueryFromModifierCommand(BaseCommand):
-    """Command to separate a query from a modifier into two separate methods."""
+    """Separate a method that queries and modifies into two independent methods.
+
+    This refactoring applies the Command-Query Separation principle by splitting a single
+    method that both returns a value and has side effects into two focused methods: one that
+    queries (returns a value without side effects) and one that modifies (performs side effects
+    without returning a value). This improves code clarity and makes each method's intent explicit.
+
+    **When to use:**
+    - A method returns a value and also modifies object state
+    - You want to make the distinction between queries and modifications explicit
+    - Callers need to distinguish between "checking" and "doing" operations
+    - You're applying the Command-Query Separation principle from Martin Fowler's Refactoring
+
+    **Example:**
+    Before:
+        def get_and_remove_intruder(self):
+            if len(self.intruders) > 0:
+                return self.intruders.pop(0)
+            return None
+
+    After:
+        def get_intruder(self):
+            if len(self.intruders) > 0:
+                return self.intruders[0]
+            return None
+
+        def remove_intruder(self):
+            if len(self.intruders) > 0:
+                self.intruders.pop(0)
+    """
 
     name = "separate-query-from-modifier"
 

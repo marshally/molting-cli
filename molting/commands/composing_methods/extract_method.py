@@ -16,7 +16,43 @@ LINE_RANGE_SEPARATOR = "-"
 
 
 class ExtractMethodCommand(BaseCommand):
-    """Command to extract a code block into a new method."""
+    """Extract a code block into a new method to improve code clarity and reusability.
+
+    The Extract Method refactoring takes a fragment of code within a method and turns it
+    into its own new method with a clear, intention-revealing name. This is one of the
+    most common and important refactorings, as it helps break down complex methods into
+    smaller, more focused pieces of code.
+
+    **When to use:**
+    - A method is too long or does multiple things
+    - Code within a method is harder to understand than the rest of the code
+    - You find similar code in multiple places that could be extracted and reused
+    - You want to create a boundary around a conceptual fragment of code
+    - A section of code has a clear purpose but complex implementation details
+
+    **Example:**
+    Before:
+        def print_owing(invoice):
+            print_banner()
+            # print details
+            outstanding = get_outstanding_amount()
+            interest_charge = outstanding * 0.12 / 365 * days_overdue
+            print(f"name: {invoice.name}")
+            print(f"amount: {outstanding}")
+            print(f"interest: {interest_charge}")
+
+    After:
+        def print_owing(invoice):
+            print_banner()
+            outstanding = get_outstanding_amount()
+            print_details(invoice, outstanding)
+
+        def print_details(invoice, outstanding):
+            interest_charge = outstanding * 0.12 / 365 * days_overdue
+            print(f"name: {invoice.name}")
+            print(f"amount: {outstanding}")
+            print(f"interest: {interest_charge}")
+    """
 
     name = "extract-method"
 

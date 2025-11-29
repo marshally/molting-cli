@@ -9,7 +9,42 @@ from molting.core.code_generation_utils import create_parameter
 
 
 class ReplaceConstructorWithFactoryFunctionCommand(BaseCommand):
-    """Command to replace constructor with a factory function."""
+    """Replace a constructor with a factory function for enhanced flexibility.
+
+    This refactoring replaces the direct instantiation of a class through its
+    constructor with a factory function that controls object creation. The factory
+    function encapsulates the construction logic, allowing for more sophisticated
+    creation behavior without requiring clients to understand the class's internal
+    details.
+
+    **When to use:**
+    - You need to return different subclass instances based on input parameters
+    - You want to decouple clients from the concrete class implementation
+    - Construction logic is complex or needs to be centralized
+    - You need to add preprocessing or validation before instantiation
+    - You want to handle special factory methods or singleton patterns
+
+    **Example:**
+    Before:
+        class Employee:
+            def __init__(self, employee_type: str):
+                self.type = employee_type
+
+        emp = Employee("engineer")
+
+    After:
+        class Employee:
+            def __init__(self, employee_type: str):
+                self.type = employee_type
+
+        def create_employee(employee_type: str) -> Employee:
+            if employee_type == "engineer":
+                return Engineer()
+            elif employee_type == "manager":
+                return Manager()
+
+        emp = create_employee("engineer")
+    """
 
     name = "replace-constructor-with-factory-function"
 

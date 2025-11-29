@@ -17,7 +17,57 @@ TUPLE_FUNCTION = "tuple"
 
 
 class EncapsulateCollectionCommand(BaseCommand):
-    """Command to encapsulate a collection field with proper accessor methods."""
+    """Encapsulates a collection field to prevent direct client modification.
+
+    This refactoring transforms a public collection field into a private field with
+    controlled access. The method that returned the collection is modified to return
+    a read-only view (immutable tuple), and new add/remove methods are introduced
+    to provide the only way for clients to modify the collection. This prevents
+    accidental or unintended modifications and makes the object's invariants easier
+    to maintain.
+
+    **When to use:**
+    - When a class has a public collection that clients modify directly
+    - When you want to enforce stricter control over collection modifications
+    - When adding logic to validate elements being added or removed
+    - When you need to maintain class invariants related to the collection
+    - To reduce coupling between the class and its clients
+
+    **Example:**
+    Before:
+        class Person:
+            def __init__(self, name):
+                self.name = name
+                self.items = []
+
+            def get_items(self):
+                return self.items
+
+        # Client code can modify directly
+        person = Person("Alice")
+        person.items.append("item1")
+        person.get_items().clear()  # Unwanted modification
+
+    After:
+        class Person:
+            def __init__(self, name):
+                self.name = name
+                self._items = []
+
+            def get_items(self):
+                return tuple(self._items)  # Read-only view
+
+            def add_item(self, item):
+                self._items.append(item)
+
+            def remove_item(self, item):
+                self._items.remove(item)
+
+        # Client code must use add/remove methods
+        person = Person("Alice")
+        person.add_item("item1")
+        # person.get_items().clear()  # Now raises AttributeError
+    """
 
     name = "encapsulate-collection"
 

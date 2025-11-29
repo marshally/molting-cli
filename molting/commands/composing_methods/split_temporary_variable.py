@@ -11,7 +11,39 @@ from molting.core.visitors import MultiVariableConflictChecker
 
 @register_command
 class SplitTemporaryVariableCommand(BaseCommand):
-    """Command to split a temp variable that is assigned multiple times."""
+    """Splits a temporary variable that is assigned multiple times.
+
+    This refactoring creates a separate temporary variable for each assignment
+    when a variable is assigned to more than once. Each new variable has a name
+    that clearly reflects its purpose, making the code more readable and
+    maintainable.
+
+    **What it does:**
+    When a temporary variable is reused for multiple different purposes (assigned
+    multiple times), the refactoring replaces those multiple assignments with
+    separate temporary variables. This eliminates ambiguity about what each
+    temporary variable is responsible for.
+
+    **When to use:**
+    - When a temporary variable is assigned multiple times for different purposes
+    - When the multiple uses of the same variable make code intent unclear
+    - When you want to make each temporary variable's responsibility explicit
+    - NOT for loop variables or collecting temporaries (where reuse is intentional)
+
+    **Example:**
+
+    Before:
+        def calculate_total(quantity, item_price, tax_rate):
+            temp = quantity * item_price  # temp holds subtotal
+            temp = temp * (1 + tax_rate)   # temp now holds total with tax
+            return temp
+
+    After:
+        def calculate_total(quantity, item_price, tax_rate):
+            primary_acc = quantity * item_price   # clearly the subtotal
+            secondary_acc = primary_acc * (1 + tax_rate)  # clearly the total with tax
+            return secondary_acc
+    """
 
     name = "split-temporary-variable"
 

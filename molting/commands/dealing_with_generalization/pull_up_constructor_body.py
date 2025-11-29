@@ -18,7 +18,53 @@ from molting.core.code_generation_utils import (
 
 
 class PullUpConstructorBodyCommand(BaseCommand):
-    """Command to pull up constructor body from subclass to superclass."""
+    """Move common initialization code from subclasses to superclass.
+
+    This refactoring moves common constructor code that appears in multiple subclasses up
+    into the superclass constructor. Each subclass then calls super().__init__() with the
+    appropriate parameters, eliminating duplication of initialization logic. This reduces
+    code duplication and makes the class hierarchy more maintainable.
+
+    **When to use:**
+    - Multiple subclasses share identical or nearly identical initialization code
+    - You want to eliminate duplication of field assignments across subclass constructors
+    - The common initialization should apply to all subclasses in the hierarchy
+    - You need to establish a consistent initialization contract in the superclass
+
+    **Example:**
+
+    Before:
+        class Animal:
+            pass
+
+        class Dog(Animal):
+            def __init__(self, name: str, age: int):
+                self.name = name
+                self.age = age
+                self.species = "Canine"
+
+        class Cat(Animal):
+            def __init__(self, name: str, age: int):
+                self.name = name
+                self.age = age
+                self.species = "Feline"
+
+    After:
+        class Animal:
+            def __init__(self, name: str, age: int):
+                self.name = name
+                self.age = age
+
+        class Dog(Animal):
+            def __init__(self, name: str, age: int):
+                super().__init__(name, age)
+                self.species = "Canine"
+
+        class Cat(Animal):
+            def __init__(self, name: str, age: int):
+                super().__init__(name, age)
+                self.species = "Feline"
+    """
 
     name = "pull-up-constructor-body"
 

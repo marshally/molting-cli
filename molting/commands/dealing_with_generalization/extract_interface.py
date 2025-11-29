@@ -12,7 +12,59 @@ from molting.core.import_utils import ensure_import
 
 
 class ExtractInterfaceCommand(BaseCommand):
-    """Command to extract an interface (Protocol) from a class."""
+    """Extract a Protocol interface from a subset of methods in a class.
+
+    This refactoring creates a new Protocol (Python's equivalent to an interface)
+    from a subset of methods that are commonly used by clients. It defines a contract
+    that multiple classes can implement, reducing coupling between client code and
+    concrete implementations while making it easier to write polymorphic code.
+
+    **When to use:**
+    - When multiple classes share a common set of methods that clients depend on
+    - When you want to decouple client code from concrete class implementations
+    - When you need to define a contract that different implementations should follow
+    - When you have a class with both "public" methods used by clients and "private"
+      helper methods that should not be part of the interface
+
+    **Example:**
+
+    Before:
+        class BankAccount:
+            def deposit(self, amount: float) -> None:
+                self.balance += amount
+
+            def withdraw(self, amount: float) -> None:
+                self.balance -= amount
+
+            def reset_balance(self) -> None:
+                self.balance = 0
+
+        def process_transaction(account: BankAccount) -> None:
+            account.deposit(100)
+
+    After:
+        from typing import Protocol
+
+        class BankAccountInterface(Protocol):
+            def deposit(self, amount: float) -> None:
+                ...
+
+            def withdraw(self, amount: float) -> None:
+                ...
+
+        class BankAccount:
+            def deposit(self, amount: float) -> None:
+                self.balance += amount
+
+            def withdraw(self, amount: float) -> None:
+                self.balance -= amount
+
+            def reset_balance(self) -> None:
+                self.balance = 0
+
+        def process_transaction(account: BankAccountInterface) -> None:
+            account.deposit(100)
+    """
 
     name = "extract-interface"
 

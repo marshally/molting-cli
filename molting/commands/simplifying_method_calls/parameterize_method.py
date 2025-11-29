@@ -8,7 +8,42 @@ from molting.core.ast_utils import find_method_in_tree, parse_target
 
 
 class ParameterizeMethodCommand(BaseCommand):
-    """Command to parameterize similar methods."""
+    """Parameterize Method refactoring: combine similar methods into a single parameterized method.
+
+    The Parameterize Method refactoring takes multiple methods that perform similar operations
+    with different literal values and consolidates them into a single method that accepts those
+    values as parameters. This eliminates code duplication and makes the code more flexible
+    and maintainable.
+
+    This refactoring is based on Martin Fowler's "Refactoring" book and is a fundamental
+    technique for reducing duplication and improving code clarity.
+
+    **When to use:**
+    - You have multiple methods that perform the same logic with different literal values
+    - You want to eliminate code duplication across similar methods
+    - You need a more flexible, configurable version of repeated method logic
+    - You're preparing code for further refactoring by reducing method proliferation
+
+    **Example:**
+    Before:
+        class Employee:
+            def five_percent_raise(self):
+                self.salary *= 1.05
+
+            def ten_percent_raise(self):
+                self.salary *= 1.10
+
+    After:
+        class Employee:
+            def raise_salary(self, percentage):
+                self.salary *= 1 + percentage / 100
+
+            def five_percent_raise(self):
+                self.raise_salary(5)
+
+            def ten_percent_raise(self):
+                self.raise_salary(10)
+    """
 
     name = "parameterize-method"
 

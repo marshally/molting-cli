@@ -12,7 +12,32 @@ from molting.core.ast_utils import (
 
 
 class RemoveParameterCommand(BaseCommand):
-    """Command to remove a parameter from a method."""
+    """Remove an unused parameter from a method.
+
+    The Remove Parameter refactoring eliminates a parameter that is no longer
+    used by the method body. This simplifies the method's interface and reduces
+    coupling between the method and its callers.
+
+    **When to use:**
+    - A parameter is no longer referenced in the method body
+    - You want to simplify a method's interface
+    - You're refactoring to reduce unnecessary dependencies
+    - A parameter was previously used but is now redundant
+
+    **Example:**
+    Before:
+        def calculate_total(items: list, tax_rate: float, discount: float) -> float:
+            # tax_rate is no longer used
+            return sum(item.price for item in items) - discount
+
+        result = obj.calculate_total([item1, item2], 0.08, 5.0)
+
+    After:
+        def calculate_total(items: list, discount: float) -> float:
+            return sum(item.price for item in items) - discount
+
+        result = obj.calculate_total([item1, item2], 5.0)
+    """
 
     name = "remove-parameter"
 

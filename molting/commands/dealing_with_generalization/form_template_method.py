@@ -9,7 +9,64 @@ from molting.core.code_generation_utils import create_parameter
 
 
 class FormTemplateMethodCommand(BaseCommand):
-    """Command to extract common algorithm structure into a template method."""
+    """Extract common algorithm structure into a template method.
+
+    The Form Template Method refactoring extracts the common structure of similar
+    methods into a superclass method (the template method) and replaces the varying
+    parts with abstract method calls that subclasses override. This pattern defines
+    the skeleton of an algorithm in a base class, allowing subclasses to override
+    specific steps without changing the algorithm's structure.
+
+    **When to use:**
+    - You have multiple methods in subclasses with similar structure but different details
+    - You want to reduce code duplication while preserving algorithm flexibility
+    - You need to ensure subclasses follow the same algorithm structure
+    - Different implementations vary only in specific steps of a larger process
+
+    **Example:**
+
+    Before:
+        class ResidentialSite:
+            def get_bill_amount(self):
+                base = self.units * self.rate
+                tax = base * self.TAX_RATE
+                return base + tax
+
+        class LifelineSite:
+            def get_bill_amount(self):
+                base = self.units * self.rate * 0.5
+                tax = base * self.TAX_RATE * 0.2
+                return base + tax
+
+    After:
+        class Site:
+            TAX_RATE = 0.1
+
+            def get_bill_amount(self):
+                base = self.get_base_amount()
+                tax = self.get_tax_amount(base)
+                return base + tax
+
+            def get_base_amount(self):
+                raise NotImplementedError
+
+            def get_tax_amount(self, base):
+                raise NotImplementedError
+
+        class ResidentialSite(Site):
+            def get_base_amount(self):
+                return self.units * self.rate
+
+            def get_tax_amount(self, base):
+                return base * self.TAX_RATE
+
+        class LifelineSite(Site):
+            def get_base_amount(self):
+                return self.units * self.rate * 0.5
+
+            def get_tax_amount(self, base):
+                return base * self.TAX_RATE * 0.2
+    """
 
     name = "form-template-method"
 

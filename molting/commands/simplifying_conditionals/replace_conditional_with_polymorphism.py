@@ -8,7 +8,70 @@ from molting.commands.registry import register_command
 
 
 class ReplaceConditionalWithPolymorphismCommand(BaseCommand):
-    """Command to replace type-based conditionals with polymorphic subclasses."""
+    """Replace type-based conditionals with polymorphic method overrides.
+
+    This refactoring transforms a method containing type-based conditional logic
+    into polymorphic method implementations across subclasses. Each leg of the
+    conditional becomes an overridden method in a corresponding subclass, while
+    the original method in the base class becomes abstract. This eliminates
+    repetitive type-checking and makes the code structure reflect the underlying
+    design where different types have different behaviors.
+
+    **When to use:**
+    - You have a method with a large if-else or switch statement based on type
+    - Different type values require completely different logic paths
+    - You want to make it easier to add new types without modifying existing code
+    - The type checking logic is scattered across multiple methods
+    - You want to improve code readability by making polymorphic dispatch explicit
+
+    **Example:**
+    Before:
+        class Employee:
+            ENGINEER = 0
+            SALESMAN = 1
+
+            def __init__(self, type, monthly_salary, commission=0, bonus=0):
+                self.type = type
+                self.monthly_salary = monthly_salary
+                self.commission = commission
+                self.bonus = bonus
+
+            def pay_amount(self):
+                if self.type == self.ENGINEER:
+                    return self.monthly_salary
+                elif self.type == self.SALESMAN:
+                    return self.monthly_salary + self.commission
+                else:
+                    return self.monthly_salary + self.bonus
+
+    After:
+        class Employee:
+            def __init__(self, monthly_salary):
+                self.monthly_salary = monthly_salary
+
+            def pay_amount(self):
+                raise NotImplementedError
+
+        class Engineer(Employee):
+            def pay_amount(self):
+                return self.monthly_salary
+
+        class Salesman(Employee):
+            def __init__(self, monthly_salary, commission):
+                super().__init__(monthly_salary)
+                self.commission = commission
+
+            def pay_amount(self):
+                return self.monthly_salary + self.commission
+
+        class Manager(Employee):
+            def __init__(self, monthly_salary, bonus):
+                super().__init__(monthly_salary)
+                self.bonus = bonus
+
+            def pay_amount(self):
+                return self.monthly_salary + self.bonus
+    """
 
     name = "replace-conditional-with-polymorphism"
 

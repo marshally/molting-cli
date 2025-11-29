@@ -18,7 +18,68 @@ INIT_METHOD_NAME = "__init__"
 
 
 class DuplicateObservedDataCommand(BaseCommand):
-    """Command to duplicate observed data from GUI to domain object."""
+    """Duplicate Observed Data refactoring: Separate GUI data from domain logic.
+
+    This refactoring addresses the problem of mixing GUI widget state with domain
+    logic. When a GUI class directly holds data (such as text field values) that
+    represents domain concepts, changes to the GUI must be synchronized with
+    domain calculations, creating tight coupling and making the domain logic
+    hard to test in isolation.
+
+    The refactoring creates a separate domain class to hold the actual data and
+    computations, while the GUI class maintains its own representation. An update
+    mechanism synchronizes them: domain data flows back to the GUI for display,
+    and GUI changes flow to the domain for computation.
+
+    **When to use:**
+    - GUI classes hold data that should logically belong to domain objects
+    - Domain calculations depend on GUI widget state
+    - You want to test business logic independently of UI frameworks
+    - GUI and domain share the same data with tight coupling
+    - You need to display domain data in a GUI without mixing concerns
+
+    **Example:**
+    Before:
+        class IntervalUI:
+            def __init__(self):
+                self.start_field = TextField()
+                self.end_field = TextField()
+                self.length_field = TextField()
+
+            def calculate_length(self):
+                # Domain logic embedded in GUI class
+                self.length_field.set_value(
+                    int(self.end_field.value) - int(self.start_field.value)
+                )
+
+    After:
+        class Interval:  # Domain class
+            def __init__(self):
+                self.start = 0
+                self.end = 0
+                self.length = 0
+
+            def calculate_length(self):
+                self.length = self.end - self.start
+
+        class IntervalUI:
+            def __init__(self):
+                self.interval = Interval()  # Domain object
+                self.start_field = TextField()
+                self.end_field = TextField()
+                self.length_field = TextField()
+                self.update()
+
+            def start_field_focus_lost(self):
+                # GUI change updates domain
+                self.interval.start = int(self.start_field.value)
+                self.update()
+
+            def update(self):
+                # Domain data synchronized to GUI display
+                self.start_field.set_value(str(self.interval.start))
+                self.length_field.set_value(str(self.interval.length))
+    """
 
     name = "duplicate-observed-data"
 

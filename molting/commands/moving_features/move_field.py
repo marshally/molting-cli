@@ -17,7 +17,46 @@ from molting.core.visitors import FieldConflictChecker
 
 
 class MoveFieldCommand(BaseCommand):
-    """Command to move a field from one class to another."""
+    """Move a field from one class to another when better used by the target class.
+
+    This refactoring moves a field (instance variable) from its current class to a
+    different class when the field is used more frequently or more appropriately by
+    the target class than by the source class. This improves encapsulation and code
+    organization by grouping related data with the class that primarily uses it.
+
+    **When to use:**
+    - A field is accessed more often by methods in another class than in its own class
+    - The field logically belongs with data and behavior in a different class
+    - You have a helper object or related class that would be a better home for the field
+    - Moving the field reduces coupling between classes
+
+    **Example:**
+    Before:
+        class Account:
+            def __init__(self, number, interest_rate):
+                self.number = number
+                self.interest_rate = interest_rate
+
+        class AccountType:
+            def __init__(self, account):
+                self.account = account
+
+            def get_rate(self):
+                return self.account.interest_rate
+
+    After:
+        class Account:
+            def __init__(self, number, account_type):
+                self.number = number
+                self.account_type = account_type
+
+        class AccountType:
+            def __init__(self, interest_rate):
+                self.interest_rate = interest_rate
+
+            def get_rate(self):
+                return self.interest_rate
+    """
 
     name = "move-field"
 

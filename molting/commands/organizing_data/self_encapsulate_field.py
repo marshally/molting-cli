@@ -11,7 +11,45 @@ from molting.core.code_generation_utils import create_parameter
 
 
 class SelfEncapsulateFieldCommand(BaseCommand):
-    """Command to encapsulate direct field access with getter and setter properties."""
+    """Replace direct field access with getter and setter property methods.
+
+    The Self Encapsulate Field refactoring creates private backing fields and
+    corresponding getter/setter properties for public instance variables. This
+    allows the class (and subclasses) to control how the field is accessed and
+    modified, enabling future enhancements like validation, lazy initialization,
+    or computed properties.
+
+    **When to use:**
+    - You want to add validation or side effects when a field is accessed or modified
+    - You plan to inherit from the class and override field access behavior
+    - You need to replace direct field assignment with computed properties later
+    - You want to maintain control over field changes in a growing codebase
+
+    **Example:**
+    Before:
+        class Person:
+            def __init__(self, name):
+                self.name = name
+
+            def greet(self):
+                return f"Hello, {self.name}"
+
+    After:
+        class Person:
+            def __init__(self, name):
+                self._name = name
+
+            @property
+            def name(self):
+                return self._name
+
+            @name.setter
+            def name(self, value):
+                self._name = value
+
+            def greet(self):
+                return f"Hello, {self.name}"
+    """
 
     name = "self-encapsulate-field"
 

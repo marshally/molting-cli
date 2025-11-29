@@ -12,7 +12,51 @@ from molting.core.visitors import MethodConflictChecker, SelfFieldCollector
 
 
 class MoveMethodCommand(BaseCommand):
-    """Command to move a method from one class to another."""
+    """Move a method from one class to another when it better belongs elsewhere.
+
+    The Move Method refactoring relocates a method to the class that uses it most,
+    improving encapsulation and reducing coupling. This is particularly useful when
+    a method makes greater use of features in another class than its own class.
+
+    **When to use:**
+    - A method uses or is used by more features of another class
+    - You want to reduce coupling between classes
+    - A method would be more logically placed in another class
+    - Moving the method would improve cohesion and code organization
+
+    **Example:**
+    Before:
+        class Account:
+            def __init__(self, account_type):
+                self.account_type = account_type
+
+            def overdraft_charge(self):
+                # Uses account_type more than its own features
+                if self.account_type.premium:
+                    return 10
+                return 20
+
+        class AccountType:
+            def __init__(self, premium=False):
+                self.premium = premium
+
+    After:
+        class Account:
+            def __init__(self, account_type):
+                self.account_type = account_type
+
+            def overdraft_charge(self):
+                return self.account_type.overdraft_charge(self.account_type)
+
+        class AccountType:
+            def __init__(self, premium=False):
+                self.premium = premium
+
+            def overdraft_charge(self, account_type):
+                if account_type.premium:
+                    return 10
+                return 20
+    """
 
     name = "move-method"
 

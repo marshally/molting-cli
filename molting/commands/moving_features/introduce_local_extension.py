@@ -8,7 +8,43 @@ from molting.core.visitors import ClassConflictChecker
 
 
 class IntroduceLocalExtensionCommand(BaseCommand):
-    """Command to introduce a local extension (subclass or wrapper) of a class."""
+    """Create a subclass or wrapper to add methods to a class you cannot modify.
+
+    The Introduce Local Extension refactoring creates a new subclass (or wrapper class)
+    of a server class to add convenience methods and domain-specific functionality without
+    modifying the original class. This is useful when you need several methods on a class
+    that you don't control (e.g., built-in types, third-party libraries, or classes you
+    aren't permitted to change).
+
+    **When to use:**
+    - You need to add methods to a class but cannot modify the original class
+    - The server class is from a third-party library or framework
+    - You want to keep domain-specific extensions separate from the base class
+    - A wrapper or subclass approach is preferable to utility functions
+
+    **Example:**
+    Before:
+        class Client:
+            def use_date(self, d):
+                # Can't add methods to date; must use utility functions
+                days_after = self._days_after(d, 5)
+
+        def _days_after(d, days):
+            return d + timedelta(days=days)
+
+    After:
+        class LocalDate(date):
+            def next_day(self):
+                return self + timedelta(days=1)
+
+            def days_after(self, days):
+                return self + timedelta(days=days)
+
+        class Client:
+            def use_date(self, d):
+                # Now methods are available directly on the extension class
+                days_after = d.days_after(5)
+    """
 
     name = "introduce-local-extension"
 

@@ -8,7 +8,46 @@ from molting.commands.registry import register_command
 
 
 class ReplaceErrorCodeWithExceptionCommand(BaseCommand):
-    """Command to replace error code returns with exceptions."""
+    """Replace Error Code with Exception refactoring command.
+
+    This refactoring transforms methods that return error codes (like -1 or 0) to
+    throw exceptions instead. Instead of using numeric return codes to signal
+    error conditions, the method raises an exception, making the error handling
+    explicit and more aligned with modern exception-based error handling patterns.
+
+    **When to use:**
+    - When you have older code that returns special numeric values to indicate errors
+    - When callers check return values with if statements to detect error conditions
+    - When you want to make error conditions more explicit and catchable
+    - When migrating legacy code to use exceptions for error handling
+    - When you want to reduce the cognitive load of tracking error codes
+
+    **Example:**
+
+    Before:
+        def withdraw(amount):
+            if amount > self.balance:
+                return -1
+            self.balance -= amount
+            return 0
+
+        # Calling code checks return value
+        result = account.withdraw(100)
+        if result == -1:
+            print("Error: insufficient funds")
+
+    After:
+        def withdraw(amount):
+            if amount > self.balance:
+                raise ValueError("Amount exceeds balance")
+            self.balance -= amount
+
+        # Calling code uses try/except
+        try:
+            account.withdraw(100)
+        except ValueError:
+            print("Error: insufficient funds")
+    """
 
     name = "replace-error-code-with-exception"
 

@@ -9,7 +9,55 @@ from molting.commands.registry import register_command
 
 
 class ReplaceNestedConditionalWithGuardClausesCommand(BaseCommand):
-    """Command to replace nested conditionals with guard clauses."""
+    """Replace nested conditionals with guard clauses to improve code readability.
+
+    This refactoring transforms deeply nested conditional logic into a series of guard
+    clauses (early returns), making the code's intent clearer by handling exceptional
+    cases first and leaving the main logic path at the top level of the function.
+
+    **What it does:**
+    Converts multiple levels of nested if-else statements into flat guard clauses where
+    each condition has an early return, followed by the normal processing logic.
+
+    **When to use:**
+    - When a function has multiple levels of nested if-else statements
+    - When the nested structure obscures the main business logic
+    - When exceptional cases should be handled before the normal path
+    - When you want to reduce cognitive load by reducing indentation depth
+    - When the function's primary purpose is buried in nested blocks
+
+    **Why it helps:**
+    Guard clauses make the code more scannable and reduce mental overhead. The main
+    success path is immediately visible at the function's top level, while exceptional
+    cases are handled upfront with early returns. This matches how developers naturally
+    think about control flow.
+
+    **Example:**
+    Before:
+        def calculate_salary(employee):
+            salary = 0
+            if employee.years_employed > 5:
+                if employee.performance_rating > 3:
+                    if employee.department == "Engineering":
+                        salary = employee.base_salary * 1.5
+                    else:
+                        salary = employee.base_salary * 1.2
+                else:
+                    salary = employee.base_salary
+            else:
+                salary = employee.base_salary * 0.8
+            return salary
+
+    After:
+        def calculate_salary(employee):
+            if employee.years_employed <= 5:
+                return employee.base_salary * 0.8
+            if employee.performance_rating <= 3:
+                return employee.base_salary
+            if employee.department == "Engineering":
+                return employee.base_salary * 1.5
+            return employee.base_salary * 1.2
+    """
 
     name = "replace-nested-conditional-with-guard-clauses"
 

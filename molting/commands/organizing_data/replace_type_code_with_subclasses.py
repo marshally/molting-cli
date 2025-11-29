@@ -10,7 +10,53 @@ from molting.core.ast_utils import parse_target
 
 
 class ReplaceTypeCodeWithSubclassesCommand(BaseCommand):
-    """Command to replace type code with subclasses."""
+    """Replace type code with subclasses to eliminate type-based conditionals.
+
+    This refactoring replaces integer or string type codes that control behavior
+    with a subclass hierarchy. Instead of checking a type field and branching
+    logic based on its value, each type becomes its own subclass. This approach
+    leverages object-oriented principles and eliminates scattered type-checking
+    conditionals throughout the codebase.
+
+    **When to use:**
+    - You have a type code (integer or string constant) that affects object behavior
+    - The code contains multiple conditionals checking the type code
+    - You want to make type-specific behavior explicit and maintainable
+    - Each type code maps to a distinct set of behaviors
+
+    **Example:**
+    Before:
+        class Employee:
+            ENGINEER = "engineer"
+            MANAGER = "manager"
+
+            def __init__(self, name, employee_type):
+                self.name = name
+                self.employee_type = employee_type
+
+            def get_rate(self):
+                if self.employee_type == self.ENGINEER:
+                    return 50
+                elif self.employee_type == self.MANAGER:
+                    return 80
+
+    After:
+        class Employee:
+            @staticmethod
+            def create(employee_type):
+                if employee_type == "engineer":
+                    return Engineer()
+                elif employee_type == "manager":
+                    return Manager()
+
+        class Engineer(Employee):
+            def get_rate(self):
+                return 50
+
+        class Manager(Employee):
+            def get_rate(self):
+                return 80
+    """
 
     name = "replace-type-code-with-subclasses"
 

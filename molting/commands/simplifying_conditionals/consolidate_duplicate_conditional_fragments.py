@@ -8,7 +8,39 @@ from molting.commands.registry import register_command
 
 
 class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
-    """Command to move duplicate code from conditional branches to after the conditional."""
+    """Move duplicate code from conditional branches outside the conditional.
+
+    This refactoring consolidates identical code fragments that appear at the end of
+    all branches of a conditional statement. When the same statements appear in both
+    the if and else branches (or all branches of an if-else if chain), they are
+    extracted and moved after the entire conditional, eliminating duplication while
+    preserving the logic's original behavior.
+
+    **When to use:**
+    - You notice the same statements repeated at the end of each conditional branch
+    - You want to reduce duplication and improve code maintainability
+    - You're simplifying conditionals as part of larger refactoring efforts
+    - The duplicated code is independent of the conditional decision
+
+    **Example:**
+    Before:
+        if condition:
+            result = process_a()
+            log_result(result)
+            return result
+        else:
+            result = process_b()
+            log_result(result)
+            return result
+
+    After:
+        if condition:
+            result = process_a()
+        else:
+            result = process_b()
+        log_result(result)
+        return result
+    """
 
     name = "consolidate-duplicate-conditional-fragments"
 

@@ -13,7 +13,55 @@ INIT_METHOD_NAME = "__init__"
 
 
 class ChangeUnidirectionalAssociationToBidirectionalCommand(BaseCommand):
-    """Command to change a unidirectional association to bidirectional."""
+    """Add bidirectional navigation to a unidirectional association between classes.
+
+    This refactoring converts a one-way reference between two classes into a two-way
+    reference, enabling both classes to navigate to each other. The forward class (the
+    one with the existing reference) gains a setter method that maintains bidirectional
+    consistency, while the back class gets collection management methods (add and remove)
+    to track references pointing to it.
+
+    **When to use:**
+    - Both classes need to access features of the other, but currently only one has a
+      reference to the other
+    - You want to simplify client code that currently has to navigate through a third
+      object or use alternate traversal paths
+    - You need to implement bidirectional navigation while maintaining consistency
+      between forward and back references
+
+    **Example:**
+    Before:
+        class Customer:
+            def __init__(self):
+                self.orders = set()
+
+        class Order:
+            def __init__(self, customer):
+                self.customer = customer
+
+    After:
+        class Customer:
+            def __init__(self):
+                self._orders = set()
+
+            def add_order(self, order):
+                self._orders.add(order)
+
+            def remove_order(self, order):
+                self._orders.discard(order)
+
+        class Order:
+            def __init__(self, customer):
+                self._customer = None
+                self.set_customer(customer)
+
+            def set_customer(self, customer):
+                if self._customer is not None:
+                    self._customer.remove_order(self)
+                self._customer = customer
+                if customer is not None:
+                    customer.add_order(self)
+    """
 
     name = "change-unidirectional-association-to-bidirectional"
 

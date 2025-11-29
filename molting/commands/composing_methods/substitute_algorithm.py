@@ -7,7 +7,44 @@ from molting.commands.registry import register_command
 
 
 class SubstituteAlgorithmCommand(BaseCommand):
-    """Command to replace an algorithm with a clearer one."""
+    """Replace the body of a method with a new algorithm that is clearer or more efficient.
+
+    The Substitute Algorithm refactoring replaces the implementation of a method with
+    a different algorithm that achieves the same result in a clearer, more efficient,
+    or more maintainable way. This refactoring is particularly useful when you discover
+    a better way to solve a problem or when you need to optimize performance-critical code.
+
+    Based on Martin Fowler's "Refactoring: Improving the Design of Existing Code", this
+    refactoring helps improve code clarity and maintainability when the current algorithm
+    is difficult to understand or perform poorly.
+
+    **When to use:**
+    - You've found a simpler or more elegant algorithm that achieves the same result
+    - The current algorithm is difficult to understand or maintain
+    - You need to optimize performance and have a more efficient approach
+    - Multiple conditional checks can be consolidated into a cleaner data structure approach
+    - You want to replace complex loop-based logic with built-in or library functions
+
+    **Example:**
+    Before:
+        def find_match(candidates):
+            for candidate in candidates:
+                if candidate == "A":
+                    return candidate
+                if candidate == "B":
+                    return candidate
+                if candidate == "C":
+                    return candidate
+            return ""
+
+    After:
+        def find_match(candidates):
+            candidates = ["A", "B", "C"]
+            for candidate in candidates:
+                if candidate in candidates:
+                    return candidate
+            return ""
+    """
 
     name = "substitute-algorithm"
 

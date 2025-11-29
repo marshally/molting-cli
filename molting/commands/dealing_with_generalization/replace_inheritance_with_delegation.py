@@ -9,7 +9,53 @@ from molting.core.code_generation_utils import create_parameter
 
 
 class ReplaceInheritanceWithDelegationCommand(BaseCommand):
-    """Command to convert inheritance to delegation."""
+    """Convert a subclass to use delegation instead of inheriting from its superclass.
+
+    Replace Inheritance with Delegation is a refactoring pattern that converts a subclass
+    that only uses part of its superclass interface (or doesn't want to inherit data) into
+    a standalone class that delegates to an instance of the superclass. This is useful when
+    a subclass has become too different from its parent, doesn't need most of the inherited
+    functionality, or when you want to change the behavior without being constrained by
+    inheritance rules.
+
+    This refactoring:
+    - Removes the inheritance relationship (removes the superclass from bases)
+    - Creates a field (typically named _items) to hold an instance of the former superclass
+    - Adjusts methods to delegate to this field instead of using inherited behavior
+    - Transforms super() calls to call methods on the delegate field
+
+    **When to use:**
+    - A subclass only uses a small part of its superclass interface
+    - A subclass shouldn't inherit all the data members of its superclass
+    - You want to change behavior that inheritance would prevent you from doing
+    - The relationship between classes is "has-a" rather than "is-a"
+    - You're working with list subclasses that should delegate to the underlying list
+
+    **Example:**
+    Before:
+        class PricedItem(list):
+            def __init__(self):
+                super().__init__()
+                self.price = 0
+
+            def add_item(self, item):
+                self.append(item)
+
+            def get_total(self):
+                return sum(item.price for item in self)
+
+    After:
+        class PricedItem:
+            def __init__(self):
+                self._items = []
+                self.price = 0
+
+            def add_item(self, item):
+                self._items.append(item)
+
+            def get_total(self):
+                return sum(item.price for item in self._items)
+    """
 
     name = "replace-inheritance-with-delegation"
 

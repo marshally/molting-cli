@@ -9,7 +9,44 @@ from molting.commands.registry import register_command
 
 
 class RemoveControlFlagCommand(BaseCommand):
-    """Command to replace control flag variables with break or return."""
+    """Replace control flag variables with break, continue, or return statements.
+
+    The Remove Control Flag refactoring eliminates explicit boolean or sentinel
+    variables that are used to control the flow of a function. These flags often
+    obscure the actual flow of control and make code harder to understand. By
+    replacing flag assignments with direct flow control statements (break, continue,
+    or return), the code's intent becomes clearer and more direct.
+
+    Based on Martin Fowler's "Refactoring: Improve the Design of Existing Code",
+    this refactoring simplifies conditional logic and makes the control flow
+    immediately apparent to readers.
+
+    **When to use:**
+    - When you have boolean variables used solely to exit early from loops
+    - When control flags make the actual control flow less obvious
+    - When a simple break or return would be more direct than setting a flag
+    - When you want to improve code readability and simplify logic
+
+    **Example:**
+    Before:
+        def find_person(people):
+            found = False
+            for person in people:
+                if person.name == "John":
+                    found = True
+                    if person.age > 30:
+                        found = False
+            return found
+
+    After:
+        def find_person(people):
+            for person in people:
+                if person.name == "John":
+                    if person.age > 30:
+                        continue
+                    return True
+            return False
+    """
 
     name = "remove-control-flag"
 

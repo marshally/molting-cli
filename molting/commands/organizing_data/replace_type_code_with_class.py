@@ -13,7 +13,48 @@ INIT_METHOD_NAME = "__init__"
 
 
 class ReplaceTypeCodeWithClassCommand(BaseCommand):
-    """Command to replace type codes with a class."""
+    """Replace a numeric or string type code with a proper class.
+
+    This refactoring replaces numeric or string type codes (constants used to
+    distinguish between different types or categories) with a dedicated class.
+    Type codes are often represented as magic numbers or strings scattered
+    throughout a codebase, making code harder to understand and more prone to
+    errors.
+
+    **When to use:**
+    - When you have magic numbers or strings representing different types or categories
+    - When you need to add type safety and compiler/type checker support
+    - When you want to add behavior (methods) that depend on the type
+    - When type codes are used across multiple classes and need centralization
+    - When you want to make implicit types explicit in the code
+
+    **Example:**
+    Before:
+        class Patient:
+            BLOOD_TYPE_O = 0
+            BLOOD_TYPE_A = 1
+            BLOOD_TYPE_B = 2
+            BLOOD_TYPE_AB = 3
+
+            def __init__(self, name: str, blood_type: int):
+                self.name = name
+                self.blood_type = blood_type
+
+    After:
+        class BloodType:
+            def __init__(self, code: int):
+                self._code = code
+
+        BloodType.O = BloodType(0)
+        BloodType.A = BloodType(1)
+        BloodType.B = BloodType(2)
+        BloodType.AB = BloodType(3)
+
+        class Patient:
+            def __init__(self, name: str, blood_type: BloodType):
+                self.name = name
+                self.blood_type = blood_type
+    """
 
     name = "replace-type-code-with-class"
 

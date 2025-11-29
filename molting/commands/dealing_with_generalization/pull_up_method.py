@@ -14,7 +14,43 @@ from molting.core.ast_utils import (
 
 
 class PullUpMethodCommand(BaseCommand):
-    """Command to pull up a method from subclass to superclass."""
+    """Move identical methods from subclasses to their common superclass.
+
+    The Pull Up Method refactoring consolidates duplicate methods that exist in
+    multiple subclasses by moving them to the shared superclass. This eliminates
+    code duplication and improves maintainability by ensuring the method logic
+    is defined in a single location.
+
+    **When to use:**
+    - You have the same method implemented identically in multiple subclasses
+    - The method uses only features available in the superclass
+    - You want to reduce code duplication and improve consistency
+    - Subclasses should inherit the method rather than redefine it
+
+    **Example:**
+    Before:
+        class Animal:
+            pass
+
+        class Dog(Animal):
+            def make_sound(self):
+                return "Woof"
+
+        class Cat(Animal):
+            def make_sound(self):
+                return "Woof"
+
+    After:
+        class Animal:
+            def make_sound(self):
+                return "Woof"
+
+        class Dog(Animal):
+            pass
+
+        class Cat(Animal):
+            pass
+    """
 
     name = "pull-up-method"
 
