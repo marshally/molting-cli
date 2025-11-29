@@ -5,14 +5,9 @@ from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
-from molting.core.ast_utils import parse_target
+from molting.core.ast_utils import parse_target_with_range
 from molting.core.code_generation_utils import create_parameter
 from molting.core.visitors import MethodConflictChecker
-
-# Target format constants
-TARGET_SEPARATOR = "#"
-LINE_PREFIX = "L"
-LINE_RANGE_SEPARATOR = "-"
 
 
 class ExtractMethodCommand(BaseCommand):
@@ -64,71 +59,6 @@ class ExtractMethodCommand(BaseCommand):
         """
         self.validate_required_params("target", "name")
 
-    def _parse_target_specification(self, target: str) -> tuple[str, str, str]:
-        """Parse target format into class::method and line range components.
-
-        Args:
-            target: Target string in format "ClassName::method_name#L9-L11"
-
-        Returns:
-            Tuple of (class_name, method_name, line_range)
-
-        Raises:
-            ValueError: If target format is invalid
-        """
-        # Parse target format: "ClassName::method_name#L9-L11"
-        parts = target.split(TARGET_SEPARATOR)
-        if len(parts) != 2:
-            raise ValueError(
-                f"Invalid target format '{target}'. Expected 'ClassName::method_name#L9-L11'"
-            )
-
-        class_method = parts[0]
-        line_range = parts[1]
-
-        # Parse class and method name
-        try:
-            class_name, method_name = parse_target(class_method, expected_parts=2)
-        except ValueError as e:
-            raise ValueError(f"Invalid class::method format in target '{target}': {e}") from e
-
-        return class_name, method_name, line_range
-
-    def _parse_line_range(self, line_range: str) -> tuple[int, int]:
-        """Parse line range string into start and end line numbers.
-
-        Args:
-            line_range: Line range in format "L9-L11"
-
-        Returns:
-            Tuple of (start_line, end_line)
-
-        Raises:
-            ValueError: If line range format is invalid
-        """
-        # Parse line range: "L9-L11" -> [9, 11]
-        if not line_range.startswith(LINE_PREFIX):
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L9-L11'")
-
-        if LINE_RANGE_SEPARATOR not in line_range:
-            raise ValueError(f"Invalid line range format '{line_range}'. Expected 'L9-L11' format")
-
-        # Split on '-' and extract numbers: "L9-L11" -> ["L9", "L11"]
-        parts_range = line_range.split(LINE_RANGE_SEPARATOR)
-        if len(parts_range) != 2:
-            raise ValueError(
-                f"Invalid line range format '{line_range}'. " f"Expected 'L<start>-L<end>' format"
-            )
-
-        try:
-            # Remove 'L' prefix from each part
-            start_line = int(parts_range[0][1:])
-            end_line = int(parts_range[1][1:])
-        except ValueError as e:
-            raise ValueError(f"Invalid line numbers in '{line_range}': {e}") from e
-
-        return start_line, end_line
-
     def execute(self) -> None:
         """Apply extract-method refactoring using libCST.
 
@@ -138,9 +68,8 @@ class ExtractMethodCommand(BaseCommand):
         target = self.params["target"]
         new_method_name = self.params["name"]
 
-        # Parse target and line range
-        class_name, method_name, line_range = self._parse_target_specification(target)
-        start_line, end_line = self._parse_line_range(line_range)
+        # Parse target and line range using canonical functions
+        class_name, method_name, start_line, end_line = parse_target_with_range(target)
 
         # Read file
         source_code = self.file_path.read_text()
