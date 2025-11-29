@@ -1,4 +1,23 @@
-"""Reusable CST visitor classes."""
+"""Reusable CST visitor classes.
+
+Note on Mutable State Pattern:
+    LibCST visitors use mutable instance state to collect results. This is not
+    a Clean Code violation but rather a necessary pattern imposed by LibCST's
+    visitor architecture:
+
+    - visit_* methods return bool to control traversal (True = continue, False = stop)
+    - Results cannot be returned directly from visitor methods
+    - State must be stored in instance attributes and read after traversal
+
+    Usage pattern:
+        collector = SelfFieldCollector()
+        node.visit(collector)
+        result = collector.collected_fields  # Read result after visit
+
+    This is the idiomatic approach for LibCST and similar AST visitor frameworks.
+    Each visitor class documents its public result attributes that should be read
+    after calling visit().
+"""
 
 import libcst as cst
 
