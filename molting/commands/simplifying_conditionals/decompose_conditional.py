@@ -297,20 +297,28 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
         return self._create_replacement_if()
 
     def _create_helper_functions(self) -> None:
-        """Create helper functions for condition, then, and else branches."""
-        if self.condition_expr and self.condition_params:
+        """Create helper functions for condition, then, and else branches.
+
+        For methods that use only self attributes (no local variables or function params),
+        the params list will be empty but we still need to create the helper methods.
+        """
+        # For methods, we can have empty params if only self attributes are used
+        # For functions, we need at least some params to pass values
+        can_have_empty_params = self._is_method
+
+        if self.condition_expr and (self.condition_params or can_have_empty_params):
             condition_func = self._create_function(
                 self.condition_name, self.condition_params, self.condition_expr
             )
             self.new_functions.append(condition_func)
 
-        if self.then_body and self.then_params:
+        if self.then_body and (self.then_params or can_have_empty_params):
             then_value = self._extract_return_value(self.then_body)
             if then_value:
                 then_func = self._create_function(self.then_name, self.then_params, then_value)
                 self.new_functions.append(then_func)
 
-        if self.else_body and self.else_params:
+        if self.else_body and (self.else_params or can_have_empty_params):
             else_value = self._extract_return_value(self.else_body)
             if else_value:
                 else_func = self._create_function(self.else_name, self.else_params, else_value)
