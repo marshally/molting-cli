@@ -8,7 +8,7 @@ class PricingCalculator:
         self.winter_service_charge = winter_service_charge
 
     def calculate_charge(self, quantity, date):
-        if date.month < 6 or date.month > 8:
+        if date.month in (12, 1, 2):
             charge = quantity * self.winter_rate + self.winter_service_charge
         else:
             charge = quantity * self.summer_rate

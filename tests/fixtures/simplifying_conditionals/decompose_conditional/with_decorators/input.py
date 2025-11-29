@@ -11,7 +11,7 @@ class PriceCalculator:
 
     @property
     def charge(self):
-        if self.date.month < 6 or self.date.month > 8:
+        if self.date.month in (12, 1, 2):
             charge = self.quantity * self.winter_rate + self.winter_service_charge
         else:
             charge = self.quantity * self.summer_rate

@@ -15,7 +15,7 @@ class PricingCalculator:
         return charge
 
     def is_winter(self, date):
-        return date.month < 6 or date.month > 8
+        return date.month in (12, 1, 2)
 
     def winter_charge(self, quantity):
         return quantity * self.winter_rate + self.winter_service_charge
