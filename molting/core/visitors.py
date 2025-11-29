@@ -320,7 +320,11 @@ class ClassConflictChecker(cst.CSTVisitor):
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
         """Check if this is a module-level class with the conflicting name."""
-        if self._class_depth == 0 and self._function_depth == 0 and node.name.value == self.class_name:
+        if (
+            self._class_depth == 0
+            and self._function_depth == 0
+            and node.name.value == self.class_name
+        ):
             self.has_conflict = True
         self._class_depth += 1
         return True
@@ -383,7 +387,10 @@ class ConstantConflictChecker(cst.CSTVisitor):
         """Check for module-level constant assignment."""
         if self._depth == 0:
             for target in node.targets:
-                if isinstance(target.target, cst.Name) and target.target.value == self.constant_name:
+                if (
+                    isinstance(target.target, cst.Name)
+                    and target.target.value == self.constant_name
+                ):
                     self.has_conflict = True
         return True
 
