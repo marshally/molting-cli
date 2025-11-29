@@ -5,6 +5,7 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
+from molting.core.call_site_updater import CallSiteUpdater
 from molting.core.code_generation_utils import create_parameter
 
 
@@ -75,6 +76,11 @@ class ReplaceConstructorWithFactoryFunctionCommand(BaseCommand):
         module = cst.parse_module(source_code)
         transformer = ReplaceConstructorWithFactoryFunctionTransformer(class_name)
         modified_tree = module.visit(transformer)
+
+        # Update all call sites to use the factory function instead of constructor
+        factory_name = f"create_{class_name.lower()}"
+        updater = CallSiteUpdater(class_name=class_name, factory_name=factory_name)
+        modified_tree = modified_tree.visit(updater)
 
         # Write back
         self.file_path.write_text(modified_tree.code)

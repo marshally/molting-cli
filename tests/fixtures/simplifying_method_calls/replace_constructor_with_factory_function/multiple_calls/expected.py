@@ -10,10 +10,6 @@ class Employee:
         self.type = employee_type
 
 
-def create_employee(employee_type):
-    return Employee(employee_type)
-
-
 class Department:
     def __init__(self):
         self.employees = []
@@ -40,3 +36,12 @@ def onboard_employee(role_type):
     employee = create_employee(role_type)
     print(f"Onboarding employee of type {role_type}")
     return employee
+
+
+def create_employee(employee_type):
+    if employee_type == "ENGINEER":
+        return Employee(Employee.ENGINEER)
+    elif employee_type == "SALESMAN":
+        return Employee(Employee.SALESMAN)
+    elif employee_type == "MANAGER":
+        return Employee(Employee.MANAGER)
