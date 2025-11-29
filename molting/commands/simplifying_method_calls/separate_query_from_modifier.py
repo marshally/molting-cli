@@ -1,5 +1,7 @@
 """Separate Query from Modifier refactoring command."""
 
+from collections.abc import Sequence
+
 import libcst as cst
 
 from molting.commands.base import BaseCommand
@@ -417,10 +419,10 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
 
         return result
 
-    def _is_local_var_assignment_needed_for_modifiers(  # type: ignore[misc]
+    def _is_local_var_assignment_needed_for_modifiers(
         self,
         stmt: cst.BaseStatement,
-        all_stmts,  # type: ignore
+        all_stmts: Sequence[cst.BaseStatement],
         index: int,
         modifier_indices: set[int],
     ) -> bool:

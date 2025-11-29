@@ -392,7 +392,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
                     then_statements.append(then_assign)
                 else:
                     # Keep original statement
-                    then_statements.append(stmt)
+                    then_statements.append(stmt)  # type: ignore[arg-type]
 
         # Build the else block with all statements, replacing the extracted one
         else_statements: list[cst.BaseStatement] = []
@@ -426,7 +426,7 @@ class DecomposeConditionalTransformer(cst.CSTTransformer):
                         else_statements.append(else_assign)
                     else:
                         # Keep original statement
-                        else_statements.append(stmt)
+                        else_statements.append(stmt)  # type: ignore[arg-type]
 
         # Create new if statement
         else_clause = None

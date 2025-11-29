@@ -280,7 +280,7 @@ class ReplaceDelegationTransformer(cst.CSTTransformer):
                                 # Keep non-delegate assignments
                                 new_stmt_body.append(item)
                         else:
-                            new_stmt_body.append(item)
+                            new_stmt_body.append(item)  # type: ignore[arg-type]
 
                     if new_stmt_body:
                         new_body_stmts.append(stmt.with_changes(body=new_stmt_body))

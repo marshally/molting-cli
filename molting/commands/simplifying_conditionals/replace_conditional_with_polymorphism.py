@@ -303,7 +303,7 @@ class ReplaceConditionalWithPolymorphismTransformer(cst.CSTTransformer):
                                             new_stmt_body.append(s)
                                             continue
                         else:
-                            new_stmt_body.append(s)
+                            new_stmt_body.append(s)  # type: ignore[arg-type]
 
                     if new_stmt_body:
                         new_body_stmts.append(stmt.with_changes(body=new_stmt_body))

@@ -417,7 +417,7 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
                         else:
                             new_stmt_body.append(s)
                     else:
-                        new_stmt_body.append(s)
+                        new_stmt_body.append(s)  # type: ignore[arg-type]
                 stmt = stmt.with_changes(body=new_stmt_body)
             new_body.append(stmt)
 
@@ -433,7 +433,7 @@ class IntroduceNullObjectTransformer(cst.CSTTransformer):
             Modified class with null checks replaced
         """
         visitor = NullCheckReplacer(self._get_target_param_name(node))
-        return node.visit(visitor)
+        return node.visit(visitor)  # type: ignore[return-value]
 
     def _get_target_param_name(self, node: cst.ClassDef) -> str | None:
         """Get the parameter name for the target class in __init__.
