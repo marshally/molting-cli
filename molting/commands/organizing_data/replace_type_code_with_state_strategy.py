@@ -11,7 +11,90 @@ from molting.core.code_generation_utils import create_parameter
 
 
 class ReplaceTypeCodeWithStateStrategyCommand(BaseCommand):
-    """Command to replace type code with state/strategy pattern."""
+    """Replace type code with state/strategy objects to eliminate conditional logic.
+
+    This refactoring replaces a numeric or string type code with a state or strategy
+    object when the type code affects behavior but you cannot use subclasses on the
+    host class. Instead of using type codes and conditional statements throughout
+    the class, the behavior is encapsulated in separate state/strategy classes that
+    inherit from a common base. The host class delegates method calls to the
+    appropriate state object based on the current type.
+
+    **When to use:**
+    - A class has type codes (constants like ENGINEER, SALESMAN, MANAGER) that
+      determine different behavior
+    - Methods contain multiple conditional branches based on the type code
+    - You cannot use inheritance/subclasses on the host class itself
+    - Conditional logic is scattered across multiple methods
+    - The type code affects how several methods behave
+
+    **Example:**
+    Before:
+        class Employee:
+            ENGINEER = 0
+            SALESMAN = 1
+            MANAGER = 2
+
+            def __init__(self, name, type_code):
+                self.name = name
+                self.type = type_code
+
+            def pay_amount(self):
+                if self.type == self.ENGINEER:
+                    return self.monthly_salary
+                elif self.type == self.SALESMAN:
+                    return self.monthly_salary + self.commission
+                elif self.type == self.MANAGER:
+                    return self.monthly_salary + self.bonus
+
+            def duties(self):
+                if self.type == self.ENGINEER:
+                    return "write code"
+                elif self.type == self.SALESMAN:
+                    return "sell products"
+                elif self.type == self.MANAGER:
+                    return "manage team"
+
+    After:
+        class EmployeeType:
+            def pay_amount(self, employee):
+                raise NotImplementedError
+
+            def duties(self):
+                raise NotImplementedError
+
+        class Engineer(EmployeeType):
+            def pay_amount(self, employee):
+                return employee.monthly_salary
+
+            def duties(self):
+                return "write code"
+
+        class Salesman(EmployeeType):
+            def pay_amount(self, employee):
+                return employee.monthly_salary + employee.commission
+
+            def duties(self):
+                return "sell products"
+
+        class Manager(EmployeeType):
+            def pay_amount(self, employee):
+                return employee.monthly_salary + employee.bonus
+
+            def duties(self):
+                return "manage team"
+
+        class Employee:
+            def __init__(self, name, type_code):
+                self.name = name
+                self.type = EmployeeType.create(type_code)
+
+            def pay_amount(self):
+                return self.type.pay_amount(self)
+
+            def duties(self):
+                return self.type.duties()
+    """
 
     name = "replace-type-code-with-state-strategy"
 

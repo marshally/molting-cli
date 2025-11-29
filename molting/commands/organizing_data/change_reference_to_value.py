@@ -9,7 +9,49 @@ from molting.commands.registry import register_command
 
 
 class ChangeReferenceToValueCommand(BaseCommand):
-    """Command to change a reference object to a value object."""
+    """Convert a reference object to a value object.
+
+    The Change Reference to Value refactoring transforms a class that is
+    currently treated as a reference object (identity-based, mutable) into a
+    value object (equality-based, immutable). This makes the class immutable
+    and implements __eq__ and __hash__ methods based on the object's data
+    rather than its identity.
+
+    **When to use:**
+    - The object is small and rarely changes, making immutability practical
+    - You want to use the object as a dictionary key or in sets
+    - Objects are frequently copied or passed around the system
+    - You want to simplify equality comparisons based on content rather than identity
+    - The class currently uses a registry pattern (like a classmethod "get") that
+      you want to eliminate
+
+    **Example:**
+    Before:
+        class Currency:
+            _instances = {}
+
+            def __init__(self, code):
+                self.code = code
+
+            @classmethod
+            def get(cls, code):
+                if code not in cls._instances:
+                    cls._instances[code] = Currency(code)
+                return cls._instances[code]
+
+    After:
+        class Currency:
+            def __init__(self, code):
+                self.code = code
+
+            def __eq__(self, other):
+                if not isinstance(other, Currency):
+                    return False
+                return self.code == other.code
+
+            def __hash__(self):
+                return hash(self.code)
+    """
 
     name = "change-reference-to-value"
 

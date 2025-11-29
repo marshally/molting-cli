@@ -13,7 +13,42 @@ INIT_METHOD_NAME = "__init__"
 
 
 class ReplaceDataValueWithObjectCommand(BaseCommand):
-    """Command to replace a primitive value with an object."""
+    """Replace a data value with a proper object.
+
+    This refactoring transforms a primitive value (such as a string or number)
+    into a dedicated class when the data needs additional behavior or attributes.
+    As code evolves, simple data items often require additional functionality like
+    formatting, validation, or related properties that are better encapsulated in
+    a dedicated class.
+
+    **When to use:**
+    - A primitive field needs specialized behavior (formatting, validation)
+    - Related data items should be grouped together
+    - You want to make the code's intent clearer
+    - A data item appears in multiple places and needs consistent handling
+    - You need to add constraints or rules to the data
+
+    **Example:**
+    Before:
+        class Customer:
+            def __init__(self, customer_name):
+                self.name = customer_name
+
+            def get_greeting(self):
+                return f"Hello, {self.name}"
+
+    After:
+        class Name:
+            def __init__(self, name):
+                self.name = name
+
+        class Customer:
+            def __init__(self, customer_name):
+                self.name = Name(customer_name)
+
+            def get_greeting(self):
+                return f"Hello, {self.name.name}"
+    """
 
     name = "replace-data-value-with-object"
 

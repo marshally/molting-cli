@@ -20,7 +20,45 @@ from molting.core.code_generation_utils import (
 
 
 class PushDownFieldCommand(BaseCommand):
-    """Command to push down a field from superclass to subclass."""
+    """Push a field from a superclass down to the subclasses that use it.
+
+    Push Down Field is a refactoring that moves a field defined in a superclass
+    to the subclasses that actually need it. This refactoring is used to clean up
+    the superclass by removing fields that are not used by all subclasses,
+    improving the class hierarchy and reducing unnecessary data in the parent.
+
+    **When to use:**
+    - A field in the superclass is only used by some subclasses, not all
+    - You want to make the superclass more abstract and focused
+    - Different subclasses have different sets of fields and behaviors
+    - You're simplifying a class hierarchy after extracting subclasses
+    - A field is specific to certain subclass implementations
+
+    **Example:**
+    Before:
+        class Animal:
+            def __init__(self):
+                self.wings = 0
+
+        class Dog(Animal):
+            pass
+
+        class Bird(Animal):
+            def __init__(self):
+                super().__init__()
+                self.wings = 2
+
+    After:
+        class Animal:
+            pass
+
+        class Dog(Animal):
+            pass
+
+        class Bird(Animal):
+            def __init__(self):
+                self.wings = 2
+    """
 
     name = "push-down-field"
 

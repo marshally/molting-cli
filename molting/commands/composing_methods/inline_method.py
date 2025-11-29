@@ -10,7 +10,38 @@ from molting.core.ast_utils import parse_target
 
 
 class InlineMethodCommand(BaseCommand):
-    """Command to inline a method by replacing calls with the method body."""
+    """Inline Method refactoring command.
+
+    Replaces method calls with the method's body when the method body is just as clear
+    as the method name. This refactoring simplifies code by eliminating unnecessary
+    indirection and reducing the number of method definitions.
+
+    The Inline Method refactoring is based on Martin Fowler's "Refactoring" patterns.
+    It transforms a class by identifying a target method, extracting its body and
+    return expression, inlining the method call at its call sites, and removing the
+    original method definition.
+
+    **When to use:**
+    - When a method body is just as clear as its name, making the method unnecessary
+    - When a method is used only once or very infrequently
+    - When removing a method reduces unnecessary indirection
+    - When you want to simplify a class by consolidating straightforward methods
+    - When refactoring towards larger, more meaningful methods
+
+    **Example:**
+    Before:
+        class Calculator:
+            def get_total(self, price, tax_rate):
+                return price + (price * tax_rate)
+
+            def calculate_final_price(self, price, tax_rate):
+                return self.get_total(price, tax_rate) * 1.1
+
+    After:
+        class Calculator:
+            def calculate_final_price(self, price, tax_rate):
+                return (price + (price * tax_rate)) * 1.1
+    """
 
     name = "inline-method"
 

@@ -11,7 +11,43 @@ from molting.core.visitors import MethodConflictChecker
 
 @register_command
 class ReplaceTempWithQueryCommand(BaseCommand):
-    """Command to replace a temporary variable with a query method."""
+    """Replace a temporary variable with a query method extraction.
+
+    The Replace Temp with Query refactoring extracts the expression assigned to
+    a temporary variable into a separate method. All references to the temporary
+    variable are then replaced with calls to this new method. This improves code
+    clarity by making the intent of the expression explicit and eliminates
+    intermediate variable assignments.
+
+    **When to use:**
+    - When a temporary variable is assigned a simple expression that could be
+      more clearly expressed as a named method
+    - When the same temporary variable is referenced multiple times and a method
+      would make the intent clearer
+    - When you want to reduce local variable scope and make the code more
+      maintainable by encapsulating the computation logic
+    - When preparing code for other refactorings like Extract Method or
+      Introduce Parameter Object
+
+    **Example:**
+    Before:
+        class Order:
+            def get_price(self):
+                base_price = self.quantity * self.item_price
+                if base_price > 1000:
+                    return base_price * 0.9
+                return base_price
+
+    After:
+        class Order:
+            def get_price(self):
+                if self.base_price() > 1000:
+                    return self.base_price() * 0.9
+                return self.base_price()
+
+            def base_price(self):
+                return self.quantity * self.item_price
+    """
 
     name = "replace-temp-with-query"
 

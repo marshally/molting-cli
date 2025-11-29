@@ -8,7 +8,37 @@ from molting.core.ast_utils import parse_target
 
 
 class HideMethodCommand(BaseCommand):
-    """Command to hide a method by making it private."""
+    """Make a public method private by prefixing with underscore.
+
+    The Hide Method refactoring converts a public method into a private method
+    when it is not used outside the class. This reduces the public interface
+    of a class to only those methods that are truly needed by other classes,
+    making the contract of the class clearer and improving encapsulation.
+
+    **When to use:**
+    - A public method is only called from within its own class
+    - You want to reduce the surface area of a class's public API
+    - You want to make it clear that a method is an internal implementation detail
+    - Refactoring a method that was previously part of the public interface but
+      is no longer needed by external clients
+
+    **Example:**
+    Before:
+        class Calculator:
+            def calculate_total(self, items):
+                return self.apply_discount(sum(items))
+
+            def apply_discount(self, amount):
+                return amount * 0.9
+
+    After:
+        class Calculator:
+            def calculate_total(self, items):
+                return self._apply_discount(sum(items))
+
+            def _apply_discount(self, amount):
+                return amount * 0.9
+    """
 
     name = "hide-method"
 

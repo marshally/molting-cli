@@ -8,7 +8,39 @@ from molting.commands.registry import register_command
 
 
 class ReplaceExceptionWithTestCommand(BaseCommand):
-    """Command to replace exception handling with precondition tests."""
+    """Replace exception handling with explicit precondition tests.
+
+    This refactoring transforms code that catches exceptions to instead test
+    the condition before attempting the operation. Instead of relying on the
+    runtime exception to indicate an error condition, it uses an explicit
+    guard clause to check if the condition is valid before proceeding.
+
+    This is based on the "Replace Exception with Test" refactoring from
+    Martin Fowler's "Refactoring" book. The refactoring applies when you have
+    a condition that is checkable before calling a method, where throwing an
+    exception is being used as a substitute for a test.
+
+    **When to use:**
+    - The exceptional case is something you can reasonably check beforehand
+    - You're catching exceptions that could be prevented with a simple test
+    - The condition being tested is a normal part of the operation flow
+    - Performance is a concern (testing is faster than throwing exceptions)
+
+    **Example:**
+
+    Before:
+        def get_element(items):
+            try:
+                return items[index]
+            except IndexError:
+                return None
+
+    After:
+        def get_element(items):
+            if index >= len(items):
+                return None
+            return items[index]
+    """
 
     name = "replace-exception-with-test"
 

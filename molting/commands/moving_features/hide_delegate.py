@@ -11,7 +11,31 @@ from molting.core.visitors import MethodConflictChecker
 
 
 class HideDelegateCommand(BaseCommand):
-    """Command to hide a delegate by creating delegating methods."""
+    """Apply the Hide Delegate refactoring to reduce coupling and improve encapsulation.
+
+    The Hide Delegate refactoring creates accessor methods on a class to hide access to
+    a delegate object (a field that is exposed to clients). Instead of clients calling
+    methods directly on the delegate, they call methods on the original class, which
+    delegates the work. This follows the Law of Demeter and reduces coupling between
+    classes by controlling how external code accesses internal dependencies.
+
+    **When to use:**
+    - When clients are accessing methods on a delegate object through your class
+    - When you want to reduce coupling and control the interface to a delegate
+    - When you want to follow the Law of Demeter (don't talk to strangers)
+    - When you're refactoring to improve encapsulation and hide implementation details
+    - When adding new delegating methods over time as clients request access
+
+    **Example:**
+    Before:
+        # Client code directly accesses the delegate
+        manager_name = person.department.manager.name
+
+    After:
+        # Client code uses delegating methods
+        person.get_manager()  # Method on Person hides the delegate
+        # (internally: return self._department.manager)
+    """
 
     name = "hide-delegate"
 

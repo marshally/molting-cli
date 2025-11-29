@@ -14,7 +14,42 @@ from molting.core.ast_utils import (
 
 
 class PushDownMethodCommand(BaseCommand):
-    """Command to push down a method from superclass to subclass."""
+    """Push Down Method refactoring: move a method from superclass to specific subclasses.
+
+    Push Down Method is a refactoring technique that moves a method from a superclass
+    to those subclasses that actually use it. This refactoring applies the principle
+    that methods should be defined in the class that uses them, promoting better
+    cohesion and reducing unnecessary implementation details in the superclass.
+
+    **When to use:**
+    - A method in a superclass is only used by some (not all) of its subclasses
+    - Other subclasses don't need the method or override it completely
+    - You want to reduce the interface of the superclass to only essential operations
+    - You're extracting specialized behavior that belongs in specific subclasses
+
+    **Example:**
+    Before:
+        class Animal:
+            def fly(self):
+                return "flying"
+
+        class Dog(Animal):
+            pass
+
+        class Bird(Animal):
+            pass
+
+    After:
+        class Animal:
+            pass
+
+        class Dog(Animal):
+            pass
+
+        class Bird(Animal):
+            def fly(self):
+                return "flying"
+    """
 
     name = "push-down-method"
 

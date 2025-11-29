@@ -10,7 +10,40 @@ from molting.commands.registry import register_command
 
 @register_command
 class RemoveAssignmentsToParametersCommand(BaseCommand):
-    """Command to replace parameter reassignments with temp variables."""
+    """Replace parameter reassignments with temporary variables to improve code clarity.
+
+    This refactoring addresses a common source of confusion in code: reassigning parameters
+    within a function. When parameters are reassigned, it becomes unclear whether the code
+    is modifying the original parameter or working with a local copy. By introducing a
+    temporary variable that holds the parameter value and using it instead of reassigning
+    the parameter, the code's intent becomes explicit.
+
+    According to Martin Fowler's "Refactoring" (2nd edition), this pattern helps make code
+    more readable by clarifying the separation between parameter input and local working
+    variables. The refactoring creates a temporary variable (e.g., 'result') at the start
+    of the function and replaces all assignments and uses of the parameter with the new
+    temporary variable.
+
+    **When to use:**
+    - When a parameter is reassigned in the function body
+    - When reassignment could confuse readers about pass-by-value semantics
+    - When you want to preserve the original parameter value as documented input
+    - When improving code clarity without changing function behavior
+
+    **Example:**
+    Before:
+        def calculate_price(price):
+            price = price * 0.9
+            price = price + tax
+            return price
+
+    After:
+        def calculate_price(price):
+            result = price
+            result = result * 0.9
+            result = result + tax
+            return result
+    """
 
     name = "remove-assignments-to-parameters"
 

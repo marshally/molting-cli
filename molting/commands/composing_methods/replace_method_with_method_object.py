@@ -10,7 +10,53 @@ from molting.core.visitors import ClassConflictChecker
 
 
 class ReplaceMethodWithMethodObjectCommand(BaseCommand):
-    """Command to turn a long method into its own object."""
+    """Replace a long method with a dedicated Method Object class.
+
+    This refactoring extracts a method into its own class, converting local variables
+    into instance fields and the original method body into a compute() method. The
+    original method then delegates to this new object. This is a key technique from
+    Martin Fowler's "Refactoring" that transforms complex local variable scoping into
+    an object structure, making it easier to further decompose the method using
+    Extract Method.
+
+    **When to use:**
+    - When a method has many local variables that make it difficult to extract smaller
+      methods
+    - When you want to incrementally refactor a long, complex method
+    - When local variables represent temporary state that could be better managed as
+      object fields
+    - As a stepping stone before applying Extract Method to break down long methods
+
+    **Example:**
+    Before:
+        class Account:
+            def calculate_interest(self, years, rate):
+                principal = self.balance
+                interest = 0
+                for year in range(years):
+                    interest += principal * rate
+                    principal += interest
+                return interest
+
+    After:
+        class Account:
+            def calculate_interest(self, years, rate):
+                return CalculateInterest(self, years, rate).compute()
+
+        class CalculateInterest:
+            def __init__(self, account, years, rate):
+                self.account = account
+                self.years = years
+                self.rate = rate
+
+            def compute(self):
+                principal = self.account.balance
+                interest = 0
+                for year in range(self.years):
+                    interest += principal * self.rate
+                    principal += interest
+                return interest
+    """
 
     name = "replace-method-with-method-object"
 

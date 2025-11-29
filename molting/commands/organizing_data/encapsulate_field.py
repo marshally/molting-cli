@@ -13,7 +13,44 @@ INIT_METHOD_NAME = "__init__"
 
 
 class EncapsulateFieldCommand(BaseCommand):
-    """Command to encapsulate a public field with getter and setter."""
+    """Encapsulate a public field by making it private with getter/setter methods.
+
+    This refactoring converts a public class field into a private field and provides
+    public accessor methods (@property getter and @setter) to control access to it.
+    This is a fundamental refactoring that improves encapsulation and allows you to
+    add validation, side effects, or other logic when the field is accessed or modified.
+
+    **When to use:**
+    - You have a public field that should be controlled by the class
+    - You want to add validation or side effects to field access
+    - You're preparing to modify field storage without affecting the public interface
+    - You're improving encapsulation as part of a broader refactoring effort
+
+    **Example:**
+    Before:
+        class Person:
+            def __init__(self, name):
+                self.name = name
+
+        person = Person("Alice")
+        person.name = "Bob"  # Direct access, no validation possible
+
+    After:
+        class Person:
+            def __init__(self, name):
+                self._name = name
+
+            @property
+            def name(self):
+                return self._name
+
+            @name.setter
+            def name(self, value):
+                self._name = value  # Can add validation here
+
+        person = Person("Alice")
+        person.name = "Bob"  # Access via property, validation possible
+    """
 
     name = "encapsulate-field"
 

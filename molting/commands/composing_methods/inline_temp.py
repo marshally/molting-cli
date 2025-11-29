@@ -10,7 +10,29 @@ from molting.core.ast_utils import parse_target
 
 @register_command
 class InlineTempCommand(BaseCommand):
-    """Command to inline a temporary variable by replacing uses with its expression."""
+    """Replace a temporary variable with the expression it was assigned.
+
+    The Inline Temp refactoring eliminates a temporary variable by substituting
+    all references to it with the expression that was originally assigned to it.
+    This simplifies code by removing unnecessary variable assignments that add
+    little semantic value.
+
+    **When to use:**
+    - When a temporary variable is used only once after assignment
+    - When the variable name doesn't provide meaningful clarity
+    - When inlining reduces visual clutter without harming readability
+    - When preparing code for other refactorings like Extract Method
+
+    **Example:**
+    Before:
+        def get_price(quantity):
+            base_price = quantity * item_price
+            return base_price * tax_rate
+
+    After:
+        def get_price(quantity):
+            return quantity * item_price * tax_rate
+    """
 
     name = "inline-temp"
 

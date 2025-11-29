@@ -14,7 +14,45 @@ LINE_PREFIX = "L"
 
 
 class ExtractFunctionCommand(BaseCommand):
-    """Command to extract code into a module-level function."""
+    """Extract a code fragment into a module-level function.
+
+    This refactoring takes a code fragment (typically an expression on a
+    specific line), extracts it into a separate module-level function, and
+    replaces the original code with a call to that new function.
+
+    **When to use:**
+    - When a method contains code that can be grouped into a meaningful function
+    - When you want to make code more reusable across multiple call sites
+    - When you're breaking down long methods to improve readability and
+      maintainability
+    - When a code fragment would benefit from a descriptive function name
+      that clarifies intent
+
+    **Motivation (from Martin Fowler's Refactoring):**
+    Extract Function is one of the most important refactorings you can do.
+    The best predictor of code that is easy to maintain is how easy it is
+    to understand. Small, well-named functions make code self-documenting
+    and easier to test, reuse, and reason about.
+
+    **Example:**
+    Before:
+        def calculate_total(items):
+            subtotal = sum(item.price * item.quantity for item in items)
+            tax = subtotal * 0.1
+            shipping = 10 if subtotal < 50 else 5
+            return subtotal + tax + shipping
+
+    After:
+        def calculate_total(items):
+            subtotal = sum(item.price * item.quantity for item in items)
+            return subtotal + calculate_tax(subtotal) + calculate_shipping(subtotal)
+
+        def calculate_tax(subtotal):
+            return subtotal * 0.1
+
+        def calculate_shipping(subtotal):
+            return 10 if subtotal < 50 else 5
+    """
 
     name = "extract-function"
 

@@ -8,7 +8,37 @@ from molting.core.ast_utils import find_method_in_class, parse_target
 
 
 class ReplaceDelegationWithInheritanceCommand(BaseCommand):
-    """Command to convert delegation to inheritance."""
+    """Replace Delegation with Inheritance refactoring command.
+
+    This refactoring converts a delegating class that delegates all its methods
+    to a delegate object into a subclass of the delegate. When you find yourself
+    writing many delegating methods that simply forward calls to a delegate
+    object, this refactoring eliminates that boilerplate by making the delegating
+    class inherit from the delegate instead.
+
+    **When to use:**
+    - You have a class that delegates to another class and uses all (or most) of its methods
+    - The delegation methods are repetitive and add maintenance burden
+    - The delegating class and delegate class have a genuine is-a relationship
+    - You want to reduce boilerplate code while maintaining the same functionality
+
+    **Example:**
+    Before:
+        class Person:
+            def get_name(self):
+                return self._delegate.get_name()
+
+            def set_name(self, name):
+                self._delegate.set_name(name)
+
+            def age(self):
+                return self._delegate.age()
+
+    After:
+        class Person(Delegate):
+            def __init__(self, ...):
+                super().__init__(...)
+    """
 
     name = "replace-delegation-with-inheritance"
 

@@ -10,7 +10,61 @@ from molting.core.ast_utils import parse_target
 
 
 class ChangeBidirectionalAssociationToUnidirectionalCommand(BaseCommand):
-    """Command to remove back pointers from a bidirectional association."""
+    """Remove unnecessary bidirectional associations to simplify class relationships.
+
+    This refactoring converts a bidirectional association (two-way dependency) into a
+    unidirectional one (one-way dependency) when one class no longer needs to access
+    features from the other. It removes the back pointer field, its accessor methods,
+    and all related initialization and management code from the target class while
+    updating the source class to remove references to these now-unused methods.
+
+    **When to use:**
+    - A bidirectional association is more complex than necessary for the current design
+    - One end of the association is never actually used in your code
+    - You want to reduce coupling and simplify the object model
+    - A unidirectional reference is sufficient for your navigation needs
+    - You're refactoring to eliminate unnecessary dependencies between classes
+
+    **Example:**
+    Before:
+        # Two-way relationship: Customer knows about Orders, Orders know about Customer
+        class Customer:
+            def __init__(self):
+                self._orders = []
+
+            def add_order(self, order):
+                self._orders.append(order)
+
+            def remove_order(self, order):
+                self._orders.remove(order)
+
+        class Order:
+            def __init__(self, customer):
+                self._customer = customer
+                customer.add_order(self)
+
+            def set_customer(self, customer):
+                if self._customer:
+                    self._customer.remove_order(self)
+                self._customer = customer
+                customer.add_order(self)
+
+    After:
+        # One-way relationship: only Customer knows about Orders
+        class Customer:
+            def __init__(self):
+                self._orders = []
+
+            def add_order(self, order):
+                self._orders.append(order)
+
+            def remove_order(self, order):
+                self._orders.remove(order)
+
+        class Order:
+            def __init__(self, customer):
+                pass  # No back reference to customer
+    """
 
     name = "change-bidirectional-association-to-unidirectional"
 

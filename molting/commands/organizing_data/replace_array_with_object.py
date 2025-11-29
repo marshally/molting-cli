@@ -11,7 +11,41 @@ from molting.core.code_generation_utils import create_parameter
 
 
 class ReplaceArrayWithObjectCommand(BaseCommand):
-    """Command to replace an array with an object that has a field for each element."""
+    """Replace an array parameter with an object that has named fields.
+
+    This refactoring transforms array-based parameters where different indices
+    represent different semantic values into objects with explicit named fields.
+    Arrays used this way are difficult to understand because it's unclear what
+    each array element represents. By replacing the array with an object, you
+    make the code more explicit and maintainable.
+
+    **When to use:**
+    - You have an array parameter where different elements represent different
+      things (e.g., array[0] is name, array[1] is age, array[2] is email)
+    - You want to make code more readable by using named fields instead of
+      magic indices
+    - You're dealing with fixed-size arrays passed as parameters
+    - You want to improve type safety and self-documenting code
+
+    **Example:**
+
+    Before:
+        def process_person(data):
+            name = data[0]
+            age = data[1]
+            email = data[2]
+            return f"{name} ({age}): {email}"
+
+    After:
+        class PersonData:
+            def __init__(self, name, age, email):
+                self.name = name
+                self.age = age
+                self.email = email
+
+        def process_person(person_data):
+            return f"{person_data.name} ({person_data.age}): {person_data.email}"
+    """
 
     name = "replace-array-with-object"
 

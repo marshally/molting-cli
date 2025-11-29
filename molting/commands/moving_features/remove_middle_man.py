@@ -11,7 +11,50 @@ INIT_METHOD_NAME = "__init__"
 
 
 class RemoveMiddleManCommand(BaseCommand):
-    """Command to remove middle man delegation from a class."""
+    """Remove Middle Man refactoring: eliminate excessive delegation and expose delegates directly.
+
+    The Remove Middle Man refactoring removes methods that simply delegate to another object.
+    This refactoring applies when a class has become a "middle man" - doing excessive simple
+    delegation that clutters the interface. By removing these delegating methods, clients call
+    the delegate directly, simplifying the class and reducing unnecessary abstraction layers.
+
+    This is the inverse of the Hide Delegate refactoring. While Hide Delegate helps encapsulate
+    implementation details by hiding delegate objects, Remove Middle Man reverses this when the
+    delegation becomes too pervasive and the middle man class loses its value.
+
+    **When to use:**
+    - A class has many delegating methods that simply pass through to an internal object
+    - Clients need to know about both the middle man and the delegate object anyway
+    - The delegating methods don't add significant business logic or value
+    - You want to simplify a class interface that has become cluttered with pass-through methods
+
+    **Example:**
+    Before:
+        class Department:
+            def __init__(self, manager):
+                self._manager = manager
+
+            def get_manager_name(self):
+                return self._manager.name
+
+            def get_manager_budget(self):
+                return self._manager.budget
+
+        # Client code
+        dept = Department(manager)
+        print(dept.get_manager_name())
+        print(dept.get_manager_budget())
+
+    After:
+        class Department:
+            def __init__(self, manager):
+                self.manager = manager
+
+        # Client code
+        dept = Department(manager)
+        print(dept.manager.name)
+        print(dept.manager.budget)
+    """
 
     name = "remove-middle-man"
 

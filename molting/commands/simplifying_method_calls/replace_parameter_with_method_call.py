@@ -8,7 +8,48 @@ from molting.core.ast_utils import parse_target
 
 
 class ReplaceParameterWithMethodCallCommand(BaseCommand):
-    """Command to replace a parameter with a method call."""
+    """Replace a method parameter with a direct method call.
+
+    This refactoring removes a method parameter and replaces all references to that
+    parameter with calls to a getter method. Instead of passing a value as a
+    parameter, the method obtains the value by calling another method on the same
+    object (typically self.get_*).
+
+    **When to use:**
+    - A method parameter is derived from a call to another method on the same object
+    - The parameter adds unnecessary coupling and complexity to the method signature
+    - You want to simplify the interface by removing the parameter dependency
+    - The getter method is always available and returns the needed value
+
+    **Example:**
+    Before:
+        class Employee:
+            def __init__(self, salary):
+                self.salary = salary
+
+            def get_salary(self):
+                return self.salary
+
+            def calculate_bonus(self, salary):
+                return salary * 0.1
+
+        emp = Employee(50000)
+        bonus = emp.calculate_bonus(emp.get_salary())
+
+    After:
+        class Employee:
+            def __init__(self, salary):
+                self.salary = salary
+
+            def get_salary(self):
+                return self.salary
+
+            def calculate_bonus(self):
+                return self.get_salary() * 0.1
+
+        emp = Employee(50000)
+        bonus = emp.calculate_bonus()
+    """
 
     name = "replace-parameter-with-method-call"
 

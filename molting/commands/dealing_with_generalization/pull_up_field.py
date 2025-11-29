@@ -17,7 +17,47 @@ from molting.core.code_generation_utils import (
 
 
 class PullUpFieldCommand(BaseCommand):
-    """Command to pull up a field from subclasses to superclass."""
+    """Pull Up Field refactoring moves a common field from subclasses to their superclass.
+
+    The Pull Up Field refactoring eliminates duplication when multiple subclasses
+    define the same field. By moving the field declaration to the superclass, you
+    reduce code duplication and establish a common interface for accessing the field
+    across the class hierarchy. This refactoring is typically applied to instance
+    variables or properties that are initialized and used in the same way across
+    multiple subclasses.
+
+    **When to use:**
+    - Multiple subclasses define the same field with identical initialization logic
+    - The field is part of the common behavior expected from the superclass
+    - You want to eliminate duplication and improve maintainability
+    - The field should be accessible to all subclasses uniformly
+
+    **Example:**
+    Before:
+        class Employee:
+            pass
+
+        class Engineer(Employee):
+            def __init__(self, name):
+                self.name = name
+
+        class Manager(Employee):
+            def __init__(self, name):
+                self.name = name
+
+    After:
+        class Employee:
+            def __init__(self, name):
+                self.name = name
+
+        class Engineer(Employee):
+            def __init__(self, name):
+                super().__init__(name)
+
+        class Manager(Employee):
+            def __init__(self, name):
+                super().__init__(name)
+    """
 
     name = "pull-up-field"
 

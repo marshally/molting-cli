@@ -16,7 +16,52 @@ from molting.core.code_generation_utils import create_init_method
 
 
 class ExtractSuperclassCommand(BaseCommand):
-    """Command to extract a superclass from multiple classes."""
+    """Extract common features from multiple classes into a new superclass.
+
+    The Extract Superclass refactoring identifies duplicate code and behavior
+    shared across two or more classes and consolidates them into a new parent
+    class. This eliminates duplication and reveals common abstractions in your
+    codebase, making it easier to maintain and extend.
+
+    **When to use:**
+    - Multiple classes share the same fields and methods
+    - You want to reduce code duplication and improve maintainability
+    - You're preparing to implement a common interface or protocol
+    - You need to establish a shared abstraction for related classes
+
+    **Example:**
+    Before:
+        class Cat:
+            def __init__(self, name, age):
+                self.name = name
+                self.age = age
+
+            def get_age(self):
+                return self.age
+
+        class Dog:
+            def __init__(self, name, age):
+                self.name = name
+                self.age = age
+
+            def get_age(self):
+                return self.age
+
+    After:
+        class Animal:
+            def __init__(self, name, age):
+                self.name = name
+                self.age = age
+
+            def get_age(self):
+                return self.age
+
+        class Cat(Animal):
+            pass
+
+        class Dog(Animal):
+            pass
+    """
 
     name = "extract-superclass"
 

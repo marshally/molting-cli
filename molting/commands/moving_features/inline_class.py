@@ -17,7 +17,49 @@ INIT_METHOD_NAME = "__init__"
 
 
 class InlineClassCommand(BaseCommand):
-    """Command to inline a class into another class."""
+    """Move features from one class into another and remove the empty class.
+
+    The Inline Class refactoring moves all features (fields and methods) from a class into another
+    class, and then removes the now-empty source class. This is the reverse of Extract Class and
+    is useful when a class has become too simple or its responsibilities have been consolidated
+    into another class.
+
+    **When to use:**
+    - A class isn't doing very much and has minimal behavior
+    - All of a class's features are used primarily by another class
+    - A class was created as part of a refactoring that is no longer necessary
+    - You want to simplify your codebase by removing unnecessary abstractions
+
+    **Example:**
+
+    Before:
+        class Person:
+            def __init__(self, name, telephone_number):
+                self.name = name
+                self.office_telephone = OfficePhone(telephone_number)
+
+        class OfficePhone:
+            def __init__(self, number):
+                self.number = number
+
+            def get_area_code(self):
+                return self.number[:3]
+
+            def get_number(self):
+                return self.number
+
+    After:
+        class Person:
+            def __init__(self, name, telephone_number):
+                self.name = name
+                self.office_phone_number = telephone_number
+
+            def get_area_code(self):
+                return self.office_phone_number[:3]
+
+            def get_number(self):
+                return self.office_phone_number
+    """
 
     name = "inline-class"
 

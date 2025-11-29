@@ -12,7 +12,39 @@ from molting.core.ast_utils import (
 
 
 class AddParameterCommand(BaseCommand):
-    """Command to add a parameter to a method."""
+    """Add a parameter to a method to pass in information it currently lacks.
+
+    This refactoring adds a new parameter to a method when that method needs
+    information it doesn't currently have. Instead of computing or obtaining the
+    information within the method, we pass it in as a parameter, making the
+    method's dependencies explicit and improving its flexibility.
+
+    **When to use:**
+    - A method needs data that it currently fetches or computes internally
+    - You want to reduce coupling between a method and its dependencies
+    - You're preparing for extracting logic by making data dependencies explicit
+    - A method needs to handle optional features or variants (use default values)
+
+    **Example:**
+
+    Before:
+        class Account:
+            def get_account_summary(self):
+                summary = f"Account: {self.account_number}\\n"
+                summary += f"Balance: ${self.balance:.2f}\\n"
+                summary += f"Transactions: {len(self.transaction_history)}"
+                return summary
+
+    After:
+        class Account:
+            def get_account_summary(self, include_overdraft=False):
+                summary = f"Account: {self.account_number}\\n"
+                summary += f"Balance: ${self.balance:.2f}\\n"
+                summary += f"Transactions: {len(self.transaction_history)}"
+                if include_overdraft:
+                    summary += f"\\nOverdraft Limit: ${self.overdraft_limit:.2f}"
+                return summary
+    """
 
     name = "add-parameter"
 

@@ -8,7 +8,35 @@ from molting.core.ast_utils import find_method_in_tree, parse_target
 
 
 class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
-    """Command to replace a parameter with explicit methods."""
+    """Replace a parameter with separate explicit methods for each parameter value.
+
+    This refactoring replaces a method parameter that controls which of several code
+    paths should execute with a set of separate methods, each implementing a different
+    code path. This simplifies the method signatures and makes the caller's intent
+    more explicit, while reducing the conditional logic within the method.
+
+    **When to use:**
+    - A method has a parameter that determines which of several code branches to execute
+    - The parameter is compared against a fixed set of enumerated values
+    - Callers pass different constant values to control behavior
+    - You want to make the method interface clearer and reduce conditional complexity
+
+    **Example:**
+
+    Before:
+        def set_dimension(self, name: str, value: int) -> None:
+            if name == "height":
+                self.height = value
+            elif name == "width":
+                self.width = value
+
+    After:
+        def set_height(self, value: int) -> None:
+            self.height = value
+
+        def set_width(self, value: int) -> None:
+            self.width = value
+    """
 
     name = "replace-parameter-with-explicit-methods"
 

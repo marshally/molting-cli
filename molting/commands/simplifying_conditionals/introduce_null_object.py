@@ -7,7 +7,65 @@ from molting.commands.registry import register_command
 
 
 class IntroduceNullObjectCommand(BaseCommand):
-    """Command to replace null checks with a null object."""
+    """Replace null/None checks with a special null object that provides default behavior.
+
+    The Introduce Null Object refactoring eliminates conditional checks for null values by
+    creating a special subclass that implements the same interface but provides neutral default
+    behavior. Instead of checking if an object is None throughout your code, you use a null
+    object that "does nothing" or returns appropriate defaults, removing the need for guards.
+
+    **When to use:**
+    - You have frequent null checks (if x is None or if x is not None) scattered throughout code
+    - You're checking the same object for nullness in many places
+    - You want to simplify conditionals and reduce branching complexity
+    - You have methods that would be called on both real objects and null cases
+    - Your code suffers from "null pointer exception" handling patterns
+
+    **Example:**
+
+    Before:
+        class Customer:
+            def __init__(self, name: str, plan: str):
+                self.name = name
+                self.plan = plan
+
+        class Site:
+            def __init__(self, customer: Customer | None):
+                if customer is not None:
+                    self.customer = customer
+                else:
+                    self.customer = None
+
+        def get_plan() -> str:
+            if site.customer is not None:
+                return site.customer.plan
+            else:
+                return "Unknown"
+
+    After:
+        class Customer:
+            def __init__(self, name: str, plan: str):
+                self.name = name
+                self.plan = plan
+
+            def is_null(self) -> bool:
+                return False
+
+        class NullCustomer(Customer):
+            def __init__(self):
+                self.name = "Unknown"
+                self.plan = "Basic"
+
+            def is_null(self) -> bool:
+                return True
+
+        class Site:
+            def __init__(self, customer: Customer | None):
+                self.customer = customer if customer is not None else NullCustomer()
+
+        def get_plan() -> str:
+            return site.customer.plan
+    """
 
     name = "introduce-null-object"
 

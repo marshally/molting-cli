@@ -12,7 +12,57 @@ from molting.core.visitors import ClassConflictChecker
 
 
 class ExtractClassCommand(BaseCommand):
-    """Command to extract a new class from an existing class."""
+    """Extract Class refactoring: moves fields and methods into a new dedicated class.
+
+    This refactoring addresses the situation where a class is doing work that should
+    be split between two classes. It creates a new class and moves the relevant fields
+    and methods from the original class into the new one. This improves cohesion by
+    giving each class a single, well-defined responsibility.
+
+    **When to use:**
+    - A class has multiple unrelated groups of fields that could form separate concepts
+    - Methods primarily operate on a subset of fields, ignoring others
+    - You notice that some fields and methods always change together
+    - A class is hard to understand because it mixes concerns from different domains
+    - You want to break up a large "God Object" into more focused, maintainable classes
+
+    **Example:**
+    Before:
+        class Person:
+            def __init__(self, name, area_code, number):
+                self.name = name
+                self.area_code = area_code
+                self.number = number
+
+            def get_area_code(self):
+                return self.area_code
+
+            def get_number(self):
+                return self.number
+
+    After:
+        class Person:
+            def __init__(self, name, area_code, number):
+                self.name = name
+                self.telephone = TelephoneNumber(area_code, number)
+
+            def get_area_code(self):
+                return self.telephone.get_area_code()
+
+            def get_number(self):
+                return self.telephone.get_number()
+
+        class TelephoneNumber:
+            def __init__(self, area_code, number):
+                self.area_code = area_code
+                self.number = number
+
+            def get_area_code(self):
+                return self.area_code
+
+            def get_number(self):
+                return self.number
+    """
 
     name = "extract-class"
 

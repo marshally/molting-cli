@@ -7,7 +7,44 @@ from molting.commands.registry import register_command
 
 
 class ConsolidateConditionalExpressionCommand(BaseCommand):
-    """Command to consolidate multiple conditionals with the same result."""
+    """Consolidate multiple conditionals with identical results into a single expression.
+
+    This refactoring combines a sequence of conditional tests that all return the
+    same result into a single conditional expression. Multiple separate if statements
+    checking different conditions but performing the same action are replaced with
+    a single if statement that combines all conditions using logical operators (or).
+    This improves code clarity by making the intent of the code more explicit and
+    reducing duplication.
+
+    **When to use:**
+    - You have multiple if statements checking different conditions with identical results
+    - Several boolean expressions lead to the same return value or action
+    - You want to make the logical structure of conditional logic more apparent
+    - You need to reduce redundancy in conditional chains
+
+    **Example:**
+
+    Before:
+        def discount(customer):
+            if customer.type == "valued":
+                return 0.05
+            if customer.type == "premium":
+                return 0.05
+            if customer.loyalty_years > 10:
+                return 0.05
+            return 0.0
+
+    After:
+        def discount(customer):
+            if is_eligible(customer):
+                return 0.05
+            return 0.0
+
+        def is_eligible(customer):
+            return (customer.type == "valued" or
+                    customer.type == "premium" or
+                    customer.loyalty_years > 10)
+    """
 
     name = "consolidate-conditional-expression"
 

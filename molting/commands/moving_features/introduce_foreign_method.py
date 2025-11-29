@@ -11,7 +11,40 @@ from molting.core.visitors import MethodConflictChecker
 
 
 class IntroduceForeignMethodCommand(BaseCommand):
-    """Command to introduce a foreign method for operations on an external class."""
+    """Introduce Foreign Method refactoring to add functionality to an unmodifiable external class.
+
+    The Introduce Foreign Method refactoring creates a new method in the client class that
+    takes an instance of the server class as its first parameter. This pattern is used when
+    you need to add behavior to a class that you cannot modify, such as a third-party library
+    or framework class.
+
+    **When to use:**
+    - You need to add a method to a class but cannot modify it
+    - The server class is from an external library or frozen API
+    - The functionality is specific to your client context and not appropriate for the
+      server class itself
+    - You want to avoid duplicating the logic across multiple client classes
+
+    **Example:**
+    Before:
+        # Cannot modify the Date class, but need to add a next_day() method
+        class Employee:
+            def calculate_bonus_date(self):
+                previous_end = self.period_start
+                new_start = previous_end + timedelta(days=1)
+                return new_start
+
+    After:
+        class Employee:
+            def calculate_bonus_date(self):
+                previous_end = self.period_start
+                new_start = self.next_day(previous_end)
+                return new_start
+
+            def next_day(self, arg):
+                # Foreign method for Date
+                return arg + timedelta(days=1)
+    """
 
     name = "introduce-foreign-method"
 

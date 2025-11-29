@@ -8,7 +8,31 @@ from molting.core.ast_utils import parse_target
 
 
 class RenameMethodCommand(BaseCommand):
-    """Command to rename a method in a class."""
+    """Rename a method to better reflect its purpose and improve code clarity.
+
+    The Rename Method refactoring updates a method's name throughout the codebase
+    to make the code more self-documenting and easier to understand. This is one of
+    the most straightforward refactorings that significantly improves code readability.
+
+    **When to use:**
+    - A method name no longer accurately describes what the method does
+    - The original name is confusing or misleading to other developers
+    - You want to improve code clarity and maintainability
+    - Method names should reveal intent and reduce the need for comments
+
+    **Example:**
+    Before:
+        def calculate(self, items):
+            return sum(item.price for item in items)
+
+        total = order.calculate(products)
+
+    After:
+        def calculate_total_price(self, items):
+            return sum(item.price for item in items)
+
+        total = order.calculate_total_price(products)
+    """
 
     name = "rename-method"
 

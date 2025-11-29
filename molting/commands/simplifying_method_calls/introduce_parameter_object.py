@@ -10,7 +10,40 @@ from molting.core.code_generation_utils import create_parameter
 
 
 class IntroduceParameterObjectCommand(BaseCommand):
-    """Command to replace parameters with a parameter object."""
+    """Replace a group of related parameters with a single parameter object.
+
+    The Introduce Parameter Object refactoring groups parameters that naturally
+    belong together into a single parameter object class. This simplifies method
+    signatures and makes the code more maintainable by encapsulating related data.
+
+    **When to use:**
+    - A method has multiple parameters that are always passed together
+    - The same group of parameters is used in multiple methods
+    - Parameters represent a concept that would benefit from bundling (e.g., a date range)
+    - You want to simplify method signatures and reduce parameter lists
+    - Related parameters need shared behavior or validation
+
+    **Example:**
+    Before:
+        def charge_amount(start_date, end_date, charge):
+            if start_date <= charge.date <= end_date:
+                return charge.amount
+            return 0
+
+    After:
+        class DateRange:
+            def __init__(self, start, end):
+                self.start = start
+                self.end = end
+
+            def includes(self, date):
+                return self.start <= date <= self.end
+
+        def charge_amount(date_range, charge):
+            if date_range.includes(charge.date):
+                return charge.amount
+            return 0
+    """
 
     name = "introduce-parameter-object"
 
