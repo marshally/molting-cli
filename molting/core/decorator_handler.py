@@ -43,7 +43,7 @@ class DecoratorHandler:
         Returns:
             Tuple of Decorator nodes
         """
-        return self.method.decorators
+        return tuple(self.method.decorators)
 
     def should_preserve_decorator(self, decorator_name: str) -> bool:
         """Check if a decorator should be preserved during transformation.
