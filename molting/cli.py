@@ -5,75 +5,11 @@ from typing import Any
 
 import click
 
-# Import commands to register them
-import molting.commands.composing_methods.extract_function  # noqa: F401
-import molting.commands.composing_methods.extract_method  # noqa: F401
-import molting.commands.composing_methods.inline_method  # noqa: F401
-import molting.commands.composing_methods.inline_temp  # noqa: F401
-import molting.commands.composing_methods.introduce_explaining_variable  # noqa: F401
-import molting.commands.composing_methods.remove_assignments_to_parameters  # noqa: F401
-import molting.commands.composing_methods.replace_method_with_method_object  # noqa: F401
-import molting.commands.composing_methods.replace_temp_with_query  # noqa: F401
-import molting.commands.composing_methods.split_temporary_variable  # noqa: F401
-import molting.commands.composing_methods.substitute_algorithm  # noqa: F401
-import molting.commands.dealing_with_generalization.collapse_hierarchy  # noqa: F401
-import molting.commands.dealing_with_generalization.extract_interface  # noqa: F401
-import molting.commands.dealing_with_generalization.extract_subclass  # noqa: F401
-import molting.commands.dealing_with_generalization.extract_superclass  # noqa: F401
-import molting.commands.dealing_with_generalization.form_template_method  # noqa: F401
-import molting.commands.dealing_with_generalization.pull_up_constructor_body  # noqa: F401
-import molting.commands.dealing_with_generalization.pull_up_field  # noqa: F401
-import molting.commands.dealing_with_generalization.pull_up_method  # noqa: F401
-import molting.commands.dealing_with_generalization.push_down_field  # noqa: F401
-import molting.commands.dealing_with_generalization.push_down_method  # noqa: F401
-import molting.commands.dealing_with_generalization.replace_delegation_with_inheritance  # noqa: F401
-import molting.commands.dealing_with_generalization.replace_inheritance_with_delegation  # noqa: F401
-import molting.commands.moving_features.extract_class  # noqa: F401
-import molting.commands.moving_features.hide_delegate  # noqa: F401
-import molting.commands.moving_features.inline_class  # noqa: F401
-import molting.commands.moving_features.introduce_foreign_method  # noqa: F401
-import molting.commands.moving_features.introduce_local_extension  # noqa: F401
-import molting.commands.moving_features.move_field  # noqa: F401
-import molting.commands.moving_features.move_method  # noqa: F401
-import molting.commands.moving_features.remove_middle_man  # noqa: F401
-import molting.commands.organizing_data.change_bidirectional_association_to_unidirectional  # noqa: F401
-import molting.commands.organizing_data.change_reference_to_value  # noqa: F401
-import molting.commands.organizing_data.change_unidirectional_association_to_bidirectional  # noqa: F401
-import molting.commands.organizing_data.change_value_to_reference  # noqa: F401
-import molting.commands.organizing_data.duplicate_observed_data  # noqa: F401
-import molting.commands.organizing_data.encapsulate_collection  # noqa: F401
-import molting.commands.organizing_data.encapsulate_field  # noqa: F401
-import molting.commands.organizing_data.replace_array_with_object  # noqa: F401
-import molting.commands.organizing_data.replace_data_value_with_object  # noqa: F401
-import molting.commands.organizing_data.replace_magic_number_with_symbolic_constant  # noqa: F401
-import molting.commands.organizing_data.replace_type_code_with_class  # noqa: F401
-import molting.commands.organizing_data.replace_type_code_with_state_strategy  # noqa: F401
-import molting.commands.organizing_data.replace_type_code_with_subclasses  # noqa: F401
-import molting.commands.organizing_data.self_encapsulate_field  # noqa: F401
-import molting.commands.simplifying_conditionals.consolidate_conditional_expression  # noqa: F401
-import molting.commands.simplifying_conditionals.consolidate_duplicate_conditional_fragments  # noqa: F401
-import molting.commands.simplifying_conditionals.decompose_conditional  # noqa: F401
-import molting.commands.simplifying_conditionals.introduce_assertion  # noqa: F401
-import molting.commands.simplifying_conditionals.introduce_null_object  # noqa: F401
-import molting.commands.simplifying_conditionals.remove_control_flag  # noqa: F401
-import molting.commands.simplifying_conditionals.replace_conditional_with_polymorphism  # noqa: F401
-import molting.commands.simplifying_conditionals.replace_nested_conditional_with_guard_clauses  # noqa: F401
-import molting.commands.simplifying_method_calls.add_parameter  # noqa: F401
-import molting.commands.simplifying_method_calls.hide_method  # noqa: F401
-import molting.commands.simplifying_method_calls.introduce_parameter_object  # noqa: F401
-import molting.commands.simplifying_method_calls.parameterize_method  # noqa: F401
-import molting.commands.simplifying_method_calls.preserve_whole_object  # noqa: F401
-import molting.commands.simplifying_method_calls.remove_parameter  # noqa: F401
-import molting.commands.simplifying_method_calls.remove_setting_method  # noqa: F401
-import molting.commands.simplifying_method_calls.rename_method  # noqa: F401
-import molting.commands.simplifying_method_calls.replace_constructor_with_factory_function  # noqa: F401
-import molting.commands.simplifying_method_calls.replace_error_code_with_exception  # noqa: F401
-import molting.commands.simplifying_method_calls.replace_exception_with_test  # noqa: F401
-import molting.commands.simplifying_method_calls.replace_parameter_with_explicit_methods  # noqa: F401
-import molting.commands.simplifying_method_calls.replace_parameter_with_method_call  # noqa: F401
-import molting.commands.simplifying_method_calls.separate_query_from_modifier  # noqa: F401
 from molting import __version__
-from molting.commands.registry import apply_refactoring
+from molting.commands.registry import apply_refactoring, discover_and_register_commands
+
+# Dynamically discover and import all command modules
+discover_and_register_commands()
 
 
 @click.group()
