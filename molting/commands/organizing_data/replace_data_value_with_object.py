@@ -7,8 +7,10 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import find_class_in_module, parse_target
+from molting.core.call_site_updater import CallSiteUpdater, Reference
 from molting.core.code_generation_utils import create_parameter
 from molting.core.name_conflict_validator import NameConflictValidator
+from molting.core.symbol_context import SymbolContext
 
 INIT_METHOD_NAME = "__init__"
 
@@ -85,6 +87,47 @@ class ReplaceDataValueWithObjectCommand(BaseCommand):
         modified_tree = module.visit(transformer)
 
         self.file_path.write_text(modified_tree.code)
+
+        # Update call sites for the replaced field
+        # External references to obj.field_name should become obj.field_name.name
+        # But skip references within the target class (already transformed)
+        param_name = transformer.param_name or "name"
+        directory = self.file_path.parent
+        updater = CallSiteUpdater(directory)
+        self._update_field_access_sites(updater, field_name, param_name, class_name)
+
+    def _update_field_access_sites(
+        self, updater: CallSiteUpdater, field_name: str, param_name: str, class_name: str
+    ) -> None:
+        """Update all external access sites for the replaced field.
+
+        Transforms: obj.field_name -> obj.field_name.param_name
+        But only for references outside the target class (internal ones already transformed).
+
+        Args:
+            updater: The CallSiteUpdater to use
+            field_name: Name of the field that was replaced
+            param_name: Name of the parameter in the new class (e.g., "name")
+            class_name: Name of the class containing the field (skip internal references)
+        """
+
+        def transform_access_site(node: cst.CSTNode, ref: Reference) -> cst.CSTNode:
+            """Transform field access to add the new object's attribute.
+
+            Transforms: order.customer -> order.customer.name
+            But only if it's not self.customer (those are handled by FieldAccessTransformer)
+            """
+            if isinstance(node, cst.Attribute):
+                # Check if this is obj.field_name
+                if node.attr.value == field_name:
+                    # Skip if this is self.field_name (internal reference)
+                    if isinstance(node.value, cst.Name) and node.value.value == "self":
+                        return node
+                    # Add the param_name attribute: obj.field_name.param_name
+                    return cst.Attribute(value=node, attr=cst.Name(param_name))
+            return node
+
+        updater.update_all(field_name, SymbolContext.ATTRIBUTE_ACCESS, transform_access_site)
 
 
 class ReplaceDataValueWithObjectTransformer(cst.CSTTransformer):
