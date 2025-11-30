@@ -198,6 +198,13 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         Returns:
             Tuple of (query_name, modifier_name)
         """
+        # Handle "process_and_get_X" pattern -> ("get_X", "process_X")
+        if "process_and_get_" in original_name:
+            parts = original_name.split("process_and_get_")
+            if len(parts) == 2:
+                noun = parts[1]
+                return f"get_{noun}", f"process_{noun}"
+
         if original_name.startswith("get_"):
             base_name = original_name[4:]
             return original_name, f"modify_{base_name}"
@@ -279,6 +286,11 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
                     # Check for mutating method calls like .pop()
                     if isinstance(sub_stmt.value.func, cst.Attribute):
                         if sub_stmt.value.func.attr.value in MUTATING_METHODS:
+                            return True
+                    # Check for function calls with side effects like print()
+                    elif isinstance(sub_stmt.value.func, cst.Name):
+                        # Functions like print, input, etc. have side effects
+                        if sub_stmt.value.func.value in ("print", "input", "open", "write"):
                             return True
         return False
 
@@ -401,41 +413,51 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         result: list[cst.BaseStatement] = []
 
         # First pass: identify which statements modify state
-        modifier_indices = set()
+        needed_indices = set()
         for i, stmt in enumerate(block.body):
             if self._is_pure_modifier(stmt) or self._modifies_instance_state(stmt):
-                modifier_indices.add(i)
+                needed_indices.add(i)
 
-        # Second pass: keep statements that modify + needed assignments
+        # Second pass: iteratively add dependencies
+        # Keep adding statements until no more dependencies are found
+        changed = True
+        max_iterations = len(block.body)
+        iteration = 0
+        while changed and iteration < max_iterations:
+            changed = False
+            iteration += 1
+            for i, stmt in enumerate(block.body):
+                if i not in needed_indices:
+                    if self._is_local_var_assignment_needed_for_statements(
+                        stmt, block.body, i, needed_indices
+                    ):
+                        needed_indices.add(i)
+                        changed = True
+
+        # Third pass: collect the needed statements in order
         for i, stmt in enumerate(block.body):
-            if i in modifier_indices:
+            if i in needed_indices:
                 result.append(stmt)
-            elif self._is_local_var_assignment_needed_for_modifiers(
-                stmt, block.body, i, modifier_indices
-            ):
-                # Keep local assignments that are used in later modifications
-                result.append(stmt)
-            # Skip returns and other query operations
 
         return result
 
-    def _is_local_var_assignment_needed_for_modifiers(
+    def _is_local_var_assignment_needed_for_statements(
         self,
         stmt: cst.BaseStatement,
         all_stmts: Sequence[cst.BaseStatement],
         index: int,
-        modifier_indices: set[int],
+        needed_indices: set[int],
     ) -> bool:
-        """Check if a local variable assignment is needed for modifications.
+        """Check if a local variable assignment is needed for other needed statements.
 
         Args:
             stmt: The statement to check
             all_stmts: All statements in the block
             index: The index of this statement
-            modifier_indices: Set of indices of modifier statements
+            needed_indices: Set of indices of statements that are already needed
 
         Returns:
-            True if this assignment is needed for later modifiers
+            True if this assignment is needed for later needed statements
         """
         # Check if this is a local variable assignment
         if not isinstance(stmt, cst.SimpleStatementLine):
@@ -452,9 +474,9 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         if not assigned_var:
             return False
 
-        # Check if this variable is used in later modifier statements
+        # Check if this variable is used in later needed statements
         for j in range(index + 1, len(all_stmts)):
-            if j in modifier_indices:
+            if j in needed_indices:
                 if self._uses_variable(all_stmts[j], assigned_var):
                     return True
 
@@ -486,6 +508,10 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
                         return True
                     if self._expression_uses_variable(sub_stmt.value, var_name):
                         return True
+                elif isinstance(sub_stmt, cst.Expr):
+                    # Check for variable use in expression statements (like function calls)
+                    if self._expression_uses_variable(sub_stmt.value, var_name):
+                        return True
         return False
 
     def _expression_uses_variable(self, expr: cst.BaseExpression, var_name: str) -> bool:
@@ -498,14 +524,48 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         Returns:
             True if the expression uses the variable
         """
-        # Simple check: look for the variable name as an attribute base
-        # This handles cases like "lowest.reorder_pending"
-        if isinstance(expr, cst.Attribute):
-            if isinstance(expr.value, cst.Name) and expr.value.value == var_name:
-                return True
-        elif isinstance(expr, cst.Name):
+        # Direct variable reference
+        if isinstance(expr, cst.Name):
             if expr.value == var_name:
                 return True
+        # Attribute access (e.g., variable.attr)
+        elif isinstance(expr, cst.Attribute):
+            if isinstance(expr.value, cst.Name) and expr.value.value == var_name:
+                return True
+            # Recursively check the base expression
+            return self._expression_uses_variable(expr.value, var_name)
+        # Function calls (check arguments)
+        elif isinstance(expr, cst.Call):
+            for arg in expr.args:
+                if self._expression_uses_variable(arg.value, var_name):
+                    return True
+        # F-strings (formatted string literals)
+        elif isinstance(expr, cst.FormattedString):
+            for part in expr.parts:
+                if isinstance(part, cst.FormattedStringExpression):
+                    if self._expression_uses_variable(part.expression, var_name):
+                        return True
+        # Conditional expressions (a if condition else b)
+        elif isinstance(expr, cst.IfExp):
+            if self._expression_uses_variable(expr.test, var_name):
+                return True
+            if self._expression_uses_variable(expr.body, var_name):
+                return True
+            if self._expression_uses_variable(expr.orelse, var_name):
+                return True
+        # Binary operations (a + b, a == b, etc.)
+        elif isinstance(expr, cst.BinaryOperation):
+            if self._expression_uses_variable(expr.left, var_name):
+                return True
+            if self._expression_uses_variable(expr.right, var_name):
+                return True
+        # Comparison operations (a > b)
+        elif isinstance(expr, cst.Comparison):
+            if self._expression_uses_variable(expr.left, var_name):
+                return True
+            for comp in expr.comparisons:
+                if self._expression_uses_variable(comp.comparator, var_name):
+                    return True
         return False
 
     def _modifies_instance_state(self, stmt: cst.BaseStatement) -> bool:
