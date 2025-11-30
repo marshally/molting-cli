@@ -33,9 +33,6 @@ class TestEncapsulateCollection(RefactoringTestBase):
         """
         self.refactor("encapsulate-collection", target="Person::courses")
 
-    @pytest.mark.skip(
-        reason="Implementation needed for multiple_calls - doesn't update external call sites"
-    )
     def test_multiple_calls(self) -> None:
         """Test encapsulate collection when collection is accessed from multiple call sites.
 
