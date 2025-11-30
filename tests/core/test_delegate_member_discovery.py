@@ -138,3 +138,164 @@ class Employee:
         members = discovery.enumerate_public_members("Compensation")
 
         assert members == []
+
+    def test_enumerate_regular_methods(self):
+        """Should find all public regular methods."""
+        source = """
+class Compensation:
+    def calculate_gross_pay(self):
+        pass
+
+    def calculate_net_pay(self):
+        pass
+
+    def get_annual_compensation(self):
+        pass
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        members = discovery.enumerate_public_members("Compensation")
+
+        method_members = [m for m in members if m.kind == "method"]
+        method_names = [m.name for m in method_members]
+        assert set(method_names) == {"calculate_gross_pay", "calculate_net_pay", "get_annual_compensation"}
+
+    def test_enumerate_methods_excludes_dunder_methods(self):
+        """Should exclude __init__ and other dunder methods."""
+        source = """
+class Compensation:
+    def __init__(self):
+        pass
+
+    def __str__(self):
+        return "Compensation"
+
+    def calculate_pay(self):
+        pass
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        members = discovery.enumerate_public_members("Compensation")
+
+        method_members = [m for m in members if m.kind == "method"]
+        method_names = [m.name for m in method_members]
+        assert method_names == ["calculate_pay"]
+
+    def test_enumerate_methods_excludes_private_methods(self):
+        """Should exclude methods starting with underscore."""
+        source = """
+class Compensation:
+    def calculate_pay(self):
+        pass
+
+    def _internal_helper(self):
+        pass
+
+    def __private_method(self):
+        pass
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        members = discovery.enumerate_public_members("Compensation")
+
+        method_members = [m for m in members if m.kind == "method"]
+        method_names = [m.name for m in method_members]
+        assert method_names == ["calculate_pay"]
+
+    def test_enumerate_property_methods(self):
+        """Should find @property decorated methods."""
+        source = """
+class Compensation:
+    @property
+    def annual_bonus(self):
+        return 1000
+
+    @property
+    def total_compensation(self):
+        return 5000
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        members = discovery.enumerate_public_members("Compensation")
+
+        property_members = [m for m in members if m.kind == "property"]
+        property_names = [m.name for m in property_members]
+        assert set(property_names) == {"annual_bonus", "total_compensation"}
+
+    def test_enumerate_property_with_setter(self):
+        """Should detect setter on property."""
+        source = """
+class Compensation:
+    @property
+    def salary(self):
+        return self._salary
+
+    @salary.setter
+    def salary(self, value):
+        self._salary = value
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        members = discovery.enumerate_public_members("Compensation")
+
+        property_members = [m for m in members if m.kind == "property"]
+        assert len(property_members) == 1
+        assert property_members[0].name == "salary"
+        assert property_members[0].has_setter is True
+        assert property_members[0].has_deleter is False
+
+    def test_enumerate_property_with_deleter(self):
+        """Should detect deleter on property."""
+        source = """
+class Compensation:
+    @property
+    def salary(self):
+        return self._salary
+
+    @salary.deleter
+    def salary(self):
+        del self._salary
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        members = discovery.enumerate_public_members("Compensation")
+
+        property_members = [m for m in members if m.kind == "property"]
+        assert len(property_members) == 1
+        assert property_members[0].name == "salary"
+        assert property_members[0].has_setter is False
+        assert property_members[0].has_deleter is True
+
+    def test_enumerate_combined_fields_methods_properties(self):
+        """Should enumerate all member types together."""
+        source = """
+class Compensation:
+    def __init__(self):
+        self.base_salary = 0
+        self.bonus_rate = 0.1
+
+    def calculate_gross_pay(self):
+        pass
+
+    @property
+    def annual_bonus(self):
+        return self.base_salary * self.bonus_rate
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        members = discovery.enumerate_public_members("Compensation")
+
+        field_names = [m.name for m in members if m.kind == "field"]
+        method_names = [m.name for m in members if m.kind == "method"]
+        property_names = [m.name for m in members if m.kind == "property"]
+
+        assert set(field_names) == {"base_salary", "bonus_rate"}
+        assert method_names == ["calculate_gross_pay"]
+        assert property_names == ["annual_bonus"]

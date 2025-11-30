@@ -178,7 +178,8 @@ class DelegateMemberDiscovery:
         # Enumerate fields from __init__
         members.extend(self._enumerate_fields(class_def))
 
-        # TODO: Enumerate methods and properties in future TDD cycles
+        # Enumerate methods and properties
+        members.extend(self._enumerate_methods_and_properties(class_def))
 
         return members
 
@@ -252,6 +253,108 @@ class DelegateMemberDiscovery:
                     )
 
         return fields
+
+    def _enumerate_methods_and_properties(self, class_def: cst.ClassDef) -> list[DelegateMember]:
+        """Enumerate all public methods and properties from a class.
+
+        Args:
+            class_def: The class definition to enumerate
+
+        Returns:
+            List of DelegateMember objects for public methods and properties
+        """
+        members: list[DelegateMember] = []
+
+        if not isinstance(class_def.body, cst.IndentedBlock):
+            return members
+
+        # Track properties by name to detect setters/deleters
+        properties: dict[str, DelegateMember] = {}
+
+        # Enumerate all methods in the class
+        for stmt in class_def.body.body:
+            if not isinstance(stmt, cst.FunctionDef):
+                continue
+
+            method_name = stmt.name.value
+
+            # Skip private methods (starting with underscore)
+            if method_name.startswith("_"):
+                continue
+
+            # Check if this is a property, setter, or deleter
+            is_property = False
+            is_setter = False
+            is_deleter = False
+
+            for decorator in stmt.decorators:
+                decorator_name = self._get_decorator_name(decorator)
+                if decorator_name == "property":
+                    is_property = True
+                elif decorator_name.endswith(".setter"):
+                    is_setter = True
+                    # Extract property name from "property_name.setter"
+                    method_name = decorator_name.split(".")[0]
+                elif decorator_name.endswith(".deleter"):
+                    is_deleter = True
+                    # Extract property name from "property_name.deleter"
+                    method_name = decorator_name.split(".")[0]
+
+            if is_property:
+                # This is a @property decorator
+                member = DelegateMember(
+                    name=method_name,
+                    kind="property",
+                    node=stmt,
+                    has_setter=False,
+                    has_deleter=False,
+                )
+                properties[method_name] = member
+            elif is_setter:
+                # This is a setter - update the existing property
+                if method_name in properties:
+                    properties[method_name].has_setter = True
+            elif is_deleter:
+                # This is a deleter - update the existing property
+                if method_name in properties:
+                    properties[method_name].has_deleter = True
+            else:
+                # This is a regular method
+                members.append(DelegateMember(name=method_name, kind="method", node=stmt))
+
+        # Add all properties to the members list
+        members.extend(properties.values())
+
+        return members
+
+    def _get_decorator_name(self, decorator: cst.Decorator) -> str:
+        """Extract the decorator name from a decorator node.
+
+        Args:
+            decorator: The decorator node
+
+        Returns:
+            The decorator name as a string (e.g., "property" or "name.setter")
+        """
+        decorator_expr = decorator.decorator
+
+        # Simple decorator: @property
+        if isinstance(decorator_expr, cst.Name):
+            return decorator_expr.value
+
+        # Attribute decorator: @name.setter
+        if isinstance(decorator_expr, cst.Attribute):
+            # Build the full attribute path
+            parts = []
+            current = decorator_expr
+            while isinstance(current, cst.Attribute):
+                parts.append(current.attr.value)
+                current = current.value
+            if isinstance(current, cst.Name):
+                parts.append(current.value)
+            return ".".join(reversed(parts))
+
+        return ""
 
     def generate_delegating_method(
         self, member: DelegateMember, delegate_field: str
