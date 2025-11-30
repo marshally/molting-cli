@@ -6,6 +6,8 @@ import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.call_site_updater import CallSiteUpdater, Reference
+from molting.core.symbol_context import SymbolContext
 
 INIT_METHOD_NAME = "__init__"
 
@@ -81,6 +83,51 @@ class RemoveMiddleManCommand(BaseCommand):
 
         self.file_path.write_text(modified_tree.code)
 
+        # Update call sites for all removed delegation methods
+        if transformer.delegate_field and transformer.delegation_methods:
+            directory = self.file_path.parent
+            updater = CallSiteUpdater(directory)
+
+            # Get the public name of the delegate field (without leading underscore)
+            public_field_name = transformer.delegate_field.lstrip("_")
+
+            # Update each delegation method's call sites
+            for method_name, delegated_attr in transformer.delegation_mapping.items():
+                self._update_method_call_sites(
+                    updater, method_name, public_field_name, delegated_attr
+                )
+
+    def _update_method_call_sites(
+        self,
+        updater: CallSiteUpdater,
+        method_name: str,
+        field_name: str,
+        delegated_attr: str,
+    ) -> None:
+        """Update all call sites for a removed delegation method.
+
+        Args:
+            updater: The CallSiteUpdater to use
+            method_name: Name of the removed delegation method
+            field_name: Name of the public delegate field
+            delegated_attr: Name of the attribute being delegated to
+        """
+
+        def transform_call_site(node: cst.CSTNode, ref: Reference) -> cst.CSTNode:
+            """Transform method call to direct attribute access."""
+            if isinstance(node, cst.Call) and isinstance(node.func, cst.Attribute):
+                # Transform obj.get_manager() -> obj.department.manager
+                # node.func.value is the object being called on
+                # We replace with obj.field.delegated_attr
+                base_obj = node.func.value
+                return cst.Attribute(
+                    value=cst.Attribute(value=base_obj, attr=cst.Name(field_name)),
+                    attr=cst.Name(delegated_attr),
+                )
+            return node
+
+        updater.update_all(method_name, SymbolContext.METHOD_CALL, transform_call_site)
+
 
 class RemoveMiddleManTransformer(cst.CSTTransformer):
     """Transforms code by removing middle man delegation."""
@@ -94,6 +141,7 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         self.target_class = target_class
         self.delegate_field: str | None = None
         self.delegation_methods: list[str] = []
+        self.delegation_mapping: dict[str, str] = {}  # method_name -> delegated_attr
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
         """Visit class definitions to identify delegate field and methods."""
@@ -257,8 +305,31 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
 
         for item in class_def.body.body:
             if isinstance(item, cst.FunctionDef):
-                if self._is_delegation_method(item):
+                delegated_attr = self._get_delegated_attribute(item)
+                if delegated_attr:
                     self.delegation_methods.append(item.name.value)
+                    self.delegation_mapping[item.name.value] = delegated_attr
+
+    def _get_delegated_attribute(self, method: cst.FunctionDef) -> str | None:
+        """Get the delegated attribute name if this is a delegation method.
+
+        Args:
+            method: The method to check
+
+        Returns:
+            The name of the delegated attribute, or None if not a delegation method
+        """
+        if not self.delegate_field:
+            return None
+
+        if self._is_magic_method(method):
+            return None
+
+        return_expr = self._extract_single_return_from_method(method)
+        if not return_expr:
+            return None
+
+        return self._extract_delegated_attribute_name(return_expr)
 
     def _is_delegation_method(self, method: cst.FunctionDef) -> bool:
         """Check if a method is a delegation method.
@@ -269,17 +340,7 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         Returns:
             True if the method is a delegation method
         """
-        if not self.delegate_field:
-            return False
-
-        if self._is_magic_method(method):
-            return False
-
-        return_expr = self._extract_single_return_from_method(method)
-        if not return_expr:
-            return False
-
-        return self._is_delegation_to_field(return_expr)
+        return self._get_delegated_attribute(method) is not None
 
     def _is_magic_method(self, method: cst.FunctionDef) -> bool:
         """Check if method is a magic method.
@@ -323,6 +384,35 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
 
         return expr.value
 
+    def _extract_delegated_attribute_name(self, expr: cst.BaseExpression | None) -> str | None:
+        """Extract the delegated attribute name from a return expression.
+
+        Args:
+            expr: The expression to check
+
+        Returns:
+            The delegated attribute name if accessing self._field.something, None otherwise
+        """
+        if not expr:
+            return None
+
+        if not isinstance(expr, cst.Attribute):
+            return None
+
+        obj = expr.value
+        if not isinstance(obj, cst.Attribute):
+            return None
+
+        if not isinstance(obj.value, cst.Name) or obj.value.value != "self":
+            return None
+
+        field_name = obj.attr.value
+        if field_name != self.delegate_field:
+            return None
+
+        # Return the attribute being accessed on the delegate
+        return expr.attr.value
+
     def _is_delegation_to_field(self, expr: cst.BaseExpression | None) -> bool:
         """Check if expression is accessing the delegate field.
 
@@ -332,21 +422,7 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         Returns:
             True if accessing self._field.something
         """
-        if not expr:
-            return False
-
-        if not isinstance(expr, cst.Attribute):
-            return False
-
-        obj = expr.value
-        if not isinstance(obj, cst.Attribute):
-            return False
-
-        if not isinstance(obj.value, cst.Name) or obj.value.value != "self":
-            return False
-
-        field_name = obj.attr.value
-        return field_name == self.delegate_field
+        return self._extract_delegated_attribute_name(expr) is not None
 
 
 # Register the command

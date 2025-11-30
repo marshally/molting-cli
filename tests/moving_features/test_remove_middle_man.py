@@ -24,7 +24,6 @@ class TestRemoveMiddleMan(RefactoringTestBase):
         """
         self.refactor("remove-middle-man", target="Person")
 
-    @pytest.mark.skip(reason="Implementation needs call site update fix")
     def test_multiple_calls(self) -> None:
         """Test removing delegation when delegating methods are called from multiple locations.
 
