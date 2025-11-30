@@ -43,3 +43,37 @@ def calculate():
         # Should read: a, b, c
         reads = analyzer.get_reads_in_range(5, 6)
         assert set(reads) == {"a", "b", "c"}
+
+    def test_get_writes_in_range_simple(self):
+        """Test detecting variable writes in a line range."""
+        code = '''
+def process():
+    x = 10
+    y = 20
+    z = x + y
+    return z
+'''
+        module = cst.parse_module(code)
+        analyzer = VariableFlowAnalyzer(module, "", "process")
+
+        # Line 3: x = 10
+        # Should write: x
+        writes = analyzer.get_writes_in_range(3, 3)
+        assert writes == ["x"]
+
+    def test_get_writes_in_range_multiple(self):
+        """Test detecting multiple variable writes."""
+        code = '''
+def process():
+    x = 10
+    y = 20
+    z = x + y
+    return z
+'''
+        module = cst.parse_module(code)
+        analyzer = VariableFlowAnalyzer(module, "", "process")
+
+        # Lines 3-4: x = 10; y = 20
+        # Should write: x, y
+        writes = analyzer.get_writes_in_range(3, 4)
+        assert set(writes) == {"x", "y"}
