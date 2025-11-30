@@ -28,7 +28,14 @@ class TestSeparateQueryFromModifier(RefactoringTestBase):
         """
         self.refactor("separate-query-from-modifier", target="TaskQueue::get_and_remove_next")
 
-    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    @pytest.mark.skip(
+        reason="Requires complex statement-level transformation beyond CallSiteUpdater: "
+        "1) Replace method calls: get_and_remove_intruder() -> get_intruder(), "
+        "2) Insert new statement after: object.remove_intruder(), "
+        "3) Requires control flow analysis to determine where to insert the modifier call "
+        "(after if blocks when result is used, within loops, etc.). "
+        "This needs a sophisticated multi-statement transformer with context awareness."
+    )
     def test_multiple_calls(self) -> None:
         """Test separating query from modifier across multiple call sites.
 
