@@ -113,6 +113,10 @@ class DelegateMemberDiscovery:
                         annotation = param.annotation.annotation
                         if isinstance(annotation, cst.Name):
                             return annotation.value
+                        # Handle string annotations (forward references)
+                        elif isinstance(annotation, cst.SimpleString):
+                            # Remove quotes from "ClassName"
+                            return annotation.value.strip('"').strip("'")
 
         return None
 

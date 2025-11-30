@@ -2,29 +2,22 @@
 
 
 class Employee:
-    def __init__(self, compensation):
+    def __init__(self, compensation: "Compensation"):
         self._compensation = compensation
         self.name = ""
         self.hours_worked = 0
-
     def get_salary(self):
         return self._compensation.salary
-
     def get_bonus_percentage(self):
         return self._compensation.bonus_percentage
-
     def get_deduction_rate(self):
         return self._compensation.deduction_rate
-
     def get_tax_rate(self):
         return self._compensation.tax_rate
-
     def calculate_gross_pay(self):
         return self._compensation.calculate_gross_pay()
-
     def calculate_net_pay(self):
         return self._compensation.calculate_net_pay()
-
     def get_annual_compensation(self):
         return self._compensation.get_annual_compensation()
 
