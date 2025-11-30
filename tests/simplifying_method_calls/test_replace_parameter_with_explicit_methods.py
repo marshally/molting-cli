@@ -29,7 +29,6 @@ class TestReplaceParameterWithExplicitMethods(RefactoringTestBase):
             "replace-parameter-with-explicit-methods", target="Configuration::set_value::name"
         )
 
-    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
     def test_multiple_calls(self) -> None:
         """Test replacing a parameter with explicit methods across multiple call sites.
 
