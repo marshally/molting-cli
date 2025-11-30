@@ -2,9 +2,13 @@
 
 import ast
 
+import libcst as cst
+
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import find_method_in_tree, parse_target
+from molting.core.call_site_updater import CallSiteUpdater, Reference
+from molting.core.symbol_context import SymbolContext
 
 
 class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
@@ -57,6 +61,9 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
         target = self.params["target"]
         _, method_name, param_name = parse_target(target, expected_parts=3)
 
+        # Store parameter values for later use in call site updates
+        parameter_values: list[str] = []
+
         def transform(tree: ast.Module) -> ast.Module:
             """Transform the AST to replace a parameter with explicit methods.
 
@@ -69,6 +76,8 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
             Raises:
                 ValueError: If method or parameter not found
             """
+            nonlocal parameter_values
+
             result = find_method_in_tree(tree, method_name)
             if result is None:
                 raise ValueError(f"Method '{method_name}' not found in {self.file_path}")
@@ -107,6 +116,68 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
             return tree
 
         self.apply_ast_transform(transform)
+
+        # Update call sites to use the new explicit methods
+        directory = self.file_path.parent
+        updater = CallSiteUpdater(directory)
+        self._update_call_sites(updater, method_name, param_name, parameter_values)
+
+    def _update_call_sites(
+        self,
+        updater: CallSiteUpdater,
+        method_name: str,
+        param_name: str,
+        parameter_values: list[str],
+    ) -> None:
+        """Update all call sites to use the new explicit methods.
+
+        Transforms: obj.set_value('height', value) -> obj.set_height(value)
+
+        Args:
+            updater: The CallSiteUpdater to use
+            method_name: Original method name (e.g., "set_value")
+            param_name: Parameter name being replaced (e.g., "name")
+            parameter_values: List of parameter values (e.g., ["height", "width"])
+        """
+
+        def transform_call(node: cst.CSTNode, ref: Reference) -> cst.CSTNode:
+            """Transform method call to use explicit method based on parameter value.
+
+            Transforms: emp.set_value('height', h) -> emp.set_height(h)
+            """
+            if isinstance(node, cst.Call):
+                # The call should have at least 2 arguments (param_value, actual_value)
+                if len(node.args) < 2:
+                    return node
+
+                # Get the first argument - this should be the parameter value (e.g., 'height')
+                first_arg = node.args[0].value
+                if not isinstance(first_arg, cst.SimpleString):
+                    return node
+
+                # Extract the string value (remove quotes)
+                param_value = first_arg.evaluated_value
+                if param_value not in parameter_values:
+                    return node
+
+                # Create the new method name (e.g., "set_height" from "set_value" and "height")
+                method_prefix = method_name.rsplit("_", 1)[0]
+                new_method_name = f"{method_prefix}_{param_value}"
+
+                # Update the function being called
+                if isinstance(node.func, cst.Attribute):
+                    new_func = node.func.with_changes(attr=cst.Name(new_method_name))
+                else:
+                    return node
+
+                # Remove the first argument (the parameter value)
+                new_args = list(node.args[1:])
+
+                return node.with_changes(func=new_func, args=new_args)
+
+            return node
+
+        updater.update_all(method_name, SymbolContext.METHOD_CALL, transform_call)
 
     def _extract_parameter_values(self, method_node: ast.FunctionDef, param_name: str) -> list[str]:
         """Extract the values that the parameter is compared against.
