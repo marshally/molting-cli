@@ -52,7 +52,10 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
             target="OrderProcessor::process_order#L10-L15",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    @pytest.mark.skip(
+        reason="Requires pattern matching infrastructure beyond CallSiteUpdater - "
+        "needs to find and replace similar duplicate fragment patterns in other functions"
+    )
     def test_multiple_calls(self) -> None:
         """Test consolidating duplicate fragments when method is called from multiple locations.
 

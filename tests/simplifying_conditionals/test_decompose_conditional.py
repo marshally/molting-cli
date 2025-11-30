@@ -59,7 +59,10 @@ class TestDecomposeConditional(RefactoringTestBase):
             else_name="summer_charge",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for multiple_calls")
+    @pytest.mark.skip(
+        reason="Requires pattern matching infrastructure beyond CallSiteUpdater - "
+        "needs to find and replace similar conditional patterns in other functions"
+    )
     def test_multiple_calls(self) -> None:
         """Test decompose conditional when the extracted condition is called multiple times.
 
