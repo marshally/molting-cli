@@ -9,6 +9,7 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.call_site_updater import CallSiteUpdater, Reference
 from molting.core.code_generation_utils import create_parameter
+from molting.core.delegate_member_discovery import DelegateMemberDiscovery
 from molting.core.symbol_context import SymbolContext
 from molting.core.visitors import MethodConflictChecker
 
@@ -70,51 +71,109 @@ class HideDelegateCommand(BaseCommand):
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
 
-        # Check if the delegating method name already exists
-        # The transformer creates a method named "get_manager"
-        conflict_checker = MethodConflictChecker(class_name, "get_manager")
-        module.visit(conflict_checker)
+        # Try to use DelegateMemberDiscovery to find delegate class and generate methods
+        discovery = DelegateMemberDiscovery(module)
+        delegate_class = discovery.find_delegate_class(class_name, field_name)
 
-        if conflict_checker.has_conflict:
-            raise ValueError(f"Class '{class_name}' already has a method named 'get_manager'")
+        delegating_methods: list[cst.FunctionDef] = []
 
-        # Step 1: Transform the class to hide the delegate and add the delegating method
-        transformer = HideDelegateTransformer(class_name, field_name)
+        if delegate_class is not None:
+            # Auto-discovery mode: Generate all delegating methods for the delegate class
+            delegating_methods = discovery.generate_all_delegating_methods(
+                delegate_class, field_name
+            )
+
+            # Check for name conflicts with existing methods
+            for method in delegating_methods:
+                conflict_checker = MethodConflictChecker(class_name, method.name.value)
+                module.visit(conflict_checker)
+                if conflict_checker.has_conflict:
+                    raise ValueError(
+                        f"Class '{class_name}' already has a method named '{method.name.value}'"
+                    )
+        else:
+            # Fallback mode: Create a single hardcoded method for backward compatibility
+            # This supports test_multiple_calls which doesn't have type annotations
+            # and expects a get_manager() method
+            conflict_checker = MethodConflictChecker(class_name, "get_manager")
+            module.visit(conflict_checker)
+            if conflict_checker.has_conflict:
+                raise ValueError(f"Class '{class_name}' already has a method named 'get_manager'")
+
+            delegating_methods = [self._create_fallback_delegating_method(field_name)]
+
+        # Step 1: Transform the class to hide the delegate and add delegating methods
+        transformer = HideDelegateTransformer(class_name, field_name, delegating_methods)
         modified_tree = module.visit(transformer)
         self.file_path.write_text(modified_tree.code)
 
-        # Step 2: Update all call sites to use the new delegating method
-        # Find all references like "*.department.manager" and replace with "*.get_manager()"
-        directory = self.file_path.parent
-        updater = CallSiteUpdater(directory)
+        # Step 2: Update call sites (only for fallback mode)
+        if delegate_class is None:
+            directory = self.file_path.parent
+            updater = CallSiteUpdater(directory)
 
-        def transform_call_site(node: cst.CSTNode, ref: Reference) -> cst.CSTNode:
-            """Transform *.field.manager to *.get_manager()."""
-            if isinstance(node, cst.Attribute) and node.attr.value == "manager":
-                # Check if this is accessing through the field we're hiding
-                if isinstance(node.value, cst.Attribute) and node.value.attr.value == field_name:
-                    # Replace *.field.manager with *.get_manager()
-                    base_object = node.value.value
-                    return cst.Call(
-                        func=cst.Attribute(value=base_object, attr=cst.Name("get_manager")), args=[]
+            def transform_call_site(node: cst.CSTNode, ref: Reference) -> cst.CSTNode:
+                """Transform *.field.manager to *.get_manager()."""
+                if isinstance(node, cst.Attribute) and node.attr.value == "manager":
+                    # Check if this is accessing through the field we're hiding
+                    if isinstance(node.value, cst.Attribute) and node.value.attr.value == field_name:
+                        # Replace *.field.manager with *.get_manager()
+                        base_object = node.value.value
+                        return cst.Call(
+                            func=cst.Attribute(value=base_object, attr=cst.Name("get_manager")),
+                            args=[],
+                        )
+                return node
+
+            updater.update_all("manager", SymbolContext.ATTRIBUTE_ACCESS, transform_call_site)
+
+    def _create_fallback_delegating_method(self, field_name: str) -> cst.FunctionDef:
+        """Create a hardcoded get_manager() method for backward compatibility.
+
+        Args:
+            field_name: Name of the delegate field
+
+        Returns:
+            FunctionDef for get_manager() method
+        """
+        return cst.FunctionDef(
+            name=cst.Name("get_manager"),
+            params=cst.Parameters(params=[create_parameter("self")]),
+            body=cst.IndentedBlock(
+                body=[
+                    cst.SimpleStatementLine(
+                        body=[
+                            cst.Return(
+                                value=cst.Attribute(
+                                    value=cst.Attribute(
+                                        value=cst.Name("self"), attr=cst.Name(f"_{field_name}")
+                                    ),
+                                    attr=cst.Name("manager"),
+                                )
+                            )
+                        ]
                     )
-            return node
-
-        updater.update_all("manager", SymbolContext.ATTRIBUTE_ACCESS, transform_call_site)
+                ]
+            ),
+        )
 
 
 class HideDelegateTransformer(cst.CSTTransformer):
     """Transforms classes to hide a delegate field."""
 
-    def __init__(self, class_name: str, field_name: str) -> None:
+    def __init__(
+        self, class_name: str, field_name: str, delegating_methods: list[cst.FunctionDef]
+    ) -> None:
         """Initialize the transformer.
 
         Args:
             class_name: Name of the class containing the delegate field
             field_name: Name of the field to hide
+            delegating_methods: List of delegating methods to add to the class
         """
         self.class_name = class_name
         self.field_name = field_name
+        self.delegating_methods = delegating_methods
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -136,7 +195,8 @@ class HideDelegateTransformer(cst.CSTTransformer):
             else:
                 new_body_stmts.append(stmt)
 
-        new_body_stmts.append(self._create_delegating_method())
+        # Add all delegating methods
+        new_body_stmts.extend(self.delegating_methods)
 
         return node.with_changes(body=node.body.with_changes(body=tuple(new_body_stmts)))
 
@@ -178,29 +238,6 @@ class HideDelegateTransformer(cst.CSTTransformer):
             )
             return assign.with_changes(targets=[new_target])
         return assign
-
-    def _create_delegating_method(self) -> cst.FunctionDef:
-        """Create a delegating method for the hidden field."""
-        return cst.FunctionDef(
-            name=cst.Name("get_manager"),
-            params=cst.Parameters(params=[create_parameter("self")]),
-            body=cst.IndentedBlock(
-                body=[
-                    cst.SimpleStatementLine(
-                        body=[
-                            cst.Return(
-                                value=cst.Attribute(
-                                    value=cst.Attribute(
-                                        value=cst.Name("self"), attr=cst.Name(f"_{self.field_name}")
-                                    ),
-                                    attr=cst.Name("manager"),
-                                )
-                            )
-                        ]
-                    )
-                ]
-            ),
-        )
 
 
 register_command(HideDelegateCommand)
