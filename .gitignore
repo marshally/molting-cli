@@ -30,3 +30,4 @@ env/
 
 # AI planning documents (ephemeral)
 history/
+CURRENT_TASK.md

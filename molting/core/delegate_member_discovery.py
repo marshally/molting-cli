@@ -168,8 +168,90 @@ class DelegateMemberDiscovery:
         Returns:
             List of DelegateMember objects for all public members
         """
-        # Placeholder - will implement in subsequent TDD cycles
-        return []
+        members: list[DelegateMember] = []
+
+        # Find the class in the module
+        class_def = self._find_class(class_name)
+        if class_def is None:
+            return members
+
+        # Enumerate fields from __init__
+        members.extend(self._enumerate_fields(class_def))
+
+        # TODO: Enumerate methods and properties in future TDD cycles
+
+        return members
+
+    def _find_class(self, class_name: str) -> cst.ClassDef | None:
+        """Find a class definition by name in the module.
+
+        Args:
+            class_name: Name of the class to find
+
+        Returns:
+            The class definition or None if not found
+        """
+        for stmt in self.module.body:
+            if isinstance(stmt, cst.ClassDef) and stmt.name.value == class_name:
+                return stmt
+        return None
+
+    def _enumerate_fields(self, class_def: cst.ClassDef) -> list[DelegateMember]:
+        """Enumerate all public fields from __init__.
+
+        Args:
+            class_def: The class definition to enumerate
+
+        Returns:
+            List of DelegateMember objects for public fields
+        """
+        fields: list[DelegateMember] = []
+
+        if not isinstance(class_def.body, cst.IndentedBlock):
+            return fields
+
+        # Find __init__ method
+        init_method = None
+        for stmt in class_def.body.body:
+            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == "__init__":
+                init_method = stmt
+                break
+
+        if init_method is None or not isinstance(init_method.body, cst.IndentedBlock):
+            return fields
+
+        # Collect all self.field = value assignments
+        for stmt in init_method.body.body:
+            if not isinstance(stmt, cst.SimpleStatementLine):
+                continue
+
+            for item in stmt.body:
+                if not isinstance(item, cst.Assign):
+                    continue
+
+                for target in item.targets:
+                    if not isinstance(target.target, cst.Attribute):
+                        continue
+
+                    # Check if this is self.field_name
+                    if not (
+                        isinstance(target.target.value, cst.Name)
+                        and target.target.value.value == "self"
+                    ):
+                        continue
+
+                    field_name = target.target.attr.value
+
+                    # Skip private fields (starting with underscore)
+                    if field_name.startswith("_"):
+                        continue
+
+                    # Add the field
+                    fields.append(
+                        DelegateMember(name=field_name, kind="field", node=stmt)
+                    )
+
+        return fields
 
     def generate_delegating_method(
         self, member: DelegateMember, delegate_field: str
