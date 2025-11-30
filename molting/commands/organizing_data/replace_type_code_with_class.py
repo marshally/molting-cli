@@ -7,8 +7,10 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
+from molting.core.call_site_updater import CallSiteUpdater, Reference
 from molting.core.code_generation_utils import create_parameter
 from molting.core.name_conflict_validator import NameConflictValidator
+from molting.core.symbol_context import SymbolContext
 
 INIT_METHOD_NAME = "__init__"
 
@@ -92,6 +94,45 @@ class ReplaceTypeCodeWithClassCommand(BaseCommand):
 
         self.file_path.write_text(modified_tree.code)
 
+        # Update call sites for the type code constants
+        # References to OldClass.CONSTANT should become NewClass.CONSTANT
+        if transformer.type_codes:
+            directory = self.file_path.parent
+            updater = CallSiteUpdater(directory)
+            for type_code_name, _ in transformer.type_codes:
+                self._update_type_code_references(
+                    updater, class_name, new_class_name, type_code_name
+                )
+
+    def _update_type_code_references(
+        self, updater: CallSiteUpdater, old_class_name: str, new_class_name: str, type_code_name: str
+    ) -> None:
+        """Update all references to a type code constant.
+
+        Transforms: OldClass.CONSTANT -> NewClass.CONSTANT
+
+        Args:
+            updater: The CallSiteUpdater to use
+            old_class_name: Name of the original class (e.g., "Person")
+            new_class_name: Name of the new type code class (e.g., "BloodGroup")
+            type_code_name: Name of the type code constant (e.g., "O", "A")
+        """
+
+        def transform_type_code_reference(node: cst.CSTNode, ref: Reference) -> cst.CSTNode:
+            """Transform type code references from old class to new class.
+
+            Transforms: Person.O -> BloodGroup.O
+            """
+            if isinstance(node, cst.Attribute):
+                # Check if this is OldClass.CONSTANT
+                if isinstance(node.value, cst.Name):
+                    if node.value.value == old_class_name and node.attr.value == type_code_name:
+                        # Replace with NewClass.CONSTANT
+                        return cst.Attribute(value=cst.Name(new_class_name), attr=cst.Name(type_code_name))
+            return node
+
+        updater.update_all(type_code_name, SymbolContext.ATTRIBUTE_ACCESS, transform_type_code_reference)
+
 
 class ReplaceTypeCodeWithClassTransformer(cst.CSTTransformer):
     """Transforms type codes into a class."""
@@ -126,9 +167,28 @@ class ReplaceTypeCodeWithClassTransformer(cst.CSTTransformer):
         instance_assignments = self._create_class_instances()
 
         # Build the new module structure
-        modified_statements: list[cst.BaseStatement] = [
-            new_class,
-        ]
+        modified_statements: list[cst.BaseStatement] = []
+
+        # Check if the first statement is a module docstring
+        has_docstring = False
+        if (
+            updated_node.body
+            and isinstance(updated_node.body[0], cst.SimpleStatementLine)
+            and updated_node.body[0].body
+            and isinstance(updated_node.body[0].body[0], cst.Expr)
+            and isinstance(
+                updated_node.body[0].body[0].value, (cst.SimpleString, cst.ConcatenatedString)
+            )
+        ):
+            has_docstring = True
+            # Add the docstring first
+            modified_statements.append(updated_node.body[0])
+            # Add blank lines after docstring
+            modified_statements.append(cast(cst.BaseStatement, cst.EmptyLine()))
+            modified_statements.append(cast(cst.BaseStatement, cst.EmptyLine()))
+
+        # Add the new class
+        modified_statements.append(new_class)
 
         # Add instance assignments
         for assignment in instance_assignments:
@@ -142,8 +202,9 @@ class ReplaceTypeCodeWithClassTransformer(cst.CSTTransformer):
             ]
         )
 
-        # Add the modified original class
-        for stmt in updated_node.body:
+        # Add the rest of the statements, skipping the docstring and inserting modified target class
+        start_idx = 1 if has_docstring else 0
+        for stmt in updated_node.body[start_idx:]:
             if isinstance(stmt, cst.ClassDef) and stmt.name.value == self.class_name:
                 modified_class = self._modify_class(stmt)
                 modified_statements.append(modified_class)
