@@ -112,3 +112,39 @@ def process():
         # No inputs - both variables are defined in the region
         inputs = analyzer.get_inputs_for_region(3, 4)
         assert inputs == []
+
+    def test_get_outputs_from_region_used_later(self):
+        """Test identifying outputs (variables written and used after region)."""
+        code = '''
+def process():
+    x = 10
+    y = 20
+    z = x + y
+    result = z * 2
+    return result
+'''
+        module = cst.parse_module(code)
+        analyzer = VariableFlowAnalyzer(module, "", "process")
+
+        # Lines 3-5: x = 10; y = 20; z = x + y
+        # Outputs: z (used in line 6)
+        # x and y are not used after the region
+        outputs = analyzer.get_outputs_from_region(3, 5)
+        assert outputs == ["z"]
+
+    def test_get_outputs_from_region_no_usage_after(self):
+        """Test region where no variables are used after."""
+        code = '''
+def process():
+    x = 10
+    y = 20
+    return x + y
+'''
+        module = cst.parse_module(code)
+        analyzer = VariableFlowAnalyzer(module, "", "process")
+
+        # Lines 3-4: x = 10; y = 20
+        # No outputs - x and y are only used in the return (line 5)
+        # which is outside the region
+        outputs = analyzer.get_outputs_from_region(3, 4)
+        assert set(outputs) == {"x", "y"}  # Actually used in return statement
