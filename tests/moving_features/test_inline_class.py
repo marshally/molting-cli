@@ -41,7 +41,6 @@ class TestInlineClass(RefactoringTestBase):
         """
         self.refactor("inline-class", source_class="Address", into="Employee")
 
-    @pytest.mark.skip(reason="Implementation needs call site update fix")
     def test_multiple_calls(self) -> None:
         """Test inlining a class when its instances are created and used in multiple places.
 
