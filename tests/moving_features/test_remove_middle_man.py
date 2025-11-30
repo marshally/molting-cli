@@ -33,7 +33,6 @@ class TestRemoveMiddleMan(RefactoringTestBase):
         """
         self.refactor("remove-middle-man", target="Person")
 
-    @pytest.mark.skip(reason="Implementation needs call site update fix")
     def test_with_instance_vars(self) -> None:
         """Test removing delegation when the delegate is an instance variable.
 
