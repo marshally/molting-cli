@@ -71,3 +71,70 @@ class Person:
         result = discovery.find_delegate_class("Employee", "compensation")
 
         assert result is None
+
+
+class TestEnumeratePublicMembers:
+    """Tests for enumerating public members of a class."""
+
+    def test_enumerate_fields_from_init(self):
+        """Should find all fields assigned in __init__."""
+        source = """
+class Compensation:
+    def __init__(self):
+        self.salary = 0
+        self.bonus_percentage = 0
+        self.deduction_rate = 0
+        self.tax_rate = 0
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        members = discovery.enumerate_public_members("Compensation")
+
+        field_members = [m for m in members if m.kind == "field"]
+        field_names = [m.name for m in field_members]
+        assert set(field_names) == {"salary", "bonus_percentage", "deduction_rate", "tax_rate"}
+
+    def test_enumerate_fields_excludes_private_fields(self):
+        """Should exclude fields starting with underscore."""
+        source = """
+class Compensation:
+    def __init__(self):
+        self.salary = 0
+        self._internal_cache = {}
+        self.__private = 0
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        members = discovery.enumerate_public_members("Compensation")
+
+        field_members = [m for m in members if m.kind == "field"]
+        field_names = [m.name for m in field_members]
+        assert field_names == ["salary"]
+
+    def test_enumerate_empty_class(self):
+        """Should return empty list for class with no public members."""
+        source = """
+class Compensation:
+    pass
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        members = discovery.enumerate_public_members("Compensation")
+
+        assert members == []
+
+    def test_enumerate_nonexistent_class(self):
+        """Should return empty list for nonexistent class."""
+        source = """
+class Employee:
+    pass
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        members = discovery.enumerate_public_members("Compensation")
+
+        assert members == []
