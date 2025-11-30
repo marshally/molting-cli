@@ -19,10 +19,6 @@ class TestPreserveWholeObject(RefactoringTestBase):
         """
         self.refactor("preserve-whole-object", target="within_plan")
 
-    @pytest.mark.skip(
-        reason="CallSiteUpdater integration partially implemented but not working - "
-        "transform function may not be matching call pattern correctly"
-    )
     def test_multiple_calls(self) -> None:
         """Test preserving whole object when called from multiple locations.
 

@@ -201,7 +201,7 @@ class PreserveWholeObjectCommand(BaseCommand):
 
             return node
 
-        updater.update_all(function_name, SymbolContext.METHOD_CALL, transform_call)
+        updater.update_all(function_name, SymbolContext.FUNCTION_CALL, transform_call)
 
 
 # Register the command
