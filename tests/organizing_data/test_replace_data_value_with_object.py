@@ -44,9 +44,6 @@ class TestReplaceDataValueWithObject(RefactoringTestBase):
             "replace-data-value-with-object", target="Invoice::customer_name", name="CustomerInfo"
         )
 
-    @pytest.mark.skip(
-        reason="Implementation needed for multiple_calls - doesn't update all call sites"
-    )
     def test_multiple_calls(self) -> None:
         """Test data-value-to-object replacement when value is used in multiple locations.
 
