@@ -2,7 +2,7 @@
 
 
 class Employee:
-    def __init__(self, compensation):
+    def __init__(self, compensation: "Compensation"):
         self.compensation = compensation
 
 

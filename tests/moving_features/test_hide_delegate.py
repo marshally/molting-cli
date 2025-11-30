@@ -33,7 +33,6 @@ class TestHideDelegate(RefactoringTestBase):
         """
         self.refactor("hide-delegate", target="Person::department")
 
-    @pytest.mark.skip(reason="Needs auto-discovery of delegate members to create delegating methods")
     def test_with_instance_vars(self) -> None:
         """Test hiding a delegate where the delegate object is an instance variable.
 
@@ -43,7 +42,6 @@ class TestHideDelegate(RefactoringTestBase):
         """
         self.refactor("hide-delegate", target="Employee::compensation")
 
-    @pytest.mark.skip(reason="Needs auto-discovery of delegate members to create delegating methods")
     def test_with_decorators(self) -> None:
         """Test hiding a delegate that is accessed via decorated properties.
 
