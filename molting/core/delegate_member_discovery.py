@@ -372,8 +372,132 @@ class DelegateMemberDiscovery:
         Returns:
             The generated delegating method as a FunctionDef node
         """
-        # Placeholder - will implement in subsequent TDD cycles
-        raise NotImplementedError()
+        if member.kind == "field":
+            return self._generate_field_delegating_method(member, delegate_field)
+        elif member.kind == "method":
+            return self._generate_method_delegating_method(member, delegate_field)
+        elif member.kind == "property":
+            return self._generate_property_delegating_method(member, delegate_field)
+        else:
+            raise ValueError(f"Unknown member kind: {member.kind}")
+
+    def _generate_field_delegating_method(
+        self, member: DelegateMember, delegate_field: str
+    ) -> cst.FunctionDef:
+        """Generate a get_<field>() method for a field member.
+
+        Args:
+            member: The field member
+            delegate_field: Name of the delegate field
+
+        Returns:
+            FunctionDef for get_<field>() method
+        """
+        from molting.core.code_generation_utils import create_parameter
+
+        private_delegate = f"_{delegate_field}"
+
+        # Create: return self._delegate.field
+        return_stmt = cst.SimpleStatementLine(
+            body=[
+                cst.Return(
+                    value=cst.Attribute(
+                        value=cst.Attribute(
+                            value=cst.Name("self"),
+                            attr=cst.Name(private_delegate),
+                        ),
+                        attr=cst.Name(member.name),
+                    )
+                )
+            ]
+        )
+
+        # Create: def get_<field>(self): return self._delegate.field
+        return cst.FunctionDef(
+            name=cst.Name(f"get_{member.name}"),
+            params=cst.Parameters(params=[create_parameter("self")]),
+            body=cst.IndentedBlock(body=[return_stmt]),
+        )
+
+    def _generate_method_delegating_method(
+        self, member: DelegateMember, delegate_field: str
+    ) -> cst.FunctionDef:
+        """Generate a delegating method for a regular method member.
+
+        Args:
+            member: The method member
+            delegate_field: Name of the delegate field
+
+        Returns:
+            FunctionDef for delegating method
+        """
+        from molting.core.code_generation_utils import create_parameter
+
+        private_delegate = f"_{delegate_field}"
+
+        # Create: return self._delegate.method()
+        return_stmt = cst.SimpleStatementLine(
+            body=[
+                cst.Return(
+                    value=cst.Call(
+                        func=cst.Attribute(
+                            value=cst.Attribute(
+                                value=cst.Name("self"),
+                                attr=cst.Name(private_delegate),
+                            ),
+                            attr=cst.Name(member.name),
+                        ),
+                        args=[],
+                    )
+                )
+            ]
+        )
+
+        # Create: def method(self): return self._delegate.method()
+        return cst.FunctionDef(
+            name=cst.Name(member.name),
+            params=cst.Parameters(params=[create_parameter("self")]),
+            body=cst.IndentedBlock(body=[return_stmt]),
+        )
+
+    def _generate_property_delegating_method(
+        self, member: DelegateMember, delegate_field: str
+    ) -> cst.FunctionDef:
+        """Generate a @property delegating method for a property member.
+
+        Args:
+            member: The property member
+            delegate_field: Name of the delegate field
+
+        Returns:
+            FunctionDef for @property delegating method
+        """
+        from molting.core.code_generation_utils import create_parameter
+
+        private_delegate = f"_{delegate_field}"
+
+        # Create: return self._delegate.property
+        return_stmt = cst.SimpleStatementLine(
+            body=[
+                cst.Return(
+                    value=cst.Attribute(
+                        value=cst.Attribute(
+                            value=cst.Name("self"),
+                            attr=cst.Name(private_delegate),
+                        ),
+                        attr=cst.Name(member.name),
+                    )
+                )
+            ]
+        )
+
+        # Create: @property def property(self): return self._delegate.property
+        return cst.FunctionDef(
+            name=cst.Name(member.name),
+            params=cst.Parameters(params=[create_parameter("self")]),
+            body=cst.IndentedBlock(body=[return_stmt]),
+            decorators=[cst.Decorator(decorator=cst.Name("property"))],
+        )
 
     def generate_all_delegating_methods(
         self, delegate_class: str, delegate_field: str
@@ -387,5 +511,13 @@ class DelegateMemberDiscovery:
         Returns:
             List of generated delegating methods
         """
-        # Placeholder - will implement in subsequent TDD cycles
-        return []
+        # Get all public members of the delegate class
+        members = self.enumerate_public_members(delegate_class)
+
+        # Generate a delegating method for each member
+        delegating_methods = []
+        for member in members:
+            method = self.generate_delegating_method(member, delegate_field)
+            delegating_methods.append(method)
+
+        return delegating_methods

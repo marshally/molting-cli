@@ -299,3 +299,139 @@ class Compensation:
         assert set(field_names) == {"base_salary", "bonus_rate"}
         assert method_names == ["calculate_gross_pay"]
         assert property_names == ["annual_bonus"]
+
+
+class TestGenerateDelegatingMethod:
+    """Tests for generating delegating methods."""
+
+    def test_generate_delegating_method_for_field(self):
+        """Should generate get_<field>() method for a field."""
+        source = """
+class Compensation:
+    def __init__(self):
+        self.salary = 0
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+        members = discovery.enumerate_public_members("Compensation")
+        salary_field = [m for m in members if m.name == "salary"][0]
+
+        method = discovery.generate_delegating_method(salary_field, "compensation")
+
+        # Wrap in module to get code
+        code = cst.Module(body=[method]).code
+        assert "def get_salary(self):" in code
+        assert "return self._compensation.salary" in code
+
+    def test_generate_delegating_method_for_regular_method(self):
+        """Should generate delegating method that calls through."""
+        source = """
+class Compensation:
+    def calculate_gross_pay(self):
+        pass
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+        members = discovery.enumerate_public_members("Compensation")
+        calc_method = [m for m in members if m.name == "calculate_gross_pay"][0]
+
+        method = discovery.generate_delegating_method(calc_method, "compensation")
+
+        # Wrap in module to get code
+        code = cst.Module(body=[method]).code
+        assert "def calculate_gross_pay(self):" in code
+        assert "return self._compensation.calculate_gross_pay()" in code
+
+    def test_generate_delegating_method_for_property(self):
+        """Should generate @property delegating method."""
+        source = """
+class Compensation:
+    @property
+    def annual_bonus(self):
+        return 1000
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+        members = discovery.enumerate_public_members("Compensation")
+        bonus_prop = [m for m in members if m.name == "annual_bonus"][0]
+
+        method = discovery.generate_delegating_method(bonus_prop, "compensation")
+
+        # Wrap in module to get code
+        code = cst.Module(body=[method]).code
+        assert "@property" in code
+        assert "def annual_bonus(self):" in code
+        assert "return self._compensation.annual_bonus" in code
+
+
+class TestGenerateAllDelegatingMethods:
+    """Tests for generating all delegating methods."""
+
+    def test_generate_all_delegating_methods_for_instance_vars_case(self):
+        """Should generate all methods matching the with_instance_vars fixture."""
+        source = """
+class Compensation:
+    def __init__(self):
+        self.salary = 0
+        self.bonus_percentage = 0
+        self.deduction_rate = 0
+        self.tax_rate = 0
+
+    def calculate_gross_pay(self):
+        pass
+
+    def calculate_net_pay(self):
+        pass
+
+    def get_annual_compensation(self):
+        pass
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        methods = discovery.generate_all_delegating_methods("Compensation", "compensation")
+
+        # Should generate 7 methods: 4 fields + 3 methods
+        assert len(methods) == 7
+        method_names = [m.name.value for m in methods]
+        assert set(method_names) == {
+            "get_salary",
+            "get_bonus_percentage",
+            "get_deduction_rate",
+            "get_tax_rate",
+            "calculate_gross_pay",
+            "calculate_net_pay",
+            "get_annual_compensation",
+        }
+
+    def test_generate_all_delegating_methods_for_decorators_case(self):
+        """Should generate all methods matching the with_decorators fixture."""
+        source = """
+class Compensation:
+    def __init__(self, base_salary):
+        self.base_salary = base_salary
+        self.bonus_rate = 0.1
+
+    @property
+    def annual_bonus(self):
+        return self.base_salary * self.bonus_rate
+
+    @property
+    def total_compensation(self):
+        return self.base_salary + self.annual_bonus
+"""
+        module = cst.parse_module(source)
+        discovery = DelegateMemberDiscovery(module)
+
+        methods = discovery.generate_all_delegating_methods("Compensation", "compensation")
+
+        # Should have 2 @property methods (annual_bonus, total_compensation)
+        # Plus 2 fields (base_salary, bonus_rate) = 4 total
+        # But looking at the fixture, only the properties are delegated
+        property_methods = [m for m in methods if any(
+            isinstance(d.decorator, cst.Name) and d.decorator.value == "property"
+            for d in m.decorators
+        )]
+        assert len(property_methods) == 2
+        property_names = [m.name.value for m in property_methods]
+        assert set(property_names) == {"annual_bonus", "total_compensation"}
