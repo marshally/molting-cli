@@ -38,7 +38,7 @@ class TestIntroduceParameterObject(RefactoringTestBase):
             name="DateRange",
         )
 
-    @pytest.mark.skip(reason="Requires parameter object instantiation - implementation planned")
+    @pytest.mark.skip(reason="Requires cascading refactoring to helper methods")
     def test_with_locals(self) -> None:
         """Test introducing a parameter object when local variables are involved.
 
