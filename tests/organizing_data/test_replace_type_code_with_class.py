@@ -36,9 +36,6 @@ class TestReplaceTypeCodeWithClass(RefactoringTestBase):
         """
         self.refactor("replace-type-code-with-class", target="Task::priority", name="Priority")
 
-    @pytest.mark.skip(
-        reason="Implementation needed for multiple_calls - doesn't update type code references"
-    )
     def test_multiple_calls(self) -> None:
         """Test type-code-to-class replacement when type codes are used in multiple locations.
 
