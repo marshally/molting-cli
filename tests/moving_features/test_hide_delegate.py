@@ -24,7 +24,6 @@ class TestHideDelegate(RefactoringTestBase):
         """
         self.refactor("hide-delegate", target="Person::department")
 
-    @pytest.mark.skip(reason="Implementation needs call site update fix")
     def test_multiple_calls(self) -> None:
         """Test hiding a delegate that is accessed from multiple locations in the codebase.
 
