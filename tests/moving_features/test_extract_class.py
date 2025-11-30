@@ -30,7 +30,7 @@ class TestExtractClass(RefactoringTestBase):
             name="TelephoneNumber",
         )
 
-    @pytest.mark.skip(reason="Implementation needs docstring handling fix")
+    @pytest.mark.skip(reason="Requires intra-class dependency handling in extracted methods")
     def test_with_instance_vars(self) -> None:
         """Test extracting a class where extracted methods reference other extracted fields.
 

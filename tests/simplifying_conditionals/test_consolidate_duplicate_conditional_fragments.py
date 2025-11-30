@@ -23,7 +23,7 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
         """
         self.refactor("consolidate-duplicate-conditional-fragments", target="process_order#L2-L7")
 
-    @pytest.mark.skip(reason="Requires ternary expression extraction for differing arguments")
+    @pytest.mark.skip(reason="Requires handling differing arguments in duplicate statements")
     def test_with_locals(self) -> None:
         """Test consolidating duplicate code when it uses local variables.
 
@@ -31,10 +31,10 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
         variables. Verifies that variable dependencies and scope are preserved when
         moving code outside the conditional branches.
 
-        NOTE: This test requires a more advanced feature where duplicate function calls
-        with differing arguments are consolidated into a single call with a ternary
-        expression for the differing argument. Current implementation only handles
-        completely identical duplicate statements.
+        Note: The current implementation only handles completely identical duplicate
+        statements at the end of conditional branches. When duplicate statements have
+        differing arguments, no consolidation occurs (as in this test with the
+        log_shipment calls that differ on their first argument).
         """
         self.refactor(
             "consolidate-duplicate-conditional-fragments", target="calculate_shipping#L8-L16"
