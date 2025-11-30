@@ -1,12 +1,15 @@
 """Hide Delegate refactoring command."""
 
+from pathlib import Path
 from typing import cast
 
 import libcst as cst
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.call_site_updater import CallSiteUpdater, Reference
 from molting.core.code_generation_utils import create_parameter
+from molting.core.symbol_context import SymbolContext
 from molting.core.visitors import MethodConflictChecker
 
 
@@ -75,10 +78,29 @@ class HideDelegateCommand(BaseCommand):
         if conflict_checker.has_conflict:
             raise ValueError(f"Class '{class_name}' already has a method named 'get_manager'")
 
+        # Step 1: Transform the class to hide the delegate and add the delegating method
         transformer = HideDelegateTransformer(class_name, field_name)
         modified_tree = module.visit(transformer)
-
         self.file_path.write_text(modified_tree.code)
+
+        # Step 2: Update all call sites to use the new delegating method
+        # Find all references like "*.department.manager" and replace with "*.get_manager()"
+        directory = self.file_path.parent
+        updater = CallSiteUpdater(directory)
+
+        def transform_call_site(node: cst.CSTNode, ref: Reference) -> cst.CSTNode:
+            """Transform *.field.manager to *.get_manager()."""
+            if isinstance(node, cst.Attribute) and node.attr.value == "manager":
+                # Check if this is accessing through the field we're hiding
+                if isinstance(node.value, cst.Attribute) and node.value.attr.value == field_name:
+                    # Replace *.field.manager with *.get_manager()
+                    base_object = node.value.value
+                    return cst.Call(
+                        func=cst.Attribute(value=base_object, attr=cst.Name("get_manager")), args=[]
+                    )
+            return node
+
+        updater.update_all("manager", SymbolContext.ATTRIBUTE_ACCESS, transform_call_site)
 
 
 class HideDelegateTransformer(cst.CSTTransformer):
