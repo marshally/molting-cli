@@ -7,7 +7,9 @@ import libcst as cst
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
+from molting.core.call_site_updater import CallSiteUpdater, Reference
 from molting.core.code_generation_utils import create_parameter
+from molting.core.symbol_context import SymbolContext
 
 SELF = "self"
 INIT_METHOD = "__init__"
@@ -95,6 +97,49 @@ class EncapsulateCollectionCommand(BaseCommand):
         modified_tree = module.visit(transformer)
 
         self.file_path.write_text(modified_tree.code)
+
+        # Update call sites for the encapsulated field
+        # External references to obj.field_name should become obj.get_field_name()
+        directory = self.file_path.parent
+        updater = CallSiteUpdater(directory)
+        getter_name = f"get_{field_name}"
+        self._update_field_access_sites(updater, field_name, getter_name, class_name)
+
+    def _update_field_access_sites(
+        self, updater: CallSiteUpdater, field_name: str, getter_name: str, class_name: str
+    ) -> None:
+        """Update all external access sites for the encapsulated field.
+
+        Transforms: obj.field_name -> obj.get_field_name()
+        But only for references outside the target class (internal ones already use private field).
+
+        Args:
+            updater: The CallSiteUpdater to use
+            field_name: Name of the field that was encapsulated
+            getter_name: Name of the getter method (e.g., "get_courses")
+            class_name: Name of the class containing the field (skip internal references)
+        """
+
+        def transform_access_site(node: cst.CSTNode, ref: Reference) -> cst.CSTNode:
+            """Transform field access to a getter method call.
+
+            Transforms: person.courses -> person.get_courses()
+            But only if it's not self.courses (those use private field)
+            """
+            if isinstance(node, cst.Attribute):
+                # Check if this is obj.field_name
+                if node.attr.value == field_name:
+                    # Skip if this is self.field_name (internal reference)
+                    if isinstance(node.value, cst.Name) and node.value.value == "self":
+                        return node
+                    # Transform to obj.get_field_name()
+                    return cst.Call(
+                        func=cst.Attribute(value=node.value, attr=cst.Name(getter_name)),
+                        args=[],
+                    )
+            return node
+
+        updater.update_all(field_name, SymbolContext.ATTRIBUTE_ACCESS, transform_access_site)
 
 
 class EncapsulateCollectionTransformer(cst.CSTTransformer):
