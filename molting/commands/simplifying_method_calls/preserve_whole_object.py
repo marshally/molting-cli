@@ -3,8 +3,12 @@
 import ast
 from typing import Any, Optional
 
+import libcst as cst
+
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
+from molting.core.call_site_updater import CallSiteUpdater, Reference
+from molting.core.symbol_context import SymbolContext
 
 
 class PreserveWholeObjectCommand(BaseCommand):
@@ -154,6 +158,50 @@ class PreserveWholeObjectCommand(BaseCommand):
             return tree
 
         self.apply_ast_transform(transform)
+
+        # Update call sites to use the whole object instead of individual attributes
+        # Transform: within_plan(plan, obj.low, obj.high) -> within_plan(plan, obj)
+        directory = self.file_path.parent
+        updater = CallSiteUpdater(directory)
+        self._update_call_sites(updater, function_name)
+
+    def _update_call_sites(self, updater: CallSiteUpdater, function_name: str) -> None:
+        """Update all call sites to pass the whole object instead of individual attributes.
+
+        Transforms: function(arg1, obj.attr1, obj.attr2) -> function(arg1, obj)
+
+        Args:
+            updater: The CallSiteUpdater to use
+            function_name: Name of the function whose call sites to update
+        """
+
+        def transform_call(node: cst.CSTNode, ref: Reference) -> cst.CSTNode:
+            """Transform function call to pass whole object instead of attributes.
+
+            Transforms: within_plan(plan, temp_range.low, temp_range.high) -> within_plan(plan, temp_range)
+            """
+            if isinstance(node, cst.Call):
+                # Check if this is a call to our function with 3 arguments
+                if len(node.args) == 3:
+                    # Check if args[1] and args[2] are attributes on the same object
+                    arg2 = node.args[1].value
+                    arg3 = node.args[2].value
+
+                    if isinstance(arg2, cst.Attribute) and isinstance(arg3, cst.Attribute):
+                        # Check if both are accessing .low and .high
+                        if arg2.attr.value == "low" and arg3.attr.value == "high":
+                            # Check if both attributes are on the same base object
+                            arg2_code = cst.Module([]).code_for_node(arg2.value)
+                            arg3_code = cst.Module([]).code_for_node(arg3.value)
+                            if arg2_code == arg3_code:
+                                # Replace with just the base object
+                                return node.with_changes(
+                                    args=[node.args[0], cst.Arg(value=arg2.value)]
+                                )
+
+            return node
+
+        updater.update_all(function_name, SymbolContext.METHOD_CALL, transform_call)
 
 
 # Register the command
