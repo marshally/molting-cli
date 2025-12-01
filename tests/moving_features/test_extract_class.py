@@ -30,7 +30,6 @@ class TestExtractClass(RefactoringTestBase):
             name="TelephoneNumber",
         )
 
-    @pytest.mark.skip(reason="Implementation needs docstring handling fix")
     def test_with_instance_vars(self) -> None:
         """Test extracting a class where extracted methods reference other extracted fields.
 
