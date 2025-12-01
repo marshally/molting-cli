@@ -307,6 +307,65 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
             return False
         return test.expression.value == self.flag_variable
 
+    def _contains_flag_reference(self, test: cst.BaseExpression) -> bool:
+        """Check if test expression contains a reference to the flag variable.
+
+        Args:
+            test: The test expression
+
+        Returns:
+            True if the expression contains the flag variable
+        """
+        if isinstance(test, cst.UnaryOperation) and isinstance(test.operator, cst.Not):
+            if (
+                isinstance(test.expression, cst.Name)
+                and test.expression.value == self.flag_variable
+            ):
+                return True
+        if isinstance(test, cst.BooleanOperation):
+            return self._contains_flag_reference(test.left) or self._contains_flag_reference(
+                test.right
+            )
+        return False
+
+    def _remove_flag_reference(self, test: cst.BaseExpression) -> cst.BaseExpression | None:
+        """Remove flag references from a test expression.
+
+        Args:
+            test: The test expression
+
+        Returns:
+            The expression with flag references removed, or None if the entire expression was the flag
+        """
+        if isinstance(test, cst.UnaryOperation) and isinstance(test.operator, cst.Not):
+            if (
+                isinstance(test.expression, cst.Name)
+                and test.expression.value == self.flag_variable
+            ):
+                return None
+
+        if isinstance(test, cst.BooleanOperation):
+            if isinstance(test.operator, cst.And):
+                # For AND, remove the flag part
+                left = self._remove_flag_reference(test.left)
+                right = self._remove_flag_reference(test.right)
+                if left is None:
+                    return right
+                if right is None:
+                    return left
+                return cst.BooleanOperation(left=left, operator=test.operator, right=right)
+            elif isinstance(test.operator, cst.Or):
+                # For OR, we can't easily simplify, so keep it for now
+                left = self._remove_flag_reference(test.left)
+                right = self._remove_flag_reference(test.right)
+                if left is None:
+                    return right
+                if right is None:
+                    return left
+                return cst.BooleanOperation(left=left, operator=test.operator, right=right)
+
+        return test
+
     def _transform_guard_body(self, body: cst.IndentedBlock) -> list[cst.BaseStatement]:
         """Transform the body of the guard clause.
 

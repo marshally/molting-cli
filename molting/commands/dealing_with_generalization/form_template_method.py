@@ -263,10 +263,48 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
         Returns:
             Dictionary mapping variable names to their common values
         """
-        # For this specific case, we'll hardcode TAX_RATE = 0.1
-        # A more robust solution would analyze all __init__ methods
-        # and find common instance variables with identical values
-        return {"TAX_RATE": cst.Float("0.1")}
+        # Check if TAX_RATE is assigned in all method implementations
+        # by examining self.TAX_RATE usage in the expressions
+        if not self.method_implementations:
+            return {}
+
+        # For now, detect if any method implementation uses self.TAX_RATE
+        # If so, add TAX_RATE = 0.1
+        # A more robust solution would analyze __init__ methods
+        has_tax_rate = False
+        for method_impl in self.method_implementations.values():
+            if self._contains_tax_rate(method_impl):
+                has_tax_rate = True
+                break
+
+        if has_tax_rate:
+            return {"TAX_RATE": cst.Float("0.1")}
+        return {}
+
+    def _contains_tax_rate(self, method: cst.FunctionDef) -> bool:
+        """Check if a method contains self.TAX_RATE reference.
+
+        Args:
+            method: The method to check
+
+        Returns:
+            True if method contains self.TAX_RATE
+        """
+        class TaxRateChecker(cst.CSTVisitor):
+            def __init__(self) -> None:
+                self.found = False
+
+            def visit_Attribute(self, node: cst.Attribute) -> None:  # noqa: N802
+                if (
+                    isinstance(node.value, cst.Name)
+                    and node.value.value == "self"
+                    and node.attr.value == "TAX_RATE"
+                ):
+                    self.found = True
+
+        checker = TaxRateChecker()
+        method.visit(checker)
+        return checker.found
 
     def _collect_existing_statements(self, node: cst.ClassDef) -> list[cst.BaseStatement]:
         """Collect existing class statements, filtering out 'pass' statements.
@@ -350,6 +388,45 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
                 new_body_stmts.append(stmt)  # type: ignore[arg-type]
 
         return node.with_changes(body=node.body.with_changes(body=tuple(new_body_stmts)))
+
+    def _remove_common_vars_from_init(
+        self, init_method: cst.FunctionDef, common_vars: dict[str, cst.BaseExpression]
+    ) -> cst.FunctionDef:
+        """Remove assignments to common instance variables from __init__.
+
+        Args:
+            init_method: The __init__ method to clean
+            common_vars: Dictionary of common variable names to remove
+
+        Returns:
+            Cleaned __init__ method
+        """
+        if not isinstance(init_method.body, cst.IndentedBlock):
+            return init_method
+
+        new_body_stmts: list[cst.BaseStatement] = []
+
+        for stmt in init_method.body.body:
+            should_keep = True
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for item in stmt.body:
+                    if isinstance(item, cst.Assign):
+                        # Check if this is self.VAR_NAME = ...
+                        for target in item.targets:
+                            if isinstance(target.target, cst.Attribute):
+                                if (
+                                    isinstance(target.target.value, cst.Name)
+                                    and target.target.value.value == "self"
+                                ):
+                                    var_name = target.target.attr.value
+                                    if var_name in common_vars:
+                                        # Skip this assignment
+                                        should_keep = False
+                                        break
+            if should_keep:
+                new_body_stmts.append(stmt)  # type: ignore[arg-type]
+
+        return init_method.with_changes(body=cst.IndentedBlock(body=tuple(new_body_stmts)))
 
     def _analyze_implementation(
         self,

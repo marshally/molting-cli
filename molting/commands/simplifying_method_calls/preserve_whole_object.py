@@ -94,7 +94,8 @@ class PreserveWholeObjectCommand(BaseCommand):
 
         Args:
             replacements: Dict mapping old parameter names to (object_name, attr_name) tuples
-                Example: {"balance": ("account", "balance"), "overdraft": ("account", "overdraft_limit")}
+                Example: {"balance": ("account", "balance"),
+                          "overdraft": ("account", "overdraft_limit")}
 
         Returns:
             A NameReplacer class configured with the replacements
@@ -166,37 +167,12 @@ class PreserveWholeObjectCommand(BaseCommand):
                 ]
 
                 # Update function body to use temp_range.low and temp_range.high
-                class NameReplacer(ast.NodeTransformer):
-                    """Replace Name nodes for low and high with Attribute access."""
-
-                    def _create_attribute_access(
-                        self, object_name: str, attr_name: str, ctx: ast.expr_context
-                    ) -> ast.Attribute:
-                        """Create an attribute access node.
-
-                        Args:
-                            object_name: Name of the object
-                            attr_name: Name of the attribute
-                            ctx: Context for the expression
-
-                        Returns:
-                            Attribute AST node
-                        """
-                        return ast.Attribute(
-                            value=ast.Name(id=object_name, ctx=ast.Load()),
-                            attr=attr_name,
-                            ctx=ctx,
-                        )
-
-                    def visit_Name(self, node: ast.Name) -> Any:  # noqa: N802
-                        """Visit Name nodes and replace low/high with temp_range.low/high."""
-                        if node.id == "low":
-                            return self._create_attribute_access("temp_range", "low", node.ctx)
-                        elif node.id == "high":
-                            return self._create_attribute_access("temp_range", "high", node.ctx)
-                        return node
-
-                replacer = NameReplacer()
+                replacements = {
+                    "low": ("temp_range", "low"),
+                    "high": ("temp_range", "high"),
+                }
+                replacer_class = self._create_name_replacer(replacements)
+                replacer = replacer_class()
                 function_node.body = [replacer.visit(stmt) for stmt in function_node.body]
 
             elif function_name == "can_withdraw":
@@ -208,39 +184,12 @@ class PreserveWholeObjectCommand(BaseCommand):
                 ]
 
                 # Update function body to use account.balance and account.overdraft_limit
-                class NameReplacer(ast.NodeTransformer):
-                    """Replace Name nodes for balance and overdraft with Attribute access."""
-
-                    def _create_attribute_access(
-                        self, object_name: str, attr_name: str, ctx: ast.expr_context
-                    ) -> ast.Attribute:
-                        """Create an attribute access node.
-
-                        Args:
-                            object_name: Name of the object
-                            attr_name: Name of the attribute
-                            ctx: Context for the expression
-
-                        Returns:
-                            Attribute AST node
-                        """
-                        return ast.Attribute(
-                            value=ast.Name(id=object_name, ctx=ast.Load()),
-                            attr=attr_name,
-                            ctx=ctx,
-                        )
-
-                    def visit_Name(self, node: ast.Name) -> Any:  # noqa: N802
-                        """Visit Name nodes and replace balance/overdraft with account access."""
-                        if node.id == "balance":
-                            return self._create_attribute_access("account", "balance", node.ctx)
-                        elif node.id == "overdraft":
-                            return self._create_attribute_access(
-                                "account", "overdraft_limit", node.ctx
-                            )
-                        return node
-
-                replacer = NameReplacer()
+                replacements = {
+                    "balance": ("account", "balance"),
+                    "overdraft": ("account", "overdraft_limit"),
+                }
+                replacer_class = self._create_name_replacer(replacements)
+                replacer = replacer_class()
                 function_node.body = [replacer.visit(stmt) for stmt in function_node.body]
 
             return tree

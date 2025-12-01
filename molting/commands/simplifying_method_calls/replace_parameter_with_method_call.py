@@ -75,7 +75,7 @@ class ReplaceParameterWithMethodCallCommand(BaseCommand):
         module = cst.parse_module(source_code)
 
         # Find what method is called at call sites for this parameter
-        analyzer = CallSiteAnalyzer(class_name, method_name, param_name)
+        analyzer = CallSiteAnalyzer(class_name, method_name, param_name, module)
         module.visit(analyzer)
 
         getter_method_name = analyzer.getter_method_name
@@ -98,13 +98,16 @@ class ReplaceParameterWithMethodCallCommand(BaseCommand):
 class CallSiteAnalyzer(cst.CSTVisitor):
     """Analyzes call sites to determine the getter method name."""
 
-    def __init__(self, class_name: str, method_name: str, param_name: str) -> None:
+    def __init__(
+        self, class_name: str, method_name: str, param_name: str, module: cst.Module
+    ) -> None:
         """Initialize the analyzer.
 
         Args:
             class_name: Name of the class containing the method
             method_name: Name of the method with the parameter
             param_name: Name of the parameter to analyze
+            module: The module to analyze (needed for finding parameter position first)
         """
         self.class_name = class_name
         self.method_name = method_name
@@ -112,6 +115,15 @@ class CallSiteAnalyzer(cst.CSTVisitor):
         self.getter_method_name: str | None = None
         self.in_target_class = False
         self.param_position: int | None = None
+
+        # First pass: find the parameter position
+        self._find_parameter_position(module)
+
+    def _find_parameter_position(self, module: cst.Module) -> None:
+        """Find the position of the parameter in the method signature."""
+        finder = _ParameterPositionFinder(self.class_name, self.method_name, self.param_name)
+        module.walk(finder)
+        self.param_position = finder.param_position
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
         """Visit class definition to track if we're in the target class."""
@@ -127,11 +139,14 @@ class CallSiteAnalyzer(cst.CSTVisitor):
     def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
         """Visit function definition to find the parameter position."""
         if self.in_target_class and node.name.value == self.method_name:
+            print(f"DEBUG: Found target method {self.method_name}")
             # Find the position of the parameter
             for i, param in enumerate(node.params.params):
+                print(f"DEBUG: Param {i}: {param.name.value}")
                 if param.name.value == self.param_name:
                     # Subtract 1 to account for 'self'
                     self.param_position = i - 1 if i > 0 else 0
+                    print(f"DEBUG: Set param_position to {self.param_position}")
                     break
         return True
 
