@@ -5,7 +5,6 @@ This test module verifies the encapsulate-collection refactoring,
 which provides read-only views and add/remove methods for collections.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

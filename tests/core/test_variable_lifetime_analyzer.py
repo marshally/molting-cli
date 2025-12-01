@@ -1,10 +1,8 @@
 """Tests for VariableLifetimeAnalyzer."""
 
 import libcst as cst
-import pytest
 
 from molting.core.variable_lifetime_analyzer import (
-    VariableLifetime,
     VariableLifetimeAnalyzer,
 )
 

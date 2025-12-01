@@ -1,9 +1,6 @@
 """Tests for ReferenceSearcher and its backends."""
 
-import tempfile
 from pathlib import Path
-
-import pytest
 
 from molting.core.reference_searcher import (
     PythonSearcher,
@@ -19,7 +16,11 @@ class TestTextMatch:
     def test_text_match_creation(self) -> None:
         """Test creating a TextMatch instance."""
         match = TextMatch(
-            file_path=Path("/test/file.py"), line_number=10, column=5, text="test_pattern", line="    test_pattern()"
+            file_path=Path("/test/file.py"),
+            line_number=10,
+            column=5,
+            text="test_pattern",
+            line="    test_pattern()",
         )
         assert match.file_path == Path("/test/file.py")
         assert match.line_number == 10

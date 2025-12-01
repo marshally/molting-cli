@@ -1,10 +1,8 @@
 """Tests for CallSiteUpdater."""
 
-import tempfile
 from pathlib import Path
 
 import libcst as cst
-import pytest
 
 from molting.core.call_site_updater import CallSiteUpdater, Reference, UpdateResult
 from molting.core.reference_searcher import PythonSearcher

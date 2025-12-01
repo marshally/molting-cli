@@ -1,7 +1,6 @@
 """Tests for PropertyMethodHandler utility."""
 
 import libcst as cst
-import pytest
 
 from molting.core.property_utils import PropertyDefinition, PropertyMethodHandler
 
@@ -16,10 +15,7 @@ class TestPropertyDefinition:
         setter = cst.parse_module("@name.setter\ndef name(self, value): pass").body[0]
 
         prop_def = PropertyDefinition(
-            name="test_property",
-            getter=getter,
-            setter=setter,
-            deleter=None
+            name="test_property", getter=getter, setter=setter, deleter=None
         )
 
         assert prop_def.name == "test_property"
@@ -273,10 +269,7 @@ class Temp:
         setter = prop_class.body.body[1]
 
         prop_def = PropertyDefinition(
-            name="sales_target",
-            getter=getter,
-            setter=setter,
-            deleter=None
+            name="sales_target", getter=getter, setter=setter, deleter=None
         )
 
         class_def = module.body[0]
@@ -308,12 +301,7 @@ class Temp:
         prop_class = prop_module.body[0]
         getter = prop_class.body.body[0]
 
-        prop_def = PropertyDefinition(
-            name="sales_target",
-            getter=getter,
-            setter=None,
-            deleter=None
-        )
+        prop_def = PropertyDefinition(name="sales_target", getter=getter, setter=None, deleter=None)
 
         class_def = module.body[0]
         updated_class = handler.add_property_to_class(class_def, prop_def)
@@ -324,7 +312,10 @@ class Temp:
         assert methods[0].name.value == "sales_target"
 
         # Should not have pass statement
-        pass_stmts = [stmt for stmt in updated_class.body.body
-                      if isinstance(stmt, cst.SimpleStatementLine)
-                      and any(isinstance(b, cst.Pass) for b in stmt.body)]
+        pass_stmts = [
+            stmt
+            for stmt in updated_class.body.body
+            if isinstance(stmt, cst.SimpleStatementLine)
+            and any(isinstance(b, cst.Pass) for b in stmt.body)
+        ]
         assert len(pass_stmts) == 0

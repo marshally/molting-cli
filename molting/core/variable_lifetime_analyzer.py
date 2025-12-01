@@ -23,29 +23,27 @@ class VariableLifetime:
 class VariableLifetimeAnalyzer:
     """Analyzes variable lifetimes within a function.
 
-    Use this analyzer to:
-    - Track where variables are first defined
-    - Track where variables are last used
-    - Determine scope boundaries
-    - Check if variables are used before/after specific lines
+        Use this analyzer to:
+        - Track where variables are first defined
+        - Track where variables are last used
+        - Determine scope boundaries
+        - Check if variables are used before/after specific lines
 
-    Example:
-        code = '''
-def process():
-    x = 10
-    y = x + 5
-    return y
-'''
-        module = cst.parse_module(code)
-        analyzer = VariableLifetimeAnalyzer(module, None, "process")
+        Example:
+            code = '''
+    def process():
+        x = 10
+        y = x + 5
+        return y
+    '''
+            module = cst.parse_module(code)
+            analyzer = VariableLifetimeAnalyzer(module, None, "process")
 
-        first_def = analyzer.get_first_definition("x")  # 3
-        last_use = analyzer.get_last_use("x")  # 4
+            first_def = analyzer.get_first_definition("x")  # 3
+            last_use = analyzer.get_last_use("x")  # 4
     """
 
-    def __init__(
-        self, module: cst.Module, class_name: str | None, function_name: str
-    ) -> None:
+    def __init__(self, module: cst.Module, class_name: str | None, function_name: str) -> None:
         """Initialize the analyzer.
 
         Args:

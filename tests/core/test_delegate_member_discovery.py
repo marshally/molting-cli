@@ -1,9 +1,8 @@
 """Tests for DelegateMemberDiscovery utility."""
 
 import libcst as cst
-import pytest
 
-from molting.core.delegate_member_discovery import DelegateMemberDiscovery, DelegateMember
+from molting.core.delegate_member_discovery import DelegateMemberDiscovery
 
 
 class TestFindDelegateClass:
@@ -159,7 +158,11 @@ class Compensation:
 
         method_members = [m for m in members if m.kind == "method"]
         method_names = [m.name for m in method_members]
-        assert set(method_names) == {"calculate_gross_pay", "calculate_net_pay", "get_annual_compensation"}
+        assert set(method_names) == {
+            "calculate_gross_pay",
+            "calculate_net_pay",
+            "get_annual_compensation",
+        }
 
     def test_enumerate_methods_excludes_dunder_methods(self):
         """Should exclude __init__ and other dunder methods."""
@@ -428,10 +431,14 @@ class Compensation:
         # Should have 2 @property methods (annual_bonus, total_compensation)
         # Plus 2 fields (base_salary, bonus_rate) = 4 total
         # But looking at the fixture, only the properties are delegated
-        property_methods = [m for m in methods if any(
-            isinstance(d.decorator, cst.Name) and d.decorator.value == "property"
-            for d in m.decorators
-        )]
+        property_methods = [
+            m
+            for m in methods
+            if any(
+                isinstance(d.decorator, cst.Name) and d.decorator.value == "property"
+                for d in m.decorators
+            )
+        ]
         assert len(property_methods) == 2
         property_names = [m.name.value for m in property_methods]
         assert set(property_names) == {"annual_bonus", "total_compensation"}

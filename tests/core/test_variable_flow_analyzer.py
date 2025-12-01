@@ -1,7 +1,6 @@
 """Tests for VariableFlowAnalyzer."""
 
 import libcst as cst
-import pytest
 
 from molting.core.variable_flow_analyzer import VariableFlowAnalyzer
 
@@ -11,13 +10,13 @@ class TestVariableFlowAnalyzer:
 
     def test_get_reads_in_range_simple(self):
         """Test detecting variable reads in a line range."""
-        code = '''
+        code = """
 def process(param):
     x = 10
     y = x + param
     z = y * 2
     return z
-'''
+"""
         module = cst.parse_module(code)
         analyzer = VariableFlowAnalyzer(module, "", "process")
 
@@ -28,14 +27,14 @@ def process(param):
 
     def test_get_reads_in_range_multiple_lines(self):
         """Test detecting variable reads across multiple lines."""
-        code = '''
+        code = """
 def calculate():
     a = 5
     b = 10
     c = a + b
     d = c * a
     return d
-'''
+"""
         module = cst.parse_module(code)
         analyzer = VariableFlowAnalyzer(module, "", "calculate")
 
@@ -46,13 +45,13 @@ def calculate():
 
     def test_get_writes_in_range_simple(self):
         """Test detecting variable writes in a line range."""
-        code = '''
+        code = """
 def process():
     x = 10
     y = 20
     z = x + y
     return z
-'''
+"""
         module = cst.parse_module(code)
         analyzer = VariableFlowAnalyzer(module, "", "process")
 
@@ -63,13 +62,13 @@ def process():
 
     def test_get_writes_in_range_multiple(self):
         """Test detecting multiple variable writes."""
-        code = '''
+        code = """
 def process():
     x = 10
     y = 20
     z = x + y
     return z
-'''
+"""
         module = cst.parse_module(code)
         analyzer = VariableFlowAnalyzer(module, "", "process")
 
@@ -80,13 +79,13 @@ def process():
 
     def test_get_inputs_for_region_read_before_write(self):
         """Test identifying inputs (variables read before written in region)."""
-        code = '''
+        code = """
 def process(param):
     x = 10
     y = x + param
     z = y * 2
     return z
-'''
+"""
         module = cst.parse_module(code)
         analyzer = VariableFlowAnalyzer(module, "", "process")
 
@@ -98,13 +97,13 @@ def process(param):
 
     def test_get_inputs_for_region_no_external_deps(self):
         """Test region with no external dependencies."""
-        code = '''
+        code = """
 def process():
     x = 10
     y = 20
     z = x + y
     return z
-'''
+"""
         module = cst.parse_module(code)
         analyzer = VariableFlowAnalyzer(module, "", "process")
 
@@ -115,14 +114,14 @@ def process():
 
     def test_get_outputs_from_region_used_later(self):
         """Test identifying outputs (variables written and used after region)."""
-        code = '''
+        code = """
 def process():
     x = 10
     y = 20
     z = x + y
     result = z * 2
     return result
-'''
+"""
         module = cst.parse_module(code)
         analyzer = VariableFlowAnalyzer(module, "", "process")
 
@@ -134,12 +133,12 @@ def process():
 
     def test_get_outputs_from_region_no_usage_after(self):
         """Test region where no variables are used after."""
-        code = '''
+        code = """
 def process():
     x = 10
     y = 20
     return x + y
-'''
+"""
         module = cst.parse_module(code)
         analyzer = VariableFlowAnalyzer(module, "", "process")
 

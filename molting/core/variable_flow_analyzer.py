@@ -23,32 +23,30 @@ class VariableAccess:
 class VariableFlowAnalyzer:
     """Analyzes variable flow to determine inputs/outputs for code regions.
 
-    Use this analyzer to:
-    - Track which variables are read in a line range
-    - Track which variables are written in a line range
-    - Determine inputs needed for extracted code (read before written)
-    - Determine outputs from extracted code (written and used later)
+        Use this analyzer to:
+        - Track which variables are read in a line range
+        - Track which variables are written in a line range
+        - Determine inputs needed for extracted code (read before written)
+        - Determine outputs from extracted code (written and used later)
 
-    Example:
-        code = '''
-def process(param):
-    x = 10
-    y = x + param
-    return y
-'''
-        module = cst.parse_module(code)
-        analyzer = VariableFlowAnalyzer(module, "", "process")
+        Example:
+            code = '''
+    def process(param):
+        x = 10
+        y = x + param
+        return y
+    '''
+            module = cst.parse_module(code)
+            analyzer = VariableFlowAnalyzer(module, "", "process")
 
-        # Get variables read in line 4 (y = x + param)
-        reads = analyzer.get_reads_in_range(4, 4)  # ["x", "param"]
+            # Get variables read in line 4 (y = x + param)
+            reads = analyzer.get_reads_in_range(4, 4)  # ["x", "param"]
 
-        # Get inputs needed for lines 3-4
-        inputs = analyzer.get_inputs_for_region(3, 4)  # ["param"]
+            # Get inputs needed for lines 3-4
+            inputs = analyzer.get_inputs_for_region(3, 4)  # ["param"]
     """
 
-    def __init__(
-        self, module: cst.Module, class_name: str | None, function_name: str
-    ) -> None:
+    def __init__(self, module: cst.Module, class_name: str | None, function_name: str) -> None:
         """Initialize the analyzer.
 
         Args:
@@ -163,16 +161,10 @@ def process(param):
             self._accesses = visitor.accesses
             self._analyzed = True
 
-    def _get_first_read_in_range(
-        self, var_name: str, start_line: int, end_line: int
-    ) -> int | None:
+    def _get_first_read_in_range(self, var_name: str, start_line: int, end_line: int) -> int | None:
         """Get the first line where a variable is read in a range."""
         for access in self._accesses:
-            if (
-                access.name == var_name
-                and access.is_read
-                and start_line <= access.line <= end_line
-            ):
+            if access.name == var_name and access.is_read and start_line <= access.line <= end_line:
                 return access.line
         return None
 
@@ -281,9 +273,7 @@ class _VariableAccessVisitor(cst.CSTVisitor):
                 target.visit(writer)
                 for name in writer.names:
                     self.accesses.append(
-                        VariableAccess(
-                            name=name, line=line, is_read=False, is_write=True
-                        )
+                        VariableAccess(name=name, line=line, is_read=False, is_write=True)
                     )
         return True
 
@@ -297,17 +287,13 @@ class _VariableAccessVisitor(cst.CSTVisitor):
                 node.value.visit(reader)
                 for name in reader.names:
                     self.accesses.append(
-                        VariableAccess(
-                            name=name, line=line, is_read=True, is_write=False
-                        )
+                        VariableAccess(name=name, line=line, is_read=True, is_write=False)
                     )
 
             # Record write to left-hand side
             if isinstance(node.target, cst.Name):
                 self.accesses.append(
-                    VariableAccess(
-                        name=node.target.value, line=line, is_read=False, is_write=True
-                    )
+                    VariableAccess(name=node.target.value, line=line, is_read=False, is_write=True)
                 )
         return True
 
@@ -343,9 +329,7 @@ class _VariableAccessVisitor(cst.CSTVisitor):
                 node.value.visit(reader)
                 for name in reader.names:
                     self.accesses.append(
-                        VariableAccess(
-                            name=name, line=line, is_read=True, is_write=False
-                        )
+                        VariableAccess(name=name, line=line, is_read=True, is_write=False)
                     )
         return True
 

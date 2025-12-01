@@ -85,9 +85,7 @@ class ConsolidateConditionalExpressionCommand(BaseCommand):
 
         if conflict_checker.has_conflict:
             if class_name:
-                raise ValueError(
-                    f"Method '{helper_name}' already exists in class '{class_name}'"
-                )
+                raise ValueError(f"Method '{helper_name}' already exists in class '{class_name}'")
             else:
                 raise ValueError(f"Function '{helper_name}' already exists")
 

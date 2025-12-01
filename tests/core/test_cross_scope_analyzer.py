@@ -1,7 +1,6 @@
 """Tests for CrossScopeAnalyzer."""
 
 import libcst as cst
-import pytest
 
 from molting.core.cross_scope_analyzer import CrossScopeAnalyzer
 

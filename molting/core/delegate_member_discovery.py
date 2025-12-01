@@ -252,9 +252,7 @@ class DelegateMemberDiscovery:
                         continue
 
                     # Add the field
-                    fields.append(
-                        DelegateMember(name=field_name, kind="field", node=stmt)
-                    )
+                    fields.append(DelegateMember(name=field_name, kind="field", node=stmt))
 
         return fields
 

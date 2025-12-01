@@ -5,7 +5,6 @@ in Python files. It supports multiple backends (ripgrep, ag, grep, Python) and
 automatically selects the fastest available tool.
 """
 
-import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -72,7 +71,16 @@ class RipgrepSearcher:
         try:
             # Use ripgrep with line numbers and column numbers
             result = subprocess.run(
-                ["rg", "--line-number", "--column", "--no-heading", "--type", "py", "--fixed-strings", pattern],
+                [
+                    "rg",
+                    "--line-number",
+                    "--column",
+                    "--no-heading",
+                    "--type",
+                    "py",
+                    "--fixed-strings",
+                    pattern,
+                ],
                 cwd=directory,
                 capture_output=True,
                 text=True,
@@ -239,7 +247,11 @@ class PythonSearcher:
 
                         matches.append(
                             TextMatch(
-                                file_path=py_file, line_number=line_num, column=index, text=pattern, line=line
+                                file_path=py_file,
+                                line_number=line_num,
+                                column=index,
+                                text=pattern,
+                                line=line,
                             )
                         )
 

@@ -10,28 +10,26 @@ import libcst as cst
 class CrossScopeAnalyzer:
     """Analyzes cross-scope variable usage for code extraction.
 
-    Use this analyzer to:
-    - Find free variables (used in region but defined outside)
-    - Determine if extracted code would need closure
-    - Identify variables that would be captured
+        Use this analyzer to:
+        - Find free variables (used in region but defined outside)
+        - Determine if extracted code would need closure
+        - Identify variables that would be captured
 
-    Example:
-        code = '''
-def process():
-    x = 10
-    y = x + 5
-    return y
-'''
-        module = cst.parse_module(code)
-        analyzer = CrossScopeAnalyzer(module, None, "process")
+        Example:
+            code = '''
+    def process():
+        x = 10
+        y = x + 5
+        return y
+    '''
+            module = cst.parse_module(code)
+            analyzer = CrossScopeAnalyzer(module, None, "process")
 
-        # Check if lines 4-4 need closure
-        needs_closure = analyzer.needs_closure(4, 4)  # True (uses x)
+            # Check if lines 4-4 need closure
+            needs_closure = analyzer.needs_closure(4, 4)  # True (uses x)
     """
 
-    def __init__(
-        self, module: cst.Module, class_name: str | None, function_name: str
-    ) -> None:
+    def __init__(self, module: cst.Module, class_name: str | None, function_name: str) -> None:
         """Initialize the analyzer.
 
         Args:
