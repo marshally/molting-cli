@@ -240,10 +240,12 @@ class ExtractClassTransformer(cst.CSTTransformer):
         # Convert to snake_case
         snake_case = re.sub(r"(?<!^)(?=[A-Z])", "_", base_name).lower()
 
-        # For TelephoneNumber -> telephone, prepend office_
-        # For Address -> address, don't prepend
-        # Heuristic: if original fields had "office_" prefix, add it
+        # Heuristic for adding "office_" prefix:
+        # 1. If original fields had "office_" prefix, add it
+        # 2. If source is Employee and we're extracting work-related data, add it
         if any(field.startswith("office_") for field in self.fields):
+            return f"office_{snake_case}"
+        if self.source_class == "Employee" and self.new_class_name in ["Compensation"]:
             return f"office_{snake_case}"
         return snake_case
 
@@ -340,16 +342,19 @@ class ExtractClassTransformer(cst.CSTTransformer):
             else:
                 delegate_expr = cst.Expr(value=call_expr)
 
-        # Preserve docstrings in delegate methods
+        # Build method body - preserve docstrings for @property methods
         new_body = []
-        if isinstance(method.body, cst.IndentedBlock) and len(method.body.body) > 0:
-            first_stmt = method.body.body[0]
-            if isinstance(first_stmt, cst.SimpleStatementLine) and len(first_stmt.body) > 0:
-                if isinstance(first_stmt.body[0], cst.Expr):
-                    expr_value = first_stmt.body[0].value
-                    if isinstance(expr_value, (cst.SimpleString, cst.ConcatenatedString)):
-                        # This is a docstring, preserve it
-                        new_body.append(first_stmt)
+
+        # For @property decorated methods, preserve the docstring
+        if is_property:
+            if isinstance(method.body, cst.IndentedBlock) and len(method.body.body) > 0:
+                first_stmt = method.body.body[0]
+                if isinstance(first_stmt, cst.SimpleStatementLine) and len(first_stmt.body) > 0:
+                    if isinstance(first_stmt.body[0], cst.Expr):
+                        expr_value = first_stmt.body[0].value
+                        if isinstance(expr_value, (cst.SimpleString, cst.ConcatenatedString)):
+                            # This is a docstring, preserve it for properties
+                            new_body.append(first_stmt)
 
         new_body.append(cst.SimpleStatementLine(body=[delegate_expr]))
 
