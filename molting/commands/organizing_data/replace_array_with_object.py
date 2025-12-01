@@ -151,6 +151,25 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         self.in_function_with_param = False
         return updated_node
 
+    def _has_module_docstring(self, module: cst.Module) -> bool:
+        """Check if the module has a docstring as its first statement.
+
+        Args:
+            module: The module to check
+
+        Returns:
+            True if the first statement is a string expression (docstring)
+        """
+        if not module.body or not isinstance(module.body[0], cst.SimpleStatementLine):
+            return False
+
+        first_stmt = module.body[0]
+        if not first_stmt.body or not isinstance(first_stmt.body[0], cst.Expr):
+            return False
+
+        expr_value = first_stmt.body[0].value
+        return isinstance(expr_value, (cst.SimpleString, cst.ConcatenatedString))
+
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
     ) -> cst.Module:
@@ -168,15 +187,9 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         modified_statements: list[cst.BaseStatement] = []
 
         # Preserve module docstring if it exists
-        has_docstring = False
-        if updated_node.body and isinstance(updated_node.body[0], cst.SimpleStatementLine):
-            first_stmt = updated_node.body[0]
-            if first_stmt.body and isinstance(first_stmt.body[0], cst.Expr):
-                expr_value = first_stmt.body[0].value
-                if isinstance(expr_value, (cst.SimpleString, cst.ConcatenatedString)):
-                    # This is a module docstring - keep it first
-                    modified_statements.append(updated_node.body[0])
-                    has_docstring = True
+        has_docstring = self._has_module_docstring(updated_node)
+        if has_docstring:
+            modified_statements.append(updated_node.body[0])
 
         # Add the new class
         modified_statements.extend(

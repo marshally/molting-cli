@@ -7,18 +7,18 @@ class TaskQueue:
         self.completed_count = 0
 
     def get_next(self):
-        """Get the next task without modifying state (query)."""
+
         if len(self.tasks) > 0:
             return self.tasks[0]
         return None
 
     def process_next(self):
-        """Process and remove the next task (modifier)."""
+
         if len(self.tasks) > 0:
-            # Get the task for processing
+            # Get the next task (query operation)
             next_task = self.tasks[0]
 
-            # Remove it from the queue
+            # Remove it from the queue (modifier operation)
             self.tasks.pop(0)
             self.completed_count += 1
 

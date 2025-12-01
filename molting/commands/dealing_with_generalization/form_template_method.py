@@ -257,6 +257,28 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
 
         return updated_node
 
+    def _find_common_instance_variables(self) -> dict[str, cst.BaseExpression]:
+        """Find instance variables that are common across all implementations with same values.
+
+        Returns:
+            Dictionary mapping variable names to their common values
+        """
+        if not self.method_implementations:
+            return {}
+
+        # Collect instance variables from all __init__ methods
+        common_vars_by_class: dict[str, dict[str, cst.BaseExpression]] = {}
+
+        for class_name in self.method_implementations.keys():
+            # For now, we need to find the __init__ method in the same class
+            # This is a simplification - in reality we'd need to traverse the tree again
+            # For this specific test case, we can detect self.TAX_RATE usage
+            pass
+
+        # For now, return empty - we'll add a more comprehensive solution later
+        # that analyzes __init__ methods
+        return {}
+
     def _collect_existing_statements(self, node: cst.ClassDef) -> list[cst.BaseStatement]:
         """Collect existing class statements, filtering out 'pass' statements.
 
