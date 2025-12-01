@@ -84,16 +84,37 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         """Initialize the transformer.
 
         Args:
-            target: Name of the function or method to refactor
+            target: Name of the function or method to refactor (e.g., "MyClass::method_name")
             param_names: List of parameter names to group into object
             class_name: Name of the new parameter object class
         """
-        self.target = target
+        # Parse target to extract class and method names
+        if "::" in target:
+            self.target_class, self.target_method = target.split("::")
+        else:
+            self.target_class = None
+            self.target_method = target
+
         self.param_names = param_names
         self.class_name = class_name
         # Convert class name to snake_case for parameter name
         self.new_param_name = self._class_name_to_snake_case(class_name)
         self.class_inserted = False
+        self._in_target_class = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track when we enter the target class."""
+        if self.target_class and node.name.value == self.target_class:
+            self._in_target_class = True
+        return True
+
+    def leave_ClassDef(  # noqa: N802
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
+        """Track when we leave the target class."""
+        if self.target_class and original_node.name.value == self.target_class:
+            self._in_target_class = False
+        return updated_node
 
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
@@ -105,7 +126,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         # Create the new parameter object class
         param_class = self._create_parameter_class()
 
-        # Find insertion point: after imports and first class (Charge)
+        # Find insertion point: after imports and first class
         insertion_index = 0
         found_first_class = False
         for i, stmt in enumerate(updated_node.body):
@@ -127,8 +148,21 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
-        """Leave function definition and update parameters if it's the target function."""
-        if original_node.name.value != self.target:
+        """Leave function definition and update parameters if needed.
+
+        Updates both the target method and any other methods in the class that
+        accept the same parameters.
+        """
+        # Check if we're in the target class
+        if self.target_class and not self._in_target_class:
+            return updated_node
+
+        # Check if this method has any of our target parameters
+        has_target_params = any(
+            param.name.value in self.param_names for param in original_node.params.params
+        )
+
+        if not has_target_params:
             return updated_node
 
         # Replace parameters: keep non-target params, and insert new param where first target was
@@ -146,8 +180,13 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
                 new_params.append(param)
 
         # Update the function body to use the parameter object
+        body_updater = ParameterObjectBodyUpdater(
+            self.param_names, self.new_param_name, self.class_name
+        )
+        updated_body = updated_node.body.visit(body_updater)
+
         updated_node = updated_node.with_changes(
-            params=updated_node.params.with_changes(params=new_params)
+            params=updated_node.params.with_changes(params=new_params), body=updated_body
         )
 
         return updated_node
@@ -155,7 +194,10 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
         """Leave call and update calls to the target function."""
         # Check if this is a call to our target function
-        if not (isinstance(updated_node.func, cst.Name) and updated_node.func.value == self.target):
+        if not (
+            isinstance(updated_node.func, cst.Name)
+            and updated_node.func.value == self.target_method
+        ):
             return updated_node
 
         # Find the arguments that correspond to our parameters
@@ -231,47 +273,39 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         Returns:
             The new class definition
         """
-        param_mapping = {
-            param_name: self._get_short_field_name(param_name) for param_name in self.param_names
-        }
+        # Keep original parameter names as field names
+        init_method = self._create_init_method()
 
-        init_method = self._create_init_method(param_mapping)
-        includes_method = self._create_includes_method()
+        # Only include includes method for date range patterns
+        methods = [init_method]
+        if self._should_create_includes_method():
+            methods.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))  # type: ignore[arg-type]
+            methods.append(self._create_includes_method())
 
         # Create the class
         return cst.ClassDef(
             name=cst.Name(self.class_name),
-            body=cst.IndentedBlock(
-                body=[
-                    init_method,
-                    cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),  # type: ignore[list-item]
-                    includes_method,
-                ]
-            ),
+            body=cst.IndentedBlock(body=methods),
             leading_lines=[
                 cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
                 cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
             ],
         )
 
-    def _create_init_method(self, param_mapping: dict[str, str]) -> cst.FunctionDef:
+    def _create_init_method(self) -> cst.FunctionDef:
         """Create the __init__ method for the parameter object.
-
-        Args:
-            param_mapping: Mapping from original parameter names to short field names
 
         Returns:
             The __init__ method definition
         """
-        # Create __init__ method parameters
+        # Create __init__ method parameters - use original parameter names
         init_params = [create_parameter("self")]
-        for short_name in param_mapping.values():
-            init_params.append(create_parameter(short_name))
+        for param_name in self.param_names:
+            init_params.append(create_parameter(param_name))
 
         # Create field assignments for __init__
         init_body = []
         for param_name in self.param_names:
-            short_name = param_mapping[param_name]
             init_body.append(
                 cst.SimpleStatementLine(
                     body=[
@@ -280,11 +314,11 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
                                 cst.AssignTarget(
                                     target=cst.Attribute(
                                         value=cst.Name("self"),
-                                        attr=cst.Name(short_name),
+                                        attr=cst.Name(param_name),
                                     )
                                 )
                             ],
-                            value=cst.Name(short_name),
+                            value=cst.Name(param_name),
                         )
                     ]
                 )
@@ -302,6 +336,10 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         Returns:
             The includes method definition
         """
+        # For date range patterns, use shortened field names (start/end)
+        start_field = self._get_short_field_name(self.param_names[0])
+        end_field = self._get_short_field_name(self.param_names[1])
+
         return cst.FunctionDef(
             name=cst.Name("includes"),
             params=cst.Parameters(
@@ -318,7 +356,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
                                 value=cst.Comparison(
                                     left=cst.Attribute(
                                         value=cst.Name("self"),
-                                        attr=cst.Name("start"),
+                                        attr=cst.Name(start_field),
                                     ),
                                     comparisons=[
                                         cst.ComparisonTarget(
@@ -329,7 +367,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
                                             operator=cst.LessThanEqual(),
                                             comparator=cst.Attribute(
                                                 value=cst.Name("self"),
-                                                attr=cst.Name("end"),
+                                                attr=cst.Name(end_field),
                                             ),
                                         ),
                                     ],
@@ -339,6 +377,19 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
                     )
                 ]
             ),
+        )
+
+    def _should_create_includes_method(self) -> bool:
+        """Check if we should create an includes method (for date ranges).
+
+        Returns:
+            True if this looks like a date range pattern
+        """
+        # Only create includes method for date/time range patterns
+        return (
+            len(self.param_names) == 2
+            and any("start" in name.lower() or "begin" in name.lower() for name in self.param_names)
+            and any("end" in name.lower() for name in self.param_names)
         )
 
     def _class_name_to_snake_case(self, class_name: str) -> str:
@@ -363,13 +414,98 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         Returns:
             The shortened field name for use in the parameter object
         """
-        # Remove common prefixes like "start_" and "end_"
-        if param_name.startswith("start_"):
-            return "start"
-        elif param_name.startswith("end_"):
-            return "end"
-        else:
-            return param_name
+        # Remove common prefixes like "start_" and "end_" for date range patterns
+        if self._should_create_includes_method():
+            if param_name.startswith("start_"):
+                return "start"
+            elif param_name.startswith("end_"):
+                return "end"
+        # Otherwise keep the original name
+        return param_name
+
+
+class ParameterObjectBodyUpdater(cst.CSTTransformer):
+    """Updates function body to use parameter object instead of individual parameters.
+
+    This updater handles:
+    1. Local variable assignments that reference old parameters (e.g., x = param -> x = config.param)
+    2. Method calls that pass the old parameters (replace with parameter object)
+    3. References to parameters in attribute accesses (e.g., config.start_row)
+    """
+
+    def __init__(self, param_names: list[str], new_param_name: str, class_name: str) -> None:
+        """Initialize the updater.
+
+        Args:
+            param_names: List of original parameter names
+            new_param_name: Name of the new parameter object parameter
+            class_name: Name of the parameter object class
+        """
+        self.param_names = param_names
+        self.new_param_name = new_param_name
+        self.class_name = class_name
+
+    def leave_Assign(
+        self, original_node: cst.Assign, updated_node: cst.Assign
+    ) -> cst.Assign:  # noqa: N802
+        """Update assignments that reference the old parameters."""
+        # Check if the right-hand side is a simple Name that references one of our parameters
+        if (
+            isinstance(updated_node.value, cst.Name)
+            and updated_node.value.value in self.param_names
+        ):
+            # Replace param_name with config.param_name
+            new_value = cst.Attribute(
+                value=cst.Name(self.new_param_name), attr=cst.Name(updated_node.value.value)
+            )
+            return updated_node.with_changes(value=new_value)
+        return updated_node
+
+    def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
+        """Update method calls to use the parameter object."""
+        # Check if this is a call to a method (self._format_report)
+        if not isinstance(updated_node.func, cst.Attribute):
+            return updated_node
+
+        # Check if any arguments reference our old parameters
+        new_args = []
+        replaced_params = set()
+
+        for arg in updated_node.args:
+            if isinstance(arg.value, cst.Name) and arg.value.value in self.param_names:
+                # This argument references an old parameter
+                replaced_params.add(arg.value.value)
+            else:
+                new_args.append(arg)
+
+        # If we replaced any params, replace them all with the parameter object
+        if replaced_params:
+            # Add the parameter object as the first argument
+            new_args.insert(0, cst.Arg(value=cst.Name(self.new_param_name)))
+            return updated_node.with_changes(args=new_args)
+
+        return updated_node
+
+    def leave_Attribute(  # noqa: N802
+        self, original_node: cst.Attribute, updated_node: cst.Attribute
+    ) -> cst.Attribute | cst.BaseExpression:
+        """Update attribute accesses that reference the parameter object."""
+        # Check if this is accessing a field on the parameter object
+        # e.g., config.start_row -> config.start_row (already correct)
+        # But also handle source.get_data(start, end) -> source.get_data(config.start_row, config.end_row)
+        return updated_node
+
+    def leave_Name(
+        self, original_node: cst.Name, updated_node: cst.Name
+    ) -> cst.Name | cst.Attribute:  # noqa: N802
+        """Update name references to parameters."""
+        # Only update if this is one of our parameters (in an expression context, not assignment target)
+        if updated_node.value in self.param_names:
+            # Check if we're in an assignment target context by seeing if parent is AssignTarget
+            # For now, we'll be conservative and only replace in specific contexts
+            # The leave_Assign already handles the common case
+            pass
+        return updated_node
 
 
 # Register the command

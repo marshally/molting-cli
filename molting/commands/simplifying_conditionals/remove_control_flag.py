@@ -152,7 +152,21 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
         Returns:
             Transformed function body
         """
-        # First pass: check if there's a return not flag statement
+        # First pass: extract the final return statement value (if it's not a flag-based return)
+        found_return = False
+        for stmt in reversed(body.body):
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for s in stmt.body:
+                    if isinstance(s, cst.Return) and s.value is not None:
+                        # Only use this if it's not a "return not flag" statement
+                        if not self._is_return_not_flag(stmt):
+                            self.final_return_value = s.value
+                            found_return = True
+                            break
+                if found_return:
+                    break
+
+        # Second pass: check if there's a return not flag statement
         for stmt in body.body:
             if self._is_return_not_flag(stmt):
                 self.has_return_not_flag = True
@@ -330,8 +344,14 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
                 replaced = False
                 for s in stmt.body:
                     if isinstance(s, cst.Assign) and self._assigns_to_flag_variable(s):
-                        # Only include return value if original code had "return not flag"
-                        if self.has_return_not_flag:
+                        # Use the final return value if there is one
+                        if getattr(self, "final_return_value", None) is not None:
+                            new_statements.append(
+                                cst.SimpleStatementLine(
+                                    body=[cst.Return(value=self.final_return_value)]
+                                )
+                            )
+                        elif self.has_return_not_flag:
                             # Determine what value is being assigned to the flag
                             assigned_value = True
                             if isinstance(s.value, cst.Name):

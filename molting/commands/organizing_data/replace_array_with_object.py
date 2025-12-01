@@ -112,6 +112,17 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         self.field_names = field_names
         self.in_function_with_param = False
 
+    def _has_target_parameter(self, node: cst.FunctionDef) -> bool:
+        """Check if a function has the target parameter.
+
+        Args:
+            node: The function definition to check
+
+        Returns:
+            True if the function has a parameter with the target name
+        """
+        return any(param.name.value == self.param_name for param in node.params.params)
+
     def visit_FunctionDef(self, node: cst.FunctionDef) -> bool | None:  # noqa: N802
         """Track when we're inside a function with the target parameter.
 
@@ -121,11 +132,7 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         Returns:
             True to continue visiting children
         """
-        # Check if this function has the target parameter
-        for param in node.params.params:
-            if param.name.value == self.param_name:
-                self.in_function_with_param = True
-                break
+        self.in_function_with_param = self._has_target_parameter(node)
         return True
 
     def leave_FunctionDef(  # noqa: N802
@@ -303,6 +310,17 @@ class ArrayAccessCollector(cst.CSTVisitor):
         self.in_function_with_param = False
         self.assignments: dict[int, str] = {}
 
+    def _has_target_parameter(self, node: cst.FunctionDef) -> bool:
+        """Check if a function has the target parameter.
+
+        Args:
+            node: The function definition to check
+
+        Returns:
+            True if the function has a parameter with the target name
+        """
+        return any(param.name.value == self.param_name for param in node.params.params)
+
     def visit_FunctionDef(self, node: cst.FunctionDef) -> bool | None:  # noqa: N802
         """Track when we're inside a function with the target parameter.
 
@@ -312,11 +330,7 @@ class ArrayAccessCollector(cst.CSTVisitor):
         Returns:
             True to continue visiting children
         """
-        # Check if this function has the target parameter
-        for param in node.params.params:
-            if param.name.value == self.param_name:
-                self.in_function_with_param = True
-                break
+        self.in_function_with_param = self._has_target_parameter(node)
         return True
 
     def leave_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
