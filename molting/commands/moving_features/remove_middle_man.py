@@ -158,7 +158,9 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
         self.delegate_field: str | None = None
         self.delegation_methods: list[str] = []
         self.delegation_mapping: dict[str, str] = {}  # method_name -> delegated_attr
-        self.delegation_is_method: dict[str, bool] = {}  # method_name -> True if delegates to method
+        self.delegation_is_method: dict[
+            str, bool
+        ] = {}  # method_name -> True if delegates to method
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
         """Visit class definitions to identify delegate field and methods."""

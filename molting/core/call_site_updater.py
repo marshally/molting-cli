@@ -158,7 +158,9 @@ class CallSiteUpdater:
 
             except Exception as e:
                 # Fail-fast: raise on any error
-                raise RuntimeError(f"Error processing {match.file_path}:{match.line_number}: {e}") from e
+                raise RuntimeError(
+                    f"Error processing {match.file_path}:{match.line_number}: {e}"
+                ) from e
 
         return references
 
@@ -268,7 +270,9 @@ class UpdaterTransformer(cst.CSTTransformer):
     METADATA_DEPENDENCIES = (cst.metadata.PositionProvider,)
 
     def __init__(
-        self, references: list[Reference], transformer: Callable[[cst.CSTNode, Reference], cst.CSTNode]
+        self,
+        references: list[Reference],
+        transformer: Callable[[cst.CSTNode, Reference], cst.CSTNode],
     ) -> None:
         """Initialize the transformer.
 

@@ -1,6 +1,5 @@
 """Tests for Replace Parameter with Explicit Methods refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

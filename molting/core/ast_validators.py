@@ -5,8 +5,9 @@ a specific usage pattern (context) for a symbol. Each validator corresponds
 to a SymbolContext enum value and implements pattern matching logic.
 """
 
-import libcst as cst
 from typing import Protocol
+
+import libcst as cst
 
 from molting.core.symbol_context import SymbolContext
 

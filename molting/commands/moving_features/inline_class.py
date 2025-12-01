@@ -115,7 +115,8 @@ class InlineClassCommand(BaseCommand):
                                     # Not a true conflict - method just delegates
                                     continue
                             raise ValueError(
-                                f"Class '{target_class}' already has a method named " f"'{method_name}'"
+                                f"Class '{target_class}' already has a method named "
+                                f"'{method_name}'"
                             )
                     else:
                         # Extract field names from __init__
@@ -137,11 +138,15 @@ class InlineClassCommand(BaseCommand):
             # Update field attribute access sites
             for field_name in source_fields:
                 inlined_field_name = field_prefix + field_name
-                self._update_field_access_sites(updater, delegate_field, field_name, inlined_field_name)
+                self._update_field_access_sites(
+                    updater, delegate_field, field_name, inlined_field_name
+                )
 
             # Inline temporary variables that reference the delegate field
             # (e.g., tel = person.office_telephone)
-            self._inline_delegate_field_assignments(directory, delegate_field, source_fields, field_prefix)
+            self._inline_delegate_field_assignments(
+                directory, delegate_field, source_fields, field_prefix
+            )
 
     def _find_delegate_field(
         self, module: cst.Module, target_class: str, source_class: str
@@ -229,9 +234,14 @@ class InlineClassCommand(BaseCommand):
                 # We need to check if it's delegate_field.method_name
                 if isinstance(node.func.value, cst.Attribute):
                     # Check if this is obj.delegate_field.method_name()
-                    if node.func.value.attr.value == delegate_field and node.func.attr.value == method_name:
+                    if (
+                        node.func.value.attr.value == delegate_field
+                        and node.func.attr.value == method_name
+                    ):
                         # Replace with obj.method_name()
-                        new_func = cst.Attribute(value=node.func.value.value, attr=cst.Name(method_name))
+                        new_func = cst.Attribute(
+                            value=node.func.value.value, attr=cst.Name(method_name)
+                        )
                         return node.with_changes(func=new_func)
             return node
 
@@ -389,7 +399,10 @@ class InlineClassTransformer(cst.CSTTransformer):
 
         # Add any remaining inlined methods that weren't replacements
         for method in self.source_methods:
-            if method.name.value != INIT_METHOD_NAME and method.name.value not in inlined_methods_added:
+            if (
+                method.name.value != INIT_METHOD_NAME
+                and method.name.value not in inlined_methods_added
+            ):
                 transformed_method = self._transform_method(method)
                 new_body_stmts.append(transformed_method)
 
@@ -724,7 +737,9 @@ class DelegateFieldInliner(cst.CSTTransformer):
         # Second pass: transform the function body to:
         # 1. Replace uses of temp vars with the base object + inlined fields
         # 2. Remove the temp var assignments
-        transformer = TempVarReplacer(temp_var_mappings, self.source_fields, self.field_prefix, self.delegate_field)
+        transformer = TempVarReplacer(
+            temp_var_mappings, self.source_fields, self.field_prefix, self.delegate_field
+        )
         return cast(cst.FunctionDef, updated_node.visit(transformer))
 
 

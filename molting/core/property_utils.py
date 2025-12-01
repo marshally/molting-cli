@@ -122,9 +122,7 @@ class PropertyMethodHandler:
                     return attr_name
         return None
 
-    def get_property_group(
-        self, method_name: str, class_name: str
-    ) -> PropertyDefinition | None:
+    def get_property_group(self, method_name: str, class_name: str) -> PropertyDefinition | None:
         """Get the full property group (getter/setter/deleter) for a property name.
 
         Args:

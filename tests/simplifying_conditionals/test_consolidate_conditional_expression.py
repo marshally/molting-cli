@@ -60,7 +60,9 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
         rename the target, skip the consolidation, or handle an existing method with the
         same name. Important for error handling and user feedback in real-world scenarios.
         """
-        with pytest.raises(ValueError, match="Function.*is_not_eligible_for_disability.*already exists"):
+        with pytest.raises(
+            ValueError, match="Function.*is_not_eligible_for_disability.*already exists"
+        ):
             self.refactor(
                 "consolidate-conditional-expression",
                 target="disability_amount#L10-L15",

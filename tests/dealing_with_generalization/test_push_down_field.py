@@ -5,7 +5,6 @@ This refactoring moves a field from a superclass to those subclasses
 that specifically need it.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 

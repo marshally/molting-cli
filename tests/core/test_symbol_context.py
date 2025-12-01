@@ -1,6 +1,5 @@
 """Tests for SymbolContext enum and related functionality."""
 
-import pytest
 
 from molting.core.symbol_context import SymbolContext
 

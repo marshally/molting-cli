@@ -1,6 +1,5 @@
 """Hide Delegate refactoring command."""
 
-from pathlib import Path
 from typing import cast
 
 import libcst as cst
@@ -116,7 +115,10 @@ class HideDelegateCommand(BaseCommand):
                 """Transform *.field.manager to *.get_manager()."""
                 if isinstance(node, cst.Attribute) and node.attr.value == "manager":
                     # Check if this is accessing through the field we're hiding
-                    if isinstance(node.value, cst.Attribute) and node.value.attr.value == field_name:
+                    if (
+                        isinstance(node.value, cst.Attribute)
+                        and node.value.attr.value == field_name
+                    ):
                         # Replace *.field.manager with *.get_manager()
                         base_object = node.value.value
                         return cst.Call(

@@ -105,7 +105,11 @@ class ReplaceTypeCodeWithClassCommand(BaseCommand):
                 )
 
     def _update_type_code_references(
-        self, updater: CallSiteUpdater, old_class_name: str, new_class_name: str, type_code_name: str
+        self,
+        updater: CallSiteUpdater,
+        old_class_name: str,
+        new_class_name: str,
+        type_code_name: str,
     ) -> None:
         """Update all references to a type code constant.
 
@@ -128,10 +132,14 @@ class ReplaceTypeCodeWithClassCommand(BaseCommand):
                 if isinstance(node.value, cst.Name):
                     if node.value.value == old_class_name and node.attr.value == type_code_name:
                         # Replace with NewClass.CONSTANT
-                        return cst.Attribute(value=cst.Name(new_class_name), attr=cst.Name(type_code_name))
+                        return cst.Attribute(
+                            value=cst.Name(new_class_name), attr=cst.Name(type_code_name)
+                        )
             return node
 
-        updater.update_all(type_code_name, SymbolContext.ATTRIBUTE_ACCESS, transform_type_code_reference)
+        updater.update_all(
+            type_code_name, SymbolContext.ATTRIBUTE_ACCESS, transform_type_code_reference
+        )
 
 
 class ReplaceTypeCodeWithClassTransformer(cst.CSTTransformer):
