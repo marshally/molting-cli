@@ -202,6 +202,32 @@ class ReplaceMagicNumberTransformer(cst.CSTTransformer):
             ]
         )
 
+    def _find_insertion_index(self, module: cst.Module) -> int:
+        """Find the index where the constant should be inserted.
+
+        If the module has a docstring, insert after it; otherwise insert at the beginning.
+
+        Args:
+            module: The module to analyze
+
+        Returns:
+            The index where the constant should be inserted
+        """
+        if not module.body:
+            return 0
+
+        first_stmt = module.body[0]
+        # Check if first statement is a docstring
+        if isinstance(first_stmt, cst.SimpleStatementLine) and len(first_stmt.body) == 1:
+            first_expr = first_stmt.body[0]
+            if isinstance(first_expr, cst.Expr) and isinstance(
+                first_expr.value, (cst.SimpleString, cst.ConcatenatedString)
+            ):
+                # First statement is a docstring, insert after it
+                return 1
+
+        return 0
+
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
     ) -> cst.Module:
@@ -210,20 +236,7 @@ class ReplaceMagicNumberTransformer(cst.CSTTransformer):
             return updated_node
 
         constant_assignment = self._create_constant_assignment()
-
-        # Find the position to insert the constant
-        # If there's a module docstring, insert after it; otherwise insert at the beginning
-        insert_index = 0
-        if updated_node.body:
-            first_stmt = updated_node.body[0]
-            # Check if first statement is a docstring
-            if isinstance(first_stmt, cst.SimpleStatementLine) and len(first_stmt.body) == 1:
-                first_expr = first_stmt.body[0]
-                if isinstance(first_expr, cst.Expr) and isinstance(
-                    first_expr.value, (cst.SimpleString, cst.ConcatenatedString)
-                ):
-                    # First statement is a docstring, insert after it
-                    insert_index = 1
+        insert_index = self._find_insertion_index(updated_node)
 
         # Insert constant with blank lines before and after
         new_body = list(updated_node.body)
