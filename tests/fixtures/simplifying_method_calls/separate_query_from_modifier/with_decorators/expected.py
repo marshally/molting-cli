@@ -14,7 +14,6 @@ class TaskQueue:
 
     @synchronized
     def get_next(self):
-        """Get the next task and remove it from the queue."""
         if len(self.tasks) > 0:
             return self.tasks[0]
         return None

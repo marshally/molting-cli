@@ -53,7 +53,7 @@ class TestIntroduceForeignMethod(RefactoringTestBase):
         with pytest.raises(ValueError, match="already has a method"):
             self.refactor(
                 "introduce-foreign-method",
-                target="Report::generate#L6",
+                target="Report::generate#L7",
                 for_class="date",
                 name="next_day",
             )
