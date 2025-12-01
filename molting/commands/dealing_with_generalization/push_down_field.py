@@ -17,6 +17,7 @@ from molting.core.code_generation_utils import (
     create_field_assignment,
     create_init_method,
 )
+from molting.core.property_utils import PropertyMethodHandler
 
 
 class PushDownFieldCommand(BaseCommand):
@@ -88,19 +89,37 @@ class PushDownFieldCommand(BaseCommand):
         # Parse target to get class and field names
         class_name, field_name = parse_target(target, expected_parts=2)
 
-        # First pass: check for conflicts in target class
+        # First pass: check if this is a property or a field
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
-        capture_transformer = FieldCaptureTransformer(class_name, field_name, to_class)
-        module.visit(capture_transformer)
+        property_handler = PropertyMethodHandler(module)
 
-        # Check for name conflicts
-        if capture_transformer.target_has_field:
-            # Field already exists in target, skip the refactoring
-            return
+        # Check if field_name is a property
+        property_def = property_handler.get_property_group(field_name, class_name)
 
-        # Apply transformation
-        self.apply_libcst_transform(PushDownFieldTransformer, class_name, field_name, to_class)
+        if property_def:
+            # Handle as a property - check for conflicts in target
+            target_property = property_handler.get_property_group(field_name, to_class)
+            if target_property:
+                # Property already exists in target, skip the refactoring
+                return
+
+            # Apply property transformation
+            self.apply_libcst_transform(
+                PushDownPropertyTransformer, class_name, field_name, to_class
+            )
+        else:
+            # Handle as a regular field in __init__
+            capture_transformer = FieldCaptureTransformer(class_name, field_name, to_class)
+            module.visit(capture_transformer)
+
+            # Check for name conflicts
+            if capture_transformer.target_has_field:
+                # Field already exists in target, skip the refactoring
+                return
+
+            # Apply transformation
+            self.apply_libcst_transform(PushDownFieldTransformer, class_name, field_name, to_class)
 
 
 class FieldCaptureTransformer(cst.CSTTransformer):
@@ -337,6 +356,57 @@ class PushDownFieldTransformer(cst.CSTTransformer):
         new_stmts = list(init_node.body.body) + [field_assignment]
 
         return init_node.with_changes(body=cst.IndentedBlock(body=new_stmts))
+
+
+class PushDownPropertyTransformer(cst.CSTTransformer):
+    """Transforms a module by pushing down a @property from superclass to subclass."""
+
+    def __init__(self, source_class: str, property_name: str, target_class: str) -> None:
+        """Initialize the transformer.
+
+        Args:
+            source_class: Name of the superclass containing the property
+            property_name: Name of the property to push down
+            target_class: Name of the subclass to push the property to
+        """
+        self.source_class = source_class
+        self.property_name = property_name
+        self.target_class = target_class
+        self.property_def = None
+
+    def leave_ClassDef(  # noqa: N802
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
+        """Transform class definitions to push down the property."""
+        # Parse module to use PropertyMethodHandler
+        if not hasattr(self, "_handler"):
+            # Create a temporary module for the handler
+            # We'll capture the property definition on first pass
+            temp_module = cst.Module(body=[original_node])
+            self._handler = PropertyMethodHandler(temp_module)
+
+        if original_node.name.value == self.source_class:
+            # Capture property definition before removing
+            if self.property_def is None:
+                temp_module = cst.Module(body=[original_node])
+                handler = PropertyMethodHandler(temp_module)
+                self.property_def = handler.get_property_group(
+                    self.property_name, self.source_class
+                )
+
+            # Remove property from source class
+            temp_module = cst.Module(body=[updated_node])
+            handler = PropertyMethodHandler(temp_module)
+            return handler.remove_property_from_class(updated_node, self.property_name)
+
+        elif original_node.name.value == self.target_class:
+            # Add property to target class
+            if self.property_def:
+                temp_module = cst.Module(body=[updated_node])
+                handler = PropertyMethodHandler(temp_module)
+                return handler.add_property_to_class(updated_node, self.property_def)
+
+        return updated_node
 
 
 # Register the command
