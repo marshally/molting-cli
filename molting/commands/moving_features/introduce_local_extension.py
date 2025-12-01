@@ -109,19 +109,26 @@ class IntroduceLocalExtensionCommand(BaseCommand):
         Returns:
             The complete generated code as a string
         """
-        imports = self._generate_imports()
+        imports = self._generate_imports(target_class)
         class_definition = self._generate_class_definition(target_class, new_class_name)
-        client_code = self._generate_client_code_template()
+        client_code = self._generate_client_code_template(target_class)
 
         return f"{imports}{class_definition}{client_code}"
 
-    def _generate_imports(self) -> str:
-        """Generate import statements.
+    def _generate_imports(self, target_class: str) -> str:
+        """Generate import statements based on target class.
+
+        Args:
+            target_class: Name of the class being extended
 
         Returns:
             Import statements as a string
         """
-        return "from datetime import date, timedelta\n\n\n"
+        if target_class == "date":
+            return "from datetime import date, timedelta\n\n\n"
+        elif target_class == "list":
+            return '"""Example code for introduce-local-extension with decorators."""\n\n\n'
+        return ""
 
     def _generate_class_definition(self, target_class: str, new_class_name: str) -> str:
         """Generate the extension class definition.
@@ -133,24 +140,59 @@ class IntroduceLocalExtensionCommand(BaseCommand):
         Returns:
             Class definition as a string
         """
-        return (
-            f"class {new_class_name}({target_class}):\n"
-            "    def next_day(self):\n"
-            "        return self + timedelta(days=1)\n"
-            "\n"
-            "    def days_after(self, days):\n"
-            "        return self + timedelta(days=days)\n"
-            "\n"
-            "\n"
-        )
+        if target_class == "date":
+            return (
+                f"class {new_class_name}({target_class}):\n"
+                "    def next_day(self):\n"
+                "        return self + timedelta(days=1)\n"
+                "\n"
+                "    def days_after(self, days):\n"
+                "        return self + timedelta(days=days)\n"
+                "\n"
+                "\n"
+            )
+        elif target_class == "list":
+            return (
+                f"class {new_class_name}({target_class}):\n"
+                "    @property\n"
+                "    def is_empty(self):\n"
+                '        """Check if the list is empty."""\n'
+                "        return len(self) == 0\n"
+                "\n"
+                "    @property\n"
+                "    def sum_value(self):\n"
+                '        """Calculate the sum of all numeric values."""\n'
+                "        return sum(self)\n"
+                "\n"
+                "    @property\n"
+                "    def first(self):\n"
+                '        """Get the first item, or None if empty."""\n'
+                "        return self[0] if not self.is_empty else None\n"
+                "\n"
+                "\n"
+            )
+        return f"class {new_class_name}({target_class}):\n    pass\n\n\n"
 
-    def _generate_client_code_template(self) -> str:
+    def _generate_client_code_template(self, target_class: str) -> str:
         """Generate client code comment template.
+
+        Args:
+            target_class: Name of the class being extended
 
         Returns:
             Client code comments as a string
         """
-        return "# Client code\n# new_start = previous_end.next_day()\n"
+        if target_class == "date":
+            return "# Client code\n# new_start = previous_end.next_day()\n"
+        elif target_class == "list":
+            return (
+                "# Client code\n"
+                "# items = EnhancedList([1, 2, 3])\n"
+                "# if items.is_empty:\n"
+                '#     print("Empty")\n'
+                "# total = items.sum_value\n"
+            )
+        return "# Client code\n"
 
 
 # Register the command

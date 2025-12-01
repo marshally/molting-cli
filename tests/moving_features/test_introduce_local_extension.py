@@ -26,7 +26,6 @@ class TestIntroduceLocalExtension(RefactoringTestBase):
             "introduce-local-extension", target_class="date", name="MfDate", type="subclass"
         )
 
-    @pytest.mark.skip(reason="Implementation needs decorator handling fix")
     def test_with_decorators(self) -> None:
         """Test creating a local extension with decorated methods (e.g., @property).
 
