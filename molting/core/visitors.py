@@ -189,7 +189,7 @@ class MultiVariableConflictChecker(cst.CSTVisitor):
 
 
 class MethodConflictChecker(cst.CSTVisitor):
-    """Check if a method name already exists in a class.
+    """Check if a method name already exists in a class or module.
 
     Use this before creating new methods via refactoring.
 
@@ -198,22 +198,30 @@ class MethodConflictChecker(cst.CSTVisitor):
         module.visit(checker)
         if checker.has_conflict:
             raise ValueError(f"Method 'base_price' already exists in class 'Order'")
+
+        # For module-level functions, use empty string for class_name
+        checker = MethodConflictChecker("", "calculate_discount")
+        module.visit(checker)
+        if checker.has_conflict:
+            raise ValueError(f"Function 'calculate_discount' already exists")
     """
 
     def __init__(self, class_name: str, method_name: str) -> None:
         """Initialize the checker.
 
         Args:
-            class_name: Name of the class to check
-            method_name: Method name to check for conflicts
+            class_name: Name of the class to check, or empty string for module-level functions
+            method_name: Method/function name to check for conflicts
         """
         self.class_name = class_name
         self.method_name = method_name
         self.has_conflict = False
         self._in_target_class = False
+        self._in_any_class = False
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
         """Track entry into target class."""
+        self._in_any_class = True
         if node.name.value == self.class_name:
             self._in_target_class = True
         return True
@@ -222,10 +230,15 @@ class MethodConflictChecker(cst.CSTVisitor):
         """Track exit from target class."""
         if node.name.value == self.class_name:
             self._in_target_class = False
+        self._in_any_class = False
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
-        """Check if this method has the conflicting name."""
-        if self._in_target_class and node.name.value == self.method_name:
+        """Check if this method/function has the conflicting name."""
+        # For class methods, check if we're in the target class
+        if self.class_name and self._in_target_class and node.name.value == self.method_name:
+            self.has_conflict = True
+        # For module-level functions, check if we're NOT in any class
+        elif not self.class_name and not self._in_any_class and node.name.value == self.method_name:
             self.has_conflict = True
         return True
 
