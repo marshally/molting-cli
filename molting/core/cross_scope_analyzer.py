@@ -4,7 +4,10 @@ This utility helps transformers determine which variables would need to be
 captured or passed when extracting code regions.
 """
 
+from typing import Any
+
 import libcst as cst
+from libcst.metadata import MetadataWrapper, PositionProvider
 
 
 class CrossScopeAnalyzer:
@@ -103,7 +106,7 @@ class CrossScopeAnalyzer:
     def _ensure_analyzed(self) -> None:
         """Ensure the module has been analyzed."""
         if not self._analyzed:
-            wrapper = cst.metadata.MetadataWrapper(self.module)
+            wrapper = MetadataWrapper(self.module)
             visitor = _CrossScopeVisitor(self.class_name, self.function_name)
             wrapper.visit(visitor)
             self._definitions = visitor.definitions
@@ -114,7 +117,7 @@ class CrossScopeAnalyzer:
 class _CrossScopeVisitor(cst.CSTVisitor):
     """Visitor to collect variable definitions and reads."""
 
-    METADATA_DEPENDENCIES = (cst.metadata.PositionProvider,)
+    METADATA_DEPENDENCIES = (PositionProvider,)
 
     def __init__(self, class_name: str, function_name: str) -> None:
         """Initialize the visitor.
@@ -287,8 +290,8 @@ class _CrossScopeVisitor(cst.CSTVisitor):
     def _get_line(self, node: cst.CSTNode) -> int:
         """Get the line number for a CST node."""
         try:
-            pos = self.get_metadata(cst.metadata.PositionProvider, node)
-            return pos.start.line
+            pos: Any = self.get_metadata(PositionProvider, node)
+            return int(pos.start.line)
         except KeyError:
             return 1
 

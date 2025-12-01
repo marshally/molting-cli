@@ -6,8 +6,10 @@ code regions.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 import libcst as cst
+from libcst.metadata import MetadataWrapper, PositionProvider
 
 
 @dataclass
@@ -154,7 +156,7 @@ class VariableFlowAnalyzer:
         """Ensure the module has been analyzed."""
         if not self._analyzed:
             # Use MetadataWrapper to provide position information
-            wrapper = cst.metadata.MetadataWrapper(self.module)
+            wrapper = MetadataWrapper(self.module)
             visitor = _VariableAccessVisitor(self.class_name, self.function_name)
             wrapper.visit(visitor)
             self._accesses = visitor.accesses
@@ -191,7 +193,7 @@ class VariableFlowAnalyzer:
 class _VariableAccessVisitor(cst.CSTVisitor):
     """Visitor to collect all variable accesses in a function."""
 
-    METADATA_DEPENDENCIES = (cst.metadata.PositionProvider,)
+    METADATA_DEPENDENCIES = (PositionProvider,)
 
     def __init__(self, class_name: str, function_name: str) -> None:
         """Initialize the visitor.
@@ -347,8 +349,8 @@ class _VariableAccessVisitor(cst.CSTVisitor):
     def _get_line(self, node: cst.CSTNode) -> int:
         """Get the line number for a CST node."""
         try:
-            pos = self.get_metadata(cst.metadata.PositionProvider, node)
-            return pos.start.line
+            pos: Any = self.get_metadata(PositionProvider, node)
+            return int(pos.start.line)
         except KeyError:
             # Fallback if metadata not available
             return 1

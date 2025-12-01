@@ -5,8 +5,10 @@ enabling safe code extraction and refactoring.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 import libcst as cst
+from libcst.metadata import MetadataWrapper, PositionProvider
 
 
 @dataclass
@@ -159,7 +161,7 @@ class VariableLifetimeAnalyzer:
     def _ensure_analyzed(self) -> None:
         """Ensure the module has been analyzed."""
         if not self._analyzed:
-            wrapper = cst.metadata.MetadataWrapper(self.module)
+            wrapper = MetadataWrapper(self.module)
             visitor = _LifetimeVisitor(self.class_name, self.function_name)
             wrapper.visit(visitor)
             self._definitions = visitor.definitions
@@ -172,7 +174,7 @@ class VariableLifetimeAnalyzer:
 class _LifetimeVisitor(cst.CSTVisitor):
     """Visitor to collect variable definitions and uses."""
 
-    METADATA_DEPENDENCIES = (cst.metadata.PositionProvider,)
+    METADATA_DEPENDENCIES = (PositionProvider,)
 
     def __init__(self, class_name: str, function_name: str) -> None:
         """Initialize the visitor.
@@ -242,7 +244,7 @@ class _LifetimeVisitor(cst.CSTVisitor):
     def _capture_scope(self, node: cst.FunctionDef) -> None:
         """Capture the scope boundaries of the function."""
         try:
-            pos = self.get_metadata(cst.metadata.PositionProvider, node)
+            pos = self.get_metadata(PositionProvider, node)
             self.scope_start = pos.start.line
             self.scope_end = pos.end.line
         except KeyError:
@@ -358,8 +360,8 @@ class _LifetimeVisitor(cst.CSTVisitor):
     def _get_line(self, node: cst.CSTNode) -> int:
         """Get the line number for a CST node."""
         try:
-            pos = self.get_metadata(cst.metadata.PositionProvider, node)
-            return pos.start.line
+            pos: Any = self.get_metadata(PositionProvider, node)
+            return int(pos.start.line)
         except KeyError:
             return 1
 
