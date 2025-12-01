@@ -153,16 +153,17 @@ class PropertyMethodHandler:
         new_body_stmts: list[cst.BaseStatement] = []
 
         for stmt in class_def.body.body:
+            base_stmt: cst.BaseStatement = stmt  # type: ignore[assignment]
             # Keep non-function statements
             if not isinstance(stmt, cst.FunctionDef):
-                new_body_stmts.append(stmt)
+                new_body_stmts.append(base_stmt)
                 continue
 
             # Check if this is part of the property to remove
             if stmt.name.value == property_name and self.is_property_method(stmt):
                 continue  # Skip this method
 
-            new_body_stmts.append(stmt)
+            new_body_stmts.append(base_stmt)
 
         # If class becomes empty, add pass
         if not new_body_stmts:
@@ -186,11 +187,12 @@ class PropertyMethodHandler:
 
         # Remove any existing pass statements since we're adding real content
         for stmt in class_def.body.body:
+            base_stmt: cst.BaseStatement = stmt  # type: ignore[assignment]
             if isinstance(stmt, cst.SimpleStatementLine):
                 # Skip pass statements
                 if any(isinstance(b, cst.Pass) for b in stmt.body):
                     continue
-            new_body_stmts.append(stmt)
+            new_body_stmts.append(base_stmt)
 
         # Add the property methods
         if prop.getter:

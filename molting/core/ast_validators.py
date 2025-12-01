@@ -176,7 +176,7 @@ def get_validator(context: SymbolContext) -> ContextValidator:
     Raises:
         NotImplementedError: If the context type doesn't have a validator yet
     """
-    validators = {
+    validators: dict[SymbolContext, ContextValidator] = {
         SymbolContext.ATTRIBUTE_ACCESS: AttributeAccessValidator(),
         SymbolContext.METHOD_CALL: MethodCallValidator(),
         SymbolContext.FUNCTION_CALL: FunctionCallValidator(),
