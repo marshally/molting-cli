@@ -280,6 +280,19 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
         """Transform the superclass to add the template method and abstract methods."""
         new_body_stmts: list[cst.BaseStatement] = []
 
+        # Add common instance variables as class variables
+        common_vars = self._find_common_instance_variables()
+        for var_name, var_value in common_vars.items():
+            class_var_stmt = cst.SimpleStatementLine(
+                body=[
+                    cst.Assign(
+                        targets=[cst.AssignTarget(target=cst.Name(var_name))],
+                        value=var_value,
+                    )
+                ]
+            )
+            new_body_stmts.append(class_var_stmt)
+
         # Add the template method and abstract methods
         new_body_stmts.append(self._create_template_method())
         new_body_stmts.extend(self._create_abstract_methods())

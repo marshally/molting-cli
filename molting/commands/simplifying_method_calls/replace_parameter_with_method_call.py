@@ -234,10 +234,21 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
             # Insert a local variable assignment at the start of the method body
             assignment = self._create_local_variable_assignment()
 
-            # Insert the assignment as the first statement in the body
+            # Insert the assignment after the docstring if one exists
             new_body = updated_node.body
             if isinstance(new_body, cst.IndentedBlock):
-                new_statements = [assignment] + list(new_body.body)
+                statements = list(new_body.body)
+                # Check if first statement is a docstring
+                insert_pos = 0
+                if statements and isinstance(statements[0], cst.SimpleStatementLine):
+                    if len(statements[0].body) == 1 and isinstance(
+                        statements[0].body[0], cst.Expr
+                    ):
+                        expr = statements[0].body[0]
+                        if isinstance(expr.value, (cst.SimpleString, cst.ConcatenatedString)):
+                            # First statement is a docstring, insert after it
+                            insert_pos = 1
+                new_statements = statements[:insert_pos] + [assignment] + statements[insert_pos:]
                 new_body = new_body.with_changes(body=new_statements)
 
             return updated_node.with_changes(

@@ -320,9 +320,24 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
 
         for stmt in body.body:
             if isinstance(stmt, cst.If):
-                if_body = cast(cst.IndentedBlock, stmt.body)
-                new_body = self._replace_flag_assignments_with_return(if_body)
-                transformed_statements.append(stmt.with_changes(body=new_body))
+                # Check if the condition contains a flag reference and remove it
+                if self._contains_flag_reference(stmt.test):
+                    new_test = self._remove_flag_reference(stmt.test)
+                    if new_test is not None:
+                        # Keep the if statement but with the cleaned condition
+                        if_body = cast(cst.IndentedBlock, stmt.body)
+                        new_body = self._replace_flag_assignments_with_return(if_body)
+                        transformed_statements.append(stmt.with_changes(test=new_test, body=new_body))
+                    else:
+                        # The entire condition was the flag check, unwrap the body
+                        if_body = cast(cst.IndentedBlock, stmt.body)
+                        new_body = self._replace_flag_assignments_with_return(if_body)
+                        transformed_statements.extend(new_body.body)
+                else:
+                    # No flag reference, just transform the body
+                    if_body = cast(cst.IndentedBlock, stmt.body)
+                    new_body = self._replace_flag_assignments_with_return(if_body)
+                    transformed_statements.append(stmt.with_changes(body=new_body))
             else:
                 transformed_statements.append(stmt)
 

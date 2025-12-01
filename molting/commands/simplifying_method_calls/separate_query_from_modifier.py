@@ -296,7 +296,11 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
 
         modifier_stmts = []
 
-        for stmt in method.body.body:
+        for i, stmt in enumerate(method.body.body):
+            # Skip docstring (first statement if it's an Expr with a string)
+            if i == 0 and self._is_docstring(stmt):
+                continue
+
             # Keep only statements that modify state or control flow
             if self._is_pure_modifier(stmt):
                 modifier_stmts.append(stmt)

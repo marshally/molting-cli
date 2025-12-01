@@ -12,14 +12,16 @@ class Transaction:
         self.account = account
 
     def check_withdrawal(self, amount):
-        """Check if withdrawal is allowed using the whole account object."""
-        # Local processing still uses the original object
+        """Check if withdrawal is allowed using local variables."""
+        # Extract values into locals before passing
         current_balance = self.account.balance
         limit = self.account.overdraft_limit
+
+        # Additional local processing
         available = current_balance + limit
         remaining_after = current_balance - amount
 
-        # Pass whole object instead of individual values
+        # Pass individual values instead of whole object
         if can_withdraw(self.account, amount):
             print(f"Withdrawal allowed. Available: {available}, Remaining: {remaining_after}")
             return True
