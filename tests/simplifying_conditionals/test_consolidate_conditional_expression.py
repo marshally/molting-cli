@@ -53,7 +53,6 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
             name="is_not_eligible_for_disability",
         )
 
-    @pytest.mark.skip(reason="Implementation needed for name_conflict")
     def test_name_conflict(self) -> None:
         """Test consolidating conditionals when the desired extracted name already exists.
 
@@ -61,11 +60,12 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
         rename the target, skip the consolidation, or handle an existing method with the
         same name. Important for error handling and user feedback in real-world scenarios.
         """
-        self.refactor(
-            "consolidate-conditional-expression",
-            target="disability_amount#L10-L15",
-            name="is_not_eligible_for_disability",
-        )
+        with pytest.raises(ValueError, match="Function.*is_not_eligible_for_disability.*already exists"):
+            self.refactor(
+                "consolidate-conditional-expression",
+                target="disability_amount#L10-L15",
+                name="is_not_eligible_for_disability",
+            )
 
     @pytest.mark.skip(
         reason="Requires pattern matching infrastructure beyond CallSiteUpdater - "

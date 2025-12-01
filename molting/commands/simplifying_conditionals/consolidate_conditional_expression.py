@@ -8,6 +8,7 @@ from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_line_range
 from molting.core.code_generation_utils import create_parameter
 from molting.core.local_variable_analyzer import LocalVariableAnalyzer
+from molting.core.visitors import MethodConflictChecker
 
 
 class ConsolidateConditionalExpressionCommand(BaseCommand):
@@ -75,8 +76,22 @@ class ConsolidateConditionalExpressionCommand(BaseCommand):
         # Read file
         source_code = self.file_path.read_text()
 
-        # Parse and transform with metadata
+        # Parse module
         module = cst.parse_module(source_code)
+
+        # Check for name conflicts - helper function/method should not already exist
+        conflict_checker = MethodConflictChecker(class_name, helper_name)
+        module.visit(conflict_checker)
+
+        if conflict_checker.has_conflict:
+            if class_name:
+                raise ValueError(
+                    f"Method '{helper_name}' already exists in class '{class_name}'"
+                )
+            else:
+                raise ValueError(f"Function '{helper_name}' already exists")
+
+        # Parse and transform with metadata
         wrapper = metadata.MetadataWrapper(module)
         transformer = ConsolidateConditionalExpressionTransformer(
             class_name, function_name, start_line, end_line, helper_name, module
