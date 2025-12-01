@@ -83,6 +83,8 @@ class ReplaceParameterWithMethodCallCommand(BaseCommand):
             # Fall back to simple derivation if we can't find it
             getter_method_name = f"get_{param_name}"
 
+        print(f"DEBUG: Detected getter method name: {getter_method_name}")
+
         # Apply the transformation
         self.apply_libcst_transform(
             ReplaceParameterWithMethodCallTransformer,
@@ -241,9 +243,7 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
                 # Check if first statement is a docstring
                 insert_pos = 0
                 if statements and isinstance(statements[0], cst.SimpleStatementLine):
-                    if len(statements[0].body) == 1 and isinstance(
-                        statements[0].body[0], cst.Expr
-                    ):
+                    if len(statements[0].body) == 1 and isinstance(statements[0].body[0], cst.Expr):
                         expr = statements[0].body[0]
                         if isinstance(expr.value, (cst.SimpleString, cst.ConcatenatedString)):
                             # First statement is a docstring, insert after it

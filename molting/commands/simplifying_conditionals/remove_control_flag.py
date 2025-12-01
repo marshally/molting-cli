@@ -327,7 +327,9 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
                         # Keep the if statement but with the cleaned condition
                         if_body = cast(cst.IndentedBlock, stmt.body)
                         new_body = self._replace_flag_assignments_with_return(if_body)
-                        transformed_statements.append(stmt.with_changes(test=new_test, body=new_body))
+                        transformed_statements.append(
+                            stmt.with_changes(test=new_test, body=new_body)
+                        )
                     else:
                         # The entire condition was the flag check, unwrap the body
                         if_body = cast(cst.IndentedBlock, stmt.body)
