@@ -5,7 +5,6 @@ This refactoring puts the invariant parts of an algorithm in the superclass
 and delegates the variant parts to abstract methods in subclasses.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -31,12 +30,6 @@ class TestFormTemplateMethod(RefactoringTestBase):
             steps="base:get_base_amount,tax:get_tax_amount",
         )
 
-    @pytest.mark.skip(
-        reason="Command needs enhancement: return statement should be "
-        "'final_amount = adjusted_base + tax; return final_amount', not summing all vars. "
-        "Also needs TAX_RATE extraction to superclass. "
-        "VariableLifetimeAnalyzer available in molting/core/variable_lifetime_analyzer.py"
-    )
     def test_with_locals(self) -> None:
         """Test form-template-method when methods use local variables.
 
