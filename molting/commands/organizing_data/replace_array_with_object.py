@@ -110,10 +110,10 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         self.param_name = param_name
         self.new_class_name = new_class_name
         self.field_names = field_names
-        self.in_target_function = False
+        self.in_function_with_param = False
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> bool | None:  # noqa: N802
-        """Track when we're inside the target function.
+        """Track when we're inside a function with the target parameter.
 
         Args:
             node: The function definition node
@@ -121,8 +121,11 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         Returns:
             True to continue visiting children
         """
-        if node.name.value == self.function_name:
-            self.in_target_function = True
+        # Check if this function has the target parameter
+        for param in node.params.params:
+            if param.name.value == self.param_name:
+                self.in_function_with_param = True
+                break
         return True
 
     def leave_FunctionDef(  # noqa: N802
@@ -137,8 +140,8 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         Returns:
             The function node, potentially modified
         """
-        if original_node.name.value == self.function_name:
-            self.in_target_function = False
+        # Reset the flag when leaving any function
+        self.in_function_with_param = False
         return updated_node
 
     def leave_Module(  # noqa: N802
@@ -155,14 +158,31 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         """
         # Create the new class
         new_class = self._create_new_class()
-        modified_statements: list[cst.BaseStatement] = [
-            new_class,
-            cast(cst.BaseStatement, cst.EmptyLine()),
-            cast(cst.BaseStatement, cst.EmptyLine()),
-        ]
+        modified_statements: list[cst.BaseStatement] = []
 
-        # Add all original statements
-        for stmt in updated_node.body:
+        # Preserve module docstring if it exists
+        has_docstring = False
+        if updated_node.body and isinstance(updated_node.body[0], cst.SimpleStatementLine):
+            first_stmt = updated_node.body[0]
+            if first_stmt.body and isinstance(first_stmt.body[0], cst.Expr):
+                expr_value = first_stmt.body[0].value
+                if isinstance(expr_value, (cst.SimpleString, cst.ConcatenatedString)):
+                    # This is a module docstring - keep it first
+                    modified_statements.append(updated_node.body[0])
+                    has_docstring = True
+
+        # Add the new class
+        modified_statements.extend(
+            [
+                new_class,
+                cast(cst.BaseStatement, cst.EmptyLine()),
+                cast(cst.BaseStatement, cst.EmptyLine()),
+            ]
+        )
+
+        # Add remaining statements (skip docstring if we already added it)
+        start_idx = 1 if has_docstring else 0
+        for stmt in updated_node.body[start_idx:]:
             modified_statements.append(stmt)
 
         return updated_node.with_changes(body=tuple(modified_statements))
@@ -179,7 +199,7 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         Returns:
             Modified expression (attribute access) or original node
         """
-        if not self.in_target_function:
+        if not self.in_function_with_param:
             return updated_node
 
         # Check if this is accessing our array parameter
@@ -213,7 +233,7 @@ class ReplaceArrayWithObjectTransformer(cst.CSTTransformer):
         Returns:
             Modified parameter or original
         """
-        if not self.in_target_function:
+        if not self.in_function_with_param:
             return updated_node
 
         if updated_node.name.value == self.param_name:
@@ -280,11 +300,11 @@ class ArrayAccessCollector(cst.CSTVisitor):
         self.function_name = function_name
         self.param_name = param_name
         self.field_names: list[str] = []
-        self.in_target_function = False
+        self.in_function_with_param = False
         self.assignments: dict[int, str] = {}
 
     def visit_FunctionDef(self, node: cst.FunctionDef) -> bool | None:  # noqa: N802
-        """Track when we're inside the target function.
+        """Track when we're inside a function with the target parameter.
 
         Args:
             node: The function definition node
@@ -292,8 +312,11 @@ class ArrayAccessCollector(cst.CSTVisitor):
         Returns:
             True to continue visiting children
         """
-        if node.name.value == self.function_name:
-            self.in_target_function = True
+        # Check if this function has the target parameter
+        for param in node.params.params:
+            if param.name.value == self.param_name:
+                self.in_function_with_param = True
+                break
         return True
 
     def leave_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
@@ -302,10 +325,10 @@ class ArrayAccessCollector(cst.CSTVisitor):
         Args:
             node: The function definition node
         """
-        if node.name.value == self.function_name:
-            self.in_target_function = False
-            # Build field names list from assignments
-            if self.assignments:
+        if self.in_function_with_param:
+            self.in_function_with_param = False
+            # Build field names list from assignments if we haven't already
+            if not self.field_names and self.assignments:
                 max_index = max(self.assignments.keys())
                 self.field_names = []
                 for i in range(max_index + 1):
@@ -320,7 +343,7 @@ class ArrayAccessCollector(cst.CSTVisitor):
         Returns:
             True to continue visiting
         """
-        if not self.in_target_function:
+        if not self.in_function_with_param:
             return True
 
         # Check if the value is a subscript access to our parameter
