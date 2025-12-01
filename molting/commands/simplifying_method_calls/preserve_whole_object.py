@@ -87,6 +87,50 @@ class PreserveWholeObjectCommand(BaseCommand):
         """
         return target.split("::")[-1] if "::" in target else target
 
+    def _create_name_replacer(
+        self, replacements: dict[str, tuple[str, str]]
+    ) -> type[ast.NodeTransformer]:
+        """Create a NameReplacer class with the given replacements.
+
+        Args:
+            replacements: Dict mapping old parameter names to (object_name, attr_name) tuples
+                Example: {"balance": ("account", "balance"), "overdraft": ("account", "overdraft_limit")}
+
+        Returns:
+            A NameReplacer class configured with the replacements
+        """
+
+        class NameReplacer(ast.NodeTransformer):
+            """Replace Name nodes with Attribute access based on replacement mapping."""
+
+            def _create_attribute_access(
+                self, object_name: str, attr_name: str, ctx: ast.expr_context
+            ) -> ast.Attribute:
+                """Create an attribute access node.
+
+                Args:
+                    object_name: Name of the object
+                    attr_name: Name of the attribute
+                    ctx: Context for the expression
+
+                Returns:
+                    Attribute AST node
+                """
+                return ast.Attribute(
+                    value=ast.Name(id=object_name, ctx=ast.Load()),
+                    attr=attr_name,
+                    ctx=ctx,
+                )
+
+            def visit_Name(self, node: ast.Name) -> Any:  # noqa: N802
+                """Visit Name nodes and replace based on replacement mapping."""
+                if node.id in replacements:
+                    object_name, attr_name = replacements[node.id]
+                    return self._create_attribute_access(object_name, attr_name, node.ctx)
+                return node
+
+        return NameReplacer
+
     def execute(self) -> None:
         """Apply preserve-whole-object refactoring using AST manipulation.
 

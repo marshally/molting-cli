@@ -151,9 +151,14 @@ class CallSiteAnalyzer(cst.CSTVisitor):
         ):
             return True
 
+        print(
+            f"DEBUG: Found call to {self.method_name}, args count: {len(node.args)}, param_position: {self.param_position}"
+        )
+
         # This is a call to self.method_name - get the argument at param_position
         if self.param_position < len(node.args):
             arg = node.args[self.param_position]
+            print(f"DEBUG: Argument at position {self.param_position}: {arg.value}")
 
             # Check if the argument is a call to a getter method
             if isinstance(arg.value, cst.Call) and isinstance(arg.value.func, cst.Attribute):
@@ -163,6 +168,7 @@ class CallSiteAnalyzer(cst.CSTVisitor):
                 ):
                     # This is a call to self.something()
                     self.getter_method_name = arg.value.func.attr.value
+                    print(f"DEBUG: Found getter from direct call: {self.getter_method_name}")
                     return False  # Stop searching
 
             # Check if the argument is a variable
@@ -170,6 +176,9 @@ class CallSiteAnalyzer(cst.CSTVisitor):
                 var_name = arg.value.value
                 # Try to infer the getter method name from the variable name
                 self.getter_method_name = f"get_{var_name}"
+                print(
+                    f"DEBUG: Inferred getter from variable '{var_name}': {self.getter_method_name}"
+                )
                 return False  # Stop searching
 
         return True
