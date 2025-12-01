@@ -320,21 +320,119 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
 
         return node.with_changes(body=node.body.with_changes(body=tuple(new_body_stmts)))
 
+    def _analyze_implementation(
+        self,
+    ) -> tuple[dict[str, list[str]], cst.SimpleStatementLine | None]:
+        """Analyze one implementation to understand dependencies and return pattern.
+
+        Returns:
+            Tuple of (dependencies_dict, return_statement)
+            - dependencies_dict: Maps each step variable to list of variables it depends on
+            - return_statement: The return statement (possibly with final calculation), or None
+        """
+        # Get the first implementation to analyze
+        if not self.method_implementations:
+            return {}, None
+
+        first_impl = next(iter(self.method_implementations.values()))
+
+        dependencies: dict[str, list[str]] = {}
+        var_expressions: dict[str, cst.BaseExpression] = {}
+        all_assignments: list[tuple[str, cst.BaseExpression]] = []
+        return_value: cst.BaseExpression | None = None
+
+        # Parse the method body
+        if isinstance(first_impl.body, cst.IndentedBlock):
+            for stmt in first_impl.body.body:
+                if isinstance(stmt, cst.SimpleStatementLine):
+                    for item in stmt.body:
+                        if isinstance(item, cst.Assign):
+                            # Collect all assignments
+                            for target in item.targets:
+                                if isinstance(target.target, cst.Name):
+                                    var_name = target.target.value
+                                    all_assignments.append((var_name, item.value))
+                                    if var_name in self.steps:
+                                        var_expressions[var_name] = item.value
+                        elif isinstance(item, cst.Return) and item.value:
+                            return_value = item.value
+
+        # Analyze dependencies for each step variable
+        for var_name in self.steps.keys():
+            if var_name in var_expressions:
+                expr = var_expressions[var_name]
+                deps = self._extract_variable_names(expr)
+                # Only include dependencies that are step variables or come before this one
+                dependencies[var_name] = [d for d in deps if d in self.steps]
+
+        # Analyze return statement
+        return_stmt = None
+        if return_value:
+            # Check if return value is a simple variable or a calculation
+            if isinstance(return_value, cst.Name):
+                var_name = return_value.value
+                # If it's not one of our step variables, look for its assignment
+                if var_name not in self.steps:
+                    # Find the assignment for this variable
+                    for assigned_var, assigned_expr in all_assignments:
+                        if assigned_var == var_name:
+                            # Create: var_name = expression (on separate line from return)
+                            # We'll return this as a marker to add both statements
+                            assign_stmt = cst.Assign(
+                                targets=[cst.AssignTarget(target=cst.Name(var_name))],
+                                value=assigned_expr,
+                            )
+                            # Return a tuple marker (we'll handle this specially)
+                            return_stmt = (assign_stmt, var_name)  # type: ignore[assignment]
+                            break
+                else:
+                    # Just return the step variable
+                    return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=return_value)])
+            else:
+                # Return value is an expression - could be a calculation
+                # Just return it directly for now
+                return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=return_value)])
+
+        return dependencies, return_stmt
+
+    def _extract_variable_names(self, expr: cst.BaseExpression) -> list[str]:
+        """Extract all variable names referenced in an expression.
+
+        Args:
+            expr: The expression to analyze
+
+        Returns:
+            List of variable names found in the expression
+        """
+        var_names: list[str] = []
+
+        class NameCollector(cst.CSTVisitor):
+            def visit_Name(self, node: cst.Name) -> None:  # noqa: N802
+                if not node.value.startswith("self") and node.value != "self":
+                    var_names.append(node.value)
+
+        expr.visit(NameCollector())
+        return var_names
+
     def _create_template_method(self) -> cst.FunctionDef:
         """Create the template method using the step mappings.
 
         Creates a template method that:
         1. Calls each step method in order
-        2. Passes previous variables as arguments to later methods
-        3. Returns the sum of all variables
+        2. Passes only required variables as arguments to later methods
+        3. Preserves the original return statement pattern
         """
         body_stmts: list[cst.SimpleStatementLine] = []
         var_names: list[str] = []
 
+        # Analyze one implementation to understand variable dependencies and return pattern
+        dependencies, return_expr = self._analyze_implementation()
+
         # Create assignment statements for each step
         for var_name, method_name in self.steps.items():
-            # Determine arguments - pass all previously defined variables
-            args = [cst.Arg(value=cst.Name(v)) for v in var_names]
+            # Determine arguments - pass only variables that this step depends on
+            required_vars = dependencies.get(var_name, [])
+            args = [cst.Arg(value=cst.Name(v)) for v in required_vars if v in var_names]
 
             # Create: var_name = self.method_name(args...)
             stmt = cst.SimpleStatementLine(
@@ -354,24 +452,20 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
             body_stmts.append(stmt)
             var_names.append(var_name)
 
-        # Create return statement that sums all variables
-        return_value: cst.BaseExpression
-        if len(var_names) == 0:
-            return_value = cst.Name("None")
-        elif len(var_names) == 1:
-            return_value = cst.Name(var_names[0])
-        else:
-            # Build: var1 + var2 + var3 + ...
-            return_value = cst.Name(var_names[0])
-            for var_name in var_names[1:]:
-                return_value = cst.BinaryOperation(
-                    left=return_value,
-                    operator=cst.Add(),
-                    right=cst.Name(var_name),
+        # Add the return statement (either direct or with final calculation)
+        if return_expr:
+            # Check if it's a tuple (assign + var_name) or a SimpleStatementLine
+            if isinstance(return_expr, tuple):
+                # Add assignment on one line
+                assign_stmt, var_name = return_expr
+                body_stmts.append(cst.SimpleStatementLine(body=[assign_stmt]))
+                # Add return on next line
+                body_stmts.append(
+                    cst.SimpleStatementLine(body=[cst.Return(value=cst.Name(var_name))])
                 )
-
-        return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=return_value)])
-        body_stmts.append(return_stmt)
+            else:
+                # It's already a complete statement
+                body_stmts.append(return_expr)
 
         return cst.FunctionDef(
             name=cst.Name(self.template_method_name),
@@ -384,16 +478,20 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
     def _create_abstract_methods(self) -> list[cst.FunctionDef]:
         """Create abstract method stubs based on step mappings.
 
-        Creates one abstract method for each step, with parameters for all
-        previously defined variables.
+        Creates one abstract method for each step, with parameters for only
+        the variables they depend on.
         """
         methods: list[cst.FunctionDef] = []
         var_names: list[str] = []
 
+        # Get dependencies from analysis
+        dependencies, _ = self._analyze_implementation()
+
         for var_name, method_name in self.steps.items():
-            # Create parameters: self + all previous variables
+            # Create parameters: self + only required dependencies
             params = [create_parameter("self")]
-            params.extend([create_parameter(v) for v in var_names])
+            required_vars = dependencies.get(var_name, [])
+            params.extend([create_parameter(v) for v in required_vars if v in var_names])
 
             # Create method: def method_name(self, ...): raise NotImplementedError
             method = cst.FunctionDef(
@@ -442,13 +540,17 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
                                     if var_name in self.steps:
                                         var_expressions[var_name] = item.value
 
+        # Get dependencies from analysis
+        dependencies, _ = self._analyze_implementation()
+
         # Create a method for each step variable, in order
         var_names: list[str] = []
         for var_name, method_name in self.steps.items():
             if var_name in var_expressions:
-                # Create parameters: self + all previous variables
+                # Create parameters: self + only required dependencies
                 params = [create_parameter("self")]
-                params.extend([create_parameter(v) for v in var_names])
+                required_vars = dependencies.get(var_name, [])
+                params.extend([create_parameter(v) for v in required_vars if v in var_names])
 
                 # Create method that returns the expression
                 method_def = cst.FunctionDef(

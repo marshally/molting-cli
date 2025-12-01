@@ -70,9 +70,18 @@ class ReplaceParameterWithMethodCallCommand(BaseCommand):
         target = self.params["target"]
         class_name, method_name, param_name = parse_target(target, expected_parts=3)
 
-        # Derive the method name from the parameter name
-        # e.g., discount_level -> get_discount_level
-        getter_method_name = f"get_{param_name}"
+        # First, analyze the code to find the getter method name
+        source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+
+        # Find what method is called at call sites for this parameter
+        analyzer = CallSiteAnalyzer(class_name, method_name, param_name)
+        module.visit(analyzer)
+
+        getter_method_name = analyzer.getter_method_name
+        if not getter_method_name:
+            # Fall back to simple derivation if we can't find it
+            getter_method_name = f"get_{param_name}"
 
         # Apply the transformation
         self.apply_libcst_transform(
@@ -82,6 +91,86 @@ class ReplaceParameterWithMethodCallCommand(BaseCommand):
             param_name,
             getter_method_name,
         )
+
+
+class CallSiteAnalyzer(cst.CSTVisitor):
+    """Analyzes call sites to determine the getter method name."""
+
+    def __init__(self, class_name: str, method_name: str, param_name: str) -> None:
+        """Initialize the analyzer.
+
+        Args:
+            class_name: Name of the class containing the method
+            method_name: Name of the method with the parameter
+            param_name: Name of the parameter to analyze
+        """
+        self.class_name = class_name
+        self.method_name = method_name
+        self.param_name = param_name
+        self.getter_method_name: str | None = None
+        self.in_target_class = False
+        self.param_position: int | None = None
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Visit class definition to track if we're in the target class."""
+        if node.name.value == self.class_name:
+            self.in_target_class = True
+        return True
+
+    def leave_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Leave class definition."""
+        if node.name.value == self.class_name:
+            self.in_target_class = False
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Visit function definition to find the parameter position."""
+        if self.in_target_class and node.name.value == self.method_name:
+            # Find the position of the parameter
+            for i, param in enumerate(node.params.params):
+                if param.name.value == self.param_name:
+                    # Subtract 1 to account for 'self'
+                    self.param_position = i - 1 if i > 0 else 0
+                    break
+        return True
+
+    def visit_Call(self, node: cst.Call) -> bool:  # noqa: N802
+        """Visit call to find calls to the target method."""
+        if not self.in_target_class or self.param_position is None:
+            return True
+
+        # Check if this is a call to self.method_name
+        if not isinstance(node.func, cst.Attribute):
+            return True
+
+        if not (
+            isinstance(node.func.value, cst.Name)
+            and node.func.value.value == "self"
+            and node.func.attr.value == self.method_name
+        ):
+            return True
+
+        # This is a call to self.method_name - get the argument at param_position
+        if self.param_position < len(node.args):
+            arg = node.args[self.param_position]
+
+            # Check if the argument is a call to a getter method
+            if isinstance(arg.value, cst.Call) and isinstance(arg.value.func, cst.Attribute):
+                if (
+                    isinstance(arg.value.func.value, cst.Name)
+                    and arg.value.func.value.value == "self"
+                ):
+                    # This is a call to self.something()
+                    self.getter_method_name = arg.value.func.attr.value
+                    return False  # Stop searching
+
+            # Check if the argument is a variable
+            if isinstance(arg.value, cst.Name):
+                var_name = arg.value.value
+                # Try to infer the getter method name from the variable name
+                self.getter_method_name = f"get_{var_name}"
+                return False  # Stop searching
+
+        return True
 
 
 class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
@@ -104,6 +193,7 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         self.getter_method_name = getter_method_name
         self.in_target_class = False
         self.in_target_method = False
+        self.param_position: int | None = None
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Visit class definition to track if we're in the target class."""
@@ -122,6 +212,12 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         """Visit function definition to track if we're in the target method."""
         if self.in_target_class and node.name.value == self.method_name:
             self.in_target_method = True
+            # Find the position of the parameter
+            for i, param in enumerate(node.params.params):
+                if param.name.value == self.param_name:
+                    # Subtract 1 to account for 'self'
+                    self.param_position = i - 1 if i > 0 else 0
+                    break
 
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
@@ -130,33 +226,31 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         if self.in_target_class and original_node.name.value == self.method_name:
             self.in_target_method = False
             # Remove the parameter from the method signature
-            # Use original_node.params to avoid already-transformed params
             new_params = []
             for param in original_node.params.params:
                 if param.name.value != self.param_name:
                     new_params.append(param)
-            return updated_node.with_changes(
-                params=updated_node.params.with_changes(params=new_params)
-            )
-        return updated_node
 
-    def leave_Name(  # noqa: N802
-        self, original_node: cst.Name, updated_node: cst.Name
-    ) -> cst.BaseExpression:
-        """Leave name node and replace parameter usage with method call."""
-        if self.in_target_method and updated_node.value == self.param_name:
-            return self._create_getter_method_call()
+            # Insert a local variable assignment at the start of the method body
+            assignment = self._create_local_variable_assignment()
+
+            # Insert the assignment as the first statement in the body
+            new_body = updated_node.body
+            if isinstance(new_body, cst.IndentedBlock):
+                new_statements = [assignment] + list(new_body.body)
+                new_body = new_body.with_changes(body=new_statements)
+
+            return updated_node.with_changes(
+                params=updated_node.params.with_changes(params=new_params), body=new_body
+            )
         return updated_node
 
     def leave_SimpleStatementLine(  # noqa: N802
         self, original_node: cst.SimpleStatementLine, updated_node: cst.SimpleStatementLine
     ) -> cst.BaseStatement | cst.RemovalSentinel:
         """Remove assignment statements that assign the parameter value."""
-        if not self.in_target_class or self.in_target_method:
-            return updated_node
-
-        if self._should_remove_assignment(updated_node):
-            return cst.RemovalSentinel.REMOVE
+        # Don't remove assignments for now - this feature needs more work
+        # to correctly identify which assignments should be removed
         return updated_node
 
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
@@ -165,11 +259,12 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
             self.in_target_class
             and not self.in_target_method
             and self._is_target_method_call(updated_node)
+            and self.param_position is not None
         ):
-            # Remove the argument corresponding to the parameter
+            # Remove the argument at the parameter position
             new_args = []
-            for arg in updated_node.args:
-                if not self._is_argument_for_param(arg):
+            for i, arg in enumerate(updated_node.args):
+                if i != self.param_position:
                     new_args.append(arg)
             return updated_node.with_changes(args=new_args)
         return updated_node
@@ -194,19 +289,38 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
             return False
 
         target = stmt.targets[0].target
-        if not isinstance(target, cst.Name) or target.value != self.param_name:
+        if not isinstance(target, cst.Name):
+            return False
+
+        # Check if the variable name relates to the parameter
+        var_name = target.value
+        if not self._could_be_variable_for_param(var_name):
             return False
 
         return self._is_getter_call(stmt.value)
 
-    def _create_getter_method_call(self) -> cst.Call:
-        """Create a call expression for self.get_<param>().
+    def _could_be_variable_for_param(self, var_name: str) -> bool:
+        """Check if a variable name could be for our parameter."""
+        # Check if variable name contains the parameter name
+        return self.param_name in var_name or var_name in self.param_name
+
+    def _create_local_variable_assignment(self) -> cst.SimpleStatementLine:
+        """Create a local variable assignment for the parameter.
 
         Returns:
-            A Call node representing self.get_<param>()
+            A SimpleStatementLine representing: param_name = self.getter_method_name()
         """
-        return cst.Call(
-            func=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.getter_method_name))
+        return cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(self.param_name))],
+                    value=cst.Call(
+                        func=cst.Attribute(
+                            value=cst.Name("self"), attr=cst.Name(self.getter_method_name)
+                        )
+                    ),
+                )
+            ]
         )
 
     def _is_target_method_call(self, node: cst.Call) -> bool:
@@ -228,38 +342,24 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         )
 
     def _is_getter_call(self, value: cst.BaseExpression) -> bool:
-        """Check if a value is a call to self.get_<param>().
+        """Check if a value is a call to a getter method.
 
         Args:
             value: The expression to check
 
         Returns:
-            True if this is a call to the getter method, False otherwise
+            True if this is a call to a getter method, False otherwise
         """
         if not isinstance(value, cst.Call):
             return False
         if not isinstance(value.func, cst.Attribute):
             return False
-        return (
-            isinstance(value.func.value, cst.Name)
-            and value.func.value.value == "self"
-            and value.func.attr.value == self.getter_method_name
-        )
-
-    def _is_argument_for_param(self, arg: cst.Arg) -> bool:
-        """Check if this argument is the one we want to remove.
-
-        Args:
-            arg: The argument to check
-
-        Returns:
-            True if this is the argument for the parameter we're removing
-        """
-        if isinstance(arg.value, cst.Name) and arg.value.value == self.param_name:
-            return True
-        if self._is_getter_call(arg.value):
-            return True
-        return False
+        if not isinstance(value.func.value, cst.Name):
+            return False
+        if value.func.value.value != "self":
+            return False
+        # Check if the method name is a getter
+        return value.func.attr.value.startswith("get_")
 
 
 # Register the command

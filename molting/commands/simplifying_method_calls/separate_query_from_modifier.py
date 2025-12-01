@@ -165,6 +165,10 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         # Try to parse "verb1_and_verb2_noun" pattern
         parts = original_name.split("_and_")
         if len(parts) == 2:
+            # For "process_and_get_X", the order is reversed (modifier first, query second)
+            if parts[0] in ("process", "modify", "update", "change"):
+                # Swap the parts so query comes first
+                return self._extract_names_from_and_pattern(parts[1], parts[0])
             return self._extract_names_from_and_pattern(parts[0], parts[1])
 
         # Fallback patterns for non-standard names
@@ -176,17 +180,27 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         """Extract method names from 'verb1_and_verb2_noun' pattern.
 
         Args:
-            query_part: The query verb part (e.g., "get")
-            modifier_part: The modifier part (e.g., "remove_intruder")
+            query_part: The query verb part (e.g., "get" or "get_next")
+            modifier_part: The modifier part (e.g., "remove_intruder" or "process")
 
         Returns:
             Tuple of (query_name, modifier_name)
         """
+        # Extract the noun from whichever part has it
+        query_words = query_part.split("_")
         modifier_words = modifier_part.split("_")
-        if len(modifier_words) > 1:
+
+        # Determine which part has the noun
+        if len(query_words) > 1:
+            # Query part has the noun (e.g., "get_next")
+            noun = "_".join(query_words[1:])
+            return query_part, f"{modifier_part}_{noun}"
+        elif len(modifier_words) > 1:
+            # Modifier part has the noun (e.g., "remove_intruder")
             noun = "_".join(modifier_words[1:])
             return f"{query_part}_{noun}", modifier_part
 
+        # Neither has a noun, use as-is
         return query_part, modifier_part
 
     def _generate_fallback_names(self, original_name: str) -> tuple[str, str]:
@@ -224,8 +238,14 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
             return []
 
         query_stmts = []
+        # Track which variables are defined in the query body
+        defined_vars = set()
 
-        for stmt in method.body.body:
+        for i, stmt in enumerate(method.body.body):
+            # Skip docstring (first statement if it's an Expr with a string)
+            if i == 0 and self._is_docstring(stmt):
+                continue
+
             # Remove statements that modify state
             if self._is_pure_modifier(stmt):
                 continue
@@ -237,13 +257,30 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
                     query_stmts.append(transformed)
             # Transform assignments to local variables into returns
             elif isinstance(stmt, cst.SimpleStatementLine):
-                transformed = self._transform_for_query(stmt)
+                transformed = self._transform_for_query(stmt, defined_vars)
                 if transformed:
                     query_stmts.append(transformed)
             else:
                 query_stmts.append(stmt)
 
         return query_stmts
+
+    def _is_docstring(self, stmt: cst.BaseStatement) -> bool:
+        """Check if a statement is a docstring.
+
+        Args:
+            stmt: The statement to check
+
+        Returns:
+            True if the statement is a docstring
+        """
+        if isinstance(stmt, cst.SimpleStatementLine) and len(stmt.body) == 1:
+            first = stmt.body[0]
+            if isinstance(first, cst.Expr) and isinstance(
+                first.value, (cst.SimpleString, cst.ConcatenatedString, cst.FormattedString)
+            ):
+                return True
+        return False
 
     def _create_modifier_body(self, method: cst.FunctionDef) -> list[cst.BaseStatement]:
         """Create the modifier method body by keeping only modifier operations.
@@ -305,11 +342,14 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         """
         return isinstance(stmt, (cst.If, cst.While, cst.For))
 
-    def _transform_for_query(self, stmt: cst.SimpleStatementLine) -> cst.BaseStatement | None:
+    def _transform_for_query(
+        self, stmt: cst.SimpleStatementLine, defined_vars: set[str]
+    ) -> cst.BaseStatement | None:
         """Transform a statement for the query method.
 
         Args:
             stmt: The statement to transform
+            defined_vars: Set of variables defined in the query body so far
 
         Returns:
             Transformed statement or None to skip
@@ -320,6 +360,12 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
                 # Skip it for query, we'll return the value directly
                 return None
             elif isinstance(sub_stmt, cst.Return):
+                # Check if the return value references an undefined variable
+                if sub_stmt.value and isinstance(sub_stmt.value, cst.Name):
+                    var_name = sub_stmt.value.value
+                    if var_name not in defined_vars and not var_name.startswith("self."):
+                        # Return value is an undefined local variable, convert to None
+                        return cst.SimpleStatementLine(body=[cst.Return(value=cst.Name("None"))])
                 # Keep return statements
                 return stmt
 
