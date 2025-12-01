@@ -4,7 +4,6 @@ Tests for Remove Control Flag refactoring.
 This refactoring replaces a control flag variable with break or return.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -23,12 +22,6 @@ class TestRemoveControlFlag(RefactoringTestBase):
         """
         self.refactor("remove-control-flag", target="check_security::found")
 
-    @pytest.mark.skip(
-        reason="Command needs enhancement: analyze return statement to determine which "
-        "variables to return. Use VariableLifetimeAnalyzer to determine 'count' is used "
-        "after loop and should be in return tuple. "
-        "VariableLifetimeAnalyzer in molting/core/variable_lifetime_analyzer.py"
-    )
     def test_with_locals(self) -> None:
         """Test removing a control flag when local variables are involved.
 

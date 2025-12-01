@@ -23,12 +23,6 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
         """
         self.refactor("consolidate-duplicate-conditional-fragments", target="process_order#L2-L7")
 
-    @pytest.mark.skip(
-        reason="Command needs enhancement: detect similar (not just identical) statements "
-        "and create ternary for differing arguments. Should consolidate log_shipment "
-        'calls with ternary: \'log_shipment("express" if is_express else "standard", '
-        "total)'. VariableLifetimeAnalyzer in molting/core/variable_lifetime_analyzer.py"
-    )
     def test_with_locals(self) -> None:
         """Test consolidating duplicate code when it uses local variables.
 

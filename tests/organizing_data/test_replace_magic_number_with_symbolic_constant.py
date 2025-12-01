@@ -28,12 +28,6 @@ class TestReplaceMagicNumberWithSymbolicConstant(RefactoringTestBase):
             name="GRAVITATIONAL_CONSTANT",
         )
 
-    @pytest.mark.skip(
-        reason=(
-            "Implementation needed for with_locals - only replaces in targeted function, "
-            "not all occurrences"
-        )
-    )
     def test_with_locals(self) -> None:
         """Test magic number replacement when same magic number appears in multiple functions.
 
