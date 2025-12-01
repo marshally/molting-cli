@@ -44,7 +44,6 @@ class TestPushDownField(RefactoringTestBase):
         """
         self.refactor("push-down-field", target="Employee::quota", to="Salesman")
 
-    @pytest.mark.skip(reason="Implementation needed for decorated properties")
     def test_with_decorators(self) -> None:
         """Test push-down-field with decorated property methods.
 
