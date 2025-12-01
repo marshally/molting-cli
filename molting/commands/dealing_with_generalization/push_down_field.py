@@ -17,7 +17,7 @@ from molting.core.code_generation_utils import (
     create_field_assignment,
     create_init_method,
 )
-from molting.core.property_utils import PropertyMethodHandler
+from molting.core.property_utils import PropertyDefinition, PropertyMethodHandler
 
 
 class PushDownFieldCommand(BaseCommand):
@@ -372,7 +372,7 @@ class PushDownPropertyTransformer(cst.CSTTransformer):
         self.source_class = source_class
         self.property_name = property_name
         self.target_class = target_class
-        self.property_def = None
+        self.property_def: PropertyDefinition | None = None
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef

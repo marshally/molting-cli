@@ -347,8 +347,8 @@ class DelegateMemberDiscovery:
         # Attribute decorator: @name.setter
         if isinstance(decorator_expr, cst.Attribute):
             # Build the full attribute path
-            parts = []
-            current = decorator_expr
+            parts: list[str] = []
+            current: cst.BaseExpression = decorator_expr
             while isinstance(current, cst.Attribute):
                 parts.append(current.attr.value)
                 current = current.value

@@ -157,7 +157,7 @@ class ReplaceParameterWithExplicitMethodsCommand(BaseCommand):
 
                 # Extract the string value (remove quotes)
                 param_value = first_arg.evaluated_value
-                if param_value not in parameter_values:
+                if not isinstance(param_value, str) or param_value not in parameter_values:
                     return node
 
                 # Create the new method name (e.g., "set_height" from "set_value" and "height")

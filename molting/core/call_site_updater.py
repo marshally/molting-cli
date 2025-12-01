@@ -288,15 +288,17 @@ class UpdaterTransformer(cst.CSTTransformer):
 
     def leave_Attribute(  # noqa: N802
         self, original_node: cst.Attribute, updated_node: cst.Attribute
-    ) -> cst.CSTNode:
+    ) -> cst.BaseExpression:
         """Check if this attribute node should be transformed."""
-        return self._check_and_transform(original_node, updated_node)
+        result = self._check_and_transform(original_node, updated_node)
+        return result if isinstance(result, cst.BaseExpression) else updated_node
 
     def leave_Call(  # noqa: N802
         self, original_node: cst.Call, updated_node: cst.Call
-    ) -> cst.CSTNode:
+    ) -> cst.BaseExpression:
         """Check if this call node should be transformed."""
-        return self._check_and_transform(original_node, updated_node)
+        result = self._check_and_transform(original_node, updated_node)
+        return result if isinstance(result, cst.BaseExpression) else updated_node
 
     def _check_and_transform(
         self, original_node: cst.CSTNode, updated_node: cst.CSTNode
