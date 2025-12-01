@@ -26,7 +26,6 @@ class TestReplaceTypeCodeWithClass(RefactoringTestBase):
             "replace-type-code-with-class", target="Person::blood_group", name="BloodGroup"
         )
 
-    @pytest.mark.skip(reason="Fixture loading broken for with_instance_vars tests")
     def test_with_instance_vars(self) -> None:
         """Test type-code-to-class replacement with complex instance state.
 
