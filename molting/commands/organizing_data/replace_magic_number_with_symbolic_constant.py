@@ -181,21 +181,19 @@ class ReplaceMagicNumberTransformer(cst.CSTTransformer):
         self.magic_number = magic_number
         self.constant_added = False
 
-    def leave_Module(  # noqa: N802
-        self, original_node: cst.Module, updated_node: cst.Module
-    ) -> cst.Module:
-        """Add the constant at module level."""
-        if self.constant_added:
-            return updated_node
+    def _create_constant_assignment(self) -> cst.SimpleStatementLine:
+        """Create a constant assignment statement.
 
-        # Create the constant assignment
+        Returns:
+            A SimpleStatementLine containing the constant assignment
+        """
         constant_value = (
             cst.Float(str(self.magic_number))
             if isinstance(self.magic_number, float)
             else cst.Integer(str(self.magic_number))
         )
 
-        constant_assignment = cst.SimpleStatementLine(
+        return cst.SimpleStatementLine(
             body=[
                 cst.Assign(
                     targets=[cst.AssignTarget(target=cst.Name(self.constant_name))],
@@ -203,6 +201,15 @@ class ReplaceMagicNumberTransformer(cst.CSTTransformer):
                 )
             ]
         )
+
+    def leave_Module(  # noqa: N802
+        self, original_node: cst.Module, updated_node: cst.Module
+    ) -> cst.Module:
+        """Add the constant at module level."""
+        if self.constant_added:
+            return updated_node
+
+        constant_assignment = self._create_constant_assignment()
 
         # Find the position to insert the constant
         # If there's a module docstring, insert after it; otherwise insert at the beginning
