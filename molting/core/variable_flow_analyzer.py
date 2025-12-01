@@ -111,7 +111,6 @@ class VariableFlowAnalyzer:
         self._ensure_analyzed()
 
         reads = self.get_reads_in_range(start_line, end_line)
-        writes = self.get_writes_in_range(start_line, end_line)
 
         # Variables that are read before being written in the region
         inputs = []

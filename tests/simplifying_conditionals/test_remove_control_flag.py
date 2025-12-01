@@ -24,9 +24,10 @@ class TestRemoveControlFlag(RefactoringTestBase):
         self.refactor("remove-control-flag", target="check_security::found")
 
     @pytest.mark.skip(
-        reason="Command needs enhancement: analyze return statement to determine which variables to return. "
-        "Use VariableLifetimeAnalyzer to determine 'count' is used after loop and should be in return tuple. "
-        "VariableLifetimeAnalyzer available in molting/core/variable_lifetime_analyzer.py"
+        reason="Command needs enhancement: analyze return statement to determine which "
+        "variables to return. Use VariableLifetimeAnalyzer to determine 'count' is used "
+        "after loop and should be in return tuple. "
+        "VariableLifetimeAnalyzer in molting/core/variable_lifetime_analyzer.py"
     )
     def test_with_locals(self) -> None:
         """Test removing a control flag when local variables are involved.

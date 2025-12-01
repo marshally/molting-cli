@@ -133,7 +133,7 @@ class RemoveMiddleManCommand(BaseCommand):
                     attr=cst.Name(delegated_attr),
                 )
 
-                # If this delegates to a method, preserve the call; otherwise just return the attribute
+                # If this delegates to a method, preserve the call; otherwise return attr
                 if is_method_delegation:
                     # Preserve the call: obj.compensation.calculate_gross_pay()
                     return cst.Call(func=delegate_access, args=node.args)

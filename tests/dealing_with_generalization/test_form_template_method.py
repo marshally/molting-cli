@@ -32,8 +32,9 @@ class TestFormTemplateMethod(RefactoringTestBase):
         )
 
     @pytest.mark.skip(
-        reason="Command needs enhancement: return statement should be 'final_amount = adjusted_base + tax; return final_amount', "
-        "not summing all variables. Also needs TAX_RATE extraction to superclass. "
+        reason="Command needs enhancement: return statement should be "
+        "'final_amount = adjusted_base + tax; return final_amount', not summing all vars. "
+        "Also needs TAX_RATE extraction to superclass. "
         "VariableLifetimeAnalyzer available in molting/core/variable_lifetime_analyzer.py"
     )
     def test_with_locals(self) -> None:
