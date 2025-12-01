@@ -230,8 +230,9 @@ class InlineClassCommand(BaseCommand):
             Transforms: obj.office_telephone.get_telephone_number() -> obj.get_telephone_number()
             """
             if isinstance(node, cst.Call) and isinstance(node.func, cst.Attribute):
-                # node.func is the attribute being called (e.g., office_telephone.get_telephone_number)
-                # We need to check if it's delegate_field.method_name
+                # node.func is the attribute being called
+                # (e.g., office_telephone.get_telephone_number)
+                # Check if it's delegate_field.method_name
                 if isinstance(node.func.value, cst.Attribute):
                     # Check if this is obj.delegate_field.method_name()
                     if (

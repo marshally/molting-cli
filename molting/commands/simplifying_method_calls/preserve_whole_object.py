@@ -178,7 +178,8 @@ class PreserveWholeObjectCommand(BaseCommand):
         def transform_call(node: cst.CSTNode, ref: Reference) -> cst.CSTNode:
             """Transform function call to pass whole object instead of attributes.
 
-            Transforms: within_plan(plan, temp_range.low, temp_range.high) -> within_plan(plan, temp_range)
+            Transforms: within_plan(plan, temp_range.low, temp_range.high)
+                     -> within_plan(plan, temp_range)
             """
             if isinstance(node, cst.Call):
                 # Check if this is a call to our function with 3 arguments

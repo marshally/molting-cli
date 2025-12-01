@@ -286,13 +286,15 @@ class UpdaterTransformer(cst.CSTTransformer):
         # Build a dict of (line, column) -> reference for position-based lookup
         self.positions_to_transform = {(ref.line_number, ref.column): ref for ref in references}
 
-    def leave_Attribute(
+    def leave_Attribute(  # noqa: N802
         self, original_node: cst.Attribute, updated_node: cst.Attribute
     ) -> cst.CSTNode:
         """Check if this attribute node should be transformed."""
         return self._check_and_transform(original_node, updated_node)
 
-    def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.CSTNode:
+    def leave_Call(  # noqa: N802
+        self, original_node: cst.Call, updated_node: cst.Call
+    ) -> cst.CSTNode:
         """Check if this call node should be transformed."""
         return self._check_and_transform(original_node, updated_node)
 

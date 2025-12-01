@@ -30,8 +30,9 @@ class TestIntroduceForeignMethod(RefactoringTestBase):
         )
 
     @pytest.mark.skip(
-        reason="Command needs enhancement: analyze local variables used in expression to include as method parameters. "
-        "Use CrossScopeAnalyzer to detect 'total_days' is needed and should be a parameter. "
+        reason="Command needs enhancement: analyze local variables used in expression "
+        "to include as method parameters. Use CrossScopeAnalyzer to detect 'total_days' "
+        "is needed and should be a parameter. "
         "CrossScopeAnalyzer available in molting/core/cross_scope_analyzer.py"
     )
     def test_with_locals(self) -> None:
