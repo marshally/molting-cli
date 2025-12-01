@@ -179,25 +179,7 @@ class ReplaceMagicNumberTransformer(cst.CSTTransformer):
         self.target_line = target_line
         self.constant_name = constant_name
         self.magic_number = magic_number
-        self.in_target_function = False
         self.constant_added = False
-
-    def visit_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
-        """Track when we enter the target function."""
-        if self.method_name:
-            # Skip function-level tracking if we're looking for a method
-            return
-
-        if node.name.value == self.class_or_function_name:
-            self.in_target_function = True
-
-    def leave_FunctionDef(  # noqa: N802
-        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
-    ) -> cst.FunctionDef:
-        """Track when we leave the target function."""
-        if original_node.name.value == self.class_or_function_name:
-            self.in_target_function = False
-        return updated_node
 
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
@@ -222,13 +204,25 @@ class ReplaceMagicNumberTransformer(cst.CSTTransformer):
             ]
         )
 
-        # Add constant at the beginning of the module with blank lines after
-        new_body = [
-            constant_assignment,
-            cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-            cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-            *updated_node.body,
-        ]
+        # Find the position to insert the constant
+        # If there's a module docstring, insert after it; otherwise insert at the beginning
+        insert_index = 0
+        if updated_node.body:
+            first_stmt = updated_node.body[0]
+            # Check if first statement is a docstring
+            if isinstance(first_stmt, cst.SimpleStatementLine) and len(first_stmt.body) == 1:
+                first_expr = first_stmt.body[0]
+                if isinstance(first_expr, cst.Expr) and isinstance(
+                    first_expr.value, (cst.SimpleString, cst.ConcatenatedString)
+                ):
+                    # First statement is a docstring, insert after it
+                    insert_index = 1
+
+        # Insert constant with blank lines before and after
+        new_body = list(updated_node.body)
+        new_body.insert(insert_index, cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
+        new_body.insert(insert_index + 1, cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
+        new_body.insert(insert_index + 2, constant_assignment)
 
         self.constant_added = True
         return updated_node.with_changes(body=new_body)
@@ -242,12 +236,7 @@ class ReplaceMagicNumberTransformer(cst.CSTTransformer):
         Returns:
             True if the node should be replaced
         """
-        if not self.in_target_function:
-            return False
-
-        if not self._is_on_target_line(node):
-            return False
-
+        # Replace ALL occurrences of the magic number throughout the file
         node_value = int(node.value) if isinstance(node, cst.Integer) else float(node.value)
         return node_value == self.magic_number
 
@@ -266,11 +255,6 @@ class ReplaceMagicNumberTransformer(cst.CSTTransformer):
         if self._should_replace_number(original_node):
             return cst.Name(self.constant_name)
         return updated_node
-
-    def _is_on_target_line(self, node: cst.CSTNode) -> bool:
-        """Check if a node is on the target line."""
-        pos = self.get_metadata(metadata.PositionProvider, node)
-        return pos.start.line == self.target_line
 
 
 # Register the command
