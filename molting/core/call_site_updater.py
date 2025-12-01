@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import libcst as cst
+from libcst.metadata import MetadataWrapper, PositionProvider
 
 from molting.core.ast_validators import get_validator
 from molting.core.reference_searcher import ReferenceSearcher, get_best_searcher
@@ -124,14 +125,14 @@ class CallSiteUpdater:
                 # Find the node at this line and validate it
                 node_finder = NodeFinder(match.line_number, symbol, validator, on_object)
                 # Use metadata wrapper to provide position information
-                wrapper = cst.metadata.MetadataWrapper(module)
+                wrapper = MetadataWrapper(module)
                 wrapper.visit(node_finder)
 
                 # If we found a matching node, create a Reference
                 for found_node in node_finder.found_nodes:
                     # Get accurate position from metadata using the same wrapper
                     try:
-                        pos = wrapper.resolve(cst.metadata.PositionProvider)[found_node]
+                        pos = wrapper.resolve(PositionProvider)[found_node]
                         line_num = pos.start.line
                         col_num = pos.start.column
                     except (KeyError, AttributeError):
@@ -209,7 +210,7 @@ class CallSiteUpdater:
                 module = cst.parse_module(source_code)
 
                 # Apply transformations using metadata wrapper
-                wrapper = cst.metadata.MetadataWrapper(module)
+                wrapper = MetadataWrapper(module)
                 updater_visitor = UpdaterTransformer(file_refs, transformer)
                 modified_module = wrapper.visit(updater_visitor)
 
@@ -228,7 +229,7 @@ class CallSiteUpdater:
 class NodeFinder(cst.CSTVisitor):
     """Visitor to find nodes at a specific line matching a pattern."""
 
-    METADATA_DEPENDENCIES = (cst.metadata.PositionProvider,)
+    METADATA_DEPENDENCIES = (PositionProvider,)
 
     def __init__(
         self, target_line: int, symbol: str, validator: Any, on_object: str | None = None
@@ -254,7 +255,7 @@ class NodeFinder(cst.CSTVisitor):
         if self.validator.matches(node, self.symbol, self.on_object):
             # Try to get position metadata
             try:
-                pos = self.get_metadata(cst.metadata.PositionProvider, node)
+                pos = self.get_metadata(PositionProvider, node)
                 if pos.start.line == self.target_line:
                     self.found_nodes.append(node)
             except KeyError:
@@ -267,7 +268,7 @@ class NodeFinder(cst.CSTVisitor):
 class UpdaterTransformer(cst.CSTTransformer):
     """Transformer to update specific nodes in a module."""
 
-    METADATA_DEPENDENCIES = (cst.metadata.PositionProvider,)
+    METADATA_DEPENDENCIES = (PositionProvider,)
 
     def __init__(
         self,
@@ -305,7 +306,7 @@ class UpdaterTransformer(cst.CSTTransformer):
     ) -> cst.CSTNode:
         """Check if a node should be transformed based on position."""
         try:
-            pos = self.get_metadata(cst.metadata.PositionProvider, original_node)
+            pos = self.get_metadata(PositionProvider, original_node)
             key = (pos.start.line, pos.start.column)
             if key in self.positions_to_transform:
                 ref = self.positions_to_transform[key]
