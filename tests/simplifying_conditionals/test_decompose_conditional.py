@@ -4,7 +4,6 @@ Tests for Decompose Conditional refactoring.
 This refactoring extracts the condition and each branch into separate methods.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -59,10 +58,6 @@ class TestDecomposeConditional(RefactoringTestBase):
             else_name="summer_charge",
         )
 
-    @pytest.mark.skip(
-        reason="Requires pattern matching infrastructure beyond CallSiteUpdater - "
-        "needs to find and replace similar conditional patterns in other functions"
-    )
     def test_multiple_calls(self) -> None:
         """Test decompose conditional when the extracted condition is called multiple times.
 
@@ -70,7 +65,13 @@ class TestDecomposeConditional(RefactoringTestBase):
         call sites. Ensures the refactoring doesn't break other code that depends on
         the extracted logic being refactored.
         """
-        self.refactor("decompose-conditional", target="calculate_shipping_charge#L5-L8")
+        self.refactor(
+            "decompose-conditional",
+            target="calculate_shipping_charge#L5-L8",
+            condition_name="is_winter",
+            then_name="winter_charge",
+            else_name="summer_charge",
+        )
 
     def test_with_decorators(self) -> None:
         """Test decompose conditional on a method with decorators.

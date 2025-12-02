@@ -69,10 +69,6 @@ class TestConsolidateConditionalExpression(RefactoringTestBase):
                 name="is_not_eligible_for_disability",
             )
 
-    @pytest.mark.skip(
-        reason="Requires pattern matching infrastructure beyond CallSiteUpdater - "
-        "needs to find and replace similar conditional patterns in other functions"
-    )
     def test_multiple_calls(self) -> None:
         """Test consolidating conditionals that appear in multiple places in the code.
 
