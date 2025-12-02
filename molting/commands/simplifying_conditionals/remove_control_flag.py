@@ -335,7 +335,8 @@ class RemoveControlFlagTransformer(cst.CSTTransformer):
             test: The test expression
 
         Returns:
-            The expression with flag references removed, or None if the entire expression was the flag
+            The expression with flag references removed, or None if the entire
+            expression was the flag
         """
         if isinstance(test, cst.UnaryOperation) and isinstance(test.operator, cst.Not):
             if (
