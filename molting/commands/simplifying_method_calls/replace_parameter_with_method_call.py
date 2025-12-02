@@ -152,7 +152,7 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         self, original_node: cst.SimpleStatementLine, updated_node: cst.SimpleStatementLine
     ) -> cst.BaseStatement | cst.RemovalSentinel:
         """Remove assignment statements that assign the parameter value."""
-        if not self.in_target_class or self.in_target_method:
+        if self.in_target_method:
             return updated_node
 
         if self._should_remove_assignment(updated_node):
@@ -161,11 +161,8 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
 
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
         """Leave call expression and remove the argument at call sites."""
-        if (
-            self.in_target_class
-            and not self.in_target_method
-            and self._is_target_method_call(updated_node)
-        ):
+        # Remove arguments from all call sites, but only if we're not inside the target method
+        if not self.in_target_method and self._is_target_method_call(updated_node):
             # Remove the argument corresponding to the parameter
             new_args = []
             for arg in updated_node.args:
@@ -197,7 +194,7 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         if not isinstance(target, cst.Name) or target.value != self.param_name:
             return False
 
-        return self._is_getter_call(stmt.value)
+        return self._is_any_getter_call(stmt.value)
 
     def _create_getter_method_call(self) -> cst.Call:
         """Create a call expression for self.get_<param>().
@@ -210,7 +207,10 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         )
 
     def _is_target_method_call(self, node: cst.Call) -> bool:
-        """Check if a call node is a call to self.method_name().
+        """Check if a call node is a call to <receiver>.method_name().
+
+        This matches any call to the target method, whether it's self.method_name()
+        or order.method_name() or any other receiver.
 
         Args:
             node: The call node to check
@@ -221,11 +221,8 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         if not isinstance(node.func, cst.Attribute):
             return False
 
-        return (
-            isinstance(node.func.value, cst.Name)
-            and node.func.value.value == "self"
-            and node.func.attr.value == self.method_name
-        )
+        # Match any call to method_name, regardless of the receiver
+        return node.func.attr.value == self.method_name
 
     def _is_getter_call(self, value: cst.BaseExpression) -> bool:
         """Check if a value is a call to self.get_<param>().
@@ -246,6 +243,25 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
             and value.func.attr.value == self.getter_method_name
         )
 
+    def _is_any_getter_call(self, value: cst.BaseExpression) -> bool:
+        """Check if a value is a call to <receiver>.get_<param>().
+
+        This matches any call to the getter method, whether it's self.get_discount_level()
+        or order.get_discount_level() or any other receiver.
+
+        Args:
+            value: The expression to check
+
+        Returns:
+            True if this is a call to the getter method with any receiver, False otherwise
+        """
+        if not isinstance(value, cst.Call):
+            return False
+        if not isinstance(value.func, cst.Attribute):
+            return False
+        # Match any call to getter_method_name, regardless of the receiver
+        return value.func.attr.value == self.getter_method_name
+
     def _is_argument_for_param(self, arg: cst.Arg) -> bool:
         """Check if this argument is the one we want to remove.
 
@@ -260,6 +276,60 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         if self._is_getter_call(arg.value):
             return True
         return False
+
+    def _is_param_used_elsewhere_in_method(self, method_node: cst.FunctionDef) -> bool:
+        """Check if the parameter is used elsewhere besides as a call argument.
+
+        Scans the method body to find usages of the parameter. Returns True if the
+        parameter is referenced anywhere other than as an argument to the target
+        method call. This helps determine whether we can safely remove the assignment.
+
+        Args:
+            method_node: The method function definition to analyze
+
+        Returns:
+            True if the parameter is used elsewhere in the method body
+        """
+        visitor = _ParameterUsageVisitor(self.param_name, self.method_name)
+        method_node.body.walk(visitor)
+        return visitor.is_used_elsewhere
+
+
+class _ParameterUsageVisitor(cst.CSTVisitor):
+    """Helper visitor to detect parameter usage outside of call arguments."""
+
+    def __init__(self, param_name: str, method_name: str) -> None:
+        """Initialize the visitor.
+
+        Args:
+            param_name: The parameter name to look for
+            method_name: The method name for target calls
+        """
+        self.param_name = param_name
+        self.method_name = method_name
+        self.is_used_elsewhere = False
+        self.in_target_call = False
+
+    def visit_Call(self, node: cst.Call) -> bool:  # noqa: N802
+        """Visit a call node to check if this is the target method call."""
+        # Check if this is a call to the target method
+        if isinstance(node.func, cst.Attribute):
+            if node.func.attr.value == self.method_name:
+                self.in_target_call = True
+
+        return True
+
+    def leave_Call(self, original_node: cst.Call) -> None:  # noqa: N802
+        """Leave a call node."""
+        if isinstance(original_node.func, cst.Attribute):
+            if original_node.func.attr.value == self.method_name:
+                self.in_target_call = False
+
+    def visit_Name(self, node: cst.Name) -> bool:  # noqa: N802
+        """Visit a name node and check if it's the parameter we're looking for."""
+        if node.value == self.param_name and not self.in_target_call:
+            self.is_used_elsewhere = True
+        return True
 
 
 # Register the command
