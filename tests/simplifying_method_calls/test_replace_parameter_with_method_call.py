@@ -1,7 +1,5 @@
 """Tests for Replace Parameter with Method Call refactoring."""
 
-import pytest
-
 from tests.conftest import RefactoringTestBase
 
 
@@ -21,13 +19,6 @@ class TestReplaceParameterWithMethodCall(RefactoringTestBase):
             "replace-parameter-with-method-call", target="Order::discounted_price::discount_level"
         )
 
-    @pytest.mark.skip(
-        reason="Requires more complex multi-file transformation: "
-        "1) Remove trailing commas from argument lists, "
-        "2) Remove assignment statements (discount_level = order.get_discount_level()) "
-        "that precede the method calls. This goes beyond simple CallSiteUpdater integration "
-        "and needs a more sophisticated statement-level transformer."
-    )
     def test_multiple_calls(self) -> None:
         """Test replacing a parameter with method call across multiple call sites.
 
@@ -39,7 +30,6 @@ class TestReplaceParameterWithMethodCall(RefactoringTestBase):
             "replace-parameter-with-method-call", target="Order::discounted_price::discount_level"
         )
 
-    @pytest.mark.skip(reason="Requires method call insertion with local variable scope analysis")
     def test_with_locals(self) -> None:
         """Test replacing a parameter with method call when local variables are involved.
 
