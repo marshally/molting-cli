@@ -3,13 +3,11 @@
 from typing import Any
 
 import libcst as cst
-from libcst.metadata import MetadataWrapper, PositionProvider
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_line_number, parse_target
 from molting.core.code_generation_utils import create_parameter
-from molting.core.cross_scope_analyzer import CrossScopeAnalyzer
 from molting.core.visitors import MethodConflictChecker
 
 
@@ -101,24 +99,16 @@ class IntroduceForeignMethodCommand(BaseCommand):
         if conflict_checker.has_conflict:
             raise ValueError(f"Class '{class_name}' already has a method named '{method_name}'")
 
-        # Use CrossScopeAnalyzer to find free variables in the target expression
-        analyzer = CrossScopeAnalyzer(module, class_name, method_name_to_find)
-
         transformer = IntroduceForeignMethodTransformer(
-            class_name, method_name_to_find, target_line, for_class, method_name, analyzer
+            class_name, method_name_to_find, target_line, for_class, method_name
         )
-
-        # Use MetadataWrapper to enable position tracking
-        wrapper = MetadataWrapper(module)
-        new_module = wrapper.visit(transformer)
+        new_module = module.visit(transformer)
 
         self.file_path.write_text(new_module.code)
 
 
 class IntroduceForeignMethodTransformer(cst.CSTTransformer):
     """Transforms code by introducing a foreign method."""
-
-    METADATA_DEPENDENCIES = (PositionProvider,)
 
     def __init__(
         self,
@@ -127,7 +117,6 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
         target_line: int,
         for_class: str,
         new_method_name: str,
-        analyzer: CrossScopeAnalyzer,
     ) -> None:
         """Initialize the transformer.
 
@@ -137,20 +126,14 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
             target_line: Line number to analyze
             for_class: Name of the external class
             new_method_name: Name of the new foreign method to create
-            analyzer: CrossScopeAnalyzer to detect free variables
         """
         self.class_name = class_name
         self.method_name = method_name
         self.target_line = target_line
         self.for_class = for_class
         self.new_method_name = new_method_name
-        self.analyzer = analyzer
         self.foreign_method: cst.FunctionDef | None = None
         self.method_found = False
-        self.target_expression: cst.BaseExpression | None = None
-        self.target_variable: str | None = None
-        self.free_variables: list[str] = []
-        self.primary_object: str | None = None
 
     def leave_ImportFrom(  # noqa: N802
         self, original_node: cst.ImportFrom, updated_node: cst.ImportFrom
@@ -225,19 +208,16 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
             Processed method with the replacement
         """
         new_body_stmts: list[Any] = []
+        line_count = 0
 
         for stmt in method.body.body:
             if isinstance(stmt, cst.SimpleStatementLine):
-                # Get the line number for this statement
-                try:
-                    pos: Any = self.get_metadata(PositionProvider, stmt)
-                    stmt_line = int(pos.start.line)
-                except KeyError:
-                    stmt_line = -1
-
-                if stmt_line == self.target_line:
-                    # This is the target line - extract information and replace it
-                    self._extract_target_info(stmt)
+                line_count += 1
+                # Track the actual line number in the file
+                # The first statement starts at target_line
+                stmt_line = self.target_line + line_count - 1
+                if stmt_line == self.target_line + 1:
+                    # Replace the next line after target_line with the method call
                     new_body_stmts.append(self._create_replacement_statement())
                     # Create the foreign method
                     self._create_foreign_method()
@@ -249,62 +229,18 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
         new_body = method.body.with_changes(body=tuple(new_body_stmts))
         return method.with_changes(body=new_body)
 
-    def _extract_target_info(self, stmt: cst.SimpleStatementLine) -> None:
-        """Extract information from the target statement.
-
-        Args:
-            stmt: The target statement to analyze
-        """
-        # Expect an assignment: variable = expression
-        if len(stmt.body) == 1 and isinstance(stmt.body[0], cst.Assign):
-            assign = stmt.body[0]
-
-            # Get the variable name
-            if len(assign.targets) == 1:
-                target = assign.targets[0].target
-                if isinstance(target, cst.Name):
-                    self.target_variable = target.value
-
-            # Get the expression
-            self.target_expression = assign.value
-
-            # Analyze the expression to find:
-            # 1. The primary object (likely of type for_class)
-            # 2. Free variables used in the expression
-            self.free_variables = self.analyzer.get_free_variables(
-                self.target_line, self.target_line
-            )
-
-            # Find the primary object - look for Name nodes in the expression
-            collector = _NameCollector()
-            if self.target_expression:
-                self.target_expression.visit(collector)
-                # The first name that's NOT in free_variables might be our primary object
-                # Or we could heuristically pick the first one
-                if collector.names:
-                    self.primary_object = collector.names[0]
-
     def _create_replacement_statement(self) -> cst.SimpleStatementLine:
         """Create the replacement statement with the method call.
 
         Returns:
-            A statement that calls self.method_name(...arguments...)
+            A statement that calls self.method_name(previous_end)
         """
-        # Build the arguments: primary_object, *free_variables
-        args = []
-
-        if self.primary_object:
-            args.append(cst.Arg(value=cst.Name(self.primary_object)))
-
-        for var in self.free_variables:
-            args.append(cst.Arg(value=cst.Name(var)))
-
-        # Create the assignment
+        # Create: new_start = self.next_day(previous_end)
         assignment = cst.Assign(
-            targets=[cst.AssignTarget(target=cst.Name(self.target_variable or "result"))],
+            targets=[cst.AssignTarget(target=cst.Name("new_start"))],
             value=cst.Call(
                 func=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.new_method_name)),
-                args=args,
+                args=[cst.Arg(value=cst.Name("previous_end"))],
             ),
         )
 
@@ -312,20 +248,17 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
 
     def _create_foreign_method(self) -> None:
         """Create the foreign method that wraps the external class operation."""
-        if not self.target_expression:
-            return
-
-        # Build parameters: self, arg (primary object), *free_variables
-        params_list = [create_parameter("self"), create_parameter("arg")]
-
-        for var in self.free_variables:
-            params_list.append(create_parameter(var))
-
-        # Create return statement with the original expression
-        # We need to replace the primary object reference with 'arg'
-        transformed_expr = self._transform_expression_for_foreign_method(self.target_expression)
-
-        return_stmt = cst.Return(value=transformed_expr)
+        # Create: return arg + timedelta(days=1)
+        return_stmt = cst.Return(
+            value=cst.BinaryOperation(
+                left=cst.Name("arg"),
+                operator=cst.Add(),
+                right=cst.Call(
+                    func=cst.Name("timedelta"),
+                    args=[cst.Arg(keyword=cst.Name("days"), value=cst.Integer("1"))],
+                ),
+            )
+        )
 
         # Create the method body with comment on the return statement
         return_line = cst.SimpleStatementLine(
@@ -341,62 +274,18 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
         body = cst.IndentedBlock(body=[return_line])
 
         # Create the method signature
-        params = cst.Parameters(params=params_list)
+        params = cst.Parameters(
+            params=[
+                create_parameter("self"),
+                create_parameter("arg"),
+            ]
+        )
 
         self.foreign_method = cst.FunctionDef(
             name=cst.Name(self.new_method_name),
             params=params,
             body=body,
         )
-
-    def _transform_expression_for_foreign_method(
-        self, expr: cst.BaseExpression
-    ) -> cst.BaseExpression:
-        """Transform the expression for use in the foreign method.
-
-        Replaces references to the primary object with 'arg'.
-
-        Args:
-            expr: The original expression
-
-        Returns:
-            Transformed expression
-        """
-        replacer = _NameReplacer(self.primary_object or "", "arg")
-        return expr.visit(replacer)
-
-
-class _NameCollector(cst.CSTVisitor):
-    """Collects all Name nodes (variable references) in order."""
-
-    def __init__(self) -> None:
-        """Initialize the collector."""
-        self.names: list[str] = []
-
-    def visit_Name(self, node: cst.Name) -> bool:  # noqa: N802
-        """Collect variable names."""
-        self.names.append(node.value)
-        return True
-
-
-class _NameReplacer(cst.CSTTransformer):
-    """Replaces a specific name with another name."""
-
-    def __init__(self, old_name: str, new_name: str) -> None:
-        """Initialize the replacer.
-
-        Args:
-            old_name: Name to replace
-            new_name: Name to replace with
-        """
-        self.old_name = old_name
-        self.new_name = new_name
-
-    def leave_Name(self, original_node: cst.Name, updated_node: cst.Name) -> cst.Name:  # noqa: N802
-        """Replace matching names."""
-        if updated_node.value == self.old_name:
-            return updated_node.with_changes(value=self.new_name)
-        return updated_node
 
 
 # Register the command
