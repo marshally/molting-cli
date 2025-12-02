@@ -1,12 +1,24 @@
 """Separate Query from Modifier refactoring command."""
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import libcst as cst
+from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_target
+
+
+@dataclass
+class CallSiteInfo:
+    """Information about a call site that needs to be updated."""
+
+    receiver_code: str  # The object the method is called on (e.g., "self.security")
+    assigned_var: str  # Variable the result is assigned to (e.g., "threat")
+    line: int  # Line number of the call
+
 
 # List of method names that mutate state
 MUTATING_METHODS = frozenset(["pop", "remove", "append", "clear", "extend"])
@@ -63,8 +75,28 @@ class SeparateQueryFromModifierCommand(BaseCommand):
         target = self.params["target"]
         class_name, method_name = parse_target(target, expected_parts=2)
 
-        # Apply the transformation
-        self.apply_libcst_transform(SeparateQueryFromModifierTransformer, class_name, method_name)
+        # Read source
+        source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+
+        # First pass: split the method into query and modifier
+        transformer = SeparateQueryFromModifierTransformer(class_name, method_name)
+        modified_tree = module.visit(transformer)
+
+        # Get the generated method names
+        query_name = transformer.query_name
+        modifier_name = transformer.modifier_name
+
+        # Second pass: update all call sites
+        if query_name and modifier_name:
+            wrapper = metadata.MetadataWrapper(modified_tree)
+            call_site_transformer = CallSiteUpdateTransformer(
+                class_name, method_name, query_name, modifier_name
+            )
+            modified_tree = wrapper.visit(call_site_transformer)
+
+        # Write back
+        self.file_path.write_text(modified_tree.code)
 
 
 class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
@@ -81,6 +113,8 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         self.method_name = method_name
         self.in_target_class = False
         self.target_method: cst.FunctionDef | None = None
+        self.query_name: str = ""
+        self.modifier_name: str = ""
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Visit class definition to track if we're in the target class."""
@@ -134,6 +168,9 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         """
         # Extract the query name and modifier name from original method name
         query_name, modifier_name = self._generate_method_names(self.method_name)
+        # Store for later use in call site updates
+        self.query_name = query_name
+        self.modifier_name = modifier_name
 
         # Create query and modifier bodies
         query_body = self._create_query_body(original_method)
@@ -640,6 +677,170 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
                     if isinstance(sub_stmt.target, cst.Attribute):
                         return True
         return False
+
+
+class CallSiteUpdateTransformer(cst.CSTTransformer):
+    """Updates call sites to use the new query and modifier methods."""
+
+    METADATA_DEPENDENCIES = (metadata.PositionProvider,)
+
+    def __init__(
+        self,
+        class_name: str,
+        original_method: str,
+        query_name: str,
+        modifier_name: str,
+    ) -> None:
+        """Initialize the transformer.
+
+        Args:
+            class_name: Name of the class containing the method
+            original_method: Original method name being replaced
+            query_name: Name of the new query method
+            modifier_name: Name of the new modifier method
+        """
+        self.class_name = class_name
+        self.original_method = original_method
+        self.query_name = query_name
+        self.modifier_name = modifier_name
+        # Track pending modifier insertions: {var_name: receiver_code}
+        self.pending_modifiers: dict[str, str] = {}
+        # Track current function context
+        self.current_function_params: list[str] = []
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Track function parameters for receiver detection."""
+        self.current_function_params = []
+        for param in node.params.params:
+            self.current_function_params.append(param.name.value)
+        return True
+
+    def leave_FunctionDef(  # noqa: N802
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
+        """Clear function context when leaving."""
+        self.current_function_params = []
+        self.pending_modifiers = {}
+        return updated_node
+
+    def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
+        """Replace calls to the original method with calls to the query method."""
+        # Check if this is a call to the original method
+        if isinstance(updated_node.func, cst.Attribute):
+            if updated_node.func.attr.value == self.original_method:
+                # Replace with query method name
+                new_func = updated_node.func.with_changes(attr=cst.Name(self.query_name))
+                return updated_node.with_changes(func=new_func)
+        return updated_node
+
+    def leave_SimpleStatementLine(  # noqa: N802
+        self,
+        original_node: cst.SimpleStatementLine,
+        updated_node: cst.SimpleStatementLine,
+    ) -> cst.SimpleStatementLine:
+        """Track assignments from the method call for modifier insertion."""
+        # Check for pattern: var = receiver.query_method()
+        for stmt in updated_node.body:
+            if isinstance(stmt, cst.Assign) and len(stmt.targets) == 1:
+                target = stmt.targets[0].target
+                if isinstance(target, cst.Name) and isinstance(stmt.value, cst.Call):
+                    call = stmt.value
+                    if isinstance(call.func, cst.Attribute):
+                        if call.func.attr.value == self.query_name:
+                            # Track this assignment for later modifier insertion
+                            receiver = call.func.value
+                            receiver_code = self._get_receiver_code(receiver)
+                            if receiver_code:
+                                self.pending_modifiers[target.value] = receiver_code
+        return updated_node
+
+    def _get_receiver_code(self, receiver: cst.BaseExpression) -> str:
+        """Get the code string for a receiver expression."""
+        # Convert the receiver expression to code
+        dummy_module = cst.Module(body=[cst.SimpleStatementLine(body=[cst.Expr(receiver)])])
+        return dummy_module.code.strip()
+
+    def leave_If(self, original_node: cst.If, updated_node: cst.If) -> cst.If:  # noqa: N802
+        """Insert modifier call at the end of if-blocks that test the result variable."""
+        # Check if any pending modifier variable is tested in this if
+        var_name = self._get_tested_variable(updated_node.test)
+        if var_name and var_name in self.pending_modifiers:
+            # Skip if this is a negated test (if not x:) - it's likely an exit condition
+            if self._is_negated_test(updated_node.test):
+                return updated_node
+
+            receiver_code = self.pending_modifiers[var_name]
+            # Insert modifier call at the end of the if body
+            updated_body = self._insert_modifier_at_end(updated_node.body, receiver_code)
+            return updated_node.with_changes(body=updated_body)
+        return updated_node
+
+    def _is_negated_test(self, test: cst.BaseExpression) -> bool:
+        """Check if a test is negated (if not x:)."""
+        return isinstance(test, cst.UnaryOperation) and isinstance(test.operator, cst.Not)
+
+    def leave_While(  # noqa: N802
+        self, original_node: cst.While, updated_node: cst.While
+    ) -> cst.While:
+        """Insert modifier call at the end of while loop bodies."""
+        # Check if any pending modifier is used in this while loop
+        # We need to look inside the body for the assignment and the if-break pattern
+        if not isinstance(updated_node.body, cst.IndentedBlock):
+            return updated_node
+
+        # Look for pattern: x = query(); if not x: break; ...; (need modifier here)
+        var_name = None
+        receiver_code = None
+
+        for stmt in updated_node.body.body:
+            # Look for assignments from the query method
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for sub_stmt in stmt.body:
+                    if isinstance(sub_stmt, cst.Assign) and len(sub_stmt.targets) == 1:
+                        target = sub_stmt.targets[0].target
+                        if isinstance(target, cst.Name):
+                            if isinstance(sub_stmt.value, cst.Call):
+                                call = sub_stmt.value
+                                if isinstance(call.func, cst.Attribute):
+                                    if call.func.attr.value == self.query_name:
+                                        var_name = target.value
+                                        receiver_code = self._get_receiver_code(call.func.value)
+                                        break
+
+        if var_name and receiver_code:
+            # Insert modifier at the end of the loop body
+            updated_body = self._insert_modifier_at_end(updated_node.body, receiver_code)
+            return updated_node.with_changes(body=updated_body)
+
+        return updated_node
+
+    def _get_tested_variable(self, test: cst.BaseExpression) -> str | None:
+        """Get the variable name being tested in a condition."""
+        # Handle: if var:
+        if isinstance(test, cst.Name):
+            return test.value
+        # Handle: if not var:
+        if isinstance(test, cst.UnaryOperation):
+            if isinstance(test.operator, cst.Not) and isinstance(test.expression, cst.Name):
+                return test.expression.value
+        return None
+
+    def _insert_modifier_at_end(self, body: cst.BaseSuite, receiver_code: str) -> cst.IndentedBlock:
+        """Insert the modifier call at the end of a block."""
+        if not isinstance(body, cst.IndentedBlock):
+            return body  # type: ignore
+
+        # Parse the receiver and create the modifier call
+        receiver = cst.parse_expression(receiver_code)
+        modifier_call = cst.Call(
+            func=cst.Attribute(value=receiver, attr=cst.Name(self.modifier_name)),
+            args=[],
+        )
+        modifier_stmt = cst.SimpleStatementLine(body=[cst.Expr(modifier_call)])
+
+        # Add to the end of the block
+        new_body = list(body.body) + [modifier_stmt]
+        return body.with_changes(body=new_body)
 
 
 # Register the command
