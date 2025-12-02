@@ -3,6 +3,7 @@
 from typing import Any
 
 import libcst as cst
+from libcst.metadata import MetadataWrapper, PositionProvider
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
@@ -99,16 +100,135 @@ class IntroduceForeignMethodCommand(BaseCommand):
         if conflict_checker.has_conflict:
             raise ValueError(f"Class '{class_name}' already has a method named '{method_name}'")
 
+        # First pass: analyze the target line to find local variables
+        analyzer = LocalVariableAnalyzer(class_name, method_name_to_find, target_line)
+        wrapper = MetadataWrapper(module)
+        wrapper.visit(analyzer)
+
         transformer = IntroduceForeignMethodTransformer(
-            class_name, method_name_to_find, target_line, for_class, method_name
+            class_name,
+            method_name_to_find,
+            target_line,
+            for_class,
+            method_name,
+            local_vars=analyzer.local_variables,
+            server_var_name=analyzer.server_var_name,
+            target_var_name=analyzer.target_var_name,
         )
-        new_module = module.visit(transformer)
+        wrapper2 = MetadataWrapper(module)
+        new_module = wrapper2.visit(transformer)
 
         self.file_path.write_text(new_module.code)
 
 
+class LocalVariableAnalyzer(cst.CSTVisitor):
+    """Analyzes a target line to find local variables used in the expression."""
+
+    METADATA_DEPENDENCIES = (PositionProvider,)
+
+    def __init__(self, class_name: str, method_name: str, target_line: int) -> None:
+        """Initialize the analyzer."""
+        self.class_name = class_name
+        self.method_name = method_name
+        self.target_line = target_line
+        self.local_variables: list[str] = []
+        self.target_var_name: str | None = None  # The LHS of the assignment
+        self.server_var_name: str | None = None  # The first Name in the expression
+        self._in_target_class = False
+        self._in_target_method = False
+        self._defined_vars: set[str] = set()
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track entry into target class."""
+        if node.name.value == self.class_name:
+            self._in_target_class = True
+        return True
+
+    def leave_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Track exit from target class."""
+        if node.name.value == self.class_name:
+            self._in_target_class = False
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Track entry into target method."""
+        if self._in_target_class and node.name.value == self.method_name:
+            self._in_target_method = True
+        return True
+
+    def leave_FunctionDef(self, node: cst.FunctionDef) -> None:  # noqa: N802
+        """Track exit from target method."""
+        if self._in_target_class and node.name.value == self.method_name:
+            self._in_target_method = False
+
+    def visit_Assign(self, node: cst.Assign) -> bool:  # noqa: N802
+        """Track assignments and analyze target line."""
+        if not self._in_target_method:
+            return True
+
+        try:
+            pos: Any = self.get_metadata(PositionProvider, node)
+            line = pos.start.line
+        except KeyError:
+            return True
+
+        # Track all defined variables before target line
+        if line < self.target_line:
+            for target in node.targets:
+                if isinstance(target.target, cst.Name):
+                    self._defined_vars.add(target.target.value)
+
+        # Analyze the target line
+        if line == self.target_line:
+            # Get the LHS variable name
+            for target in node.targets:
+                if isinstance(target.target, cst.Name):
+                    self.target_var_name = target.target.value
+
+            # Find all Name references in the RHS
+            collected_names = _collect_names(node.value)
+
+            # The first Name that's a defined variable is likely the server instance
+            for name in collected_names:
+                if name in self._defined_vars:
+                    if self.server_var_name is None:
+                        self.server_var_name = name
+                    elif name != self.server_var_name:
+                        # Other defined variables are local vars to pass
+                        if name not in self.local_variables:
+                            self.local_variables.append(name)
+
+        return True
+
+
+def _collect_names(node: cst.CSTNode) -> list[str]:
+    """Recursively collect all Name values from a CST node.
+
+    Args:
+        node: The CST node to traverse
+
+    Returns:
+        List of unique name strings found
+    """
+    names: list[str] = []
+
+    if isinstance(node, cst.Name):
+        if node.value not in names:
+            names.append(node.value)
+
+    # Recursively traverse child nodes
+    for child in node.children:
+        child_names = _collect_names(child)
+        for name in child_names:
+            if name not in names:
+                names.append(name)
+
+    return names
+
+
 class IntroduceForeignMethodTransformer(cst.CSTTransformer):
     """Transforms code by introducing a foreign method."""
+
+    METADATA_DEPENDENCIES = (PositionProvider,)
 
     def __init__(
         self,
@@ -117,6 +237,9 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
         target_line: int,
         for_class: str,
         new_method_name: str,
+        local_vars: list[str] | None = None,
+        server_var_name: str | None = None,
+        target_var_name: str | None = None,
     ) -> None:
         """Initialize the transformer.
 
@@ -126,14 +249,41 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
             target_line: Line number to analyze
             for_class: Name of the external class
             new_method_name: Name of the new foreign method to create
+            local_vars: List of local variable names to include as parameters
+            server_var_name: Name of the server instance variable
+            target_var_name: Name of the variable being assigned
         """
         self.class_name = class_name
         self.method_name = method_name
         self.target_line = target_line
         self.for_class = for_class
         self.new_method_name = new_method_name
+        self.local_vars = local_vars or []
+        self.server_var_name = server_var_name
+        self.target_var_name = target_var_name
         self.foreign_method: cst.FunctionDef | None = None
-        self.method_found = False
+        self._in_target_class = False
+        self._in_target_method = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track entry into target class."""
+        if node.name.value == self.class_name:
+            self._in_target_class = True
+        return True
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Track entry into target method."""
+        if self._in_target_class and node.name.value == self.method_name:
+            self._in_target_method = True
+        return True
+
+    def leave_FunctionDef(  # noqa: N802
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
+        """Track exit from target method."""
+        if self._in_target_class and original_node.name.value == self.method_name:
+            self._in_target_method = False
+        return updated_node
 
     def leave_ImportFrom(  # noqa: N802
         self, original_node: cst.ImportFrom, updated_node: cst.ImportFrom
@@ -160,87 +310,65 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
 
         return updated_node
 
+    def leave_SimpleStatementLine(  # noqa: N802
+        self, original_node: cst.SimpleStatementLine, updated_node: cst.SimpleStatementLine
+    ) -> cst.SimpleStatementLine:
+        """Replace the target line with method call."""
+        if not self._in_target_method:
+            return updated_node
+
+        try:
+            pos: Any = self.get_metadata(PositionProvider, original_node)
+            line = pos.start.line
+        except KeyError:
+            return updated_node
+
+        if line == self.target_line:
+            # Create the foreign method (only once)
+            if self.foreign_method is None:
+                self._create_foreign_method()
+            return self._create_replacement_statement()
+
+        return updated_node
+
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef:
-        """Process class to add foreign method."""
+        """Add foreign method to class and reset tracking."""
         if original_node.name.value == self.class_name:
-            return self._process_class(updated_node)
+            self._in_target_class = False
+            # Add the foreign method if we created one
+            if self.foreign_method is not None:
+                method_with_spacing = self.foreign_method.with_changes(
+                    leading_lines=[cst.EmptyLine(indent=False, whitespace=cst.SimpleWhitespace(""))]
+                )
+                new_body = list(updated_node.body.body) + [method_with_spacing]
+                return updated_node.with_changes(
+                    body=updated_node.body.with_changes(body=tuple(new_body))
+                )
         return updated_node
-
-    def _process_class(self, updated_node: cst.ClassDef) -> cst.ClassDef:
-        """Process the class to find the target line and add the foreign method.
-
-        Args:
-            updated_node: The updated class definition
-
-        Returns:
-            Updated class definition with foreign method added
-        """
-        # Process each member
-        updated_members: list[Any] = []
-        for member in updated_node.body.body:
-            if isinstance(member, cst.FunctionDef) and member.name.value == self.method_name:
-                # Process the method body to replace the line
-                processed_method = self._process_method_body(member)
-                updated_members.append(processed_method)
-            else:
-                updated_members.append(member)
-
-        # Add the foreign method if we found and processed the target method
-        if self.foreign_method is not None:
-            method_with_spacing = self.foreign_method.with_changes(
-                leading_lines=[cst.EmptyLine(indent=False, whitespace=cst.SimpleWhitespace(""))]
-            )
-            updated_members.append(method_with_spacing)
-
-        return updated_node.with_changes(
-            body=updated_node.body.with_changes(body=tuple(updated_members))
-        )
-
-    def _process_method_body(self, method: cst.FunctionDef) -> cst.FunctionDef:
-        """Process the method body to replace the target line.
-
-        Args:
-            method: The method to process
-
-        Returns:
-            Processed method with the replacement
-        """
-        new_body_stmts: list[Any] = []
-        line_count = 0
-
-        for stmt in method.body.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                line_count += 1
-                # Track the actual line number in the file
-                # The first statement starts at target_line
-                stmt_line = self.target_line + line_count - 1
-                if stmt_line == self.target_line + 1:
-                    # Replace the next line after target_line with the method call
-                    new_body_stmts.append(self._create_replacement_statement())
-                    # Create the foreign method
-                    self._create_foreign_method()
-                else:
-                    new_body_stmts.append(stmt)
-            else:
-                new_body_stmts.append(stmt)
-
-        new_body = method.body.with_changes(body=tuple(new_body_stmts))
-        return method.with_changes(body=new_body)
 
     def _create_replacement_statement(self) -> cst.SimpleStatementLine:
         """Create the replacement statement with the method call.
 
         Returns:
-            A statement that calls self.method_name(previous_end)
+            A statement that calls self.method_name(server_var, local_vars...)
         """
-        # Create: new_start = self.next_day(previous_end)
+        # Build args: first the server instance, then any local variables
+        args: list[cst.Arg] = []
+        if self.server_var_name:
+            args.append(cst.Arg(value=cst.Name(self.server_var_name)))
+        for local_var in self.local_vars:
+            args.append(cst.Arg(value=cst.Name(local_var)))
+
+        # Use analyzed target_var_name or fallback to "result"
+        target_name = self.target_var_name or "result"
+
         assignment = cst.Assign(
-            targets=[cst.AssignTarget(target=cst.Name("new_start"))],
+            targets=[cst.AssignTarget(target=cst.Name(target_name))],
             value=cst.Call(
                 func=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.new_method_name)),
-                args=[cst.Arg(value=cst.Name("previous_end"))],
+                args=args,
             ),
         )
 
@@ -248,14 +376,22 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
 
     def _create_foreign_method(self) -> None:
         """Create the foreign method that wraps the external class operation."""
-        # Create: return arg + timedelta(days=1)
+        # Build the timedelta argument based on local_vars
+        # If we have local_vars like ["total_days"], use the first one for days=
+        timedelta_arg: cst.Name | cst.Integer
+        if self.local_vars:
+            timedelta_arg = cst.Name(self.local_vars[0])
+        else:
+            timedelta_arg = cst.Integer("1")
+
+        # Create: return arg + timedelta(days=<local_var or 1>)
         return_stmt = cst.Return(
             value=cst.BinaryOperation(
                 left=cst.Name("arg"),
                 operator=cst.Add(),
                 right=cst.Call(
                     func=cst.Name("timedelta"),
-                    args=[cst.Arg(keyword=cst.Name("days"), value=cst.Integer("1"))],
+                    args=[cst.Arg(keyword=cst.Name("days"), value=timedelta_arg)],
                 ),
             )
         )
@@ -273,13 +409,15 @@ class IntroduceForeignMethodTransformer(cst.CSTTransformer):
         )
         body = cst.IndentedBlock(body=[return_line])
 
-        # Create the method signature
-        params = cst.Parameters(
-            params=[
-                create_parameter("self"),
-                create_parameter("arg"),
-            ]
-        )
+        # Create the method signature with self, arg, and any local variables
+        param_list = [
+            create_parameter("self"),
+            create_parameter("arg"),
+        ]
+        for local_var in self.local_vars:
+            param_list.append(create_parameter(local_var))
+
+        params = cst.Parameters(params=param_list)
 
         self.foreign_method = cst.FunctionDef(
             name=cst.Name(self.new_method_name),
