@@ -104,6 +104,7 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         self.getter_method_name = getter_method_name
         self.in_target_class = False
         self.in_target_method = False
+        self.param_is_used_elsewhere = False
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Visit class definition to track if we're in the target class."""
@@ -135,8 +136,23 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
             for param in original_node.params.params:
                 if param.name.value != self.param_name:
                     new_params.append(param)
+
+            # If the parameter is used elsewhere in the method, add an assignment at the
+            # start of the method body to replace the parameter value
+            # Note: param_is_used_elsewhere was set in visit_FunctionDef for this method
+            if self.param_is_used_elsewhere:
+                assignment = self._create_parameter_assignment()
+                new_body = updated_node.body.with_changes(
+                    body=(assignment, *updated_node.body.body)
+                )
+            else:
+                new_body = updated_node.body
+
+            # Reset param_is_used_elsewhere after processing the target method
+            self.param_is_used_elsewhere = False
+
             return updated_node.with_changes(
-                params=updated_node.params.with_changes(params=new_params)
+                params=updated_node.params.with_changes(params=new_params), body=new_body
             )
         return updated_node
 
@@ -144,7 +160,13 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         self, original_node: cst.Name, updated_node: cst.Name
     ) -> cst.BaseExpression:
         """Leave name node and replace parameter usage with method call."""
-        if self.in_target_method and updated_node.value == self.param_name:
+        # Only replace if we're in the target method AND the param is NOT used elsewhere
+        # (if it's used elsewhere, we create a local variable assignment instead)
+        if (
+            self.in_target_method
+            and updated_node.value == self.param_name
+            and not self.param_is_used_elsewhere
+        ):
             return self._create_getter_method_call()
         return updated_node
 
@@ -205,6 +227,20 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         return cst.Call(
             func=cst.Attribute(value=cst.Name("self"), attr=cst.Name(self.getter_method_name))
         )
+
+    def _create_parameter_assignment(self) -> cst.SimpleStatementLine:
+        """Create an assignment statement for the parameter inside the method.
+
+        Creates: <param_name> = self.get_<param_name>()
+
+        Returns:
+            A SimpleStatementLine with the assignment
+        """
+        assignment = cst.Assign(
+            targets=[cst.AssignTarget(target=cst.Name(self.param_name))],
+            value=self._create_getter_method_call(),
+        )
+        return cst.SimpleStatementLine(body=[assignment])
 
     def _is_target_method_call(self, node: cst.Call) -> bool:
         """Check if a call node is a call to <receiver>.method_name().
@@ -291,7 +327,7 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
             True if the parameter is used elsewhere in the method body
         """
         visitor = _ParameterUsageVisitor(self.param_name, self.method_name)
-        method_node.body.walk(visitor)
+        method_node.body.visit(visitor)
         return visitor.is_used_elsewhere
 
 
@@ -309,6 +345,7 @@ class _ParameterUsageVisitor(cst.CSTVisitor):
         self.method_name = method_name
         self.is_used_elsewhere = False
         self.in_target_call = False
+        self.in_assignment_target = False
 
     def visit_Call(self, node: cst.Call) -> bool:  # noqa: N802
         """Visit a call node to check if this is the target method call."""
@@ -327,7 +364,13 @@ class _ParameterUsageVisitor(cst.CSTVisitor):
 
     def visit_Name(self, node: cst.Name) -> bool:  # noqa: N802
         """Visit a name node and check if it's the parameter we're looking for."""
-        if node.value == self.param_name and not self.in_target_call:
+        # Only count as "used elsewhere" if it's on the right side of an assignment
+        # (not in an assignment target) and not in a target method call argument
+        if (
+            node.value == self.param_name
+            and not self.in_target_call
+            and not self.in_assignment_target
+        ):
             self.is_used_elsewhere = True
         return True
 
