@@ -20,12 +20,12 @@ class ShoppingCart:
         pre_tax = subtotal + shipping_cost
         tax_amount = pre_tax * tax_rate
 
-        # Pass locals as parameters instead of calling methods
-        return self.apply_charges(subtotal, shipping_cost, tax_rate)
+        # shipping_cost removed from call (but assignment kept since used elsewhere)
+        return self.apply_charges(subtotal, tax_rate)
 
     def apply_charges(self, subtotal, tax_rate):
         """Apply shipping and tax charges."""
-        pre_tax = subtotal + self.get_shipping()
+        pre_tax = subtotal + self.get_shipping_cost()
         tax_amount = pre_tax * tax_rate
         total = pre_tax + tax_amount
         return round(total, 2)
