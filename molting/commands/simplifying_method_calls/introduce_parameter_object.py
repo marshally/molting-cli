@@ -85,7 +85,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         """Initialize the transformer.
 
         Args:
-            target: Name of the function or method to refactor (e.g., "ClassName::method" or "function")
+            target: Name of function/method to refactor (e.g., "ClassName::method")
             param_names: List of parameter names to group into object
             class_name: Name of the new parameter object class
         """
@@ -128,24 +128,22 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         param_class = self._create_parameter_class()
 
         # Find insertion point for the new parameter object class
-        insertion_index = 0
-        target_class_index = None
+        insertion_index = len(updated_node.body)  # Default to end
+        first_class_index = None
 
         for i, stmt in enumerate(updated_node.body):
-            if isinstance(stmt, cst.SimpleStatementLine):
-                # After imports
-                insertion_index = i + 1
-            elif isinstance(stmt, cst.ClassDef):
-                # If this is the target class, insert before it
+            if isinstance(stmt, cst.ClassDef):
+                # For class methods, insert before the target class
                 if self.is_class_method and stmt.name.value == self.target_class_name:
-                    target_class_index = i
+                    insertion_index = i
                     break
-                # Otherwise, track position after each class
-                insertion_index = i + 1
+                # For module-level functions, track the first class
+                if first_class_index is None:
+                    first_class_index = i
 
-        # If we found the target class, insert before it; otherwise use calculated position
-        if target_class_index is not None:
-            insertion_index = target_class_index
+        # If this is a module-level function, insert after the first class
+        if not self.is_class_method and first_class_index is not None:
+            insertion_index = first_class_index + 1
 
         # Insert the new class
         new_body = list(updated_node.body)
@@ -188,8 +186,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
                                     and call.func.value.value == "self"
                                 ):
                                     method_name = call.func.attr.value
-                                    # Count consecutive arguments from position 0
-                                    # (even if they're not our exact param names, they map positionally)
+                                    # Count consecutive Name arguments from position 0
                                     consecutive_args = 0
                                     for arg in call.args:
                                         if isinstance(arg.value, cst.Name):
@@ -206,7 +203,9 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         for method_name in helper_info:
             self.helper_methods_to_refactor.add(method_name)
 
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:  # noqa: N802
+    def leave_ClassDef(  # noqa: N802
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
         """Leave class definition - find and update helper methods."""
         if self.current_class_name != original_node.name.value:
             self.current_class_name = None
@@ -246,8 +245,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
                                     and call.func.value.value == "self"
                                 ):
                                     method_name = call.func.attr.value
-                                    # Count consecutive arguments from position 0
-                                    # (even if they're not our exact param names, they map positionally)
+                                    # Count consecutive Name arguments from position 0
                                     consecutive_args = 0
                                     for arg in call.args:
                                         if isinstance(arg.value, cst.Name):
@@ -278,7 +276,9 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
 
         self.current_class_name = None
         if new_body_stmts != list(updated_node.body.body):
-            return updated_node.with_changes(body=updated_node.body.with_changes(body=new_body_stmts))
+            return updated_node.with_changes(
+                body=updated_node.body.with_changes(body=new_body_stmts)
+            )
         return updated_node
 
     def _transform_helper_method(
@@ -288,7 +288,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
 
         Args:
             func_def: The helper method function definition
-            matching_params: The parameter names in this method that should be replaced (e.g., ['start', 'end', 'headers', 'totals'])
+            matching_params: The parameter names that should be replaced
 
         Returns:
             The transformed function definition
@@ -316,9 +316,9 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
             if i < len(self.param_names):
                 param_mapping[match_param] = self.param_names[i]
         body_visitor = _HelperMethodBodyUpdater(param_mapping, self.new_param_name)
-        func_def = func_def.visit(body_visitor)
+        func_def = func_def.visit(body_visitor)  # type: ignore[assignment]
 
-        return func_def
+        return func_def  # type: ignore[return-value]
 
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
@@ -360,10 +360,12 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
 
         # Visit the body to update references to parameters and helper method calls
         body_visitor = _ParameterReferenceUpdater(
-            self.param_names, self.new_param_name,
-            self.helper_methods_to_refactor, len(self.param_names)
+            self.param_names,
+            self.new_param_name,
+            self.helper_methods_to_refactor,
+            len(self.param_names),
         )
-        updated_node = updated_node.visit(body_visitor)
+        updated_node = updated_node.visit(body_visitor)  # type: ignore[assignment]
 
         return updated_node
 
@@ -451,18 +453,20 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         }
 
         init_method = self._create_init_method(param_mapping)
-        includes_method = self._create_includes_method()
+
+        # Only create includes method for range types (2 params: start_, end_)
+        class_body: list[cst.SimpleStatementLine | cst.BaseCompoundStatement | cst.EmptyLine] = [
+            init_method,
+        ]
+
+        if self._should_create_includes_method():
+            class_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))  # type: ignore[list-item]
+            class_body.append(self._create_includes_method(param_mapping))
 
         # Create the class
         return cst.ClassDef(
             name=cst.Name(self.class_name),
-            body=cst.IndentedBlock(
-                body=[
-                    init_method,
-                    cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),  # type: ignore[list-item]
-                    includes_method,
-                ]
-            ),
+            body=cst.IndentedBlock(body=class_body),  # type: ignore[arg-type]
             leading_lines=[
                 cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
                 cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
@@ -478,14 +482,29 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         Returns:
             The __init__ method definition
         """
-        # Create __init__ method parameters - use original param names
+        # For range types, create __init__ parameters with shortened names
+        # For other types, use original parameter names
         init_params = [create_parameter("self")]
-        for param_name in self.param_names:
-            init_params.append(create_parameter(param_name))
+        if self._should_create_includes_method():
+            # For range types (start_/end_), shorten parameter names
+            for param_name in self.param_names:
+                short_name = param_mapping[param_name]
+                init_params.append(create_parameter(short_name))
+        else:
+            # For other types, use original parameter names
+            for param_name in self.param_names:
+                init_params.append(create_parameter(param_name))
 
-        # Create field assignments for __init__ - use original param names as field names
+        # Create field assignments for __init__
         init_body = []
         for param_name in self.param_names:
+            field_name = param_mapping[param_name]
+            # For range types, the parameter name in __init__ will be shortened
+            if self._should_create_includes_method():
+                init_param_name = field_name
+            else:
+                init_param_name = param_name
+
             init_body.append(
                 cst.SimpleStatementLine(
                     body=[
@@ -494,11 +513,11 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
                                 cst.AssignTarget(
                                     target=cst.Attribute(
                                         value=cst.Name("self"),
-                                        attr=cst.Name(param_name),
+                                        attr=cst.Name(field_name),
                                     )
                                 )
                             ],
-                            value=cst.Name(param_name),
+                            value=cst.Name(init_param_name),
                         )
                     ]
                 )
@@ -510,12 +529,27 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
             body=cst.IndentedBlock(body=init_body),
         )
 
-    def _create_includes_method(self) -> cst.FunctionDef:
+    def _create_includes_method(self, param_mapping: dict[str, str]) -> cst.FunctionDef:
         """Create the includes method for range checking.
+
+        Args:
+            param_mapping: Mapping from original parameter names to short field names
 
         Returns:
             The includes method definition
         """
+        # Find the start and end field names from the mapping
+        start_field = None
+        end_field = None
+        for param_name, field_name in param_mapping.items():
+            if param_name.startswith("start_"):
+                start_field = field_name
+            elif param_name.startswith("end_"):
+                end_field = field_name
+
+        if not start_field or not end_field:
+            raise ValueError("Could not find start_ and end_ parameters for includes method")
+
         return cst.FunctionDef(
             name=cst.Name("includes"),
             params=cst.Parameters(
@@ -532,7 +566,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
                                 value=cst.Comparison(
                                     left=cst.Attribute(
                                         value=cst.Name("self"),
-                                        attr=cst.Name("start"),
+                                        attr=cst.Name(start_field),
                                     ),
                                     comparisons=[
                                         cst.ComparisonTarget(
@@ -543,7 +577,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
                                             operator=cst.LessThanEqual(),
                                             comparator=cst.Attribute(
                                                 value=cst.Name("self"),
-                                                attr=cst.Name("end"),
+                                                attr=cst.Name(end_field),
                                             ),
                                         ),
                                     ],
@@ -571,19 +605,37 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
     def _get_short_field_name(self, param_name: str) -> str:
         """Get shortened field name by removing common prefixes.
 
+        Only shortens start_/end_ prefixes for range types (exactly 2 params).
+
         Args:
             param_name: The original parameter name
 
         Returns:
             The shortened field name for use in the parameter object
         """
-        # Remove common prefixes like "start_" and "end_"
-        if param_name.startswith("start_"):
-            return "start"
-        elif param_name.startswith("end_"):
-            return "end"
-        else:
-            return param_name
+        # Only shorten for range types (exactly 2 params starting with start_ and end_)
+        if len(self.param_names) == 2:
+            if param_name.startswith("start_"):
+                return "start"
+            elif param_name.startswith("end_"):
+                return "end"
+
+        return param_name
+
+    def _should_create_includes_method(self) -> bool:
+        """Check if an includes method should be created.
+
+        The includes method is only created for range parameter objects with
+        exactly 2 parameters that start with "start_" and "end_".
+
+        Returns:
+            True if includes method should be created, False otherwise
+        """
+        if len(self.param_names) != 2:
+            return False
+        return any(p.startswith("start_") for p in self.param_names) and any(
+            p.startswith("end_") for p in self.param_names
+        )
 
 
 class _HelperMethodBodyUpdater(cst.CSTTransformer):
@@ -599,7 +651,9 @@ class _HelperMethodBodyUpdater(cst.CSTTransformer):
         self.param_mapping = param_mapping
         self.config_param_name = config_param_name
 
-    def leave_Name(self, original_node: cst.Name, updated_node: cst.Name) -> cst.BaseExpression:  # noqa: N802
+    def leave_Name(  # noqa: N802
+        self, original_node: cst.Name, updated_node: cst.Name
+    ) -> cst.BaseExpression:
         """Replace parameter names with config.field references."""
         if updated_node.value in self.param_mapping:
             field_name = self.param_mapping[updated_node.value]
@@ -648,8 +702,11 @@ class _ParameterReferenceUpdater(cst.CSTTransformer):
     """Updates references to parameters in function bodies to use the parameter object."""
 
     def __init__(
-        self, param_names: list[str], new_param_name: str,
-        helper_methods: Optional[set[str]] = None, num_params_to_replace: int = 0
+        self,
+        param_names: list[str],
+        new_param_name: str,
+        helper_methods: Optional[set[str]] = None,
+        num_params_to_replace: int = 0,
     ) -> None:
         """Initialize the updater.
 
@@ -664,10 +721,15 @@ class _ParameterReferenceUpdater(cst.CSTTransformer):
         self.helper_methods = helper_methods or set()
         self.num_params_to_replace = num_params_to_replace
 
-    def leave_Assign(self, original_node: cst.Assign, updated_node: cst.Assign) -> cst.Assign:  # noqa: N802
+    def leave_Assign(  # noqa: N802
+        self, original_node: cst.Assign, updated_node: cst.Assign
+    ) -> cst.Assign:
         """Update assignments from parameters to reference the parameter object."""
         # Check if assigning from a parameter
-        if isinstance(updated_node.value, cst.Name) and updated_node.value.value in self.param_names:
+        if (
+            isinstance(updated_node.value, cst.Name)
+            and updated_node.value.value in self.param_names
+        ):
             # Replace with reference to parameter object field
             return updated_node.with_changes(
                 value=cst.Attribute(
@@ -692,8 +754,7 @@ class _ParameterReferenceUpdater(cst.CSTTransformer):
 
         # Case 1: Direct parameters
         has_param_arg = any(
-            isinstance(arg.value, cst.Name) and arg.value.value in self.param_names
-            for arg in args
+            isinstance(arg.value, cst.Name) and arg.value.value in self.param_names for arg in args
         )
 
         if has_param_arg:
@@ -715,11 +776,13 @@ class _ParameterReferenceUpdater(cst.CSTTransformer):
         # Case 2: Calls to helper methods that receive N consecutive name arguments
         if method_name in self.helper_methods and len(args) >= self.num_params_to_replace:
             # Check if first N arguments are simple names
-            all_names = all(isinstance(args[i].value, cst.Name) for i in range(self.num_params_to_replace))
+            all_names = all(
+                isinstance(args[i].value, cst.Name) for i in range(self.num_params_to_replace)
+            )
             if all_names:
                 # Replace first N arguments with the config object
                 new_args = [cst.Arg(value=cst.Name(self.new_param_name))]
-                new_args.extend(args[self.num_params_to_replace:])
+                new_args.extend(args[self.num_params_to_replace :])
                 return updated_node.with_changes(args=new_args)
 
         return updated_node
