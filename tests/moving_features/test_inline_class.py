@@ -59,3 +59,14 @@ class TestInlineClass(RefactoringTestBase):
         """
         with pytest.raises(ValueError, match="already has a method"):
             self.refactor("inline-class", source_class="TelephoneNumber", into="Person")
+
+    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
+    def test_multi_file(self) -> None:
+        """Test inline-class when references span multiple files.
+
+        Inlines PhoneNumber into Person and updates all call sites
+        in directory.py from person.phone_number.area_code to person.area_code.
+        """
+        self.refactor_directory(
+            "inline-class", target="person.py", source_class="PhoneNumber", into="Person"
+        )

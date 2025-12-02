@@ -1,5 +1,7 @@
 """Tests for Remove Parameter refactoring."""
 
+import pytest
+
 from tests.conftest import RefactoringTestBase
 
 
@@ -43,3 +45,11 @@ class TestRemoveParameter(RefactoringTestBase):
         instance variable references remain valid after parameter removal.
         """
         self.refactor("remove-parameter", target="EmailService::send_email::priority")
+
+    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
+    def test_multi_file(self) -> None:
+        """Test remove-parameter when call sites span multiple files."""
+        self.refactor_directory(
+            "remove-parameter",
+            target="Order::calculate_total::unused_param",
+        )

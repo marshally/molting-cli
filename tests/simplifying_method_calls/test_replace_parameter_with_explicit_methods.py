@@ -1,5 +1,6 @@
 """Tests for Replace Parameter with Explicit Methods refactoring."""
 
+import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -45,3 +46,16 @@ class TestReplaceParameterWithExplicitMethods(RefactoringTestBase):
         must handle this gracefully.
         """
         self.refactor("replace-parameter-with-explicit-methods", target="Employee::set_value::name")
+
+    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
+    def test_multi_file(self) -> None:
+        """Test replace-parameter-with-explicit-methods when call sites span multiple files.
+
+        This verifies that when a method with a type parameter is split into explicit methods,
+        all call sites across different files are updated to call the appropriate explicit method
+        (send_email or send_sms) based on the parameter value they were passing.
+        """
+        self.refactor_directory(
+            "replace-parameter-with-explicit-methods",
+            target="Notification::send::type",
+        )

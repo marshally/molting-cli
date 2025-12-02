@@ -1,5 +1,7 @@
 """Tests for Add Parameter refactoring."""
 
+import pytest
+
 from tests.conftest import RefactoringTestBase
 
 
@@ -63,4 +65,14 @@ class TestAddParameter(RefactoringTestBase):
             target="BankAccount::get_account_summary",
             name="include_overdraft",
             default="False",
+        )
+
+    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
+    def test_multi_file(self) -> None:
+        """Test add-parameter when call sites span multiple files."""
+        self.refactor_directory(
+            "add-parameter",
+            target="Calculator::calculate",
+            name="precision",
+            default="2",
         )

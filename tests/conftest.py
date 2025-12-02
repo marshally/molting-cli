@@ -119,7 +119,7 @@ class RefactoringTestBase:
         if input_names != expected_names:
             missing_expected = input_names - expected_names
             extra_expected = expected_names - input_names
-            msg = f"Fixture file mismatch in multi-file fixture:"
+            msg = "Fixture file mismatch in multi-file fixture:"
             if missing_expected:
                 msg += f"\n  Missing expected files: {missing_expected}"
             if extra_expected:
@@ -163,7 +163,9 @@ class RefactoringTestBase:
         else:
             # Single-file mode (original behavior)
             if self.test_file is None:
-                raise RuntimeError("No fixture loaded. Ensure fixture directory exists for this test.")
+                raise RuntimeError(
+                    "No fixture loaded. Ensure fixture directory exists for this test."
+                )
             refactor_file(refactoring_name, self.test_file, **params)
 
         # Validate result
@@ -239,20 +241,14 @@ class RefactoringTestBase:
                     self._assert_ast_equal(actual, expected, filename=filename)
                 else:
                     if actual != expected:
-                        failures.append(
-                            f"{filename}:\n{self._format_diff(actual, expected)}"
-                        )
+                        failures.append(f"{filename}:\n{self._format_diff(actual, expected)}")
             except AssertionError as e:
                 failures.append(f"{filename}: {e}")
 
         if failures:
-            pytest.fail(
-                f"Multi-file assertion failed:\n\n" + "\n\n".join(failures)
-            )
+            pytest.fail("Multi-file assertion failed:\n\n" + "\n\n".join(failures))
 
-    def _assert_ast_equal(
-        self, actual: str, expected: str, filename: Optional[str] = None
-    ) -> None:
+    def _assert_ast_equal(self, actual: str, expected: str, filename: Optional[str] = None) -> None:
         """Compare two code strings by AST structure.
 
         This ignores formatting differences but catches semantic changes.

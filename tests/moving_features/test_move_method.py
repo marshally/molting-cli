@@ -69,3 +69,15 @@ class TestMoveMethod(RefactoringTestBase):
         """
         with pytest.raises(ValueError, match="already has a method"):
             self.refactor("move-method", source="Account::overdraft_charge", to="AccountType")
+
+    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
+    def test_multi_file(self) -> None:
+        """Test move-method when call sites span multiple files.
+
+        Moves Customer.calculate_discount to Order and updates all call sites
+        in checkout.py from customer.calculate_discount(order) to
+        order.calculate_discount(customer.discount_rate).
+        """
+        self.refactor_directory(
+            "move-method", target="customer.py", source="Customer::calculate_discount", to="Order"
+        )
