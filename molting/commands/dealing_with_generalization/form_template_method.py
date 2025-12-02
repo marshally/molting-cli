@@ -431,7 +431,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
 
     def _analyze_implementation(
         self,
-    ) -> tuple[dict[str, list[str]], cst.SimpleStatementLine | None]:
+    ) -> tuple[dict[str, list[str]], cst.SimpleStatementLine | tuple[cst.Assign, str] | None]:
         """Analyze one implementation to understand dependencies and return pattern.
 
         Returns:
@@ -475,7 +475,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
                 dependencies[var_name] = [d for d in deps if d in self.steps]
 
         # Analyze return statement
-        return_stmt = None
+        return_stmt: cst.SimpleStatementLine | tuple[cst.Assign, str] | None = None
         if return_value:
             # Check if return value is a simple variable or a calculation
             if isinstance(return_value, cst.Name):
@@ -492,7 +492,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
                                 value=assigned_expr,
                             )
                             # Return a tuple marker (we'll handle this specially)
-                            return_stmt = (assign_stmt, var_name)  # type: ignore[assignment]
+                            return_stmt = (assign_stmt, var_name)
                             break
                 else:
                     # Just return the step variable

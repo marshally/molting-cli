@@ -238,11 +238,9 @@ class ReplaceMagicNumberTransformer(cst.CSTTransformer):
         constant_assignment = self._create_constant_assignment()
         insert_index = self._find_insertion_index(updated_node)
 
-        # Insert constant with blank lines before and after
+        # Insert constant after docstring (if any)
         new_body = list(updated_node.body)
-        new_body.insert(insert_index, cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
-        new_body.insert(insert_index + 1, cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
-        new_body.insert(insert_index + 2, constant_assignment)
+        new_body.insert(insert_index, constant_assignment)
 
         self.constant_added = True
         return updated_node.with_changes(body=new_body)

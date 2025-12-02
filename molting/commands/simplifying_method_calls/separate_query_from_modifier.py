@@ -239,7 +239,7 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
 
         query_stmts = []
         # Track which variables are defined in the query body
-        defined_vars = set()
+        defined_vars: set[str] = set()
 
         for i, stmt in enumerate(method.body.body):
             # Skip docstring (first statement if it's an Expr with a string)
