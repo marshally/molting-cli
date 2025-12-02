@@ -1,11 +1,22 @@
 """Consolidate Duplicate Conditional Fragments refactoring command."""
 
+from dataclasses import dataclass
+
 import libcst as cst
 from libcst import metadata
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_line_range
+
+
+@dataclass
+class DuplicateFragmentMatch:
+    """Represents a function with a duplicate conditional fragment pattern."""
+
+    function_name: str
+    class_name: str
+    if_line: int
 
 
 class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
@@ -102,11 +113,15 @@ class ConsolidateDuplicateConditionalFragmentsCommand(BaseCommand):
 
         # Read file
         source_code = self.file_path.read_text()
+        module = cst.parse_module(source_code)
+
+        # Scan for additional matches - functions with similar duplicate fragment patterns
+        additional_matches = scan_for_duplicate_fragment_pattern(module, function_name, class_name)
 
         # Apply transformation
-        wrapper = metadata.MetadataWrapper(cst.parse_module(source_code))
+        wrapper = metadata.MetadataWrapper(module)
         transformer = ConsolidateDuplicateFragmentsTransformer(
-            class_name, function_name, start_line, end_line
+            class_name, function_name, start_line, end_line, additional_matches
         )
         modified_tree = wrapper.visit(transformer)
 
@@ -119,7 +134,14 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
 
     METADATA_DEPENDENCIES = (metadata.PositionProvider,)
 
-    def __init__(self, class_name: str, function_name: str, start_line: int, end_line: int) -> None:
+    def __init__(
+        self,
+        class_name: str,
+        function_name: str,
+        start_line: int,
+        end_line: int,
+        additional_matches: list[DuplicateFragmentMatch] | None = None,
+    ) -> None:
         """Initialize the transformer.
 
         Args:
@@ -127,13 +149,16 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
             function_name: Name of the function to transform
             start_line: Start line of the conditional (1-indexed)
             end_line: End line of the conditional (1-indexed)
+            additional_matches: List of other functions with matching patterns
         """
         self.class_name = class_name
         self.function_name = function_name
         self.start_line = start_line
         self.end_line = end_line
+        self.additional_matches = additional_matches or []
         self.in_target_function = False
         self.current_class: str | None = None
+        self.current_function: str | None = None
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
         """Track current class being visited."""
@@ -149,14 +174,30 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
             self.current_class = None
         return updated_node
 
+    def _is_target_function(self, func_name: str) -> bool:
+        """Check if function is the target."""
+        if func_name != self.function_name:
+            return False
+        if self.class_name and self.current_class != self.class_name:
+            return False
+        if not self.class_name and self.current_class:
+            return False
+        return True
+
+    def _get_match_for_function(self, func_name: str) -> DuplicateFragmentMatch | None:
+        """Get match info for a function if it's an additional match."""
+        for match in self.additional_matches:
+            if match.function_name == func_name:
+                if match.class_name == (self.current_class or ""):
+                    return match
+        return None
+
     def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
         """Visit function definition to track if we're in the target function."""
+        self.current_function = node.name.value
         # For class methods, also check we're in the right class
-        if node.name.value == self.function_name:
-            if self.class_name and self.current_class == self.class_name:
-                self.in_target_function = True
-            elif not self.class_name:
-                self.in_target_function = True
+        if self._is_target_function(node.name.value):
+            self.in_target_function = True
         return True
 
     def leave_FunctionDef(  # noqa: N802
@@ -165,24 +206,39 @@ class ConsolidateDuplicateFragmentsTransformer(cst.CSTTransformer):
         """Leave function definition."""
         if original_node.name.value == self.function_name:
             self.in_target_function = False
+        self.current_function = None
         return updated_node
 
     def leave_If(  # noqa: N802
         self, original_node: cst.If, updated_node: cst.If
     ) -> cst.BaseStatement | cst.RemovalSentinel | cst.FlattenSentinel[cst.BaseStatement]:
-        """Transform If statements in the target function."""
-        if not self.in_target_function:
-            return updated_node
+        """Transform If statements in the target function or additional matches."""
+        # Check if this is the target function
+        if self.in_target_function:
+            # Consolidate duplicate fragments from this if statement
+            transformed_stmt, duplicate_stmts = self._consolidate_if_statement(updated_node)
 
-        # Consolidate duplicate fragments from this if statement
-        transformed_stmt, duplicate_stmts = self._consolidate_if_statement(updated_node)
+            if duplicate_stmts:
+                return cst.FlattenSentinel([transformed_stmt] + duplicate_stmts)
+            return transformed_stmt
 
-        # If there are duplicates, we need to return both the transformed if and the duplicates
-        # Use FlattenSentinel to insert multiple statements
-        if duplicate_stmts:
-            return cst.FlattenSentinel([transformed_stmt] + duplicate_stmts)
+        # Check if this is an additional match
+        if self.current_function:
+            match = self._get_match_for_function(self.current_function)
+            if match:
+                try:
+                    pos = self.get_metadata(metadata.PositionProvider, original_node)
+                    if pos.start.line == match.if_line:
+                        transformed_stmt, duplicate_stmts = self._consolidate_if_statement(
+                            updated_node
+                        )
+                        if duplicate_stmts:
+                            return cst.FlattenSentinel([transformed_stmt] + duplicate_stmts)
+                        return transformed_stmt
+                except KeyError:
+                    pass
 
-        return transformed_stmt
+        return updated_node
 
     def _get_block_body(self, block: cst.BaseSuite) -> list[cst.BaseStatement]:
         """Extract statements from a code block.
@@ -452,6 +508,93 @@ class _VariableReadCollector(cst.CSTVisitor):
         if not self._in_assignment_target:
             self.read_vars.add(node.value)
         return True
+
+
+class DuplicateFragmentScanner(cst.CSTVisitor):
+    """Scans for functions with duplicate conditional fragment patterns."""
+
+    METADATA_DEPENDENCIES = (metadata.PositionProvider,)
+
+    def __init__(self, exclude_function: str, exclude_class: str) -> None:
+        """Initialize the scanner."""
+        self.exclude_function = exclude_function
+        self.exclude_class = exclude_class
+        self.matches: list[DuplicateFragmentMatch] = []
+        self.current_class: str = ""
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track current class."""
+        self.current_class = node.name.value
+        return True
+
+    def leave_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Reset class tracking."""
+        self.current_class = ""
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Check if function has duplicate conditional fragment pattern."""
+        # Skip the target function
+        if node.name.value == self.exclude_function:
+            if not self.exclude_class and not self.current_class:
+                return True
+            if self.exclude_class == self.current_class:
+                return True
+
+        # Look for if-else statements with duplicate trailing statements
+        if isinstance(node.body, cst.IndentedBlock):
+            for stmt in node.body.body:
+                if isinstance(stmt, cst.If) and stmt.orelse:
+                    if self._has_duplicate_trailing_statements(stmt):
+                        try:
+                            pos = self.get_metadata(metadata.PositionProvider, stmt)
+                            self.matches.append(
+                                DuplicateFragmentMatch(
+                                    function_name=node.name.value,
+                                    class_name=self.current_class,
+                                    if_line=pos.start.line,
+                                )
+                            )
+                        except KeyError:
+                            pass
+                        # Only consider first if-else per function
+                        break
+
+        return True
+
+    def _has_duplicate_trailing_statements(self, if_stmt: cst.If) -> bool:
+        """Check if an if-else has duplicate trailing statements."""
+        if not if_stmt.orelse or not isinstance(if_stmt.orelse, cst.Else):
+            return False
+
+        if_body = self._get_body(if_stmt.body)
+        else_body = self._get_body(if_stmt.orelse.body)
+
+        if not if_body or not else_body:
+            return False
+
+        # Check if last statements are identical
+        if if_body[-1].deep_equals(else_body[-1]):
+            return True
+
+        return False
+
+    def _get_body(self, block: cst.BaseSuite) -> list[cst.BaseStatement]:
+        """Extract statements from a block."""
+        if isinstance(block, cst.IndentedBlock):
+            return list(block.body)
+        return []
+
+
+def scan_for_duplicate_fragment_pattern(
+    module: cst.Module,
+    exclude_function: str,
+    exclude_class: str,
+) -> list[DuplicateFragmentMatch]:
+    """Scan a module for functions with duplicate conditional fragment patterns."""
+    wrapper = metadata.MetadataWrapper(module)
+    scanner = DuplicateFragmentScanner(exclude_function, exclude_class)
+    wrapper.visit(scanner)
+    return scanner.matches
 
 
 # Register the command

@@ -7,6 +7,11 @@ from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
 from molting.core.ast_utils import parse_line_range
 from molting.core.code_generation_utils import create_parameter
+from molting.core.conditional_pattern import (
+    PatternMatch,
+    extract_pattern,
+    scan_for_pattern,
+)
 from molting.core.local_variable_analyzer import LocalVariableAnalyzer
 from molting.core.visitors import MethodConflictChecker
 
@@ -89,10 +94,22 @@ class ConsolidateConditionalExpressionCommand(BaseCommand):
             else:
                 raise ValueError(f"Function '{helper_name}' already exists")
 
+        # Extract pattern from target function and scan for matches in other functions
+        pattern = extract_pattern(module, function_name, class_name, start_line, end_line)
+        additional_matches: list[PatternMatch] = []
+        if pattern:
+            additional_matches = scan_for_pattern(module, pattern, function_name, class_name)
+
         # Parse and transform with metadata
         wrapper = metadata.MetadataWrapper(module)
         transformer = ConsolidateConditionalExpressionTransformer(
-            class_name, function_name, start_line, end_line, helper_name, module
+            class_name,
+            function_name,
+            start_line,
+            end_line,
+            helper_name,
+            module,
+            additional_matches=additional_matches,
         )
         modified_tree = wrapper.visit(transformer)
 
@@ -149,6 +166,7 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         end_line: int,
         helper_name: str,
         module: cst.Module | None = None,
+        additional_matches: list[PatternMatch] | None = None,
     ) -> None:
         """Initialize the transformer.
 
@@ -159,6 +177,7 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
             end_line: End line of the conditional range
             helper_name: Name of the helper function to create
             module: The CST module for analyzing local variables
+            additional_matches: List of other functions matching the same pattern
         """
         self.class_name = class_name
         self.function_name = function_name
@@ -166,6 +185,7 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         self.end_line = end_line
         self.helper_name = helper_name
         self.module = module
+        self.additional_matches = additional_matches or []
         self.conditions: list[cst.BaseExpression] = []
         self.return_value: cst.BaseExpression | None = None
         self.helper_function: cst.FunctionDef | None = None
@@ -178,6 +198,8 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         self._is_method = False
         self._first_param: cst.Param | None = None
         self._second_param: cst.Param | None = None
+        # Track which additional functions we've processed
+        self._additional_match_names = {m.function_name for m in self.additional_matches}
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
         """Track current class being visited."""
@@ -310,10 +332,10 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         Returns:
             True if values are equal
         """
-        # Currently only supports integer comparison for the simple case
-        # This is sufficient for the most common scenario where multiple
-        # conditions return the same constant (e.g., return 0)
+        # Support integer and float comparison for numeric returns
         if isinstance(val1, cst.Integer) and isinstance(val2, cst.Integer):
+            return val1.value == val2.value
+        if isinstance(val1, cst.Float) and isinstance(val2, cst.Float):
             return val1.value == val2.value
         return False
 
@@ -440,33 +462,130 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         return_val = self._get_return_value(if_stmt)
         return return_val is not None and self._are_equal_values(return_val, self.return_value)
 
+    def _should_replace_if_statement_with_value(
+        self, if_stmt: cst.If, expected_return: cst.BaseExpression | None
+    ) -> bool:
+        """Check if an if statement should be replaced, using a specific return value.
+
+        Args:
+            if_stmt: The if statement to check
+            expected_return: The expected return value to match against
+
+        Returns:
+            True if this if statement matches the consolidation criteria
+        """
+        if expected_return is None:
+            return False
+
+        return_val = self._get_return_value(if_stmt)
+        return return_val is not None and self._are_equal_values(return_val, expected_return)
+
+    def _build_consolidated_if_for_value(
+        self, func_def: cst.FunctionDef, return_value: cst.BaseExpression | None
+    ) -> cst.If | None:
+        """Build the consolidated if statement with a specific return value.
+
+        Args:
+            func_def: The function definition being transformed
+            return_value: The return value to use in the if body
+
+        Returns:
+            The consolidated if statement, or None if it cannot be built
+        """
+        if return_value is None:
+            return None
+
+        # Create call to helper function
+        if self._is_method:
+            helper_func: cst.BaseExpression = cst.Attribute(
+                value=cst.Name("self"),
+                attr=cst.Name(self.helper_name),
+            )
+        else:
+            helper_func = cst.Name(self.helper_name)
+
+        # Build arguments for the helper call
+        args: list[cst.Arg] = []
+
+        # For methods with only self (e.g., @property), don't pass any arguments
+        # For methods with additional params, pass those params
+        # For functions, pass the first parameter
+        if self._is_method:
+            if self._second_param:
+                args.append(cst.Arg(value=self._second_param.name))
+        else:
+            if self._first_param:
+                args.append(cst.Arg(value=self._first_param.name))
+
+        # Add any additional variables used in conditions
+        for var in self.variables_used_in_conditions:
+            # Skip if it's already added as an arg
+            arg_names = [arg.value.value for arg in args if isinstance(arg.value, cst.Name)]
+            if var not in arg_names:
+                args.append(cst.Arg(value=cst.Name(var)))
+
+        helper_call = cst.Call(func=helper_func, args=args)
+
+        # Create return statement with the provided return value
+        return_stmt = cst.SimpleStatementLine(body=[cst.Return(value=return_value)])
+
+        # Create the if statement
+        return cst.If(test=helper_call, body=cst.IndentedBlock(body=[return_stmt]))
+
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
         """Leave function definition and replace if statements with consolidated version."""
-        if original_node.name.value != self.function_name:
+        func_name = original_node.name.value
+
+        # Check if this is the target function
+        is_target = func_name == self.function_name
+
+        # Check if this is one of the additional matching functions
+        is_additional_match = func_name in self._additional_match_names
+
+        if not is_target and not is_additional_match:
             return updated_node
 
         if not isinstance(updated_node.body, cst.IndentedBlock):
             return updated_node
+
+        # For additional matches, find the matching PatternMatch to get num_ifs and return value
+        num_ifs = self.num_ifs_to_replace
+        match_return_value = self.return_value
+        if is_additional_match:
+            for match in self.additional_matches:
+                if match.function_name == func_name:
+                    num_ifs = len(match.conditions)
+                    match_return_value = match.return_value
+                    break
 
         # Replace the if statements with a single consolidated if
         new_body: list[cst.BaseStatement] = []
         if_count = 0
 
         for stmt in updated_node.body.body:
-            # Count consecutive if statements at the start
-            if isinstance(stmt, cst.If) and self._should_replace_if_statement(stmt):
+            # Count consecutive if statements that match the pattern
+            if isinstance(stmt, cst.If):
+                should_replace = self._should_replace_if_statement_with_value(
+                    stmt, match_return_value
+                )
+            else:
+                should_replace = False
+            if isinstance(stmt, cst.If) and should_replace:
                 if_count += 1
 
                 # Only replace on the first matching if
                 if if_count == 1:
-                    consolidated_if = self._build_consolidated_if_statement(updated_node)
+                    # For additional matches, use their return value
+                    consolidated_if = self._build_consolidated_if_for_value(
+                        updated_node, match_return_value
+                    )
                     if consolidated_if:
                         new_body.append(consolidated_if)
 
                 # Skip all ifs that should be replaced
-                if if_count <= self.num_ifs_to_replace:
+                if if_count <= num_ifs:
                     continue
 
             new_body.append(stmt)
@@ -515,19 +634,15 @@ class ConsolidateConditionalExpressionTransformer(cst.CSTTransformer):
         if self._is_method or not self.helper_function:
             return updated_node
 
-        # Add helper function after the original function
-        new_body: list[cst.BaseStatement] = []
-        for stmt in updated_node.body:
-            new_body.append(stmt)
-            if isinstance(stmt, cst.FunctionDef) and stmt.name.value == self.function_name:
-                # Add helper function with proper spacing
-                helper_with_leading_lines = self.helper_function.with_changes(
-                    leading_lines=[
-                        cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-                        cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
-                    ]
-                )
-                new_body.append(helper_with_leading_lines)
+        # Add helper function at the end of the module
+        # This ensures it's defined after all the functions that will call it
+        helper_with_leading_lines = self.helper_function.with_changes(
+            leading_lines=[
+                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+                cst.EmptyLine(whitespace=cst.SimpleWhitespace("")),
+            ]
+        )
+        new_body = list(updated_node.body) + [helper_with_leading_lines]
 
         return updated_node.with_changes(body=new_body)
 

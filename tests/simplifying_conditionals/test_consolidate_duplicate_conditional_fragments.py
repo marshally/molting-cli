@@ -4,7 +4,6 @@ Tests for Consolidate Duplicate Conditional Fragments refactoring.
 This refactoring moves duplicate code outside the conditional.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -51,10 +50,6 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
             target="OrderProcessor::process_order#L10-L15",
         )
 
-    @pytest.mark.skip(
-        reason="Requires pattern matching infrastructure beyond CallSiteUpdater - "
-        "needs to find and replace similar duplicate fragment patterns in other functions"
-    )
     def test_multiple_calls(self) -> None:
         """Test consolidating duplicate fragments when method is called from multiple locations.
 
@@ -62,7 +57,7 @@ class TestConsolidateDuplicateConditionalFragments(RefactoringTestBase):
         called from multiple places. Ensures the refactoring doesn't break any of the
         calling code that depends on the original conditional behavior.
         """
-        self.refactor("consolidate-duplicate-conditional-fragments", target="process_order#L4-L9")
+        self.refactor("consolidate-duplicate-conditional-fragments", target="process_order#L5-L10")
 
     def test_with_decorators(self) -> None:
         """Test consolidating duplicate code in a method with decorators.
