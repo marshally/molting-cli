@@ -1,6 +1,5 @@
 """Tests for Introduce Parameter Object refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
