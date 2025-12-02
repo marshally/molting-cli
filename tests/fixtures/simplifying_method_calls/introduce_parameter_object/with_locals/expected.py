@@ -17,8 +17,8 @@ class ReportConfig:
 
 class ReportGenerator:
     def generate_summary(self, config, data_source):
-        """Generate a report summary using a parameter object."""
-        # Store parameter object fields in local variables for additional processing
+        """Generate a report summary with parameters stored in locals."""
+        # Store parameters in local variables for additional processing
         first_row = config.start_row
         last_row = config.end_row
         show_headers = config.include_headers
@@ -33,7 +33,7 @@ class ReportGenerator:
         print(f"Generating report: rows {first_row}-{last_row} ({row_count} rows)")
         print(f"Headers: {has_header_row}, Totals: {needs_totals_row}")
 
-        # Call helper with parameter object
+        # Call helper with all the parameters
         return self._format_report(config, source)
 
     def _format_report(self, config, source):
