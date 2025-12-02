@@ -290,6 +290,7 @@ class FormTemplateMethodTransformer(cst.CSTTransformer):
         Returns:
             True if method contains self.TAX_RATE
         """
+
         class TaxRateChecker(cst.CSTVisitor):
             def __init__(self) -> None:
                 self.found = False
