@@ -7,6 +7,14 @@ class Person:
         self.age = age
 
     @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+
+    @property
     def is_adult(self):
         """Check if person is an adult."""
         return self.age >= 18
@@ -22,11 +30,3 @@ class Person:
 
     def greet(self):
         return f"Hello, my name is {self.name}"
-
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        self._name = value

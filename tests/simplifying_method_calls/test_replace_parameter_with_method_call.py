@@ -1,5 +1,6 @@
 """Tests for Replace Parameter with Method Call refactoring."""
 
+
 from tests.conftest import RefactoringTestBase
 
 
@@ -39,4 +40,15 @@ class TestReplaceParameterWithMethodCall(RefactoringTestBase):
         """
         self.refactor(
             "replace-parameter-with-method-call", target="ShoppingCart::apply_charges::shipping"
+        )
+
+    def test_multi_file(self) -> None:
+        """Test replace-parameter-with-method-call when call sites span multiple files.
+
+        This verifies that when a parameter is removed and replaced with a method call,
+        all call sites across different files are updated to no longer pass that parameter.
+        """
+        self.refactor_directory(
+            "replace-parameter-with-method-call",
+            target="Employee::calculate_bonus::base_salary",
         )

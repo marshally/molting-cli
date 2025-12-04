@@ -91,3 +91,19 @@ class TestExtractClass(RefactoringTestBase):
                 methods="get_telephone_number",
                 name="TelephoneNumber",
             )
+
+    def test_multi_file(self) -> None:
+        """Test extract-class when field accesses span multiple files.
+
+        Extracts PhoneNumber from Person and updates all call sites
+        in directory.py and contacts.py from person.area_code to
+        person.phone_number.area_code.
+        """
+        self.refactor_directory(
+            "extract-class",
+            target="person.py",
+            source="Person",
+            fields="area_code,number,extension",
+            methods="get_phone_display,get_area_code,get_number",
+            name="PhoneNumber",
+        )

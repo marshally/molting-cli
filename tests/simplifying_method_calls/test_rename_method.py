@@ -62,3 +62,19 @@ class TestRenameMethod(RefactoringTestBase):
         self.refactor(
             "rename-method", target="Customer::get_inv_cdtlmt", new_name="get_invoice_credit_limit"
         )
+
+    def test_multi_file(self) -> None:
+        """Test rename method when call sites span multiple files.
+
+        This tests the most important real-world scenario: renaming a method
+        when it's called from different files in the project. The refactoring
+        must update the method definition AND all call sites across:
+        - order.py: Method definition and internal self.get_price() call
+        - processor.py: External call via order.get_price()
+        - utils.py: External calls via order.get_price() parameter
+
+        Uses multi-file fixtures with input/ and expected/ directories.
+        """
+        self.refactor_directory(
+            "rename-method", target="Order::get_price", new_name="calculate_total_price"
+        )

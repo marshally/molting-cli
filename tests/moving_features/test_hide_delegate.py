@@ -60,3 +60,11 @@ class TestHideDelegate(RefactoringTestBase):
         """
         with pytest.raises(ValueError, match="already has a method"):
             self.refactor("hide-delegate", target="Person::department")
+
+    def test_multi_file(self) -> None:
+        """Test hide-delegate when call sites span multiple files.
+
+        Adds Person.get_manager() to hide access to person.department.manager
+        and updates all call sites in client.py to use the new delegation method.
+        """
+        self.refactor_directory("hide-delegate", target="person.py", source="Person::department")

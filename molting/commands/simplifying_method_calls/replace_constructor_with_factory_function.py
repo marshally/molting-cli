@@ -23,6 +23,11 @@ class ReplaceConstructorWithFactoryFunctionCommand(BaseCommand):
     def execute(self) -> None:
         """Apply replace-constructor-with-factory-function refactoring using libCST.
 
+        This supports both single-file and multi-file refactoring:
+        - If the class definition is in the file, adds the factory function
+        - If the file imports the class, updates the import and constructor calls
+        - If the file only has constructor calls, updates them
+
         Raises:
             ValueError: If class or method not found or target format is invalid
         """
@@ -40,12 +45,19 @@ class ReplaceConstructorWithFactoryFunctionCommand(BaseCommand):
         transformer = ReplaceConstructorWithFactoryFunctionTransformer(class_name)
         modified_tree = module.visit(transformer)
 
-        # Write back
-        self.file_path.write_text(modified_tree.code)
+        # Only write if changes were made
+        if modified_tree.code != source_code:
+            self.file_path.write_text(modified_tree.code)
 
 
 class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
-    """Transforms module by adding a factory function and updating call sites."""
+    """Transforms module by adding a factory function and updating call sites.
+
+    This transformer supports multi-file refactoring by:
+    1. Adding the factory function if the class is defined in this file
+    2. Updating imports if the class is imported from another module
+    3. Replacing all constructor calls with factory function calls
+    """
 
     def __init__(self, class_name: str) -> None:
         """Initialize the transformer.
@@ -57,7 +69,8 @@ class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
         self.factory_name = f"create_{class_name.lower()}"
         self.found_class = False
         self.init_params: list[cst.Param] = []
-        self.class_insert_position: int | None = None
+        self.has_constructor_calls = False
+        self.imports_class = False
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
         """Visit class definition to extract __init__ parameters."""
@@ -82,14 +95,57 @@ class ReplaceConstructorWithFactoryFunctionTransformer(cst.CSTTransformer):
         # Check if this is a call to the target class constructor
         if isinstance(updated_node.func, cst.Name):
             if updated_node.func.value == self.class_name:
+                self.has_constructor_calls = True
                 # Replace ClassName(...) with create_classname(...)
                 return updated_node.with_changes(func=cst.Name(self.factory_name))
+        return updated_node
+
+    def leave_ImportFrom(  # noqa: N802
+        self, original_node: cst.ImportFrom, updated_node: cst.ImportFrom
+    ) -> cst.ImportFrom:
+        """Update imports to add factory function if class is imported.
+
+        If a file imports the class, we need to also import the factory function.
+        Example: from employee import Employee -> from employee import Employee, create_employee
+        """
+        if not isinstance(updated_node.names, (list, tuple)):
+            # Skip star imports and other special cases
+            return updated_node
+
+        # Check if this import includes our class
+        names_list = list(updated_node.names)
+        has_class = any(
+            isinstance(name, cst.ImportAlias)
+            and isinstance(name.name, cst.Name)
+            and name.name.value == self.class_name
+            for name in names_list
+        )
+
+        if not has_class:
+            return updated_node
+
+        self.imports_class = True
+
+        # Check if factory is already imported
+        has_factory = any(
+            isinstance(name, cst.ImportAlias)
+            and isinstance(name.name, cst.Name)
+            and name.name.value == self.factory_name
+            for name in names_list
+        )
+
+        if not has_factory:
+            # Add factory to imports
+            new_names = names_list + [cst.ImportAlias(name=cst.Name(self.factory_name))]
+            return updated_node.with_changes(names=new_names)
+
         return updated_node
 
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
     ) -> cst.Module:
-        """Add factory function after the class definition."""
+        """Add factory function after the class definition (if class is in this file)."""
+        # Only add factory function if the class is defined in this file
         if not self.found_class:
             return updated_node
 
