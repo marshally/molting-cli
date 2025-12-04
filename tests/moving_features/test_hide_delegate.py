@@ -61,7 +61,6 @@ class TestHideDelegate(RefactoringTestBase):
         with pytest.raises(ValueError, match="already has a method"):
             self.refactor("hide-delegate", target="Person::department")
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test hide-delegate when call sites span multiple files.
 

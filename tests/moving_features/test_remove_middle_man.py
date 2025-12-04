@@ -5,7 +5,6 @@ This module tests the Remove Middle Man refactoring which gets the client
 to call the delegate directly.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -42,7 +41,6 @@ class TestRemoveMiddleMan(RefactoringTestBase):
         """
         self.refactor("remove-middle-man", target="Employee")
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test remove-middle-man when call sites span multiple files.
 

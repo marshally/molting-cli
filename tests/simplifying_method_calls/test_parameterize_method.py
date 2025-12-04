@@ -1,6 +1,5 @@
 """Tests for Parameterize Method refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -66,7 +65,6 @@ class TestParameterizeMethod(RefactoringTestBase):
             new_name="raise_salary",
         )
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test parameterize-method when call sites span multiple files."""
         self.refactor_directory(

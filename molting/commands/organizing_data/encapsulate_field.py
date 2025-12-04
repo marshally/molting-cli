@@ -65,6 +65,11 @@ class EncapsulateFieldCommand(BaseCommand):
     def execute(self) -> None:
         """Apply encapsulate-field refactoring using libCST.
 
+        This supports both single-file and multi-file refactoring scenarios.
+        - In the file containing the class definition, the field is made private
+          and getter/setter properties are added
+        - In other files, field accesses remain unchanged (they'll use the property)
+
         Raises:
             ValueError: If transformation cannot be applied
         """
@@ -77,7 +82,9 @@ class EncapsulateFieldCommand(BaseCommand):
         transformer = EncapsulateFieldTransformer(class_name, field_name)
         modified_tree = module.visit(transformer)
 
-        self.file_path.write_text(modified_tree.code)
+        # Only write if the class was found and modified
+        if transformer.class_found:
+            self.file_path.write_text(modified_tree.code)
 
 
 class EncapsulateFieldTransformer(cst.CSTTransformer):
@@ -93,6 +100,7 @@ class EncapsulateFieldTransformer(cst.CSTTransformer):
         self.class_name = class_name
         self.field_name = field_name
         self.private_field_name = f"_{field_name}"
+        self.class_found = False
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -101,23 +109,23 @@ class EncapsulateFieldTransformer(cst.CSTTransformer):
         if updated_node.name.value != self.class_name:
             return updated_node
 
+        # Mark that we found the target class
+        self.class_found = True
+
         new_body: list[cst.BaseStatement] = []
 
-        # First pass: transform the __init__ method and other methods
+        # Transform the __init__ method, add properties after it, then add other methods
         for stmt in updated_node.body.body:
             if isinstance(stmt, cst.FunctionDef):
                 if stmt.name.value == INIT_METHOD_NAME:
                     new_body.append(self._transform_init_method(stmt))
+                    # Add property getter and setter right after __init__
+                    new_body.append(self._create_property_getter())
+                    new_body.append(self._create_property_setter())
                 else:
                     new_body.append(stmt)
             else:
                 new_body.append(cast(cst.BaseStatement, stmt))
-
-        # Add property getter
-        new_body.append(self._create_property_getter())
-
-        # Add property setter
-        new_body.append(self._create_property_setter())
 
         return updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
 

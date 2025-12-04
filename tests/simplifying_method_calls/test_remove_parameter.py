@@ -1,7 +1,5 @@
 """Tests for Remove Parameter refactoring."""
 
-import pytest
-
 from tests.conftest import RefactoringTestBase
 
 
@@ -46,7 +44,6 @@ class TestRemoveParameter(RefactoringTestBase):
         """
         self.refactor("remove-parameter", target="EmailService::send_email::priority")
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test remove-parameter when call sites span multiple files."""
         self.refactor_directory(

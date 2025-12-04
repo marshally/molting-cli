@@ -1,6 +1,5 @@
 """Tests for Replace Parameter with Explicit Methods refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -47,7 +46,6 @@ class TestReplaceParameterWithExplicitMethods(RefactoringTestBase):
         """
         self.refactor("replace-parameter-with-explicit-methods", target="Employee::set_value::name")
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test replace-parameter-with-explicit-methods when call sites span multiple files.
 

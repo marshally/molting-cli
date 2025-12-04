@@ -1,6 +1,5 @@
 """Tests for Add Parameter refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -67,7 +66,6 @@ class TestAddParameter(RefactoringTestBase):
             default="False",
         )
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test add-parameter when call sites span multiple files."""
         self.refactor_directory(

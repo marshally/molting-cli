@@ -5,7 +5,6 @@ This test module verifies the encapsulate-field refactoring,
 which makes fields private and provides accessor methods.
 """
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -42,7 +41,6 @@ class TestEncapsulateField(RefactoringTestBase):
         """
         self.refactor("encapsulate-field", target="Person::name")
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test encapsulate-field when field accesses span multiple files.
 

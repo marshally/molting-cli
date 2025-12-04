@@ -1,6 +1,5 @@
 """Tests for Replace Constructor with Factory Function refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -37,7 +36,6 @@ class TestReplaceConstructorWithFactoryFunction(RefactoringTestBase):
         """
         self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test replace-constructor-with-factory-function when call sites span multiple files.
 

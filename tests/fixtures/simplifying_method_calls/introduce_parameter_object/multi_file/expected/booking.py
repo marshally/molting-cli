@@ -2,14 +2,11 @@
 
 
 class DateRange:
-    """Represents a date range for bookings."""
-
     def __init__(self, start_date, end_date):
         self.start_date = start_date
         self.end_date = end_date
 
     def is_valid(self):
-        """Check if the date range is valid."""
         return self.start_date < self.end_date
 
 
@@ -23,7 +20,8 @@ class Booking:
         """Create a booking with date range and guest information.
 
         Args:
-            date_range: DateRange object with start and end dates
+            start_date: Start date of the booking
+            end_date: End date of the booking
             guest_name: Name of the guest
             guest_email: Email address of the guest
 

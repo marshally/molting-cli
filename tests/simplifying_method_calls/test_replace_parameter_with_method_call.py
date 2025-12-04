@@ -1,6 +1,5 @@
 """Tests for Replace Parameter with Method Call refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -43,7 +42,6 @@ class TestReplaceParameterWithMethodCall(RefactoringTestBase):
             "replace-parameter-with-method-call", target="ShoppingCart::apply_charges::shipping"
         )
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test replace-parameter-with-method-call when call sites span multiple files.
 

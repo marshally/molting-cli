@@ -1,6 +1,5 @@
 """Tests for Separate Query from Modifier refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -67,7 +66,6 @@ class TestSeparateQueryFromModifier(RefactoringTestBase):
         """
         self.refactor("separate-query-from-modifier", target="Security::get_and_remove_intruder")
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test separate-query-from-modifier when call sites span multiple files.
 

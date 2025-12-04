@@ -1,6 +1,5 @@
 """Tests for Introduce Parameter Object refactoring."""
 
-import pytest
 
 from tests.conftest import RefactoringTestBase
 
@@ -66,7 +65,6 @@ class TestIntroduceParameterObject(RefactoringTestBase):
             name="DateRange",
         )
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test introduce-parameter-object when call sites span multiple files.
 

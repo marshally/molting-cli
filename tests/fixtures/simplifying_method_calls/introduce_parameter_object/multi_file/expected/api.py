@@ -25,12 +25,11 @@ class BookingAPI:
         guest_name = request_data["guest_name"]
         guest_email = request_data["guest_email"]
 
-        # Create booking with DateRange parameter object
-        date_range = DateRange(start_date, end_date)
+        # Create booking with individual parameters
         try:
+            date_range = DateRange(start_date, end_date)
             confirmation = self.booking.book(
-                date_range,
-                guest_name,
+                date_range, guest_name,
                 guest_email
             )
             return {

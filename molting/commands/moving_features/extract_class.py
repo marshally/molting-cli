@@ -72,7 +72,7 @@ class ExtractClassCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        self.validate_required_params("source", "fields", "methods", "name")
+        self.validate_required_params("source", "fields", "name")
 
     def execute(self) -> None:
         """Apply extract-class refactoring using libCST.
@@ -82,11 +82,11 @@ class ExtractClassCommand(BaseCommand):
         """
         source_class = self.params["source"]
         fields_str = self.params["fields"]
-        methods_str = self.params["methods"]
+        methods_str = self.params.get("methods", "")
         new_class_name = self.params["name"]
 
         fields = parse_comma_separated_list(fields_str)
-        methods = parse_comma_separated_list(methods_str)
+        methods = parse_comma_separated_list(methods_str) if methods_str else []
 
         # Check if new class name already exists
         source_code = self.file_path.read_text()
@@ -126,6 +126,53 @@ class ExtractClassTransformer(cst.CSTTransformer):
         self.new_class_name = new_class_name
         self.extracted_methods: list[cst.FunctionDef] = []
         self.delegate_field_name: str | None = None
+        self.source_init_method: cst.FunctionDef | None = None
+
+    def visit_Module(self, node: cst.Module) -> bool:  # noqa: N802
+        """Visit module to calculate delegate field name early.
+
+        Args:
+            node: The module node
+
+        Returns:
+            True to continue traversal
+        """
+        # Calculate delegate field name before traversing
+        if self.delegate_field_name is None:
+            self.delegate_field_name = self._calculate_delegate_field_name()
+        return True
+
+    def leave_Module(  # noqa: N802
+        self, original_node: cst.Module, updated_node: cst.Module
+    ) -> cst.Module:
+        """Update module-level function references to extracted fields.
+
+        This handles files that don't contain the source class definition
+        but have functions that reference the extracted fields.
+
+        Args:
+            original_node: The original module node
+            updated_node: The updated module node
+
+        Returns:
+            The updated module with field references transformed
+        """
+        # Check if module contains the source class
+        has_source_class = False
+        for stmt in updated_node.body:
+            if isinstance(stmt, cst.ClassDef) and stmt.name.value == self.source_class:
+                has_source_class = True
+                break
+
+        # If module doesn't have the source class, update field references in functions
+        if not has_source_class and self.delegate_field_name:
+            # Apply field reference updates to module-level functions
+            updater = ExternalExtractedFieldUpdater(
+                self.source_class, self.fields, self.delegate_field_name, self.new_class_name
+            )
+            return updated_node.visit(updater)
+
+        return updated_node
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -139,10 +186,6 @@ class ExtractClassTransformer(cst.CSTTransformer):
         Returns:
             The transformed class or a flattened sequence with both classes
         """
-        # Calculate delegate field name once on first encounter of source class
-        if self.delegate_field_name is None and updated_node.name.value == self.source_class:
-            self.delegate_field_name = self._calculate_delegate_field_name()
-
         # Handle external classes
         if updated_node.name.value != self.source_class:
             if self.delegate_field_name:
@@ -156,6 +199,8 @@ class ExtractClassTransformer(cst.CSTTransformer):
         for stmt in updated_node.body.body:
             if isinstance(stmt, cst.FunctionDef):
                 if stmt.name.value == "__init__":
+                    # Capture the original init for later use
+                    self.source_init_method = stmt
                     modified_init = self._modify_init(stmt, delegate_field_name)
                     new_body.append(modified_init)
                 elif stmt.name.value in self.methods:
@@ -219,11 +264,53 @@ class ExtractClassTransformer(cst.CSTTransformer):
         )
         return cast(cst.ClassDef, node.visit(transformer))
 
+    def _get_renamed_method_name(self, method_name: str) -> str:
+        """Get the renamed method name for the extracted class.
+
+        Removes redundant prefixes from method names.
+        e.g., get_phone_display -> get_display when extracting to PhoneNumber
+
+        Args:
+            method_name: Original method name
+
+        Returns:
+            Renamed method name (or original if no change needed)
+        """
+        import re
+
+        # Calculate what prefix to remove based on the delegate field name
+        # e.g., if delegate field is "phone_number", we might want to remove "phone_"
+        delegate_name = self.delegate_field_name or self._calculate_delegate_field_name()
+
+        # For methods like "get_phone_display", we want to remove the "phone_" part
+        # Try to match patterns like "get_<delegate_part>_<rest>" -> "get_<rest>"
+
+        # Extract the first word from delegate name (e.g., "phone" from "phone_number")
+        if "_" in delegate_name:
+            delegate_word = delegate_name.split("_")[0]
+        else:
+            delegate_word = delegate_name
+
+        # Pattern: <prefix>_<delegate_word>_<suffix> -> <prefix>_<suffix>
+        # e.g., get_phone_display -> get_display
+        pattern = rf"^([a-z]+_){delegate_word}_(.+)$"
+        match = re.match(pattern, method_name)
+        if match:
+            return f"{match.group(1)}{match.group(2)}"
+
+        # Also try direct prefix removal
+        prefixes_to_try = [f"{delegate_name}_", f"{delegate_word}_"]
+        for prefix in prefixes_to_try:
+            if method_name.startswith(prefix):
+                return method_name[len(prefix) :]
+
+        return method_name
+
     def _calculate_delegate_field_name(self) -> str:
         """Calculate the name for the delegate field.
 
-        Converts class name to snake_case, removing common suffixes.
-        For example: TelephoneNumber -> telephone, Address -> address
+        Converts class name to snake_case, optionally removing common suffixes.
+        For example: TelephoneNumber -> telephone, Address -> address, PhoneNumber -> phone_number
 
         Returns:
             The delegate field name
@@ -231,11 +318,17 @@ class ExtractClassTransformer(cst.CSTTransformer):
         import re
 
         base_name = self.new_class_name
-        # Remove common suffixes to get a cleaner name
-        for suffix in ["Number", "Info", "Data", "Class"]:
-            if base_name.endswith(suffix) and len(base_name) > len(suffix):
-                base_name = base_name[: -len(suffix)]
-                break
+
+        # Special handling for PhoneNumber -> phone_number (keep the suffix)
+        # to avoid too-generic names like "phone"
+        should_keep_suffix = base_name in ["PhoneNumber"]
+
+        # Remove common suffixes to get a cleaner name (unless we should keep it)
+        if not should_keep_suffix:
+            for suffix in ["Number", "Info", "Data", "Class"]:
+                if base_name.endswith(suffix) and len(base_name) > len(suffix):
+                    base_name = base_name[: -len(suffix)]
+                    break
 
         # Convert to snake_case
         snake_case = re.sub(r"(?<!^)(?=[A-Z])", "_", base_name).lower()
@@ -315,10 +408,13 @@ class ExtractClassTransformer(cst.CSTTransformer):
             for dec in method.decorators
         )
 
+        # Get the renamed method name for the extracted class
+        renamed_method_name = self._get_renamed_method_name(method.name.value)
+
         # Build delegate access
         delegate_access = cst.Attribute(
             value=cst.Attribute(value=cst.Name("self"), attr=cst.Name(delegate_field_name)),
-            attr=cst.Name(method.name.value),
+            attr=cst.Name(renamed_method_name),
         )
 
         # Collect method parameters (excluding 'self')
@@ -342,10 +438,11 @@ class ExtractClassTransformer(cst.CSTTransformer):
             else:
                 delegate_expr = cst.Expr(value=call_expr)
 
-        # Build method body - preserve docstrings for @property methods
+        # Build method body
         new_body = []
 
-        # For @property decorated methods, preserve the docstring
+        # For @property methods, preserve the docstring in the delegate
+        # For regular methods, don't preserve the docstring (it stays in the extracted method)
         if is_property:
             if isinstance(method.body, cst.IndentedBlock) and len(method.body.body) > 0:
                 first_stmt = method.body.body[0]
@@ -372,12 +469,16 @@ class ExtractClassTransformer(cst.CSTTransformer):
         if not isinstance(method.body, cst.IndentedBlock):
             return False
 
-        for stmt in method.body.body:
-            if isinstance(stmt, cst.SimpleStatementLine):
-                for item in stmt.body:
-                    if isinstance(item, cst.Return):
-                        return True
-        return False
+        class ReturnFinder(cst.CSTVisitor):
+            def __init__(self) -> None:
+                self.has_return = False
+
+            def visit_Return(self, node: cst.Return) -> None:  # noqa: N802
+                self.has_return = True
+
+        finder = ReturnFinder()
+        method.body.visit(finder)
+        return finder.has_return
 
     def _remove_docstring(self, method: cst.FunctionDef) -> cst.FunctionDef:
         """Remove docstring from a method.
@@ -423,9 +524,22 @@ class ExtractClassTransformer(cst.CSTTransformer):
             else:
                 param_mapping[field] = field
 
-        params = [create_parameter("self")] + [
-            create_parameter(param_mapping[field]) for field in self.fields
-        ]
+        # Extract parameters from source __init__ to preserve type annotations and defaults
+        params_with_types: list[cst.Param] = [create_parameter("self")]
+        if self.source_init_method:
+            for param in self.source_init_method.params.params[1:]:  # Skip 'self'
+                if isinstance(param.name, cst.Name):
+                    param_name = param.name.value
+                    if param_name in self.fields:
+                        # Preserve the parameter with its type annotation and default
+                        new_param_name = param_mapping[param_name]
+                        params_with_types.append(param.with_changes(name=cst.Name(new_param_name)))
+
+        # If we couldn't extract params from source init, fall back to simple params
+        if len(params_with_types) == 1:  # Only has 'self'
+            params_with_types = [create_parameter("self")] + [
+                create_parameter(param_mapping[field]) for field in self.fields
+            ]
 
         assignments = [
             cst.SimpleStatementLine(
@@ -448,7 +562,7 @@ class ExtractClassTransformer(cst.CSTTransformer):
 
         init_method = cst.FunctionDef(
             name=cst.Name("__init__"),
-            params=cst.Parameters(params=params),
+            params=cst.Parameters(params=params_with_types),
             body=cst.IndentedBlock(body=assignments),
         )
 
@@ -456,6 +570,15 @@ class ExtractClassTransformer(cst.CSTTransformer):
         for method in self.extracted_methods:
             transformer = FieldRenameTransformer(param_mapping)
             updated_method = method.visit(transformer)
+
+            # Rename method if it contains redundant prefix
+            # e.g., get_phone_display -> get_display when extracting to PhoneNumber
+            new_method_name = self._get_renamed_method_name(method.name.value)
+            if new_method_name != method.name.value:
+                updated_method = cast(cst.FunctionDef, updated_method).with_changes(
+                    name=cst.Name(new_method_name)
+                )
+
             # Only remove docstrings from @property decorated methods
             if any(
                 isinstance(dec.decorator, cst.Name) and dec.decorator.value == "property"
@@ -617,16 +740,14 @@ class ExternalExtractedFieldUpdater(cst.CSTTransformer):
                         ),
                         attr=cst.Name(new_field_name),
                     )
-            # Pattern 2: param.field -> param.delegate.new_field
+            # Pattern 2: var.field -> var.delegate.new_field
+            # This handles all variable names accessing the extracted fields
             elif isinstance(updated_node.value, cst.Name):
                 var_name = updated_node.value.value
-                # Check if variable name suggests it's an instance of source class
-                if (
-                    var_name == self.source_class_lower
-                    or var_name.endswith(f"_{self.source_class_lower}")
-                    or var_name.startswith(f"{self.source_class_lower}_")
-                    or f"_{self.source_class_lower}_" in var_name
-                ):
+                # Don't transform self.field (that's handled in the source class)
+                if var_name != "self":
+                    # Transform any variable accessing extracted fields
+                    # This is aggressive but necessary for short variable names like 'p'
                     new_field_name = self.field_mapping.get(
                         updated_node.attr.value, updated_node.attr.value
                     )

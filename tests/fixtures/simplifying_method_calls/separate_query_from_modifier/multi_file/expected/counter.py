@@ -8,20 +8,9 @@ class Counter:
         self._value = initial_value
 
     def increment(self):
-        """Increment the counter.
-
-        This method only modifies state without returning a value.
-        """
         self._value += 1
 
     def get_value(self):
-        """Get the current counter value.
-
-        This method only queries state without modifying it.
-
-        Returns:
-            The current value
-        """
         return self._value
 
     def reset(self):

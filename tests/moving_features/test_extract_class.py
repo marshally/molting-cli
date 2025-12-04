@@ -92,7 +92,6 @@ class TestExtractClass(RefactoringTestBase):
                 name="TelephoneNumber",
             )
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test extract-class when field accesses span multiple files.
 
@@ -105,5 +104,6 @@ class TestExtractClass(RefactoringTestBase):
             target="person.py",
             source="Person",
             fields="area_code,number,extension",
+            methods="get_phone_display,get_area_code,get_number",
             name="PhoneNumber",
         )

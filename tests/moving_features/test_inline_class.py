@@ -60,7 +60,6 @@ class TestInlineClass(RefactoringTestBase):
         with pytest.raises(ValueError, match="already has a method"):
             self.refactor("inline-class", source_class="TelephoneNumber", into="Person")
 
-    @pytest.mark.skip(reason="Multi-file refactoring not yet implemented")
     def test_multi_file(self) -> None:
         """Test inline-class when references span multiple files.
 

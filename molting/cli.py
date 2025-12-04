@@ -61,6 +61,16 @@ def refactor_directory(refactoring_name: str, directory: Path, **params: Any) ->
     if not py_files:
         raise ValueError(f"No Python files found in {directory}")
 
-    # Apply refactoring to each file
+    # If a target file is specified, process it first (for multi-file refactorings)
+    target_file = params.get("target")
+    if target_file and isinstance(target_file, str) and target_file.endswith(".py"):
+        target_path = directory / target_file
+        if target_path in py_files:
+            # Process target file first
+            apply_refactoring(refactoring_name, target_path, **params)
+            # Remove from list so we don't process it again
+            py_files.remove(target_path)
+
+    # Apply refactoring to each remaining file
     for file_path in py_files:
         apply_refactoring(refactoring_name, file_path, **params)
