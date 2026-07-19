@@ -30,10 +30,8 @@ jobs:
       - name: Lint with ruff
         run: uv run --locked ruff check .
 
-      - name: Type check with mypy
-        run: |
-          # Run mypy on source code, excluding test fixtures
-          uv run --locked mypy molting/ --exclude 'tests/fixtures/'
+      - name: Type check source and tests with mypy
+        run: make typecheck
 
   test:
     name: Test (Python ${{ matrix.python-version }})
