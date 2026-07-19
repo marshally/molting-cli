@@ -17,8 +17,7 @@ class TestAttributeAccessValidator:
     def test_matches_simple_attribute_access(self) -> None:
         """Test matching obj.field pattern."""
         code = "person.department"
-        module = cst.parse_module(code)
-        expr = module.body[0].body[0].value  # Get the expression
+        expr = cst.parse_expression(code)
 
         validator = AttributeAccessValidator()
         assert validator.matches(expr, "department", on_object="person")
@@ -26,8 +25,7 @@ class TestAttributeAccessValidator:
     def test_matches_chained_attribute_access(self) -> None:
         """Test matching obj.field1.field2 pattern."""
         code = "person.department.manager"
-        module = cst.parse_module(code)
-        expr = module.body[0].body[0].value
+        expr = cst.parse_expression(code)
 
         validator = AttributeAccessValidator()
         # Should match the final attribute in the chain
@@ -36,8 +34,7 @@ class TestAttributeAccessValidator:
     def test_does_not_match_different_attribute(self) -> None:
         """Test that validator rejects different attribute names."""
         code = "person.name"
-        module = cst.parse_module(code)
-        expr = module.body[0].body[0].value
+        expr = cst.parse_expression(code)
 
         validator = AttributeAccessValidator()
         assert not validator.matches(expr, "department", on_object="person")
@@ -45,8 +42,7 @@ class TestAttributeAccessValidator:
     def test_does_not_match_method_call(self) -> None:
         """Test that validator rejects method calls."""
         code = "person.get_name()"
-        module = cst.parse_module(code)
-        expr = module.body[0].body[0].value
+        expr = cst.parse_expression(code)
 
         validator = AttributeAccessValidator()
         # This is a Call node, not an Attribute node
@@ -59,8 +55,7 @@ class TestMethodCallValidator:
     def test_matches_simple_method_call(self) -> None:
         """Test matching obj.method() pattern."""
         code = "person.get_manager()"
-        module = cst.parse_module(code)
-        expr = module.body[0].body[0].value
+        expr = cst.parse_expression(code)
 
         validator = MethodCallValidator()
         assert validator.matches(expr, "get_manager", on_object="person")
@@ -68,8 +63,7 @@ class TestMethodCallValidator:
     def test_matches_method_call_with_args(self) -> None:
         """Test matching obj.method(args) pattern."""
         code = "calc.compute(10, 20)"
-        module = cst.parse_module(code)
-        expr = module.body[0].body[0].value
+        expr = cst.parse_expression(code)
 
         validator = MethodCallValidator()
         assert validator.matches(expr, "compute", on_object="calc")
@@ -77,8 +71,7 @@ class TestMethodCallValidator:
     def test_does_not_match_attribute_access(self) -> None:
         """Test that validator rejects plain attribute access."""
         code = "person.name"
-        module = cst.parse_module(code)
-        expr = module.body[0].body[0].value
+        expr = cst.parse_expression(code)
 
         validator = MethodCallValidator()
         assert not validator.matches(expr, "name", on_object="person")
@@ -86,8 +79,7 @@ class TestMethodCallValidator:
     def test_does_not_match_different_method(self) -> None:
         """Test that validator rejects different method names."""
         code = "person.get_name()"
-        module = cst.parse_module(code)
-        expr = module.body[0].body[0].value
+        expr = cst.parse_expression(code)
 
         validator = MethodCallValidator()
         assert not validator.matches(expr, "get_manager", on_object="person")
