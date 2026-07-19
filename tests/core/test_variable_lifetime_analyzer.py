@@ -10,7 +10,7 @@ from molting.core.variable_lifetime_analyzer import (
 class TestVariableLifetimeAnalyzer:
     """Test suite for VariableLifetimeAnalyzer."""
 
-    def test_get_first_definition_simple_assignment(self):
+    def test_get_first_definition_simple_assignment(self) -> None:
         """Test getting first definition line for simple assignment."""
         code = """
 def process():
@@ -26,7 +26,7 @@ def process():
         assert analyzer.get_first_definition("z") == 5
         assert analyzer.get_first_definition("nonexistent") is None
 
-    def test_get_last_use(self):
+    def test_get_last_use(self) -> None:
         """Test getting last use line for variables."""
         code = """
 def process():
@@ -43,7 +43,7 @@ def process():
         assert analyzer.get_last_use("z") == 6  # Used in return z
         assert analyzer.get_last_use("nonexistent") is None
 
-    def test_get_lifetime(self):
+    def test_get_lifetime(self) -> None:
         """Test getting full lifetime info for a variable."""
         code = """
 def process():
@@ -62,7 +62,7 @@ def process():
         assert lifetime.scope_start == 2
         assert lifetime.scope_end == 5
 
-    def test_is_used_before(self):
+    def test_is_used_before(self) -> None:
         """Test checking if variable is used before a given line."""
         code = """
 def process():
@@ -79,7 +79,7 @@ def process():
         assert analyzer.is_used_before("y", 6) is True  # y used at line 5
         assert analyzer.is_used_before("z", 7) is True  # z used at line 6
 
-    def test_is_used_after(self):
+    def test_is_used_after(self) -> None:
         """Test checking if variable is used after a given line."""
         code = """
 def process():
@@ -96,7 +96,7 @@ def process():
         assert analyzer.is_used_after("y", 4) is True  # y used at line 5
         assert analyzer.is_used_after("z", 5) is True  # z used at line 6
 
-    def test_class_method(self):
+    def test_class_method(self) -> None:
         """Test analyzing variables in a class method."""
         code = """
 class Calculator:
@@ -111,7 +111,7 @@ class Calculator:
         assert analyzer.get_first_definition("x") == 4
         assert analyzer.get_last_use("x") == 5
 
-    def test_augmented_assignment(self):
+    def test_augmented_assignment(self) -> None:
         """Test tracking augmented assignments (+=, etc)."""
         code = """
 def process():
@@ -126,7 +126,7 @@ def process():
         # count is used at line 4 (read) and written at line 4 (write)
         assert analyzer.get_last_use("count") == 5  # return count
 
-    def test_for_loop_variable(self):
+    def test_for_loop_variable(self) -> None:
         """Test tracking for loop variables."""
         code = """
 def process(items):
@@ -142,7 +142,7 @@ def process(items):
         assert analyzer.get_first_definition("item") == 4
         assert analyzer.get_last_use("item") == 5
 
-    def test_get_all_lifetimes(self):
+    def test_get_all_lifetimes(self) -> None:
         """Test getting all variable lifetimes."""
         code = """
 def process():
