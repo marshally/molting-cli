@@ -5,14 +5,35 @@ import libcst as cst
 from molting.core.property_utils import PropertyDefinition, PropertyMethodHandler
 
 
+def _first_class(module: cst.Module) -> cst.ClassDef:
+    """Return the first statement as a class definition."""
+    class_def = module.body[0]
+    assert isinstance(class_def, cst.ClassDef)
+    return class_def
+
+
+def _method_at(class_def: cst.ClassDef, index: int = 0) -> cst.FunctionDef:
+    """Return the indexed class-body statement as a method definition."""
+    method = class_def.body.body[index]
+    assert isinstance(method, cst.FunctionDef)
+    return method
+
+
+def _first_function(module: cst.Module) -> cst.FunctionDef:
+    """Return the first statement as a function definition."""
+    function = module.body[0]
+    assert isinstance(function, cst.FunctionDef)
+    return function
+
+
 class TestPropertyDefinition:
     """Tests for PropertyDefinition dataclass."""
 
     def test_property_definition_creation(self) -> None:
         """Test that PropertyDefinition can be created with all fields."""
         # Create a simple getter method
-        getter = cst.parse_module("@property\ndef name(self): pass").body[0]
-        setter = cst.parse_module("@name.setter\ndef name(self, value): pass").body[0]
+        getter = _first_function(cst.parse_module("@property\ndef name(self): pass"))
+        setter = _first_function(cst.parse_module("@name.setter\ndef name(self, value): pass"))
 
         prop_def = PropertyDefinition(
             name="test_property", getter=getter, setter=setter, deleter=None
@@ -38,8 +59,7 @@ class Foo:
         module = cst.parse_module(source)
         handler = PropertyMethodHandler(module)
 
-        class_def = module.body[0]
-        method = class_def.body.body[0]
+        method = _method_at(_first_class(module))
 
         assert handler.is_property_method(method) is True
 
@@ -54,8 +74,7 @@ class Foo:
         module = cst.parse_module(source)
         handler = PropertyMethodHandler(module)
 
-        class_def = module.body[0]
-        method = class_def.body.body[0]
+        method = _method_at(_first_class(module))
 
         assert handler.is_property_method(method) is True
 
@@ -70,8 +89,7 @@ class Foo:
         module = cst.parse_module(source)
         handler = PropertyMethodHandler(module)
 
-        class_def = module.body[0]
-        method = class_def.body.body[0]
+        method = _method_at(_first_class(module))
 
         assert handler.is_property_method(method) is True
 
@@ -85,8 +103,7 @@ class Foo:
         module = cst.parse_module(source)
         handler = PropertyMethodHandler(module)
 
-        class_def = module.body[0]
-        method = class_def.body.body[0]
+        method = _method_at(_first_class(module))
 
         assert handler.is_property_method(method) is False
 
@@ -210,7 +227,7 @@ class Employee:
         module = cst.parse_module(source)
         handler = PropertyMethodHandler(module)
 
-        class_def = module.body[0]
+        class_def = _first_class(module)
         updated_class = handler.remove_property_from_class(class_def, "sales_target")
 
         # Should only have regular_method left
@@ -233,7 +250,7 @@ class Employee:
         module = cst.parse_module(source)
         handler = PropertyMethodHandler(module)
 
-        class_def = module.body[0]
+        class_def = _first_class(module)
         updated_class = handler.remove_property_from_class(class_def, "sales_target")
 
         # Should have a pass statement
@@ -264,15 +281,15 @@ class Temp:
         self._sales_target = value
 """
         prop_module = cst.parse_module(prop_source)
-        prop_class = prop_module.body[0]
-        getter = prop_class.body.body[0]
-        setter = prop_class.body.body[1]
+        prop_class = _first_class(prop_module)
+        getter = _method_at(prop_class)
+        setter = _method_at(prop_class, 1)
 
         prop_def = PropertyDefinition(
             name="sales_target", getter=getter, setter=setter, deleter=None
         )
 
-        class_def = module.body[0]
+        class_def = _first_class(module)
         updated_class = handler.add_property_to_class(class_def, prop_def)
 
         # Should have __init__, getter, and setter
@@ -298,12 +315,12 @@ class Temp:
         return self._sales_target
 """
         prop_module = cst.parse_module(prop_source)
-        prop_class = prop_module.body[0]
-        getter = prop_class.body.body[0]
+        prop_class = _first_class(prop_module)
+        getter = _method_at(prop_class)
 
         prop_def = PropertyDefinition(name="sales_target", getter=getter, setter=None, deleter=None)
 
-        class_def = module.body[0]
+        class_def = _first_class(module)
         updated_class = handler.add_property_to_class(class_def, prop_def)
 
         # Should have getter and no pass statement
