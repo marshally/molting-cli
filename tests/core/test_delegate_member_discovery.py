@@ -8,7 +8,7 @@ from molting.core.delegate_member_discovery import DelegateMemberDiscovery
 class TestFindDelegateClass:
     """Tests for finding the delegate class from __init__."""
 
-    def test_find_delegate_class_from_parameter_type_hint(self):
+    def test_find_delegate_class_from_parameter_type_hint(self) -> None:
         """Should find delegate class from type-hinted parameter."""
         source = """
 class Employee:
@@ -25,7 +25,7 @@ class Compensation:
 
         assert result == "Compensation"
 
-    def test_find_delegate_class_from_assignment_without_type_hint(self):
+    def test_find_delegate_class_from_assignment_without_type_hint(self) -> None:
         """Should return None when no type hint available (requires manual specification)."""
         source = """
 class Employee:
@@ -43,7 +43,7 @@ class Compensation:
         # Without type hint, we can't auto-discover the class
         assert result is None
 
-    def test_find_delegate_class_returns_none_for_nonexistent_field(self):
+    def test_find_delegate_class_returns_none_for_nonexistent_field(self) -> None:
         """Should return None if field doesn't exist in __init__."""
         source = """
 class Employee:
@@ -57,7 +57,7 @@ class Employee:
 
         assert result is None
 
-    def test_find_delegate_class_returns_none_for_nonexistent_class(self):
+    def test_find_delegate_class_returns_none_for_nonexistent_class(self) -> None:
         """Should return None if class doesn't exist."""
         source = """
 class Person:
@@ -75,7 +75,7 @@ class Person:
 class TestEnumeratePublicMembers:
     """Tests for enumerating public members of a class."""
 
-    def test_enumerate_fields_from_init(self):
+    def test_enumerate_fields_from_init(self) -> None:
         """Should find all fields assigned in __init__."""
         source = """
 class Compensation:
@@ -94,7 +94,7 @@ class Compensation:
         field_names = [m.name for m in field_members]
         assert set(field_names) == {"salary", "bonus_percentage", "deduction_rate", "tax_rate"}
 
-    def test_enumerate_fields_excludes_private_fields(self):
+    def test_enumerate_fields_excludes_private_fields(self) -> None:
         """Should exclude fields starting with underscore."""
         source = """
 class Compensation:
@@ -112,7 +112,7 @@ class Compensation:
         field_names = [m.name for m in field_members]
         assert field_names == ["salary"]
 
-    def test_enumerate_empty_class(self):
+    def test_enumerate_empty_class(self) -> None:
         """Should return empty list for class with no public members."""
         source = """
 class Compensation:
@@ -125,7 +125,7 @@ class Compensation:
 
         assert members == []
 
-    def test_enumerate_nonexistent_class(self):
+    def test_enumerate_nonexistent_class(self) -> None:
         """Should return empty list for nonexistent class."""
         source = """
 class Employee:
@@ -138,7 +138,7 @@ class Employee:
 
         assert members == []
 
-    def test_enumerate_regular_methods(self):
+    def test_enumerate_regular_methods(self) -> None:
         """Should find all public regular methods."""
         source = """
 class Compensation:
@@ -164,7 +164,7 @@ class Compensation:
             "get_annual_compensation",
         }
 
-    def test_enumerate_methods_excludes_dunder_methods(self):
+    def test_enumerate_methods_excludes_dunder_methods(self) -> None:
         """Should exclude __init__ and other dunder methods."""
         source = """
 class Compensation:
@@ -186,7 +186,7 @@ class Compensation:
         method_names = [m.name for m in method_members]
         assert method_names == ["calculate_pay"]
 
-    def test_enumerate_methods_excludes_private_methods(self):
+    def test_enumerate_methods_excludes_private_methods(self) -> None:
         """Should exclude methods starting with underscore."""
         source = """
 class Compensation:
@@ -208,7 +208,7 @@ class Compensation:
         method_names = [m.name for m in method_members]
         assert method_names == ["calculate_pay"]
 
-    def test_enumerate_property_methods(self):
+    def test_enumerate_property_methods(self) -> None:
         """Should find @property decorated methods."""
         source = """
 class Compensation:
@@ -229,7 +229,7 @@ class Compensation:
         property_names = [m.name for m in property_members]
         assert set(property_names) == {"annual_bonus", "total_compensation"}
 
-    def test_enumerate_property_with_setter(self):
+    def test_enumerate_property_with_setter(self) -> None:
         """Should detect setter on property."""
         source = """
 class Compensation:
@@ -252,7 +252,7 @@ class Compensation:
         assert property_members[0].has_setter is True
         assert property_members[0].has_deleter is False
 
-    def test_enumerate_property_with_deleter(self):
+    def test_enumerate_property_with_deleter(self) -> None:
         """Should detect deleter on property."""
         source = """
 class Compensation:
@@ -275,7 +275,7 @@ class Compensation:
         assert property_members[0].has_setter is False
         assert property_members[0].has_deleter is True
 
-    def test_enumerate_combined_fields_methods_properties(self):
+    def test_enumerate_combined_fields_methods_properties(self) -> None:
         """Should enumerate all member types together."""
         source = """
 class Compensation:
@@ -307,7 +307,7 @@ class Compensation:
 class TestGenerateDelegatingMethod:
     """Tests for generating delegating methods."""
 
-    def test_generate_delegating_method_for_field(self):
+    def test_generate_delegating_method_for_field(self) -> None:
         """Should generate get_<field>() method for a field."""
         source = """
 class Compensation:
@@ -326,7 +326,7 @@ class Compensation:
         assert "def get_salary(self):" in code
         assert "return self._compensation.salary" in code
 
-    def test_generate_delegating_method_for_regular_method(self):
+    def test_generate_delegating_method_for_regular_method(self) -> None:
         """Should generate delegating method that calls through."""
         source = """
 class Compensation:
@@ -345,7 +345,7 @@ class Compensation:
         assert "def calculate_gross_pay(self):" in code
         assert "return self._compensation.calculate_gross_pay()" in code
 
-    def test_generate_delegating_method_for_property(self):
+    def test_generate_delegating_method_for_property(self) -> None:
         """Should generate @property delegating method."""
         source = """
 class Compensation:
@@ -370,7 +370,7 @@ class Compensation:
 class TestGenerateAllDelegatingMethods:
     """Tests for generating all delegating methods."""
 
-    def test_generate_all_delegating_methods_for_instance_vars_case(self):
+    def test_generate_all_delegating_methods_for_instance_vars_case(self) -> None:
         """Should generate all methods matching the with_instance_vars fixture."""
         source = """
 class Compensation:
@@ -407,7 +407,7 @@ class Compensation:
             "get_annual_compensation",
         }
 
-    def test_generate_all_delegating_methods_for_decorators_case(self):
+    def test_generate_all_delegating_methods_for_decorators_case(self) -> None:
         """Should generate all methods matching the with_decorators fixture."""
         source = """
 class Compensation:
