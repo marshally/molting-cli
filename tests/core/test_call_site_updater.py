@@ -181,7 +181,11 @@ class TestReference:
         """Test creating a Reference instance."""
         test_file = tmp_path / "test.py"
         module = cst.parse_module("x = person.department")
-        node = module.body[0].body[0].value
+        statement = module.body[0]
+        assert isinstance(statement, cst.SimpleStatementLine)
+        assignment = statement.body[0]
+        assert isinstance(assignment, cst.Assign)
+        node = assignment.value
 
         ref = Reference(
             file_path=test_file,
