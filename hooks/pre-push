@@ -22,9 +22,14 @@ echo -e "${BLUE}Running pre-push checks on entire codebase...${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
+if ! command -v uv > /dev/null 2>&1; then
+    echo -e "${RED}uv is required. Install it from https://docs.astral.sh/uv/getting-started/installation/${NC}"
+    exit 1
+fi
+
 # Check formatting with black
 echo -e "${YELLOW}→ Checking formatting with black...${NC}"
-if ! black --check --exclude '/(\.venv|tests/fixtures)/' . 2>&1; then
+if ! uv run --locked black --check --exclude '/(\.venv|tests/fixtures)/' . 2>&1; then
     echo ""
     echo -e "${RED}✗ Black formatting check failed!${NC}"
     echo -e "${YELLOW}💡 Run 'make format' to fix formatting issues.${NC}"
@@ -35,7 +40,7 @@ echo ""
 
 # Lint with ruff
 echo -e "${YELLOW}→ Linting with ruff...${NC}"
-if ! ruff check --exclude '.venv' --exclude 'tests/fixtures' . 2>&1; then
+if ! uv run --locked ruff check --exclude '.venv' --exclude 'tests/fixtures' . 2>&1; then
     echo ""
     echo -e "${RED}✗ Ruff linting failed!${NC}"
     echo -e "${YELLOW}💡 Run 'make format' to fix linting issues.${NC}"
@@ -47,7 +52,7 @@ echo ""
 # Type check with mypy
 echo -e "${YELLOW}→ Type checking with mypy...${NC}"
 # Exclude test fixtures and conftest to avoid "found twice" error
-if ! mypy molting/ $(find tests -name "*.py" ! -name "conftest.py" ! -path "tests/fixtures/*" 2>/dev/null) 2>&1; then
+if ! uv run --locked mypy molting/ $(find tests -name "*.py" ! -name "conftest.py" ! -path "tests/fixtures/*" 2>/dev/null) 2>&1; then
     echo ""
     echo -e "${RED}✗ Mypy type checking failed!${NC}"
     echo -e "${YELLOW}💡 Fix type errors before pushing.${NC}"

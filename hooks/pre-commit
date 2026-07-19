@@ -26,6 +26,11 @@ if [ -z "$STAGED_FILES" ]; then
     exit 0
 fi
 
+if ! command -v uv > /dev/null 2>&1; then
+    echo -e "${RED}uv is required. Install it from https://docs.astral.sh/uv/getting-started/installation/${NC}"
+    exit 1
+fi
+
 # Stash unstaged changes (including untracked files)
 echo -e "${YELLOW}Stashing unstaged changes...${NC}"
 STASH_NAME="pre-commit-$(date +%s)"
@@ -46,13 +51,13 @@ cleanup_and_exit() {
 trap 'cleanup_and_exit $?' EXIT
 
 echo -e "${YELLOW}Running black (autofix)...${NC}"
-if ! black $STAGED_FILES; then
+if ! uv run --locked black $STAGED_FILES; then
     echo -e "${RED}Black formatting failed!${NC}"
     exit 1
 fi
 
 echo -e "${YELLOW}Running ruff (autofix)...${NC}"
-if ! ruff check --fix $STAGED_FILES; then
+if ! uv run --locked ruff check --fix $STAGED_FILES; then
     echo -e "${RED}Ruff linting failed!${NC}"
     exit 1
 fi
@@ -85,7 +90,7 @@ echo -e "${YELLOW}Running mypy (type checking)...${NC}"
 # Filter out conftest.py and fixtures to avoid "found twice" error
 MYPY_FILES=$(echo "$STAGED_FILES" | tr ' ' '\n' | grep -v 'conftest\.py$' | grep -v 'tests/fixtures/' | tr '\n' ' ')
 if [ -n "$MYPY_FILES" ]; then
-    if ! mypy $MYPY_FILES; then
+    if ! uv run --locked mypy $MYPY_FILES; then
         echo -e "${RED}Mypy type checking failed!${NC}"
         exit 1
     fi

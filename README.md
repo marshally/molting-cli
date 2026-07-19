@@ -7,7 +7,7 @@ Built on [libCST](https://libcst.readthedocs.io/) and [rope](https://github.com/
 ## Installation
 
 ```bash
-pip install molting-cli
+uv tool install molting-cli
 ```
 
 ## CLI Syntax
@@ -262,8 +262,9 @@ For detailed documentation on each refactoring, see:
 git clone https://github.com/marshally/molting-cli.git
 cd molting-cli
 
-# Install dependencies with Poetry
-poetry install
+# Install uv, then sync the locked project environment
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync --locked
 
 # Install git hooks (optional but recommended)
 cp hooks/pre-commit .git/hooks/pre-commit
@@ -361,10 +362,10 @@ make test
 make test-verbose
 
 # Run specific test file
-pytest tests/test_composing_methods.py -v
+uv run pytest tests/test_composing_methods.py -v
 
 # Run specific test
-pytest tests/test_composing_methods.py::TestExtractMethod::test_simple -v
+uv run pytest tests/test_composing_methods.py::TestExtractMethod::test_simple -v
 ```
 
 ## Continuous Integration
@@ -378,7 +379,7 @@ Every push to a pull request automatically runs:
 
 ### Test Job
 - **Pytest** - Test suite with coverage
-- Runs on Python 3.8, 3.9, 3.10, 3.11, and 3.12
+- Runs on Python 3.10, 3.11, and 3.12
 
 All checks must pass before merging. You can run the same checks locally:
 ```bash

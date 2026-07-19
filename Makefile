@@ -1,72 +1,58 @@
 .PHONY: help bootstrap format lint typecheck test test-verbose clean install all check
 
+UV ?= uv
+UV_RUN = $(UV) run
+
 # Default target - show help
 help:
 	@echo "Available targets:"
-	@echo "  make bootstrap    - First-time setup: install poetry and dependencies"
+	@echo "  make bootstrap    - First-time setup: install project dependencies"
 	@echo "  make format       - Auto-fix code formatting (black + ruff)"
 	@echo "  make lint         - Check code style without modifying"
 	@echo "  make typecheck    - Run mypy type checking"
 	@echo "  make test         - Run tests"
 	@echo "  make test-verbose - Run tests with verbose output"
 	@echo "  make clean        - Remove generated files"
-	@echo "  make install      - Install dependencies with poetry"
+	@echo "  make install      - Sync dependencies with uv"
 	@echo "  make all          - Format, typecheck, and test"
-	@echo "  make check        - Lint and typecheck (no auto-fix)"
+	@echo "  make check        - Lint, typecheck, and test (no auto-fix)"
 
-# First-time setup - install poetry if needed, then install dependencies
-bootstrap:
-	@echo "→ Checking for Poetry..."
-	@if command -v poetry >/dev/null 2>&1; then \
-		echo "✓ Poetry is already installed"; \
-		poetry --version; \
-	elif command -v pipx >/dev/null 2>&1; then \
-		echo "→ Installing Poetry via pipx..."; \
-		pipx install poetry; \
-		echo "✅ Poetry installed successfully via pipx"; \
-	else \
-		echo "→ pipx not found, using official Poetry installer..."; \
-		curl -sSL https://install.python-poetry.org | python3 -; \
-		echo "✅ Poetry installed successfully"; \
-		echo "⚠️  You may need to add Poetry to your PATH:"; \
-		echo "    export PATH=\"\$$HOME/.local/bin:\$$PATH\""; \
-	fi
-	@echo "→ Installing project dependencies..."
-	@poetry install
+# First-time setup
+bootstrap: install
 	@echo "✅ Bootstrap complete!"
 
 # Auto-fix formatting and linting
 format:
 	@echo "→ Formatting with black..."
-	black .
+	$(UV_RUN) black .
 	@echo "→ Auto-fixing with ruff..."
-	ruff check --fix .
+	$(UV_RUN) ruff check --fix .
 	@echo "✅ Formatting complete"
 
 # Check without modifying
 lint:
 	@echo "→ Checking code style with black..."
-	black --check .
+	$(UV_RUN) black --check .
 	@echo "→ Linting with ruff..."
-	ruff check .
+	$(UV_RUN) ruff check .
 	@echo "✅ Lint checks passed"
 
 # Type checking
 typecheck:
 	@echo "→ Type checking with mypy..."
-	mypy molting/ $$(find tests -name "*.py" ! -name "conftest.py" ! -path "*/fixtures/*")
+	$(UV_RUN) mypy molting/ $$(find tests -name "*.py" ! -name "conftest.py" ! -path "*/fixtures/*")
 	@echo "✅ Type checking passed"
 
 # Run tests
 test:
 	@echo "→ Running tests..."
-	PYTHONPATH=$$(pwd):$$PYTHONPATH pytest tests/
+	$(UV_RUN) pytest tests/
 	@echo "✅ Tests passed"
 
 # Run tests with verbose output
 test-verbose:
 	@echo "→ Running tests (verbose)..."
-	PYTHONPATH=$$(pwd):$$PYTHONPATH pytest tests/ -v
+	$(UV_RUN) pytest tests/ -v
 	@echo "✅ Tests passed"
 
 # Clean generated files
@@ -82,8 +68,8 @@ clean:
 
 # Install dependencies
 install:
-	@echo "→ Installing dependencies with poetry..."
-	poetry install
+	@echo "→ Syncing dependencies with uv..."
+	$(UV) sync
 	@echo "✅ Installation complete"
 
 # Run everything (format, typecheck, test)

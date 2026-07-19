@@ -1,32 +1,37 @@
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.11.29,<0.12"]
+build-backend = "uv_build"
 
-[tool.poetry]
+[project]
 name = "molting-cli"
 version = "0.1.0"
 description = "CLI tool for Python refactorings from Martin Fowler's catalog"
-authors = ["Marshall Yount <your-email@example.com>"]
+authors = [{ name = "Marshall Yount", email = "your-email@example.com" }]
 readme = "README.md"
 license = "MIT"
-packages = [{include = "molting"}]
+requires-python = ">=3.10,<4"
+dependencies = [
+    "click>=8.0.0,<9",
+    "libcst>=1.0.0,<2",
+    "rich>=13.0.0,<14",
+    "rope>=1.9.0,<2",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-libcst = "^1.0.0"
-rope = "^1.9.0"
-click = "^8.0.0"
-rich = "^13.0.0"
+[dependency-groups]
+dev = [
+    "black>=23.0.0,<24",
+    "mypy>=1.0.0,<2",
+    "pytest>=7.0.0,<8",
+    "pytest-cov>=4.0.0,<5",
+    "ruff>=0.1.0,<0.2",
+]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.0.0"
-pytest-cov = "^4.0.0"
-black = "^23.0.0"
-ruff = "^0.1.0"
-mypy = "^1.0.0"
-
-[tool.poetry.scripts]
+[project.scripts]
 molting = "molting.cli:main"
+
+[tool.uv.build-backend]
+module-name = "molting"
+module-root = ""
 
 [tool.black]
 line-length = 100
