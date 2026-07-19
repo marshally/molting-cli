@@ -8,7 +8,7 @@ from molting.core.cross_scope_analyzer import CrossScopeAnalyzer
 class TestCrossScopeAnalyzer:
     """Test suite for CrossScopeAnalyzer."""
 
-    def test_get_free_variables_simple(self):
+    def test_get_free_variables_simple(self) -> None:
         """Test getting free variables in a simple code region."""
         code = """
 def process():
@@ -25,7 +25,7 @@ def process():
         free_vars = analyzer.get_free_variables(5, 6)
         assert set(free_vars) == {"x", "y"}
 
-    def test_get_free_variables_no_external_deps(self):
+    def test_get_free_variables_no_external_deps(self) -> None:
         """Test region with no external dependencies."""
         code = """
 def process():
@@ -42,7 +42,7 @@ def process():
         free_vars = analyzer.get_free_variables(4, 6)
         assert free_vars == []
 
-    def test_needs_closure_true(self):
+    def test_needs_closure_true(self) -> None:
         """Test detecting when a region needs closure."""
         code = """
 def process():
@@ -57,7 +57,7 @@ def process():
 
         assert analyzer.needs_closure(5, 6) is True
 
-    def test_needs_closure_false(self):
+    def test_needs_closure_false(self) -> None:
         """Test detecting when a region doesn't need closure."""
         code = """
 def process():
@@ -72,7 +72,7 @@ def process():
 
         assert analyzer.needs_closure(4, 6) is False
 
-    def test_get_captured_variables(self):
+    def test_get_captured_variables(self) -> None:
         """Test getting variables that would be captured."""
         code = """
 def process():
@@ -88,7 +88,7 @@ def process():
         captured = analyzer.get_captured_variables(5, 6)
         assert set(captured) == {"multiplier", "offset", "value"}
 
-    def test_class_method(self):
+    def test_class_method(self) -> None:
         """Test analyzing free variables in a class method."""
         code = """
 class Calculator:
