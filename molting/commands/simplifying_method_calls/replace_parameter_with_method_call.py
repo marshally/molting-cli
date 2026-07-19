@@ -64,8 +64,13 @@ class ReplaceParameterWithMethodCallCommand(BaseCommand):
     def execute(self) -> None:
         """Apply replace-parameter-with-method-call refactoring using libCST.
 
+        This supports both single-file and multi-file refactoring scenarios:
+        - If the method definition exists in this file, it transforms the method
+        - If only call sites exist, it updates those call sites
+        - If neither exists, no changes are made
+
         Raises:
-            ValueError: If method or parameter not found or target format is invalid
+            ValueError: If target format is invalid
         """
         target = self.params["target"]
         class_name, method_name, param_name = parse_target(target, expected_parts=3)
@@ -75,19 +80,35 @@ class ReplaceParameterWithMethodCallCommand(BaseCommand):
         module = cst.parse_module(source_code)
 
         # Two-pass discovery:
-        # Pass 1: find parameter index
+        # Pass 1: find parameter index (if method definition exists in this file)
         finder = _ParameterInfoFinder(class_name, method_name, param_name)
         module.visit(finder)
 
-        if finder.param_index is None:
-            raise ValueError(f"Parameter '{param_name}' not found in {class_name}::{method_name}")
+        # For multi-file support: if method definition is not in this file,
+        # we still need to update call sites. Infer param_index from call sites.
+        param_index = finder.param_index
+        if param_index is None:
+            # Try to infer parameter index from call sites
+            call_site_finder = _CallSiteParamFinder(method_name, param_name)
+            module.visit(call_site_finder)
+            param_index = call_site_finder.param_index
+
+        # If we still can't find the parameter index, this file doesn't have
+        # either the method definition or any call sites - skip it
+        if param_index is None:
+            return
 
         # Pass 2: find getter method name from call sites (now that we have param_index)
-        getter_finder = _GetterFinder(method_name, finder.param_index, finder.getter_assignments)
+        getter_finder = _GetterFinder(method_name, param_index, finder.getter_assignments)
         module.visit(getter_finder)
 
-        # Use discovered getter or fall back to convention
-        getter_method_name = getter_finder.getter_method_name or f"get_{param_name}"
+        # Pass 3: if still not found, look for getter methods in the same class
+        if getter_finder.getter_method_name is None:
+            class_finder = _ClassGetterFinder(class_name, param_name)
+            module.visit(class_finder)
+            getter_method_name = class_finder.getter_method_name or f"get_{param_name}"
+        else:
+            getter_method_name = getter_finder.getter_method_name
 
         # Apply the transformation
         self.apply_libcst_transform(
@@ -96,7 +117,7 @@ class ReplaceParameterWithMethodCallCommand(BaseCommand):
             method_name,
             param_name,
             getter_method_name,
-            finder.param_index,
+            param_index,
         )
 
 
@@ -146,8 +167,8 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         """Visit function definition to track if we're in the target method."""
         if self.in_target_class and node.name.value == self.method_name:
             self.in_target_method = True
-            # Always inline - don't add assignment, just replace usages with getter calls
-            self.param_is_used_elsewhere = False
+            # Check if parameter is used multiple times in the method
+            self.param_is_used_elsewhere = self._is_param_used_multiple_times(node)
 
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
@@ -168,11 +189,18 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
                 if last_param.comma != cst.MaybeSentinel.DEFAULT:
                     new_params[-1] = last_param.with_changes(comma=cst.MaybeSentinel.DEFAULT)
 
+            # Update the docstring to remove the parameter documentation
+            body_stmts = list(updated_node.body.body)
+            if body_stmts and isinstance(body_stmts[0], cst.SimpleStatementLine):
+                if self._is_docstring(body_stmts[0]):
+                    updated_docstring = self._remove_param_from_docstring(body_stmts[0])
+                    if updated_docstring is not None:
+                        body_stmts[0] = updated_docstring
+
             # If the parameter is used elsewhere in the method, add an assignment
             # after the docstring (if any) to replace the parameter value
             if self.param_is_used_elsewhere:
                 assignment = self._create_parameter_assignment()
-                body_stmts = list(updated_node.body.body)
 
                 # Find insertion point: after docstring if present
                 insert_idx = 0
@@ -182,9 +210,8 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
                         insert_idx = 1
 
                 body_stmts.insert(insert_idx, assignment)
-                new_body = updated_node.body.with_changes(body=body_stmts)
-            else:
-                new_body = updated_node.body
+
+            new_body = updated_node.body.with_changes(body=body_stmts)
 
             # Reset param_is_used_elsewhere after processing the target method
             self.param_is_used_elsewhere = False
@@ -203,12 +230,117 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
             return False
         return isinstance(expr.value, (cst.SimpleString, cst.ConcatenatedString))
 
+    def _remove_param_from_docstring(
+        self, stmt: cst.SimpleStatementLine
+    ) -> cst.SimpleStatementLine | None:
+        """Remove parameter documentation from docstring.
+
+        Args:
+            stmt: The docstring statement
+
+        Returns:
+            Updated statement with parameter removed from docstring, or None if no changes
+        """
+        expr = stmt.body[0]
+        if not isinstance(expr, cst.Expr):
+            return None
+
+        if isinstance(expr.value, cst.SimpleString):
+            # Extract the docstring value
+            docstring_value = expr.value.value
+            # Remove quotes
+            quote_char = (
+                '"""'
+                if docstring_value.startswith('"""')
+                else "'''"
+                if docstring_value.startswith("'''")
+                else '"'
+                if docstring_value.startswith('"')
+                else "'"
+            )
+            docstring_text = docstring_value.strip(quote_char)
+
+            # Remove the parameter from Args section
+            lines = docstring_text.split("\n")
+            new_lines: list[str] = []
+            in_args_section = False
+            args_start_idx = None
+            found_param = False
+
+            # First pass: find and mark the parameter to remove
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+
+                # Detect Args section
+                if stripped == "Args:":
+                    in_args_section = True
+                    args_start_idx = len(new_lines)
+                    new_lines.append(line)
+                    continue
+
+                # Detect end of Args section (next section or end of docstring)
+                if in_args_section and stripped and not line.startswith(" " * 8):
+                    in_args_section = False
+
+                # Check if this line documents our parameter
+                if in_args_section and f"{self.param_name}:" in stripped:
+                    found_param = True
+                    # Skip this line and the next line (description)
+                    continue
+
+                # Skip description line after parameter
+                if found_param and in_args_section and line.startswith(" " * 12):
+                    continue
+                elif found_param:
+                    found_param = False
+
+                new_lines.append(line)
+
+            # Second pass: check if Args section is now empty and remove it
+            if args_start_idx is not None:
+                # Find the end of Args section in new_lines
+                args_has_content = False
+                for i in range(args_start_idx + 1, len(new_lines)):
+                    line = new_lines[i]
+                    stripped = line.strip()
+                    # Check if this is a non-empty line that's part of Args
+                    if stripped and not stripped.endswith(":"):
+                        if line.startswith(" " * 8):
+                            args_has_content = True
+                            break
+                    # If we hit another section, stop
+                    elif stripped and stripped.endswith(":"):
+                        break
+
+                # If Args section is empty, remove it
+                if not args_has_content:
+                    # Remove Args: line
+                    new_lines.pop(args_start_idx)
+                    # Remove blank line before Args if present
+                    if args_start_idx > 0 and new_lines[args_start_idx - 1].strip() == "":
+                        new_lines.pop(args_start_idx - 1)
+
+            new_docstring = "\n".join(new_lines)
+            new_value = f"{quote_char}{new_docstring}{quote_char}"
+
+            # Create new docstring node
+            new_string = cst.SimpleString(value=new_value)
+            new_expr = expr.with_changes(value=new_string)
+            return stmt.with_changes(body=[new_expr])
+
+        return None
+
     def leave_Name(  # noqa: N802
         self, original_node: cst.Name, updated_node: cst.Name
     ) -> cst.BaseExpression:
         """Leave name node and replace parameter usage with method call."""
-        # Replace all usages of the parameter with the getter method call
-        if self.in_target_method and updated_node.value == self.param_name:
+        # Only replace usages if we're NOT adding an assignment
+        # (if param_is_used_elsewhere is True, we add an assignment and keep the variable)
+        if (
+            self.in_target_method
+            and updated_node.value == self.param_name
+            and not self.param_is_used_elsewhere
+        ):
             return self._create_getter_method_call()
         return updated_node
 
@@ -362,6 +494,22 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
             return True
         return False
 
+    def _is_param_used_multiple_times(self, method_node: cst.FunctionDef) -> bool:
+        """Check if the parameter is used multiple times in the method.
+
+        If the parameter is used more than once, it's better to add an assignment
+        at the start of the method rather than inlining the getter call multiple times.
+
+        Args:
+            method_node: The method function definition to analyze
+
+        Returns:
+            True if the parameter is used more than once in the method body
+        """
+        visitor = _ParameterUsageCounter(self.param_name)
+        method_node.body.visit(visitor)
+        return visitor.usage_count > 1
+
     def _is_param_used_elsewhere_in_method(self, method_node: cst.FunctionDef) -> bool:
         """Check if the parameter is used elsewhere besides as a call argument.
 
@@ -378,6 +526,25 @@ class ReplaceParameterWithMethodCallTransformer(cst.CSTTransformer):
         visitor = _ParameterUsageVisitor(self.param_name, self.method_name)
         method_node.body.visit(visitor)
         return visitor.is_used_elsewhere
+
+
+class _ParameterUsageCounter(cst.CSTVisitor):
+    """Helper visitor to count how many times a parameter is used."""
+
+    def __init__(self, param_name: str) -> None:
+        """Initialize the visitor.
+
+        Args:
+            param_name: The parameter name to count
+        """
+        self.param_name = param_name
+        self.usage_count = 0
+
+    def visit_Name(self, node: cst.Name) -> bool:  # noqa: N802
+        """Visit a name node and count if it's the parameter."""
+        if node.value == self.param_name:
+            self.usage_count += 1
+        return True
 
 
 class _ParameterUsageVisitor(cst.CSTVisitor):
@@ -492,6 +659,87 @@ class _ParameterInfoFinder(cst.CSTVisitor):
         return True
 
 
+class _ClassGetterFinder(cst.CSTVisitor):
+    """Finds getter methods in the same class that might match the parameter."""
+
+    def __init__(self, class_name: str, param_name: str) -> None:
+        """Initialize the finder.
+
+        Args:
+            class_name: Name of the class to search
+            param_name: Name of the parameter (used to match getter methods)
+        """
+        self.class_name = class_name
+        self.param_name = param_name
+        self.getter_method_name: str | None = None
+        self.in_target_class = False
+
+    def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
+        """Track when we enter the target class."""
+        if node.name.value == self.class_name:
+            self.in_target_class = True
+        return True
+
+    def leave_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
+        """Track when we leave the target class."""
+        if node.name.value == self.class_name:
+            self.in_target_class = False
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Look for getter methods in the class."""
+        if not self.in_target_class:
+            return True
+
+        method_name = node.name.value
+        # Look for get_* methods that might relate to the parameter
+        if method_name.startswith("get_"):
+            # Check if the parameter name contains words from the getter name
+            # e.g., param "base_salary" might match getter "get_salary"
+            getter_suffix = method_name[4:]  # Remove "get_" prefix
+            if getter_suffix in self.param_name or self.param_name.endswith(getter_suffix):
+                self.getter_method_name = method_name
+                return False  # Found a match, stop searching
+
+        return True
+
+
+class _CallSiteParamFinder(cst.CSTVisitor):
+    """Finds parameter index by analyzing call sites when method definition is absent."""
+
+    def __init__(self, method_name: str, param_name: str) -> None:
+        """Initialize the finder.
+
+        Args:
+            method_name: Name of the target method being refactored
+            param_name: Name of the parameter to find (not used, kept for compatibility)
+        """
+        self.method_name = method_name
+        self.param_name = param_name
+        self.param_index: int | None = None
+
+    def visit_Call(self, node: cst.Call) -> bool:  # noqa: N802
+        """Look for calls to the target method to infer parameter index."""
+        if not isinstance(node.func, cst.Attribute):
+            return True
+
+        if node.func.attr.value != self.method_name:
+            return True
+
+        # Found a call to the target method - look for any getter call pattern
+        # We assume the parameter being removed is passed as a getter method call
+        for i, arg in enumerate(node.args):
+            # Look for pattern: receiver.get_*() (any getter method)
+            if isinstance(arg.value, cst.Call):
+                if isinstance(arg.value.func, cst.Attribute):
+                    method_name = arg.value.func.attr.value
+                    # Match any get_* pattern
+                    if method_name.startswith("get_"):
+                        self.param_index = i
+                        return False  # Found it, stop searching
+
+        return True
+
+
 class _GetterFinder(cst.CSTVisitor):
     """Finds the getter method name from call site arguments."""
 
@@ -526,6 +774,10 @@ class _GetterFinder(cst.CSTVisitor):
                 var_name = arg.value.value
                 if var_name in self.getter_assignments:
                     self.getter_method_name = self.getter_assignments[var_name]
+            # If the argument is a direct method call, extract the method name
+            elif isinstance(arg.value, cst.Call):
+                if isinstance(arg.value.func, cst.Attribute):
+                    self.getter_method_name = arg.value.func.attr.value
 
         return True
 

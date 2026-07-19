@@ -1,5 +1,6 @@
 """Tests for Replace Constructor with Factory Function refactoring."""
 
+
 from tests.conftest import RefactoringTestBase
 
 
@@ -34,3 +35,15 @@ class TestReplaceConstructorWithFactoryFunction(RefactoringTestBase):
         gracefully, either by detecting it or preventing it.
         """
         self.refactor("replace-constructor-with-factory-function", target="Employee::__init__")
+
+    def test_multi_file(self) -> None:
+        """Test replace-constructor-with-factory-function when call sites span multiple files.
+
+        This verifies that when a constructor is replaced with a factory function,
+        all call sites across multiple files are updated to use the factory function,
+        and the factory function is properly imported in those files.
+        """
+        self.refactor_directory(
+            "replace-constructor-with-factory-function",
+            target="Employee::__init__",
+        )

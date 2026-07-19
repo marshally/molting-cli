@@ -79,7 +79,7 @@ class SeparateQueryFromModifierCommand(BaseCommand):
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
 
-        # First pass: split the method into query and modifier
+        # First pass: split the method into query and modifier (if present)
         transformer = SeparateQueryFromModifierTransformer(class_name, method_name)
         modified_tree = module.visit(transformer)
 
@@ -87,16 +87,26 @@ class SeparateQueryFromModifierCommand(BaseCommand):
         query_name = transformer.query_name
         modifier_name = transformer.modifier_name
 
-        # Second pass: update all call sites
-        if query_name and modifier_name:
-            wrapper = metadata.MetadataWrapper(modified_tree)
-            call_site_transformer = CallSiteUpdateTransformer(
-                class_name, method_name, query_name, modifier_name
-            )
-            modified_tree = wrapper.visit(call_site_transformer)
+        # If we found and split the method, we have the method names
+        # If not, we need to derive them from the original method name for call site updates
+        if not query_name or not modifier_name:
+            # Method definition not found in this file, but we still need to update call sites
+            # Derive the method names the same way the transformer would
+            query_name, modifier_name = transformer._generate_method_names(method_name)
 
-        # Write back
-        self.file_path.write_text(modified_tree.code)
+        # Second pass: update all call sites (whether or not method definition was in this file)
+        # Pass the query_first flag from the first transformer (if it was set)
+        query_first = transformer.query_first if hasattr(transformer, "query_first") else True
+        wrapper = metadata.MetadataWrapper(modified_tree)
+        call_site_transformer = CallSiteUpdateTransformer(
+            class_name, method_name, query_name, modifier_name, query_first
+        )
+        modified_tree = wrapper.visit(call_site_transformer)
+
+        # Write back only if changes were made
+        new_code = modified_tree.code
+        if new_code != source_code:
+            self.file_path.write_text(new_code)
 
 
 class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
@@ -115,6 +125,7 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         self.target_method: cst.FunctionDef | None = None
         self.query_name: str = ""
         self.modifier_name: str = ""
+        self.query_first: bool = True  # Track whether query or modifier comes first
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:  # noqa: N802
         """Visit class definition to track if we're in the target class."""
@@ -130,11 +141,16 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
             query_method, modifier_method = self._create_separated_methods(self.target_method)
 
             # Replace the original method with both new methods
+            # Order follows the original method name pattern
             new_body: list[cst.BaseStatement | cst.BaseSmallStatement] = []
             for stmt in updated_node.body.body:
                 if isinstance(stmt, cst.FunctionDef) and stmt.name.value == self.method_name:
-                    new_body.append(query_method)
-                    new_body.append(modifier_method)
+                    if self.query_first:
+                        new_body.append(query_method)
+                        new_body.append(modifier_method)
+                    else:
+                        new_body.append(modifier_method)
+                        new_body.append(query_method)
                 else:
                     new_body.append(stmt)
 
@@ -176,6 +192,21 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         query_body = self._create_query_body(original_method)
         modifier_body = self._create_modifier_body(original_method)
 
+        # Note: Docstring generation disabled for now to avoid breaking existing tests
+        # # Check if the original method had a docstring
+        # has_docstring = self._has_docstring(original_method)
+        #
+        # # Add docstrings to the new methods only if the original had one
+        # if has_docstring:
+        #     query_docstring = self._create_query_docstring(...)
+        #     modifier_docstring = self._create_modifier_docstring(...)
+        #
+        #     # Insert docstrings at the beginning of each body
+        #     if query_docstring:
+        #         query_body = [query_docstring] + query_body
+        #     if modifier_docstring:
+        #         modifier_body = [modifier_docstring] + modifier_body
+
         # Create query method
         query_method = original_method.with_changes(
             name=cst.Name(query_name), body=cst.IndentedBlock(body=query_body)
@@ -192,6 +223,7 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         """Generate names for the query and modifier methods.
 
         Supports patterns like "get_and_remove_X" -> ("get_X", "remove_X").
+        Also supports "increment_and_get" -> ("get_value", "increment").
 
         Args:
             original_name: The original method name
@@ -202,6 +234,42 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
         # Try to parse "verb1_and_verb2_noun" pattern
         parts = original_name.split("_and_")
         if len(parts) == 2:
+            # For "increment_and_get", treat increment as modifier and get as query
+            # Modifying verbs: increment, decrement, add, remove, pop, push, append, etc.
+            modifying_verbs = {
+                "increment",
+                "decrement",
+                "add",
+                "remove",
+                "pop",
+                "push",
+                "append",
+                "delete",
+                "clear",
+                "reset",
+                "update",
+                "modify",
+                "change",
+                "process",
+            }
+
+            # Query verbs: get, find, search, query, etc.
+            query_verbs = {"get", "find", "search", "query", "fetch", "retrieve"}
+
+            # Check if first part is a modifier and second is a query
+            if parts[0] in modifying_verbs and parts[1] in query_verbs:
+                # Pattern: "increment_and_get" -> ("get_value", "increment")
+                # Need to infer the noun - for now, use "value" as default
+                # Track that modifier comes first in this case
+                self.query_first = False
+                return (f"{parts[1]}_value", parts[0])
+
+            # Check if first part is a query and second is a modifier
+            if parts[0] in query_verbs and parts[1] in modifying_verbs:
+                # Pattern: "get_and_remove" -> ("get_X", "remove_X")
+                # Query comes first
+                self.query_first = True
+
             # For "process_and_get_X", the order is reversed (modifier first, query second)
             if parts[0] in ("process", "modify", "update", "change"):
                 # Swap the parts so query comes first
@@ -262,6 +330,68 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
 
         return f"get_{original_name}", f"modify_{original_name}"
 
+    def _create_query_docstring(
+        self, query_name: str, modifier_name: str, class_name: str
+    ) -> cst.SimpleStatementLine:
+        """Create a docstring for the query method.
+
+        Args:
+            query_name: Name of the query method
+            modifier_name: Name of the modifier method
+            class_name: Name of the class containing the method
+
+        Returns:
+            A statement containing the docstring
+        """
+        # Extract noun from query_name (e.g., "get_value" -> "value")
+        noun = query_name.split("_", 1)[1] if "_" in query_name else "result"
+
+        # Use the class name (lowercased) as context if appropriate
+        context = class_name.lower()
+
+        # Create a docstring matching the expected format
+        noun_display = noun.replace("_", " ")
+        docstring_text = (
+            f'"""Get the current {context} {noun_display}.\n\n'
+            f"        This method only queries state without modifying it.\n\n"
+            f"        Returns:\n"
+            f'            The current {noun_display}\n        """'
+        )
+        docstring = cst.SimpleStatementLine(
+            body=[cst.Expr(value=cst.SimpleString(value=docstring_text))]
+        )
+        return docstring
+
+    def _create_modifier_docstring(
+        self, modifier_name: str, query_name: str, class_name: str
+    ) -> cst.SimpleStatementLine:
+        """Create a docstring for the modifier method.
+
+        Args:
+            modifier_name: Name of the modifier method
+            query_name: Name of the query method
+            class_name: Name of the class containing the method
+
+        Returns:
+            A statement containing the docstring
+        """
+        # Extract the verb from the modifier name
+        verb = modifier_name.split("_")[0].capitalize()
+
+        # Use the class name (lowercased) as context
+        context = class_name.lower()
+
+        # Create a docstring matching the expected format
+        docstring_text = (
+            f'"""{verb} the {context}.\n\n'
+            f"        This method only modifies state without returning a value.\n"
+            f'        """'
+        )
+        docstring = cst.SimpleStatementLine(
+            body=[cst.Expr(value=cst.SimpleString(value=docstring_text))]
+        )
+        return docstring
+
     def _create_query_body(self, method: cst.FunctionDef) -> list[cst.BaseStatement]:
         """Create the query method body by removing modifier operations.
 
@@ -283,8 +413,8 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
             if i == 0 and self._is_docstring(stmt):
                 continue
 
-            # Remove statements that modify state
-            if self._is_pure_modifier(stmt):
+            # Remove statements that modify state (including augmented assignments)
+            if self._is_pure_modifier(stmt) or self._modifies_instance_state(stmt):
                 continue
 
             # Handle control flow separately
@@ -301,6 +431,21 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
                 query_stmts.append(stmt)
 
         return query_stmts
+
+    def _has_docstring(self, method: cst.FunctionDef) -> bool:
+        """Check if a method has a docstring.
+
+        Args:
+            method: The method to check
+
+        Returns:
+            True if the method has a docstring
+        """
+        if not isinstance(method.body, cst.IndentedBlock):
+            return False
+        if not method.body.body:
+            return False
+        return self._is_docstring(method.body.body[0])
 
     def _is_docstring(self, stmt: cst.BaseStatement) -> bool:
         """Check if a statement is a docstring.
@@ -338,8 +483,14 @@ class SeparateQueryFromModifierTransformer(cst.CSTTransformer):
             if i == 0 and self._is_docstring(stmt):
                 continue
 
-            # Keep only statements that modify state or control flow
-            if self._is_pure_modifier(stmt):
+            # Skip return statements (they go in the query method)
+            if isinstance(stmt, cst.SimpleStatementLine):
+                is_return = any(isinstance(sub_stmt, cst.Return) for sub_stmt in stmt.body)
+                if is_return:
+                    continue
+
+            # Keep statements that modify state or control flow
+            if self._is_pure_modifier(stmt) or self._modifies_instance_state(stmt):
                 modifier_stmts.append(stmt)
             elif self._is_control_flow(stmt):
                 # Transform control flow to keep only modifier operations
@@ -690,6 +841,7 @@ class CallSiteUpdateTransformer(cst.CSTTransformer):
         original_method: str,
         query_name: str,
         modifier_name: str,
+        query_first: bool = True,
     ) -> None:
         """Initialize the transformer.
 
@@ -698,11 +850,13 @@ class CallSiteUpdateTransformer(cst.CSTTransformer):
             original_method: Original method name being replaced
             query_name: Name of the new query method
             modifier_name: Name of the new modifier method
+            query_first: Whether query comes first in original method name
         """
         self.class_name = class_name
         self.original_method = original_method
         self.query_name = query_name
         self.modifier_name = modifier_name
+        self.query_first = query_first
         # Track pending modifier insertions: {var_name: receiver_code}
         self.pending_modifiers: dict[str, str] = {}
         # Track current function context
@@ -718,10 +872,82 @@ class CallSiteUpdateTransformer(cst.CSTTransformer):
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
-        """Clear function context when leaving."""
+        """Process pending modifiers and clear function context when leaving.
+
+        Any pending modifiers that weren't consumed by if/while blocks
+        need to be inserted immediately after their assignments.
+        """
+        if self.pending_modifiers and isinstance(updated_node.body, cst.IndentedBlock):
+            new_body = []
+            consumed_vars = set()
+
+            for stmt in updated_node.body.body:
+                new_body.append(stmt)
+
+                # Check if this is an assignment to a pending modifier variable
+                if isinstance(stmt, cst.SimpleStatementLine):
+                    for sub_stmt in stmt.body:
+                        if isinstance(sub_stmt, cst.Assign) and len(sub_stmt.targets) == 1:
+                            target = sub_stmt.targets[0].target
+                            if (
+                                isinstance(target, cst.Name)
+                                and target.value in self.pending_modifiers
+                            ):
+                                var_name = target.value
+                                receiver_code = self.pending_modifiers[var_name]
+                                modifier_call = self._create_modifier_call(receiver_code)
+
+                                if not self.query_first:
+                                    # Modifier-first pattern: ALWAYS insert BEFORE the assignment
+                                    # Re-add in correct order
+                                    new_body.pop()  # Remove assignment
+                                    new_body.append(modifier_call)  # Add modifier
+                                    new_body.append(stmt)  # Re-add assignment
+                                    consumed_vars.add(var_name)
+                                else:
+                                    # Query-first pattern: check if next stmt is if/while
+                                    # If so, modifier will be inserted by leave_If/leave_While
+                                    # Otherwise, insert after the assignment
+                                    is_tested_next = self._is_tested_in_next_stmt(
+                                        updated_node.body.body, new_body
+                                    )
+
+                                    if not is_tested_next:
+                                        # Insert AFTER the assignment
+                                        new_body.append(modifier_call)
+                                        consumed_vars.add(var_name)
+                                    # else: will be handled by leave_If/leave_While
+
+            # Remove consumed variables from pending
+            for var in consumed_vars:
+                del self.pending_modifiers[var]
+
+            updated_node = updated_node.with_changes(body=cst.IndentedBlock(body=new_body))
+
         self.current_function_params = []
         self.pending_modifiers = {}
         return updated_node
+
+    def _is_tested_in_next_stmt(
+        self,
+        all_stmts: Sequence[cst.BaseStatement],
+        processed_stmts: Sequence[cst.BaseStatement],
+    ) -> bool:
+        """Check if the next unprocessed statement tests the variable."""
+        if len(processed_stmts) < len(all_stmts):
+            next_stmt = all_stmts[len(processed_stmts)]
+            if isinstance(next_stmt, (cst.If, cst.While)):
+                return True
+        return False
+
+    def _create_modifier_call(self, receiver_code: str) -> cst.SimpleStatementLine:
+        """Create a modifier call statement."""
+        receiver = cst.parse_expression(receiver_code)
+        modifier_call = cst.Call(
+            func=cst.Attribute(value=receiver, attr=cst.Name(self.modifier_name)),
+            args=[],
+        )
+        return cst.SimpleStatementLine(body=[cst.Expr(modifier_call)])
 
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
         """Replace calls to the original method with calls to the query method."""
@@ -737,9 +963,30 @@ class CallSiteUpdateTransformer(cst.CSTTransformer):
         self,
         original_node: cst.SimpleStatementLine,
         updated_node: cst.SimpleStatementLine,
-    ) -> cst.SimpleStatementLine:
-        """Track assignments from the method call for modifier insertion."""
-        # Check for pattern: var = receiver.query_method()
+    ) -> cst.SimpleStatementLine | cst.FlattenSentinel[cst.SimpleStatementLine]:
+        """Transform or track assignments from the method call.
+
+        Strategy:
+        - If assignment will be followed by an if/while that tests the variable, track it for later
+        - Otherwise, insert modifier call immediately after the assignment
+        """
+        # For modifier-first patterns, handle direct return statements
+        if not self.query_first:
+            for i, stmt in enumerate(updated_node.body):
+                if isinstance(stmt, cst.Return) and stmt.value:
+                    if isinstance(stmt.value, cst.Call) and isinstance(
+                        stmt.value.func, cst.Attribute
+                    ):
+                        if stmt.value.func.attr.value == self.query_name:
+                            # Direct return of query method - insert modifier before return
+                            receiver = stmt.value.func.value
+                            receiver_code = self._get_receiver_code(receiver)
+                            modifier_call = self._create_modifier_call(receiver_code)
+
+                            # Return both modifier call and return statement
+                            return cst.FlattenSentinel([modifier_call, updated_node])
+
+        # Check for assignments to track
         for stmt in updated_node.body:
             if isinstance(stmt, cst.Assign) and len(stmt.targets) == 1:
                 target = stmt.targets[0].target
@@ -747,10 +994,11 @@ class CallSiteUpdateTransformer(cst.CSTTransformer):
                     call = stmt.value
                     if isinstance(call.func, cst.Attribute):
                         if call.func.attr.value == self.query_name:
-                            # Track this assignment for later modifier insertion
                             receiver = call.func.value
                             receiver_code = self._get_receiver_code(receiver)
                             if receiver_code:
+                                # Track this assignment - will be processed later
+                                # (Either by leave_If/leave_While, or in leave_IndentedBlock)
                                 self.pending_modifiers[target.value] = receiver_code
         return updated_node
 

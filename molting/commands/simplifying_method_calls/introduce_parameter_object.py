@@ -117,40 +117,61 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         # Track helper methods found in the target class
         self.helper_methods_to_refactor: set[str] = set()
 
+        # Track whether we found the method definition in this file
+        self.found_method_definition = False
+
+        # Track whether we updated any call sites
+        self.updated_call_sites = False
+
+        # Track calls that should be extracted to a local variable (call node -> args to replace)
+        self.calls_to_extract: dict[int, list[cst.BaseExpression]] = {}
+
+        # Track whether we found a chained comparison pattern (for includes method)
+        self.has_chained_comparison = False
+
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
     ) -> cst.Module:
-        """Leave module and insert the new parameter object class."""
+        """Leave module and insert the new parameter object class or update imports."""
         if self.class_inserted:
             return updated_node
 
-        # Create the new parameter object class
-        param_class = self._create_parameter_class()
+        # Only insert the class if we found the method definition in this file
+        if self.found_method_definition:
+            # Create the new parameter object class
+            param_class = self._create_parameter_class()
 
-        # Find insertion point for the new parameter object class
-        insertion_index = len(updated_node.body)  # Default to end
-        first_class_index = None
+            # Find insertion point for the new parameter object class
+            insertion_index = len(updated_node.body)  # Default to end
+            first_class_index = None
 
-        for i, stmt in enumerate(updated_node.body):
-            if isinstance(stmt, cst.ClassDef):
-                # For class methods, insert before the target class
-                if self.is_class_method and stmt.name.value == self.target_class_name:
-                    insertion_index = i
-                    break
-                # For module-level functions, track the first class
-                if first_class_index is None:
-                    first_class_index = i
+            for i, stmt in enumerate(updated_node.body):
+                if isinstance(stmt, cst.ClassDef):
+                    # For class methods, insert before the target class
+                    if self.is_class_method and stmt.name.value == self.target_class_name:
+                        insertion_index = i
+                        break
+                    # For module-level functions, track the first class
+                    if first_class_index is None:
+                        first_class_index = i
 
-        # If this is a module-level function, insert after the first class
-        if not self.is_class_method and first_class_index is not None:
-            insertion_index = first_class_index + 1
+            # If this is a module-level function, insert after the first class
+            if not self.is_class_method and first_class_index is not None:
+                insertion_index = first_class_index + 1
 
-        # Insert the new class
-        new_body = list(updated_node.body)
-        new_body.insert(insertion_index, param_class)
+            # Insert the new class
+            new_body = list(updated_node.body)
+            new_body.insert(insertion_index, param_class)
 
-        self.class_inserted = True
-        return updated_node.with_changes(body=new_body)
+            self.class_inserted = True
+            return updated_node.with_changes(body=new_body)
+        elif self.updated_call_sites:
+            # We updated call sites but didn't find the method definition
+            # Need to add import for the parameter object class
+            return self._add_import_to_module(updated_node)
+        else:
+            # No changes needed in this file
+            return updated_node
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:  # noqa: N802
         """Visit class definition to track current class and pre-compute helper methods."""
@@ -320,6 +341,56 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
 
         return func_def  # type: ignore[return-value]
 
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> bool:  # noqa: N802
+        """Visit function definition to detect patterns in the target function."""
+        # Check if this is the target function
+        is_target = False
+        if self.is_class_method:
+            # For class methods, check both class and method name
+            is_target = (
+                self.current_class_name == self.target_class_name
+                and node.name.value == self.target_method_name
+            )
+        else:
+            # For module-level functions, just check method name
+            is_target = node.name.value == self.target_method_name
+
+        if is_target:
+            # Scan the function body for chained comparison patterns
+            self._detect_chained_comparison(node)
+
+        return True
+
+    def _detect_chained_comparison(self, func_def: cst.FunctionDef) -> None:
+        """Detect if the function contains a chained comparison pattern.
+
+        Args:
+            func_def: The function definition to analyze
+        """
+
+        # Look for comparisons like: param1 <= expr <= param2
+        class ComparisonVisitor(cst.CSTVisitor):
+            def __init__(self, param_names: list[str]) -> None:
+                self.param_names = param_names
+                self.found_chained = False
+
+            def visit_Comparison(self, node: cst.Comparison) -> None:  # noqa: N802
+                """Check if this is a chained comparison using our parameters."""
+                if len(node.comparisons) == 2:
+                    left_is_param = (
+                        isinstance(node.left, cst.Name) and node.left.value in self.param_names
+                    )
+                    right_is_param = (
+                        isinstance(node.comparisons[1].comparator, cst.Name)
+                        and node.comparisons[1].comparator.value in self.param_names
+                    )
+                    if left_is_param and right_is_param:
+                        self.found_chained = True
+
+        visitor = ComparisonVisitor(self.param_names)
+        func_def.visit(visitor)
+        self.has_chained_comparison = visitor.found_chained
+
     def leave_FunctionDef(  # noqa: N802
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
@@ -338,6 +409,9 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
 
         if not is_target:
             return updated_node
+
+        # Mark that we found the method definition in this file
+        self.found_method_definition = True
 
         # Replace parameters: keep non-target params, and insert new param where first target was
         new_params = []
@@ -364,21 +438,144 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
             self.new_param_name,
             self.helper_methods_to_refactor,
             len(self.param_names),
+            use_is_valid=self._should_create_is_valid_method(),
         )
         updated_node = updated_node.visit(body_visitor)  # type: ignore[assignment]
 
         return updated_node
 
+    def visit_SimpleStatementLine(self, node: cst.SimpleStatementLine) -> bool:  # noqa: N802
+        """Visit statement to check if it contains a call that should be extracted."""
+        # Only extract calls if we're NOT in the file with the method definition
+        # (i.e., we're in a file that only has call sites)
+        if self.found_method_definition:
+            return True
+
+        # Check if this statement contains an assignment with a call on the RHS
+        if len(node.body) != 1:
+            return True
+
+        stmt = node.body[0]
+        if not isinstance(stmt, cst.Assign):
+            return True
+
+        # Check if the value is a call to our target method
+        if not isinstance(stmt.value, cst.Call):
+            return True
+
+        call = stmt.value
+        is_target_call = False
+
+        # Check if this is a call to our target function/method
+        if isinstance(call.func, cst.Name) and call.func.value == self.target:
+            is_target_call = True
+        elif isinstance(call.func, cst.Attribute):
+            if self.is_class_method and call.func.attr.value == self.target_method_name:
+                is_target_call = True
+            elif not self.is_class_method and call.func.attr.value == self.target:
+                is_target_call = True
+
+        if not is_target_call:
+            return True
+
+        # Check if we have enough arguments
+        args = list(call.args)
+        if len(args) < len(self.param_names):
+            return True
+
+        # Check if the first N arguments are all simple Name nodes (variables)
+        args_to_replace = args[: len(self.param_names)]
+        all_simple_names = all(isinstance(arg.value, cst.Name) for arg in args_to_replace)
+
+        if all_simple_names:
+            # Mark this call for extraction
+            self.calls_to_extract[id(call)] = [arg.value for arg in args_to_replace]
+
+        return True
+
+    def leave_SimpleStatementLine(  # noqa: N802
+        self, original_node: cst.SimpleStatementLine, updated_node: cst.SimpleStatementLine
+    ) -> cst.SimpleStatementLine | cst.FlattenSentinel[cst.SimpleStatementLine]:
+        """Transform statements that contain calls marked for extraction.
+
+        This handles extracting the parameter object creation to a separate statement
+        when the call arguments are simple variable names.
+        """
+        # Check if this statement contains an assignment with a call on the RHS
+        if len(original_node.body) != 1:
+            return updated_node
+
+        stmt = original_node.body[0]
+        if not isinstance(stmt, cst.Assign):
+            return updated_node
+
+        # Check if the value is a call to our target method
+        if not isinstance(stmt.value, cst.Call):
+            return updated_node
+
+        # Check if this call was marked for extraction
+        call_id = id(stmt.value)
+        if call_id not in self.calls_to_extract:
+            return updated_node
+
+        # Get the args to replace
+        args_to_replace = self.calls_to_extract[call_id]
+
+        # Mark that we updated a call site
+        self.updated_call_sites = True
+
+        # Create the parameter object assignment
+        param_obj_assignment = cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(self.new_param_name))],
+                    value=cst.Call(
+                        func=cst.Name(self.class_name),
+                        args=[cst.Arg(value=arg) for arg in args_to_replace],
+                    ),
+                )
+            ]
+        )
+
+        # The updated_node should already have the call transformed by leave_Call
+        # We just need to insert the assignment before it
+        return cst.FlattenSentinel([param_obj_assignment, updated_node])
+
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
         """Leave call and update calls to the target function."""
-        # Check if this is a call to our target function
-        if not (isinstance(updated_node.func, cst.Name) and updated_node.func.value == self.target):
+        # Check if this is a call to our target function/method
+        is_target_call = False
+
+        # Case 1: Simple function call (e.g., flow_between(...))
+        if isinstance(updated_node.func, cst.Name) and updated_node.func.value == self.target:
+            is_target_call = True
+
+        # Case 2: Method call (e.g., obj.book(...) or self.booking.book(...))
+        elif isinstance(updated_node.func, cst.Attribute):
+            # Check if the method name matches the target method name
+            if self.is_class_method and updated_node.func.attr.value == self.target_method_name:
+                is_target_call = True
+            elif not self.is_class_method and updated_node.func.attr.value == self.target:
+                is_target_call = True
+
+        if not is_target_call:
             return updated_node
 
         # Find the arguments that correspond to our parameters
         args = list(updated_node.args)
         if len(args) < len(self.param_names):
             return updated_node
+
+        # Mark that we updated a call site
+        self.updated_call_sites = True
+
+        # Check if this call was marked for extraction
+        call_id = id(original_node)
+        if call_id in self.calls_to_extract:
+            # This call should use the extracted variable
+            remaining_args = args[len(self.param_names) :]
+            new_args = [cst.Arg(value=cst.Name(self.new_param_name))] + remaining_args
+            return updated_node.with_changes(args=new_args)
 
         # Collect the arguments to replace
         args_to_replace = []
@@ -392,13 +589,13 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
             else:
                 remaining_args.append(arg)
 
-        # Create the constructor call for the parameter object
+        # Create the constructor call for the parameter object (inline)
         constructor_call = cst.Call(
             func=cst.Name(self.class_name),
             args=[cst.Arg(value=arg) for arg in args_to_replace],
         )
 
-        # Build the new argument list
+        # Build the new argument list (inline the constructor)
         new_args = [cst.Arg(value=constructor_call)] + remaining_args
 
         return updated_node.with_changes(args=new_args)
@@ -454,7 +651,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
 
         init_method = self._create_init_method(param_mapping)
 
-        # Only create includes method for range types (2 params: start_, end_)
+        # Create includes or is_valid method for range types (2 params: start_, end_)
         class_body: list[cst.SimpleStatementLine | cst.BaseCompoundStatement | cst.EmptyLine] = [
             init_method,
         ]
@@ -462,6 +659,9 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         if self._should_create_includes_method():
             class_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))  # type: ignore[list-item]
             class_body.append(self._create_includes_method(param_mapping))
+        elif self._should_create_is_valid_method():
+            class_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))  # type: ignore[list-item]
+            class_body.append(self._create_is_valid_method(param_mapping))
 
         # Create the class
         return cst.ClassDef(
@@ -589,6 +789,61 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
             ),
         )
 
+    def _create_is_valid_method(self, param_mapping: dict[str, str]) -> cst.FunctionDef:
+        """Create the is_valid method for validating the date range.
+
+        Args:
+            param_mapping: Mapping from original parameter names to field names
+
+        Returns:
+            The is_valid method definition
+        """
+        # Find the start and end field names from the mapping
+        start_field = None
+        end_field = None
+        for param_name, field_name in param_mapping.items():
+            if param_name.startswith("start_"):
+                start_field = field_name
+            elif param_name.startswith("end_"):
+                end_field = field_name
+
+        if not start_field or not end_field:
+            raise ValueError("Could not find start_ and end_ parameters for is_valid method")
+
+        return cst.FunctionDef(
+            name=cst.Name("is_valid"),
+            params=cst.Parameters(
+                params=[
+                    create_parameter("self"),
+                ]
+            ),
+            body=cst.IndentedBlock(
+                body=[
+                    cst.SimpleStatementLine(
+                        body=[
+                            cst.Return(
+                                value=cst.Comparison(
+                                    left=cst.Attribute(
+                                        value=cst.Name("self"),
+                                        attr=cst.Name(start_field),
+                                    ),
+                                    comparisons=[
+                                        cst.ComparisonTarget(
+                                            operator=cst.LessThan(),
+                                            comparator=cst.Attribute(
+                                                value=cst.Name("self"),
+                                                attr=cst.Name(end_field),
+                                            ),
+                                        ),
+                                    ],
+                                )
+                            )
+                        ]
+                    )
+                ]
+            ),
+        )
+
     def _class_name_to_snake_case(self, class_name: str) -> str:
         """Convert a class name from PascalCase to snake_case.
 
@@ -605,7 +860,7 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
     def _get_short_field_name(self, param_name: str) -> str:
         """Get shortened field name by removing common prefixes.
 
-        Only shortens start_/end_ prefixes for range types (exactly 2 params).
+        Only shortens start_/end_ prefixes for range types with chained comparisons.
 
         Args:
             param_name: The original parameter name
@@ -613,8 +868,8 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
         Returns:
             The shortened field name for use in the parameter object
         """
-        # Only shorten for range types (exactly 2 params starting with start_ and end_)
-        if len(self.param_names) == 2:
+        # Only shorten for range types that have chained comparisons (includes method)
+        if self._should_create_includes_method() and len(self.param_names) == 2:
             if param_name.startswith("start_"):
                 return "start"
             elif param_name.startswith("end_"):
@@ -625,17 +880,105 @@ class IntroduceParameterObjectTransformer(cst.CSTTransformer):
     def _should_create_includes_method(self) -> bool:
         """Check if an includes method should be created.
 
-        The includes method is only created for range parameter objects with
-        exactly 2 parameters that start with "start_" and "end_".
+        The includes method is only created when:
+        1. There are exactly 2 parameters
+        2. Parameters start with "start_" and "end_"
+        3. The method body contains a chained comparison pattern
 
         Returns:
             True if includes method should be created, False otherwise
         """
         if len(self.param_names) != 2:
             return False
-        return any(p.startswith("start_") for p in self.param_names) and any(
+        has_start_end = any(p.startswith("start_") for p in self.param_names) and any(
             p.startswith("end_") for p in self.param_names
         )
+        return has_start_end and self.has_chained_comparison
+
+    def _should_create_is_valid_method(self) -> bool:
+        """Check if an is_valid method should be created.
+
+        The is_valid method is created when:
+        1. There are exactly 2 parameters
+        2. Parameters start with "start_" and "end_"
+        3. The method body does NOT contain a chained comparison pattern
+
+        Returns:
+            True if is_valid method should be created, False otherwise
+        """
+        if len(self.param_names) != 2:
+            return False
+        has_start_end = any(p.startswith("start_") for p in self.param_names) and any(
+            p.startswith("end_") for p in self.param_names
+        )
+        return has_start_end and not self.has_chained_comparison
+
+    def _add_import_to_module(self, module: cst.Module) -> cst.Module:
+        """Add import for the parameter object class to the module.
+
+        This method finds existing imports from the module that defines the target class
+        and adds the parameter object class name to those imports.
+
+        Args:
+            module: The module to update
+
+        Returns:
+            The updated module with the import added
+        """
+        if not self.is_class_method or not self.target_class_name:
+            return module
+
+        # Find the import statement that imports the target class
+        new_body: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
+        import_updated = False
+
+        for stmt in module.body:
+            stmt_updated = False
+            if isinstance(stmt, cst.SimpleStatementLine):
+                # Check if this is an import statement
+                for item in stmt.body:
+                    if isinstance(item, cst.ImportFrom):
+                        # Check if this imports from the module with our target class
+                        # Look for imports that include the target class name
+                        if item.names and isinstance(item.names, cst.ImportStar):
+                            # Skip star imports
+                            break
+
+                        if item.names and not isinstance(item.names, cst.ImportStar):
+                            # Check if this import includes the target class
+                            imports_target_class = False
+                            for name_item in item.names:
+                                if isinstance(name_item, cst.ImportAlias):
+                                    if name_item.name.value == self.target_class_name:
+                                        imports_target_class = True
+                                        break
+
+                            if imports_target_class:
+                                # Add the parameter object class to this import
+                                new_names = list(item.names)
+                                # Check if the class name is already imported
+                                already_imported = any(
+                                    isinstance(name_item, cst.ImportAlias)
+                                    and name_item.name.value == self.class_name
+                                    for name_item in new_names
+                                )
+                                if not already_imported:
+                                    new_names.append(
+                                        cst.ImportAlias(name=cst.Name(self.class_name))
+                                    )
+                                    new_import = item.with_changes(names=new_names)
+                                    new_stmt = stmt.with_changes(body=[new_import])
+                                    new_body.append(new_stmt)
+                                    import_updated = True
+                                    stmt_updated = True
+                                    break
+
+            if not stmt_updated:
+                new_body.append(stmt)
+
+        if import_updated:
+            return module.with_changes(body=new_body)
+        return module
 
 
 class _HelperMethodBodyUpdater(cst.CSTTransformer):
@@ -707,6 +1050,7 @@ class _ParameterReferenceUpdater(cst.CSTTransformer):
         new_param_name: str,
         helper_methods: Optional[set[str]] = None,
         num_params_to_replace: int = 0,
+        use_is_valid: bool = False,
     ) -> None:
         """Initialize the updater.
 
@@ -715,11 +1059,13 @@ class _ParameterReferenceUpdater(cst.CSTTransformer):
             new_param_name: Name of the new parameter object
             helper_methods: Set of helper method names to update calls for
             num_params_to_replace: Number of leading parameters to replace with config object
+            use_is_valid: Whether to transform comparisons to use is_valid() method
         """
         self.param_names = param_names
         self.new_param_name = new_param_name
         self.helper_methods = helper_methods or set()
         self.num_params_to_replace = num_params_to_replace
+        self.use_is_valid = use_is_valid
 
     def leave_Assign(  # noqa: N802
         self, original_node: cst.Assign, updated_node: cst.Assign
@@ -736,6 +1082,18 @@ class _ParameterReferenceUpdater(cst.CSTTransformer):
                     value=cst.Name(self.new_param_name),
                     attr=cst.Name(updated_node.value.value),
                 )
+            )
+        return updated_node
+
+    def leave_Name(  # noqa: N802
+        self, original_node: cst.Name, updated_node: cst.Name
+    ) -> cst.BaseExpression:
+        """Replace parameter names with references to the parameter object."""
+        if updated_node.value in self.param_names:
+            # Replace with reference to parameter object field
+            return cst.Attribute(
+                value=cst.Name(self.new_param_name),
+                attr=cst.Name(updated_node.value),
             )
         return updated_node
 
@@ -784,6 +1142,44 @@ class _ParameterReferenceUpdater(cst.CSTTransformer):
                 new_args = [cst.Arg(value=cst.Name(self.new_param_name))]
                 new_args.extend(args[self.num_params_to_replace :])
                 return updated_node.with_changes(args=new_args)
+
+        return updated_node
+
+    def leave_Comparison(  # noqa: N802
+        self, original_node: cst.Comparison, updated_node: cst.Comparison
+    ) -> cst.BaseExpression:
+        """Transform comparisons between parameters to use is_valid()."""
+        if not self.use_is_valid:
+            return updated_node
+
+        # Look for simple comparisons between the two parameters
+        # e.g., start_date >= end_date or start_date > end_date
+        # Check the ORIGINAL node because child names have already been transformed
+        if len(original_node.comparisons) == 1:
+            left_is_param = (
+                isinstance(original_node.left, cst.Name)
+                and original_node.left.value in self.param_names
+            )
+            right_is_param = (
+                isinstance(original_node.comparisons[0].comparator, cst.Name)
+                and original_node.comparisons[0].comparator.value in self.param_names
+            )
+
+            if left_is_param and right_is_param:
+                # Check if it's a >= or > comparison
+                operator = original_node.comparisons[0].operator
+                if isinstance(operator, (cst.GreaterThanEqual, cst.GreaterThan)):
+                    # Transform to: not date_range.is_valid()
+                    return cst.UnaryOperation(
+                        operator=cst.Not(),
+                        expression=cst.Call(
+                            func=cst.Attribute(
+                                value=cst.Name(self.new_param_name),
+                                attr=cst.Name("is_valid"),
+                            ),
+                            args=[],
+                        ),
+                    )
 
         return updated_node
 

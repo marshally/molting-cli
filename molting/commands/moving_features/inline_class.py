@@ -87,49 +87,47 @@ class InlineClassCommand(BaseCommand):
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
 
-        # Find the delegate field name in the target class
-        delegate_field = self._find_delegate_field(module, target_class, source_class)
-
         # Find source class and get its method names and field names
         source_class_def = find_class_in_module(module, source_class)
-        source_methods: list[str] = []
-        source_fields: set[str] = set()
+        target_class_def = find_class_in_module(module, target_class)
 
-        if source_class_def:
-            for stmt in source_class_def.body.body:
-                if isinstance(stmt, cst.FunctionDef):
-                    if stmt.name.value != "__init__":
-                        method_name = stmt.name.value
-                        source_methods.append(method_name)
-                        # Check if this method exists in target class
-                        conflict_checker = MethodConflictChecker(target_class, method_name)
-                        module.visit(conflict_checker)
-                        if conflict_checker.has_conflict:
-                            # Check if it's just a delegating method (not a true conflict)
-                            if delegate_field:
-                                delegating_checker = DelegatingMethodChecker(
-                                    target_class, method_name, delegate_field
-                                )
-                                module.visit(delegating_checker)
-                                if delegating_checker.is_delegating:
-                                    # Not a true conflict - method just delegates
-                                    continue
-                            raise ValueError(
-                                f"Class '{target_class}' already has a method named "
-                                f"'{method_name}'"
-                            )
-                    else:
-                        # Extract field names from __init__
-                        field_assignments = extract_init_field_assignments(stmt)
-                        source_fields.update(field_assignments.keys())
+        # For multi-file support, we need to discover delegate_field, source_methods,
+        # source_fields, and source_class_def even if the classes aren't in the current file.
+        # We'll scan the directory to find this information.
+        (
+            delegate_field,
+            source_methods,
+            source_fields,
+            discovered_source_class_def,
+        ) = self._discover_class_info(source_class, target_class, module, source_class_def)
 
-        self.apply_libcst_transform(InlineClassTransformer, source_class, target_class)
+        # Use the discovered source class definition if we didn't find it locally
+        if not source_class_def and discovered_source_class_def:
+            source_class_def = discovered_source_class_def
 
-        # Update call sites for the inlined class
+        # Validate method conflicts only if both classes exist in this file
+        if source_class_def and target_class_def and delegate_field:
+            self._validate_no_conflicts(module, target_class, source_methods, delegate_field)
+
+        # Only apply transformation if source or target class exists in this file
+        # For multi-file refactoring, some files may only have call sites
+        if source_class_def or target_class_def:
+            self.apply_libcst_transform(
+                InlineClassTransformer,
+                source_class,
+                target_class,
+                source_class_def,
+                source_methods,
+                source_fields,
+                delegate_field,
+            )
+
+        # Update call sites for the inlined class across all files in the directory
+        # This needs to happen for every file processed, even if it only has call sites
         if delegate_field and (source_methods or source_fields):
             directory = self.file_path.parent
             updater = CallSiteUpdater(directory)
-            field_prefix = self._compute_prefix_from_field(delegate_field)
+            field_prefix = self._compute_prefix_from_field(delegate_field, source_class)
 
             # Update method call sites
             for method_name in source_methods:
@@ -147,6 +145,113 @@ class InlineClassCommand(BaseCommand):
             self._inline_delegate_field_assignments(
                 directory, delegate_field, source_fields, field_prefix
             )
+
+    def _discover_class_info(
+        self,
+        source_class: str,
+        target_class: str,
+        module: cst.Module,
+        source_class_def: cst.ClassDef | None,
+    ) -> tuple[str | None, list[str], set[str], cst.ClassDef | None]:
+        """Discover delegate field, source methods, source fields, and source class def.
+
+        For multi-file refactoring, this scans the directory to find the information
+        even if the classes aren't in the current file.
+
+        Args:
+            source_class: Name of the source class
+            target_class: Name of the target class
+            module: The current module
+            source_class_def: The source class definition if found in current file
+
+        Returns:
+            Tuple of (delegate_field, source_methods, source_fields, source_class_def)
+        """
+        delegate_field = self._find_delegate_field(module, target_class, source_class)
+        source_methods: list[str] = []
+        source_fields: set[str] = set()
+
+        # If we found info in the current file, use it
+        if source_class_def:
+            for stmt in source_class_def.body.body:
+                if isinstance(stmt, cst.FunctionDef):
+                    if stmt.name.value != "__init__":
+                        source_methods.append(stmt.name.value)
+                    else:
+                        field_assignments = extract_init_field_assignments(stmt)
+                        source_fields.update(field_assignments.keys())
+            return delegate_field, source_methods, source_fields, source_class_def
+
+        # Otherwise, scan the directory to find the class definitions
+        # This supports multi-file refactoring where classes may be in different files
+        directory = self.file_path.parent
+        external_source_class_def: cst.ClassDef | None = None
+
+        for file_path in directory.glob("*.py"):
+            if file_path == self.file_path:
+                continue  # Already checked this file
+            try:
+                other_source = file_path.read_text()
+                other_module = cst.parse_module(other_source)
+
+                # Look for delegate field in other files
+                if not delegate_field:
+                    delegate_field = self._find_delegate_field(
+                        other_module, target_class, source_class
+                    )
+
+                # Look for source class in other files
+                other_source_class = find_class_in_module(other_module, source_class)
+                if other_source_class and not source_methods:
+                    external_source_class_def = other_source_class
+                    for stmt in other_source_class.body.body:
+                        if isinstance(stmt, cst.FunctionDef):
+                            if stmt.name.value != "__init__":
+                                source_methods.append(stmt.name.value)
+                            else:
+                                field_assignments = extract_init_field_assignments(stmt)
+                                source_fields.update(field_assignments.keys())
+
+                # Stop if we found everything
+                if delegate_field and source_methods:
+                    break
+            except Exception:
+                # Skip files that can't be parsed
+                continue
+
+        return delegate_field, source_methods, source_fields, external_source_class_def
+
+    def _validate_no_conflicts(
+        self,
+        module: cst.Module,
+        target_class: str,
+        source_methods: list[str],
+        delegate_field: str,
+    ) -> None:
+        """Validate that there are no method name conflicts.
+
+        Args:
+            module: The parsed module
+            target_class: Name of the target class
+            source_methods: List of method names from source class
+            delegate_field: Name of the delegate field
+
+        Raises:
+            ValueError: If there are conflicting method names
+        """
+        for method_name in source_methods:
+            conflict_checker = MethodConflictChecker(target_class, method_name)
+            module.visit(conflict_checker)
+            if conflict_checker.has_conflict:
+                # Check if it's just a delegating method (not a true conflict)
+                delegating_checker = DelegatingMethodChecker(
+                    target_class, method_name, delegate_field
+                )
+                module.visit(delegating_checker)
+                if not delegating_checker.is_delegating:
+                    raise ValueError(
+                        f"Class '{target_class}' already has a method named " f"'{method_name}'"
+                    )
 
     def _find_delegate_field(
         self, module: cst.Module, target_class: str, source_class: str
@@ -197,15 +302,28 @@ class InlineClassCommand(BaseCommand):
                 return value.func.value == source_class
         return False
 
-    def _compute_prefix_from_field(self, field_name: str) -> str:
+    def _compute_prefix_from_field(self, field_name: str, source_class_name: str) -> str:
         """Compute the prefix from a delegation field name.
 
         Args:
             field_name: The delegation field name (e.g., "office_telephone")
+            source_class_name: Name of the source class being inlined
 
         Returns:
             The prefix to use (e.g., "office_")
         """
+        # Check if the field name is essentially just the source class name in snake_case
+        # e.g., "phone_number" matches "PhoneNumber"
+        import re
+
+        # Convert source class name to snake_case
+        source_class_snake = re.sub(r"(?<!^)(?=[A-Z])", "_", source_class_name).lower()
+
+        # If the delegate field name matches the source class in snake_case, no prefix
+        if field_name == source_class_snake:
+            return ""
+
+        # Otherwise, use the standard prefix logic
         if "_" in field_name:
             parts = field_name.rsplit("_", 1)
             return parts[0] + "_"
@@ -317,12 +435,24 @@ class InlineClassCommand(BaseCommand):
 class InlineClassTransformer(cst.CSTTransformer):
     """Transforms classes to inline source class into target class."""
 
-    def __init__(self, source_class: str, target_class: str) -> None:
+    def __init__(
+        self,
+        source_class: str,
+        target_class: str,
+        external_source_class_def: cst.ClassDef | None,
+        source_method_names: list[str],
+        source_field_names: set[str],
+        delegate_field_name: str | None,
+    ) -> None:
         """Initialize the transformer.
 
         Args:
             source_class: Name of the class to be inlined
             target_class: Name of the class to inline into
+            external_source_class_def: Source class definition from another file (if any)
+            source_method_names: List of method names from the source class
+            source_field_names: Set of field names from the source class
+            delegate_field_name: Name of the delegate field in target class
         """
         self.source_class = source_class
         self.target_class = target_class
@@ -330,34 +460,86 @@ class InlineClassTransformer(cst.CSTTransformer):
         self.source_fields: dict[str, cst.BaseExpression] = {}
         self.source_methods: list[cst.FunctionDef] = []
         self.field_prefix = ""
+        # For multi-file support: pre-computed information
+        self.external_source_class_def = external_source_class_def
+        self.external_source_method_names = source_method_names
+        self.external_source_field_names = source_field_names
+        self.external_delegate_field = delegate_field_name
 
     def visit_Module(self, node: cst.Module) -> bool:  # noqa: N802
         """Visit module to find and analyze source class."""
         self.source_class_def = find_class_in_module(node, self.source_class)
         if self.source_class_def:
             self._extract_source_features(self.source_class_def)
+        elif self.external_source_class_def:
+            # Use the external source class definition if we don't have a local one
+            self.source_class_def = self.external_source_class_def
+            self._extract_source_features(self.external_source_class_def)
 
         target_class_def = find_class_in_module(node, self.target_class)
         if target_class_def:
+            # Try to determine field prefix from this file
             self._determine_field_prefix(target_class_def)
+            # If we didn't find it locally but have external info, use that
+            if not self.field_prefix and self.external_delegate_field:
+                self.field_prefix = self._compute_prefix_from_field(self.external_delegate_field)
 
         return True
 
     def leave_Module(  # noqa: N802
         self, original_node: cst.Module, updated_node: cst.Module
     ) -> cst.Module:
-        """Leave module and remove the source class."""
-        if not self.source_class_def:
-            return updated_node
-
+        """Leave module and remove the source class and its imports."""
         new_body: list[cst.BaseStatement] = []
         for stmt in updated_node.body:
+            skip_stmt = False
+
+            # Skip the source class definition if it exists in this file
             if isinstance(stmt, cst.ClassDef):
                 if stmt.name.value == self.source_class:
-                    continue  # Skip the source class
-            new_body.append(stmt)
+                    skip_stmt = True
+
+            # Skip imports of the source class
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for body_item in stmt.body:
+                    if isinstance(body_item, (cst.Import, cst.ImportFrom)):
+                        if self._imports_source_class(body_item):
+                            skip_stmt = True
+                            break
+
+            if not skip_stmt:
+                new_body.append(stmt)
 
         return updated_node.with_changes(body=tuple(new_body))
+
+    def _imports_source_class(self, import_node: cst.Import | cst.ImportFrom) -> bool:
+        """Check if an import statement imports the source class.
+
+        Args:
+            import_node: The import node to check
+
+        Returns:
+            True if the import imports the source class
+        """
+        if isinstance(import_node, cst.ImportFrom):
+            # Check for: from module import SourceClass
+            if isinstance(import_node.names, cst.ImportStar):
+                return False
+            for name in import_node.names:
+                if isinstance(name.name, cst.Name):
+                    if name.name.value == self.source_class:
+                        return True
+        elif isinstance(import_node, cst.Import):
+            # Check for: import SourceClass
+            for name in import_node.names:
+                if isinstance(name.name, cst.Name):
+                    if name.name.value == self.source_class:
+                        return True
+                elif isinstance(name.name, cst.Attribute):
+                    # Handle dotted imports like import package.SourceClass
+                    if name.name.attr.value == self.source_class:
+                        return True
+        return False
 
     def _get_source_method_names(self) -> set[str]:
         """Get names of methods from source class (excluding __init__).
@@ -528,6 +710,18 @@ class InlineClassTransformer(cst.CSTTransformer):
         Returns:
             The prefix to use (e.g., "office_")
         """
+        # Check if the field name is essentially just the source class name in snake_case
+        # e.g., "phone_number" matches "PhoneNumber"
+        import re
+
+        # Convert source class name to snake_case
+        source_class_snake = re.sub(r"(?<!^)(?=[A-Z])", "_", self.source_class).lower()
+
+        # If the delegate field name matches the source class in snake_case, no prefix
+        if field_name == source_class_snake:
+            return ""
+
+        # Otherwise, use the standard prefix logic
         if "_" in field_name:
             parts = field_name.rsplit("_", 1)
             return parts[0] + "_"

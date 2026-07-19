@@ -71,29 +71,62 @@ class RemoveMiddleManCommand(BaseCommand):
     def execute(self) -> None:
         """Apply remove-middle-man refactoring using libCST.
 
+        Supports both single-file and multi-file refactoring:
+        - In single-file mode: target is the class name
+        - In multi-file mode: target is the filename, source is the class name
+
         Raises:
             ValueError: If transformation cannot be applied
         """
-        target_class = self.params["target"]
-        source_code = self.file_path.read_text()
+        # Determine if we're in multi-file mode
+        target_param = self.params["target"]
+        source_param = self.params.get("source")
 
+        if source_param:
+            # Multi-file mode: target is file, source is class
+            target_class = source_param
+            target_file = self.file_path.parent / target_param
+        else:
+            # Single-file mode: target is class, current file is the target
+            target_class = target_param
+            target_file = self.file_path
+
+        # In multi-file mode, get delegation info from the target file FIRST
+        # (before any modifications are written) so we know what to update
+        delegation_transformer = None
+        if source_param:
+            # Read the target file to get delegation info
+            target_source = target_file.read_text()
+            target_tree = cst.parse_module(target_source)
+            target_transformer = RemoveMiddleManTransformer(target_class)
+            target_tree.visit(target_transformer)
+            delegation_transformer = target_transformer
+
+        # Transform the current file
+        source_code = self.file_path.read_text()
         tree = cst.parse_module(source_code)
         transformer = RemoveMiddleManTransformer(target_class)
         modified_tree = tree.visit(transformer)
 
-        self.file_path.write_text(modified_tree.code)
+        # Only write if changes were made
+        if modified_tree.code != source_code:
+            self.file_path.write_text(modified_tree.code)
+
+        # In single-file mode, use the transformer from the current file
+        if not delegation_transformer:
+            delegation_transformer = transformer
 
         # Update call sites for all removed delegation methods
-        if transformer.delegate_field and transformer.delegation_methods:
+        if delegation_transformer.delegate_field and delegation_transformer.delegation_methods:
             directory = self.file_path.parent
             updater = CallSiteUpdater(directory)
 
             # Get the public name of the delegate field (without leading underscore)
-            public_field_name = transformer.delegate_field.lstrip("_")
+            public_field_name = delegation_transformer.delegate_field.lstrip("_")
 
             # Update each delegation method's call sites
-            for method_name, delegated_attr in transformer.delegation_mapping.items():
-                is_method = transformer.delegation_is_method.get(method_name, False)
+            for method_name, delegated_attr in delegation_transformer.delegation_mapping.items():
+                is_method = delegation_transformer.delegation_is_method.get(method_name, False)
                 self._update_method_call_sites(
                     updater, method_name, public_field_name, delegated_attr, is_method
                 )
@@ -253,11 +286,75 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
     def _identify_delegate_and_methods(self, class_def: cst.ClassDef) -> None:
         """Identify the delegate field and delegation methods.
 
+        First identifies delegation patterns, then determines which field is the delegate.
+
         Args:
             class_def: The class definition to analyze
         """
-        self._find_delegate_field(class_def)
+        # First pass: find candidate delegation methods and their delegate fields
+        delegate_fields = set()
+        for item in class_def.body.body:
+            if isinstance(item, cst.FunctionDef):
+                delegate_field = self._get_delegate_field_from_method(item)
+                if delegate_field:
+                    delegate_fields.add(delegate_field)
+
+        # Choose the most common delegate field (or first if tie)
+        if delegate_fields:
+            self.delegate_field = sorted(delegate_fields)[0]
+
+        # Second pass: identify all delegation methods for this field
         self._find_delegation_methods(class_def)
+
+    def _get_delegate_field_from_method(self, method: cst.FunctionDef) -> str | None:
+        """Extract the delegate field name from a delegation method.
+
+        Args:
+            method: The method to analyze
+
+        Returns:
+            The delegate field name if this is a delegation method, None otherwise
+        """
+        if self._is_magic_method(method):
+            return None
+
+        return_expr = self._extract_single_return_from_method(method)
+        if not return_expr:
+            return None
+
+        # Check for delegation pattern: self.field.attr or self.field.method()
+        delegate_field = self._extract_delegate_field_from_expr(return_expr)
+        return delegate_field
+
+    def _extract_delegate_field_from_expr(self, expr: cst.BaseExpression | None) -> str | None:
+        """Extract the delegate field name from a return expression.
+
+        Args:
+            expr: The expression to check
+
+        Returns:
+            The delegate field name if found, None otherwise
+        """
+        if not expr:
+            return None
+
+        # Handle method calls: self.field.method()
+        if isinstance(expr, cst.Call):
+            if not isinstance(expr.func, cst.Attribute):
+                return None
+            obj = expr.func.value
+            if isinstance(obj, cst.Attribute):
+                if isinstance(obj.value, cst.Name) and obj.value.value == "self":
+                    return obj.attr.value
+
+        # Handle attribute access: self.field.attribute
+        if isinstance(expr, cst.Attribute):
+            obj = expr.value
+            if isinstance(obj, cst.Attribute):
+                if isinstance(obj.value, cst.Name) and obj.value.value == "self":
+                    return obj.attr.value
+
+        return None
 
     def _find_delegate_field(self, class_def: cst.ClassDef) -> None:
         """Find the private delegate field in __init__ method.
@@ -276,14 +373,18 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
                 break
 
     def _extract_private_field_from_method(self, method: cst.FunctionDef) -> str | None:
-        """Extract the first private field assignment from a method.
+        """Extract the first delegate field assignment from a method.
+
+        Prioritizes private fields (starting with _) but will accept any field
+        if no private field is found, to support cases where the field is already public.
 
         Args:
             method: The method to analyze
 
         Returns:
-            The private field name if found, None otherwise
+            The delegate field name if found, None otherwise
         """
+        first_field = None
         for stmt in method.body.body:
             if not isinstance(stmt, cst.SimpleStatementLine):
                 continue
@@ -293,10 +394,18 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
                     continue
 
                 field_name = self._get_self_attribute_name(expr.targets[0].target)
-                if field_name and field_name.startswith("_"):
+                if not field_name:
+                    continue
+
+                # Prefer private fields
+                if field_name.startswith("_"):
                     return field_name
 
-        return None
+                # Remember first field as fallback
+                if first_field is None:
+                    first_field = field_name
+
+        return first_field
 
     def _get_self_attribute_name(self, target: cst.BaseAssignTargetExpression) -> str | None:
         """Get the attribute name if target is self.field.
@@ -391,6 +500,8 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
     ) -> cst.BaseExpression | None:
         """Extract the return value from a method with a single return statement.
 
+        Skips docstrings when looking for the return statement.
+
         Args:
             method: The method to analyze
 
@@ -401,10 +512,27 @@ class RemoveMiddleManTransformer(cst.CSTTransformer):
             return None
 
         statements = method.body.body
-        if len(statements) != 1:
+
+        # Filter out docstrings (Expr nodes with string values)
+        non_docstring_stmts: list[cst.BaseStatement] = []
+        for stmt in statements:
+            if isinstance(stmt, cst.SimpleStatementLine):
+                if len(stmt.body) == 1 and isinstance(stmt.body[0], cst.Expr):
+                    expr_value = stmt.body[0].value
+                    # Skip if it's a string literal (docstring)
+                    if isinstance(
+                        expr_value, (cst.SimpleString, cst.ConcatenatedString, cst.FormattedString)
+                    ):
+                        continue
+                non_docstring_stmts.append(stmt)
+            else:
+                non_docstring_stmts.append(stmt)
+
+        # Now check if there's exactly one non-docstring statement
+        if len(non_docstring_stmts) != 1:
             return None
 
-        stmt = statements[0]
+        stmt = non_docstring_stmts[0]
         if not isinstance(stmt, cst.SimpleStatementLine):
             return None
 

@@ -65,3 +65,15 @@ class TestSeparateQueryFromModifier(RefactoringTestBase):
         existing method. The refactoring must handle this gracefully.
         """
         self.refactor("separate-query-from-modifier", target="Security::get_and_remove_intruder")
+
+    def test_multi_file(self) -> None:
+        """Test separate-query-from-modifier when call sites span multiple files.
+
+        This verifies that when a method that both queries and modifies is split,
+        all call sites across different files are updated to call both the modifier
+        and query methods separately, with the query result being used where needed.
+        """
+        self.refactor_directory(
+            "separate-query-from-modifier",
+            target="Counter::increment_and_get",
+        )

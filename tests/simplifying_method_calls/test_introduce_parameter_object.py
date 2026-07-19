@@ -64,3 +64,17 @@ class TestIntroduceParameterObject(RefactoringTestBase):
             params="start_date,end_date",
             name="DateRange",
         )
+
+    def test_multi_file(self) -> None:
+        """Test introduce-parameter-object when call sites span multiple files.
+
+        This verifies that when a method is refactored to use a parameter object,
+        all call sites across different files are updated to construct and pass
+        the parameter object instead of individual parameters.
+        """
+        self.refactor_directory(
+            "introduce-parameter-object",
+            target="Booking::book",
+            params="start_date,end_date",
+            name="DateRange",
+        )

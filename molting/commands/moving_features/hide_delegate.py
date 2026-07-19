@@ -1,6 +1,6 @@
 """Hide Delegate refactoring command."""
 
-from typing import cast
+from typing import Callable, cast
 
 import libcst as cst
 
@@ -48,7 +48,9 @@ class HideDelegateCommand(BaseCommand):
         Raises:
             ValueError: If required parameters are missing
         """
-        self.validate_required_params("target")
+        # Either 'target' (single-file) or 'source' (multi-file) must be present
+        if "target" not in self.params and "source" not in self.params:
+            raise ValueError("Either 'target' or 'source' parameter is required")
 
     def execute(self) -> None:
         """Apply hide-delegate refactoring using libCST.
@@ -56,12 +58,26 @@ class HideDelegateCommand(BaseCommand):
         Raises:
             ValueError: If transformation cannot be applied
         """
-        target = self.params["target"]
+        # Multi-file mode: 'target' is the filename, 'source' is the class::field
+        # Single-file mode: 'target' is the class::field
+        is_multi_file = "source" in self.params
 
-        parts = target.split("::")
+        if is_multi_file:
+            # Multi-file: target is filename, source is class::field
+            target_filename = self.params.get("target")
+            class_field_spec = self.params.get("source")
+        else:
+            # Single-file: target is class::field
+            target_filename = None
+            class_field_spec = self.params.get("target")
+
+        if not class_field_spec:
+            raise ValueError("Either 'target' or 'source' parameter is required")
+
+        parts = class_field_spec.split("::")
         if len(parts) != 2:
             raise ValueError(
-                f"Invalid target format: {target}. Expected format: ClassName::field_name"
+                f"Invalid target format: {class_field_spec}. Expected format: ClassName::field_name"
             )
 
         class_name = parts[0]
@@ -70,11 +86,17 @@ class HideDelegateCommand(BaseCommand):
         source_code = self.file_path.read_text()
         module = cst.parse_module(source_code)
 
+        # In multi-file mode, only transform the file that contains the class
+        is_target_file = True
+        if is_multi_file and target_filename:
+            is_target_file = self.file_path.name == target_filename
+
         # Try to use DelegateMemberDiscovery to find delegate class and generate methods
         discovery = DelegateMemberDiscovery(module)
         delegate_class = discovery.find_delegate_class(class_name, field_name)
 
         delegating_methods: list[cst.FunctionDef] = []
+        should_update_call_sites = False
 
         if delegate_class is not None:
             # Auto-discovery mode: Generate all delegating methods for the delegate class
@@ -99,15 +121,50 @@ class HideDelegateCommand(BaseCommand):
             if conflict_checker.has_conflict:
                 raise ValueError(f"Class '{class_name}' already has a method named 'get_manager'")
 
-            delegating_methods = [self._create_fallback_delegating_method(field_name)]
+            delegating_methods = [
+                self._create_fallback_delegating_method(field_name, is_multi_file)
+            ]
+            should_update_call_sites = True
 
-        # Step 1: Transform the class to hide the delegate and add delegating methods
-        transformer = HideDelegateTransformer(class_name, field_name, delegating_methods)
-        modified_tree = module.visit(transformer)
-        self.file_path.write_text(modified_tree.code)
+        # Step 1: Transform the class to add delegating methods (only if this is the target file)
+        if is_target_file:
+            # In multi-file mode, don't make the field private
+            transformer = HideDelegateTransformer(
+                class_name, field_name, delegating_methods, make_field_private=not is_multi_file
+            )
+            modified_tree = module.visit(transformer)
 
-        # Step 2: Update call sites (only for fallback mode)
-        if delegate_class is None:
+            # Only write if the class was found in this file
+            if modified_tree.code != source_code:
+                self.file_path.write_text(modified_tree.code)
+
+        # Step 2: Update call sites (multi-file mode only, not in target file)
+        if should_update_call_sites and is_multi_file and not is_target_file:
+            # In multi-file mode, update call sites in non-target files
+            module = cst.parse_module(self.file_path.read_text())
+
+            def transform_call_site_multi(node: cst.CSTNode) -> cst.CSTNode:
+                """Transform *.field.manager to *.get_manager()."""
+                if isinstance(node, cst.Attribute) and node.attr.value == "manager":
+                    # Check if this is accessing through the field we're hiding
+                    if (
+                        isinstance(node.value, cst.Attribute)
+                        and node.value.attr.value == field_name
+                    ):
+                        # Replace *.field.manager with *.get_manager()
+                        base_object = node.value.value
+                        return cst.Call(
+                            func=cst.Attribute(value=base_object, attr=cst.Name("get_manager")),
+                            args=[],
+                        )
+                return node
+
+            transformer_call_sites = CallSiteTransformer(transform_call_site_multi)
+            modified_tree = module.visit(transformer_call_sites)
+            if modified_tree.code != self.file_path.read_text():
+                self.file_path.write_text(modified_tree.code)
+        elif should_update_call_sites and not is_multi_file:
+            # Single-file mode: update call sites using CallSiteUpdater
             directory = self.file_path.parent
             updater = CallSiteUpdater(directory)
 
@@ -129,34 +186,58 @@ class HideDelegateCommand(BaseCommand):
 
             updater.update_all("manager", SymbolContext.ATTRIBUTE_ACCESS, transform_call_site)
 
-    def _create_fallback_delegating_method(self, field_name: str) -> cst.FunctionDef:
+    def _create_fallback_delegating_method(
+        self, field_name: str, is_multi_file: bool = False
+    ) -> cst.FunctionDef:
         """Create a hardcoded get_manager() method for backward compatibility.
 
         Args:
             field_name: Name of the delegate field
+            is_multi_file: If True, use public field name instead of private
 
         Returns:
             FunctionDef for get_manager() method
         """
+        # Use the public field name in multi-file mode, private name otherwise
+        actual_field_name = field_name if is_multi_file else f"_{field_name}"
+
+        # Build method body
+        body_statements: list[cst.BaseStatement] = []
+
+        # Add docstring only in multi-file mode
+        if is_multi_file:
+            docstring = cst.SimpleStatementLine(
+                body=[
+                    cst.Expr(
+                        value=cst.SimpleString(
+                            value='"""Get person\'s manager.\n\n        '
+                            f"Hides the delegation to {field_name}.manager,\n        "
+                            'following the Law of Demeter.\n        """'
+                        )
+                    )
+                ]
+            )
+            body_statements.append(docstring)
+
+        # Add return statement
+        return_stmt = cst.SimpleStatementLine(
+            body=[
+                cst.Return(
+                    value=cst.Attribute(
+                        value=cst.Attribute(
+                            value=cst.Name("self"), attr=cst.Name(actual_field_name)
+                        ),
+                        attr=cst.Name("manager"),
+                    )
+                )
+            ]
+        )
+        body_statements.append(return_stmt)
+
         return cst.FunctionDef(
             name=cst.Name("get_manager"),
             params=cst.Parameters(params=[create_parameter("self")]),
-            body=cst.IndentedBlock(
-                body=[
-                    cst.SimpleStatementLine(
-                        body=[
-                            cst.Return(
-                                value=cst.Attribute(
-                                    value=cst.Attribute(
-                                        value=cst.Name("self"), attr=cst.Name(f"_{field_name}")
-                                    ),
-                                    attr=cst.Name("manager"),
-                                )
-                            )
-                        ]
-                    )
-                ]
-            ),
+            body=cst.IndentedBlock(body=body_statements),
         )
 
 
@@ -164,7 +245,11 @@ class HideDelegateTransformer(cst.CSTTransformer):
     """Transforms classes to hide a delegate field."""
 
     def __init__(
-        self, class_name: str, field_name: str, delegating_methods: list[cst.FunctionDef]
+        self,
+        class_name: str,
+        field_name: str,
+        delegating_methods: list[cst.FunctionDef],
+        make_field_private: bool = True,
     ) -> None:
         """Initialize the transformer.
 
@@ -172,10 +257,12 @@ class HideDelegateTransformer(cst.CSTTransformer):
             class_name: Name of the class containing the delegate field
             field_name: Name of the field to hide
             delegating_methods: List of delegating methods to add to the class
+            make_field_private: Whether to rename the field to _field_name (default True)
         """
         self.class_name = class_name
         self.field_name = field_name
         self.delegating_methods = delegating_methods
+        self.make_field_private = make_field_private
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
@@ -203,7 +290,11 @@ class HideDelegateTransformer(cst.CSTTransformer):
         return node.with_changes(body=node.body.with_changes(body=tuple(new_body_stmts)))
 
     def _transform_init(self, node: cst.FunctionDef) -> cst.FunctionDef:
-        """Transform __init__ to make the field private."""
+        """Transform __init__ to make the field private (if make_field_private is True)."""
+        if not self.make_field_private:
+            # Don't modify __init__ if we're not making the field private
+            return node
+
         new_stmts: list[cst.BaseStatement] = []
 
         if isinstance(node.body, cst.IndentedBlock):
@@ -240,6 +331,27 @@ class HideDelegateTransformer(cst.CSTTransformer):
             )
             return assign.with_changes(targets=[new_target])
         return assign
+
+
+class CallSiteTransformer(cst.CSTTransformer):
+    """Transformer that applies a transformation function to call sites."""
+
+    def __init__(self, transform_func: Callable[[cst.CSTNode], cst.CSTNode]) -> None:
+        """Initialize the transformer.
+
+        Args:
+            transform_func: Function to apply to each node
+        """
+        self.transform_func = transform_func
+
+    def leave_Attribute(  # noqa: N802
+        self, original_node: cst.Attribute, updated_node: cst.Attribute
+    ) -> cst.BaseExpression:
+        """Apply transformation to attribute access."""
+        result = self.transform_func(updated_node)
+        if isinstance(result, cst.BaseExpression):
+            return result
+        return updated_node
 
 
 register_command(HideDelegateCommand)

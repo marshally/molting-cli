@@ -1,0 +1,25 @@
+"""Client code that uses person.get_manager() delegation."""
+
+from person import Person
+
+
+def get_manager_name(person: Person):
+    """Get the name of a person's manager.
+
+    Currently uses the get_manager() delegation method,
+    which should be removed in favor of direct access.
+    """
+    manager = person.get_manager()
+    return manager
+
+
+def print_org_structure(person: Person):
+    """Print organizational structure for a person."""
+    print(f"Employee: {person.get_name()}")
+    print(f"Department: {person.department.get_name()}")
+    print(f"Manager: {person.get_manager()}")
+
+
+def check_if_manager(person: Person, potential_manager):
+    """Check if potential_manager is person's actual manager."""
+    return person.get_manager() == potential_manager

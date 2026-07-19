@@ -47,8 +47,11 @@ class RenameMethodCommand(BaseCommand):
     def execute(self) -> None:
         """Apply rename-method refactoring.
 
+        Renames the method definition (if present in this file) and all call sites.
+        This supports both single-file and multi-file refactoring scenarios.
+
         Raises:
-            ValueError: If method not found or target format is invalid
+            ValueError: If target format is invalid
         """
         target = self.params["target"]
         new_name = self.params["new_name"]
@@ -57,10 +60,7 @@ class RenameMethodCommand(BaseCommand):
 
         # Read the source file
         source = self.file_path.read_text()
-
-        # Verify method exists
-        if f"def {method_name}" not in source:
-            raise ValueError(f"Method '{method_name}' not found in {self.file_path}")
+        result = source
 
         # Use regex to replace all method calls and definitions
         # This handles:
@@ -69,16 +69,17 @@ class RenameMethodCommand(BaseCommand):
         # 3. Method calls with variables: var.method_name(
         # 4. Method calls with attributes: obj.attr.method_name(
 
-        # Replace method definition
+        # Replace method definition (if it exists in this file)
         pattern = rf"\bdef {re.escape(method_name)}\("
-        result = re.sub(pattern, f"def {new_name}(", source)
+        result = re.sub(pattern, f"def {new_name}(", result)
 
         # Replace all method calls with dot notation
         pattern = rf"\.{re.escape(method_name)}\("
         result = re.sub(pattern, f".{new_name}(", result)
 
-        # Write the updated source back
-        self.file_path.write_text(result)
+        # Only write if changes were made
+        if result != source:
+            self.file_path.write_text(result)
 
 
 # Register the command

@@ -10,6 +10,12 @@ from molting.core.ast_utils import find_self_field_assignment, is_self_attribute
 from molting.core.code_generation_utils import create_parameter
 from molting.core.visitors import MethodConflictChecker, SelfFieldCollector
 
+# Global cache for multi-file refactoring
+# Maps (source_class, method_name) -> (param_mapping, target_class_field, method_node)
+_METHOD_INFO_CACHE: dict[
+    tuple[str, str], tuple[dict[str, str], str | None, cst.FunctionDef | None]
+] = {}
+
 
 class MoveMethodCommand(BaseCommand):
     """Move a method from one class to another when it better belongs elsewhere.
@@ -88,37 +94,155 @@ class MoveMethodCommand(BaseCommand):
         if conflict_checker.has_conflict:
             raise ValueError(f"Class '{to_class}' already has a method named '{method_name}'")
 
-        self.apply_libcst_transform(MoveMethodTransformer, source_class, method_name, to_class)
+        # Get cached method info if available (from previous file in multi-file refactoring)
+        cache_key = (source_class, method_name)
+        cached_info = _METHOD_INFO_CACHE.get(cache_key)
+        param_mapping = cached_info[0] if cached_info else {}
+        target_class_field = cached_info[1] if cached_info else None
+        cached_method = cached_info[2] if cached_info else None
+
+        self.apply_libcst_transform(
+            MoveMethodTransformer,
+            source_class,
+            method_name,
+            to_class,
+            param_mapping,
+            target_class_field,
+            cached_method,
+        )
+
+
+class DelegationFieldFinder(cst.CSTVisitor):
+    """Finds the field used for delegation (self.field.something patterns)."""
+
+    def __init__(self) -> None:
+        """Initialize the finder."""
+        self.delegation_field: str | None = None
+
+    def visit_Attribute(self, node: cst.Attribute) -> None:  # noqa: N802
+        """Look for self.field.something patterns."""
+        # Check if this is self.field.something
+        if (
+            isinstance(node.value, cst.Attribute)
+            and isinstance(node.value.value, cst.Name)
+            and node.value.value.value == "self"
+        ):
+            # This is self.<field>.<something>, so <field> is the delegation field
+            if self.delegation_field is None:
+                self.delegation_field = node.value.attr.value
 
 
 class MoveMethodTransformer(cst.CSTTransformer):
     """Transforms code by moving a method from one class to another."""
 
-    def __init__(self, source_class: str, method_name: str, target_class: str) -> None:
+    def __init__(
+        self,
+        source_class: str,
+        method_name: str,
+        target_class: str,
+        param_mapping: dict[str, str] | None = None,
+        target_class_field: str | None = None,
+        cached_method: cst.FunctionDef | None = None,
+    ) -> None:
         """Initialize the transformer.
 
         Args:
             source_class: Name of the class containing the method to move
             method_name: Name of the method to move
             target_class: Name of the class to move the method to
+            param_mapping: Pre-computed parameter mapping (for multi-file mode)
+            target_class_field: Field that holds the target class instance (for multi-file mode)
+            cached_method: Cached method definition (for multi-file mode)
         """
         self.source_class = source_class
         self.method_name = method_name
         self.target_class = target_class
-        self.method_to_move: cst.FunctionDef | None = None
-        self.target_class_field: str | None = None
+        self.method_to_move: cst.FunctionDef | None = cached_method
+        self.target_class_field = target_class_field
+        self.source_class_found = False
+        self.target_class_found = False
+        self._param_mapping: dict[str, str] = param_mapping or {}
 
     def leave_ClassDef(  # noqa: N802
         self, original_node: cst.ClassDef, updated_node: cst.ClassDef
     ) -> cst.ClassDef:
         """Process class definitions to move the method."""
         if original_node.name.value == self.source_class:
+            self.source_class_found = True
             return self._process_source_class(updated_node)
 
         if original_node.name.value == self.target_class:
+            self.target_class_found = True
             return self._process_target_class(updated_node)
 
         return updated_node
+
+    def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:  # noqa: N802
+        """Update call sites if this is a call to the moved method."""
+        # Only update call sites if we're not in the source or target class
+        # (those are handled by the class-level transformers)
+        if not self.source_class_found and not self.target_class_found:
+            return self._update_call_site(original_node, updated_node)
+        return updated_node
+
+    def _update_call_site(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
+        """Update a call site to use the moved method.
+
+        Transforms: source_var.method_name(target_var, ...)
+        To: target_var.method_name(source_var.field1, source_var.field2, ...)
+
+        Args:
+            original_node: The original call node
+            updated_node: The updated call node
+
+        Returns:
+            The transformed call node, or the original if not a match
+        """
+        # Check if this is a call to our method
+        if not isinstance(updated_node.func, cst.Attribute):
+            return updated_node
+
+        if updated_node.func.attr.value != self.method_name:
+            return updated_node
+
+        # We need param_mapping to know what fields to pass
+        if not self._param_mapping:
+            return updated_node
+
+        # Extract the caller (e.g., 'customer' from 'customer.calculate_discount(order)')
+        caller = updated_node.func.value
+
+        # Extract the first argument (e.g., 'order' from 'customer.calculate_discount(order)')
+        if not updated_node.args or len(updated_node.args) == 0:
+            return updated_node
+
+        first_arg = updated_node.args[0].value
+
+        # Build new arguments: source_var.field for each field in param_mapping
+        new_args = []
+        for field_name in self._param_mapping.keys():
+            new_arg = cst.Arg(
+                value=cst.Attribute(
+                    value=caller,
+                    attr=cst.Name(field_name),
+                )
+            )
+            new_args.append(new_arg)
+
+        # Add remaining arguments (if any)
+        if len(updated_node.args) > 1:
+            new_args.extend(updated_node.args[1:])
+
+        # Create the new call: target_var.method_name(new_args)
+        new_call = updated_node.with_changes(
+            func=cst.Attribute(
+                value=first_arg,
+                attr=cst.Name(self.method_name),
+            ),
+            args=new_args,
+        )
+
+        return new_call
 
     def _process_source_class(self, node: cst.ClassDef) -> cst.ClassDef:
         """Process the source class to find and replace the method.
@@ -139,15 +263,23 @@ class MoveMethodTransformer(cst.CSTTransformer):
                 self.target_class_field = self._find_target_class_field(node)
                 # Pre-compute parameter mapping for use in delegation method
                 self._param_mapping = self._compute_param_mapping(item)
+
+                # Cache method info for multi-file refactoring
+                cache_key = (self.source_class, self.method_name)
+                _METHOD_INFO_CACHE[cache_key] = (
+                    self._param_mapping,
+                    self.target_class_field,
+                    self.method_to_move,
+                )
+
                 delegation_method = self._create_delegation_method(item)
                 updated_class_members.append(delegation_method)
             else:
                 updated_class_members.append(item)
 
         if not method_found:
-            raise ValueError(
-                f"Method '{self.method_name}' not found in class '{self.source_class}'"
-            )
+            # In multi-file mode, the source class might not be in this file
+            return node
 
         return node.with_changes(body=node.body.with_changes(body=tuple(updated_class_members)))
 
@@ -174,22 +306,31 @@ class MoveMethodTransformer(cst.CSTTransformer):
     def _find_target_class_field(self, node: cst.ClassDef) -> str | None:
         """Find the field that references the target class.
 
+        This looks for a field that is used as a delegation target in the method,
+        i.e., self.field.something patterns.
+
         Args:
             node: The source class definition
 
         Returns:
             The field name that holds the target class instance, or None if not found
         """
-        for item in node.body.body:
-            if isinstance(item, cst.FunctionDef) and item.name.value == "__init__":
-                return self._extract_field_from_init(item)
-        return None
+        # Look for self.field.something patterns in the method
+        if self.method_to_move is None:
+            return None
+        delegation_finder = DelegationFieldFinder()
+        self.method_to_move.visit(delegation_finder)
 
-    def _extract_field_from_init(self, init_method: cst.FunctionDef) -> str | None:
+        return delegation_finder.delegation_field
+
+    def _extract_field_from_init(
+        self, init_method: cst.FunctionDef, exclude_fields: list[str]
+    ) -> str | None:
         """Extract the field name from __init__ that holds the target class.
 
         Args:
             init_method: The __init__ method definition
+            exclude_fields: Fields that are being passed as parameters (not the target field)
 
         Returns:
             The field name, or None if not found
@@ -199,6 +340,9 @@ class MoveMethodTransformer(cst.CSTTransformer):
                 result = find_self_field_assignment(stmt)
                 if result:
                     field_name, value = result
+                    # Skip fields that will be passed as parameters
+                    if field_name in exclude_fields:
+                        continue
                     # Only return fields that are assigned from a parameter (Name node)
                     if isinstance(value, cst.Name):
                         return field_name
@@ -239,19 +383,33 @@ class MoveMethodTransformer(cst.CSTTransformer):
             for param in params_to_pass
         ]
 
-        if self.target_class_field is None:
+        # Determine whether the target object is a field or a parameter
+        # Check if the first parameter (after self) exists - if so, it's likely the target object
+        target_param_name = None
+        if original_method.params and len(original_method.params.params) > 1:
+            target_param_name = original_method.params.params[1].name.value
+
+        # If there's a target class field, use it; otherwise use the parameter
+        delegation_target: cst.BaseExpression
+        if self.target_class_field:
+            # Target is a field: self.account_type.method(args)
+            delegation_target = cst.Attribute(
+                value=cst.Name("self"),
+                attr=cst.Name(self.target_class_field),
+            )
+        elif target_param_name:
+            # Target is a parameter: order.method(args)
+            delegation_target = cst.Name(target_param_name)
+        else:
             raise ValueError(
-                f"Could not find field referencing target class '{self.target_class}' "
+                f"Could not find field or parameter referencing target class '{self.target_class}' "
                 f"in source class '{self.source_class}'"
             )
 
         delegation_call = cst.Return(
             value=cst.Call(
                 func=cst.Attribute(
-                    value=cst.Attribute(
-                        value=cst.Name("self"),
-                        attr=cst.Name(self.target_class_field),
-                    ),
+                    value=delegation_target,
                     attr=cst.Name(self.method_name),
                 ),
                 args=args,
@@ -271,10 +429,11 @@ class MoveMethodTransformer(cst.CSTTransformer):
                         break
 
         # Build delegation body
-        # If method has decorators, keep the docstring in the delegation method
-        # If method has no decorators, docstring will move to the moved method
+        # Keep the docstring if:
+        # 1. Method has decorators, OR
+        # 2. Target is a parameter (not a field) - multi-file case
         delegation_body_stmts = []
-        if original_method.decorators and docstring_stmt:
+        if docstring_stmt and (original_method.decorators or not self.target_class_field):
             delegation_body_stmts.append(docstring_stmt)
         delegation_body_stmts.append(cst.SimpleStatementLine(body=[delegation_call]))
 
@@ -342,7 +501,14 @@ class MoveMethodTransformer(cst.CSTTransformer):
             param_mapping[param_name] = clean_name
             new_params.append(create_parameter(clean_name))
 
-        body_transformer = SelfReferenceReplacer(param_mapping, self.target_class_field)
+        # Get the name of the first parameter (after self) - this is the target object
+        target_param_name = None
+        if self.method_to_move.params and len(self.method_to_move.params.params) > 1:
+            target_param_name = self.method_to_move.params.params[1].name.value
+
+        body_transformer = SelfReferenceReplacer(
+            param_mapping, self.target_class_field, target_param_name
+        )
         transformed_body = self.method_to_move.body.visit(body_transformer)
 
         # If method has decorators, remove docstring from moved method
@@ -362,12 +528,15 @@ class SelfReferenceReplacer(cst.CSTTransformer):
         self,
         field_mapping: dict[str, str] | list[str],
         target_class_field: str | None = None,
+        target_param_name: str | None = None,
     ) -> None:
         """Initialize the replacer.
 
         Args:
             field_mapping: Dict mapping field names to parameter names, or list of field names
             target_class_field: The field that holds the target class (to be replaced with self)
+            target_param_name: The name of the parameter that holds the target object
+                             (references to this should be replaced with self)
         """
         # Support both dict and list for backward compatibility
         if isinstance(field_mapping, dict):
@@ -377,11 +546,13 @@ class SelfReferenceReplacer(cst.CSTTransformer):
             self.field_mapping = {name: name for name in field_mapping}
             self.fields_to_replace = field_mapping
         self.target_class_field = target_class_field
+        self.target_param_name = target_param_name
 
     def leave_Attribute(  # noqa: N802
         self, original_node: cst.Attribute, updated_node: cst.Attribute
     ) -> cst.Attribute | cst.Name:
         """Replace self.field with parameter name or self.target_field.x with self.x."""
+        # Replace self.account_type.x with self.x
         if (
             isinstance(updated_node.value, cst.Attribute)
             and isinstance(updated_node.value.value, cst.Name)
@@ -390,6 +561,15 @@ class SelfReferenceReplacer(cst.CSTTransformer):
         ):
             return cst.Attribute(value=cst.Name("self"), attr=updated_node.attr)
 
+        # Replace order.x with self.x (where order is the first parameter)
+        if (
+            self.target_param_name
+            and isinstance(updated_node.value, cst.Name)
+            and updated_node.value.value == self.target_param_name
+        ):
+            return cst.Attribute(value=cst.Name("self"), attr=updated_node.attr)
+
+        # Replace self.field with parameter name
         if is_self_attribute(updated_node):
             field_name = updated_node.attr.value
             if field_name in self.field_mapping:

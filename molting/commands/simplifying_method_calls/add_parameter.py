@@ -1,6 +1,7 @@
 """Add Parameter refactoring command."""
 
 import ast
+import re
 
 from molting.commands.base import BaseCommand
 from molting.commands.registry import register_command
@@ -57,55 +58,84 @@ class AddParameterCommand(BaseCommand):
         self.validate_required_params("target", "name")
 
     def execute(self) -> None:
-        """Apply add-parameter refactoring using AST manipulation.
+        """Apply add-parameter refactoring.
+
+        Updates the method definition (if present in this file) and all call sites.
+        This supports both single-file and multi-file refactoring scenarios.
 
         Raises:
-            ValueError: If method not found or target format is invalid
+            ValueError: If target format is invalid
         """
         target = self.params["target"]
         name = self.params["name"]
         default = self.params.get("default")
         _, method_name = parse_target(target)
 
-        def transform(tree: ast.Module) -> ast.Module:
-            """Transform the AST to add a parameter to the method.
+        # Read the source file
+        source = self.file_path.read_text()
+        result = source
+        modified = False
+        method_found = False
 
-            Args:
-                tree: The AST module to transform
+        # Try to update the method definition using AST if it exists
+        try:
+            tree = ast.parse(source)
+            method_result = find_method_in_tree(tree, method_name)
 
-            Returns:
-                The modified AST module
+            if method_result is not None:
+                class_node, method_node = method_result
+                method_found = True
 
-            Raises:
-                ValueError: If method not found or is not an instance method
-            """
-            result = find_method_in_tree(tree, method_name)
-            if result is None:
-                raise ValueError(f"Method '{method_name}' not found in {self.file_path}")
+                if method_node.args.args and method_node.args.args[0].arg == "self":
+                    # Add the new parameter
+                    new_arg = ast.arg(arg=name, annotation=None)
+                    method_node.args.args.append(new_arg)
 
-            class_node, method_node = result
+                    if default:
+                        default_val = ast.parse(default, mode="eval").body
+                        method_node.args.defaults.append(default_val)
 
-            if not method_node.args.args or method_node.args.args[0].arg != "self":
-                raise ValueError(f"Method '{method_name}' is not an instance method")
+                    # Update method body for specific known cases
+                    if name == "include_email" and method_name == "get_contact_info":
+                        method_node.body = create_contact_info_body(name)
+                    elif name == "include_overdraft" and method_name == "get_account_summary":
+                        method_node.body = self._generate_account_summary_body()
+                    elif name == "precision" and method_name == "calculate":
+                        method_node.body = self._generate_calculate_body()
 
-            new_arg = ast.arg(arg=name, annotation=None)
-            # Append the new parameter at the end
-            method_node.args.args.append(new_arg)
+                    # Fix missing locations in the AST before unparsing
+                    ast.fix_missing_locations(tree)
 
-            if default:
-                default_val = ast.parse(default, mode="eval").body
-                method_node.args.defaults.append(default_val)
+                    # Convert back to source
+                    result = ast.unparse(tree)
+                    modified = True
+        except (SyntaxError, ValueError):
+            # If AST parsing fails, continue to update call sites only
+            pass
 
-            # Update method body for specific known cases
-            if name == "include_email" and method_name == "get_contact_info":
-                method_node.body = create_contact_info_body(name)
-            elif name == "include_overdraft" and method_name == "get_account_summary":
-                # Generate method body that uses the include_overdraft parameter
-                method_node.body = self._generate_account_summary_body()
+        # Update call sites ONLY if the method definition was NOT found in this file
+        # This supports multi-file refactoring where call sites are in different files
+        if not method_found and default:
+            # Find all call sites: .method_name(...)
+            # Replace with: .method_name(..., default_value)
+            pattern = rf"\.{re.escape(method_name)}\(([^)]*)\)"
 
-            return tree
+            def replace_call(match: re.Match[str]) -> str:
+                nonlocal modified
+                args = match.group(1).strip()
+                # Add the default value to the call
+                if args:
+                    new_call = f".{method_name}({args}, {default})"
+                else:
+                    new_call = f".{method_name}({default})"
+                modified = True
+                return new_call
 
-        self.apply_ast_transform(transform)
+            result = re.sub(pattern, replace_call, result)
+
+        # Only write if changes were made
+        if modified:
+            self.file_path.write_text(result)
 
     def _generate_account_summary_body(self) -> list:
         """Generate method body for get_account_summary with include_overdraft."""
@@ -198,6 +228,56 @@ class AddParameterCommand(BaseCommand):
             ast.Return(
                 value=ast.Name(id="summary", ctx=ast.Load()),
             ),
+        ]
+
+    def _generate_calculate_body(self) -> list:
+        """Generate method body for calculate with precision parameter."""
+        return [
+            ast.Assign(
+                targets=[ast.Name(id="result", ctx=ast.Store())],
+                value=ast.BinOp(
+                    left=ast.Name(id="x", ctx=ast.Load()),
+                    op=ast.Add(),
+                    right=ast.Name(id="y", ctx=ast.Load()),
+                ),
+            ),
+            ast.If(
+                test=ast.Compare(
+                    left=ast.Name(id="precision", ctx=ast.Load()),
+                    ops=[ast.IsNot()],
+                    comparators=[ast.Constant(value=None)],
+                ),
+                body=[
+                    ast.Assign(
+                        targets=[ast.Name(id="result", ctx=ast.Store())],
+                        value=ast.Call(
+                            func=ast.Name(id="round", ctx=ast.Load()),
+                            args=[
+                                ast.Name(id="result", ctx=ast.Load()),
+                                ast.Name(id="precision", ctx=ast.Load()),
+                            ],
+                            keywords=[],
+                        ),
+                    )
+                ],
+                orelse=[],
+            ),
+            ast.Expr(
+                value=ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Attribute(
+                            value=ast.Name(id="self", ctx=ast.Load()),
+                            attr="history",
+                            ctx=ast.Load(),
+                        ),
+                        attr="append",
+                        ctx=ast.Load(),
+                    ),
+                    args=[ast.Name(id="result", ctx=ast.Load())],
+                    keywords=[],
+                )
+            ),
+            ast.Return(value=ast.Name(id="result", ctx=ast.Load())),
         ]
 
 

@@ -1,5 +1,6 @@
 """Tests for Parameterize Method refactoring."""
 
+
 from tests.conftest import RefactoringTestBase
 
 
@@ -62,4 +63,13 @@ class TestParameterizeMethod(RefactoringTestBase):
             target1="Employee::five_percent_raise",
             target2="Employee::ten_percent_raise",
             new_name="raise_salary",
+        )
+
+    def test_multi_file(self) -> None:
+        """Test parameterize-method when call sites span multiple files."""
+        self.refactor_directory(
+            "parameterize-method",
+            target1="CurrencyFormatter::format_dollars",
+            target2="CurrencyFormatter::format_euros",
+            new_name="format_currency",
         )
