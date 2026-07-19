@@ -24,11 +24,11 @@
 ### Testing
 - Always write tests for new refactoring commands
 - Use test-driven development (TDD) approach
-- Run `pytest` before committing
+- Run `uv run pytest` before committing
 - Maintain test coverage for all refactoring patterns
 
 ### Code Style
-- Run `black` and `ruff` before committing
+- Run `uv run black` and `uv run ruff` before committing
 - Follow existing patterns in `molting/commands/` for new commands
 - Use type hints throughout
 - Update docs when changing behavior
@@ -110,7 +110,7 @@ molting-cli/
 
 ### MCP Server (Recommended)
 Use the beads MCP server for native function calls instead of shell commands:
-- Install: `pip install beads-mcp`
+- Install: `uv tool install beads-mcp`
 - Functions: `mcp__beads__ready()`, `mcp__beads__create()`, etc.
 
 ### Key Documentation

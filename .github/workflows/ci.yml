@@ -14,47 +14,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        id: setup-python
-        uses: actions/setup-python@v5
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
+          version: "0.11.29"
           python-version: "3.11"
-          cache: 'pip'
+          enable-cache: true
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: 1.7.1
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          installer-parallel: true
-
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-
-
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
-
-      - name: Install project
-        run: poetry install --no-interaction
+      - name: Sync project
+        run: uv sync --locked
 
       - name: Check formatting with black
-        run: poetry run black --check .
+        run: uv run --locked black --check .
 
       - name: Lint with ruff
-        run: poetry run ruff check .
+        run: uv run --locked ruff check .
 
       - name: Type check with mypy
         run: |
           # Run mypy on source code, excluding test fixtures
-          poetry run mypy molting/ --exclude 'tests/fixtures/'
+          uv run --locked mypy molting/ --exclude 'tests/fixtures/'
 
   test:
     name: Test (Python ${{ matrix.python-version }})
@@ -68,39 +47,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        id: setup-python
-        uses: actions/setup-python@v5
+      - name: Install uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
+          version: "0.11.29"
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
+          enable-cache: true
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: 1.7.1
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          installer-parallel: true
-
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            venv-${{ runner.os }}-${{ matrix.python-version }}-
-
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
-
-      - name: Install project
-        run: poetry install --no-interaction
+      - name: Sync project
+        run: uv sync --locked
 
       - name: Run tests with pytest
-        run: poetry run pytest -v --cov=molting --cov-report=xml --cov-report=term
+        run: uv run --locked pytest -v --cov=molting --cov-report=xml --cov-report=term
 
       - name: Upload coverage to artifacts
         if: matrix.python-version == '3.11'
