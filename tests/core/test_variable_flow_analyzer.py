@@ -8,7 +8,7 @@ from molting.core.variable_flow_analyzer import VariableFlowAnalyzer
 class TestVariableFlowAnalyzer:
     """Test suite for VariableFlowAnalyzer."""
 
-    def test_get_reads_in_range_simple(self):
+    def test_get_reads_in_range_simple(self) -> None:
         """Test detecting variable reads in a line range."""
         code = """
 def process(param):
@@ -25,7 +25,7 @@ def process(param):
         reads = analyzer.get_reads_in_range(4, 4)
         assert set(reads) == {"x", "param"}
 
-    def test_get_reads_in_range_multiple_lines(self):
+    def test_get_reads_in_range_multiple_lines(self) -> None:
         """Test detecting variable reads across multiple lines."""
         code = """
 def calculate():
@@ -43,7 +43,7 @@ def calculate():
         reads = analyzer.get_reads_in_range(5, 6)
         assert set(reads) == {"a", "b", "c"}
 
-    def test_get_writes_in_range_simple(self):
+    def test_get_writes_in_range_simple(self) -> None:
         """Test detecting variable writes in a line range."""
         code = """
 def process():
@@ -60,7 +60,7 @@ def process():
         writes = analyzer.get_writes_in_range(3, 3)
         assert writes == ["x"]
 
-    def test_get_writes_in_range_multiple(self):
+    def test_get_writes_in_range_multiple(self) -> None:
         """Test detecting multiple variable writes."""
         code = """
 def process():
@@ -77,7 +77,7 @@ def process():
         writes = analyzer.get_writes_in_range(3, 4)
         assert set(writes) == {"x", "y"}
 
-    def test_get_inputs_for_region_read_before_write(self):
+    def test_get_inputs_for_region_read_before_write(self) -> None:
         """Test identifying inputs (variables read before written in region)."""
         code = """
 def process(param):
@@ -95,7 +95,7 @@ def process(param):
         inputs = analyzer.get_inputs_for_region(4, 5)
         assert set(inputs) == {"x", "param"}
 
-    def test_get_inputs_for_region_no_external_deps(self):
+    def test_get_inputs_for_region_no_external_deps(self) -> None:
         """Test region with no external dependencies."""
         code = """
 def process():
@@ -112,7 +112,7 @@ def process():
         inputs = analyzer.get_inputs_for_region(3, 4)
         assert inputs == []
 
-    def test_get_outputs_from_region_used_later(self):
+    def test_get_outputs_from_region_used_later(self) -> None:
         """Test identifying outputs (variables written and used after region)."""
         code = """
 def process():
@@ -131,7 +131,7 @@ def process():
         outputs = analyzer.get_outputs_from_region(3, 5)
         assert outputs == ["z"]
 
-    def test_get_outputs_from_region_no_usage_after(self):
+    def test_get_outputs_from_region_no_usage_after(self) -> None:
         """Test region where no variables are used after."""
         code = """
 def process():
